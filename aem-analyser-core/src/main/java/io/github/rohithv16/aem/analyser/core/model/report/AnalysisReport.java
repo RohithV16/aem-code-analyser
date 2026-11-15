@@ -42,4 +42,8 @@ public record AnalysisReport(Path projectRoot,
     public long countBySeverity(Severity severity) {
         return violations.stream().filter(v -> v.severity() == severity).count();
     }
+
+    public AnalysisReport withViolations(List<Violation> newViolations) {
+        return new AnalysisReport(projectRoot, scanStatistics, newViolations, durationMillis, coverageReport, codeMetrics);
+    }
 }

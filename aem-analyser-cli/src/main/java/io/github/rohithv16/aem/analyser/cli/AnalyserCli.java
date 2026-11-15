@@ -10,8 +10,11 @@ import io.github.rohithv16.aem.analyser.core.export.HtmlReportExporter;
 import io.github.rohithv16.aem.analyser.core.export.ReportFormat;
 import io.github.rohithv16.aem.analyser.core.export.SarifReportExporter;
 import io.github.rohithv16.aem.analyser.core.export.SonarReportExporter;
+import io.github.rohithv16.aem.analyser.core.fix.AutoFixEngine;
+import io.github.rohithv16.aem.analyser.core.git.GitDiffResolver;
 import io.github.rohithv16.aem.analyser.core.model.report.AnalysisReport;
 import io.github.rohithv16.aem.analyser.core.model.report.Severity;
+import io.github.rohithv16.aem.analyser.core.model.report.Violation;
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
@@ -107,6 +110,26 @@ public class AnalyserCli implements Runnable {
             description = "SonarJava ruleset filter (default: 'default', or comma-separated rule IDs e.g. S106,S1147).")
     private String sonarRules;
 
+    @Option(names = {"--changed-only"},
+            description = "Scan only files and lines modified in Git.")
+    private boolean changedOnly;
+
+    @Option(names = {"--since"},
+            description = "Git reference or commit to compare changes against (e.g. HEAD~1, origin/main). Implies --changed-only.")
+    private String since;
+
+    @Option(names = {"--fix"},
+            description = "Automatically fix safe, deterministic code smells (e.g. duplicate imports, redundant boolean literals, StandardCharsets).")
+    private boolean fix;
+
+    @Option(names = {"--fix-dry-run"},
+            description = "Preview automated code smell fixes without writing changes to disk.")
+    private boolean fixDryRun;
+
+    @Option(names = {"--fail-on"},
+            description = "Fail build if violations at or above severity exist: ERROR, WARNING, INFO.")
+    private String failOn;
+
     boolean isSonar() {
         return sonar;
     }
@@ -141,6 +164,37 @@ public class AnalyserCli implements Runnable {
             }
 
             AnalysisReport report = new DefaultAemCodeAnalyser().analyze(builder.build());
+
+            if (changedOnly || (since != null && !since.isBlank())) {
+                GitDiffResolver gitDiffResolver = new GitDiffResolver();
+                var diffResult = gitDiffResolver.resolveChanged(root, since);
+                if (diffResult.isGitRepo()) {
+                    stdout.println(String.format("[INFO] Git-diff filtering active (%d changed file(s) found); scoping violations to changed files and lines.",
+                            diffResult.changedFiles().size()));
+                    List<Violation> filtered = report.violations().stream()
+                            .filter(v -> diffResult.matches(v.filePath(), v.region() != null ? v.region().startLine() : 0))
+                            .toList();
+                    report = report.withViolations(filtered);
+                } else {
+                    stdout.println("[INFO] Directory is not a git repository or git command failed; proceeding with full scan.");
+                }
+            }
+
+            if (fix || fixDryRun) {
+                AutoFixEngine fixEngine = new AutoFixEngine();
+                var fixSummary = fixEngine.fix(root, report.violations(), fixDryRun);
+                if (fixSummary.hasFixes()) {
+                    stdout.println(String.format("[INFO] %s %d issue(s) across %d file(s):",
+                            fixDryRun ? "Auto-fix dry-run: would repair" : "Auto-fix successfully repaired",
+                            fixSummary.fixesApplied(), fixSummary.filesModified()));
+                    for (var r : fixSummary.records()) {
+                        stdout.println("  - [" + r.ruleId() + "] " + r.filePath() + ": " + r.description());
+                    }
+                } else {
+                    stdout.println("[INFO] No auto-fixable code smells detected in target files.");
+                }
+            }
+
             export(report);
             System.exit(exitCode(report));
         } catch (AnalysisException e) {
@@ -482,6 +536,14 @@ public class AnalyserCli implements Runnable {
 
         if (errors > 0 || qualityGateFailed) {
             return 1;
+        }
+        if (failOn != null && !failOn.isBlank()) {
+            String target = failOn.trim().toUpperCase(Locale.ROOT);
+            if ("WARNING".equals(target) && warnings > 0) {
+                return 1;
+            } else if ("INFO".equals(target) && (warnings > 0 || report.countBySeverity(Severity.INFO) > 0)) {
+                return 1;
+            }
         }
         if (failOnWarning && warnings > 0) {
             return 1;

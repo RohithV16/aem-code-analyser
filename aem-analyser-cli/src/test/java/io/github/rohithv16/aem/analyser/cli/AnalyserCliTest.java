@@ -118,4 +118,20 @@ class AnalyserCliTest {
         cmd.parseArgs("--no-sonar");
         assertTrue(cli.isNoSonar(), "noSonar flag should be true when --no-sonar passed");
     }
+
+    @Test
+    void testNewEnterpriseCliOptionsRegistered() {
+        AnalyserCli cli = new AnalyserCli();
+        CommandLine cmd = new CommandLine(cli);
+
+        StringWriter sw = new StringWriter();
+        cmd.usage(new PrintWriter(sw));
+        String usage = sw.toString();
+
+        assertTrue(usage.contains("--changed-only"), "Usage should include --changed-only");
+        assertTrue(usage.contains("--since"), "Usage should include --since");
+        assertTrue(usage.contains("--fix"), "Usage should include --fix");
+        assertTrue(usage.contains("--fix-dry-run"), "Usage should include --fix-dry-run");
+        assertTrue(usage.contains("--fail-on"), "Usage should include --fail-on");
+    }
 }

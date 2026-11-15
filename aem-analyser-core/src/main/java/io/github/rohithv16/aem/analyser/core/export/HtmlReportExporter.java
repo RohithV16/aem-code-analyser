@@ -1,7 +1,6 @@
 package io.github.rohithv16.aem.analyser.core.export;
 
 import io.github.rohithv16.aem.analyser.core.model.report.AnalysisReport;
-import io.github.rohithv16.aem.analyser.core.model.report.RuleId;
 import io.github.rohithv16.aem.analyser.core.model.report.Severity;
 import io.github.rohithv16.aem.analyser.core.model.report.Violation;
 
@@ -12,6 +11,8 @@ import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * Generates an executive-ready, standalone, offline interactive HTML dashboard.
@@ -38,7 +39,7 @@ public final class HtmlReportExporter implements ReportExporter {
     }
 
     public String generateHtml(AnalysisReport report) {
-        StringBuilder sb = new StringBuilder(16384);
+        StringBuilder sb = new StringBuilder(32768);
 
         long errors = report.countBySeverity(Severity.ERROR);
         long warnings = report.countBySeverity(Severity.WARNING);
@@ -46,7 +47,7 @@ public final class HtmlReportExporter implements ReportExporter {
         long totalViolations = report.violations().size();
 
         String statusBadgeClass = errors > 0 ? "badge-danger" : (warnings > 0 ? "badge-warning" : "badge-success");
-        String statusText = errors > 0 ? "FAILED (" + errors + " Errors)" : (warnings > 0 ? "PASSED WITH WARNINGS" : "PASSED");
+        String statusText = errors > 0 ? "QUALITY GATE FAILED (" + errors + " Errors)" : (warnings > 0 ? "PASSED WITH WARNINGS" : "QUALITY GATE PASSED");
 
         List<Violation> sortedViolations = report.violations().stream()
                 .sorted(Comparator.comparingInt((Violation v) -> switch (v.severity()) {
@@ -57,10 +58,13 @@ public final class HtmlReportExporter implements ReportExporter {
                         .thenComparingInt(v -> v.region().startLine()))
                 .toList();
 
+        Map<String, Long> categoryCounts = report.violations().stream()
+                .collect(Collectors.groupingBy(v -> getRuleCategory(v.ruleId()), Collectors.counting()));
+
         sb.append("<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n");
         sb.append("<meta charset=\"UTF-8\">\n");
         sb.append("<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n");
-        sb.append("<title>AEM Code Analyser — Architecture & Quality Report</title>\n");
+        sb.append("<title>AEM Code Analyser — Enterprise Quality Dashboard</title>\n");
         sb.append("<style>\n");
         sb.append("""
                 :root {
@@ -70,6 +74,7 @@ public final class HtmlReportExporter implements ReportExporter {
                     --text-secondary: #475569;
                     --border: #e2e8f0;
                     --accent: #2563eb;
+                    --accent-light: #eff6ff;
                     --danger: #dc2626;
                     --danger-bg: #fef2f2;
                     --danger-border: #fecaca;
@@ -89,12 +94,12 @@ public final class HtmlReportExporter implements ReportExporter {
                 header { display: flex; justify-content: space-between; align-items: center; background: var(--bg-card); padding: 1.5rem 2rem; border-radius: 12px; border: 1px solid var(--border); box-shadow: 0 1px 3px rgba(0,0,0,0.05); margin-bottom: 1.5rem; }
                 .header-title h1 { font-size: 1.5rem; font-weight: 700; color: #1e293b; display: flex; align-items: center; gap: 0.5rem; }
                 .header-title p { color: var(--text-secondary); font-size: 0.875rem; margin-top: 0.25rem; }
-                .status-badge { padding: 0.5rem 1rem; border-radius: 9999px; font-weight: 600; font-size: 0.875rem; text-transform: uppercase; letter-spacing: 0.05em; }
+                .status-badge { padding: 0.5rem 1rem; border-radius: 9999px; font-weight: 700; font-size: 0.875rem; text-transform: uppercase; letter-spacing: 0.05em; }
                 .badge-danger { background: var(--danger-bg); color: var(--danger); border: 1px solid var(--danger-border); }
                 .badge-warning { background: var(--warning-bg); color: var(--warning); border: 1px solid var(--warning-border); }
                 .badge-success { background: var(--success-bg); color: var(--success); border: 1px solid var(--success-border); }
                 
-                .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
+                .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
                 .kpi-card { background: var(--bg-card); padding: 1.25rem; border-radius: 10px; border: 1px solid var(--border); box-shadow: 0 1px 2px rgba(0,0,0,0.04); }
                 .kpi-card .label { font-size: 0.75rem; font-weight: 600; text-transform: uppercase; color: var(--text-secondary); letter-spacing: 0.05em; }
                 .kpi-card .value { font-size: 1.75rem; font-weight: 700; margin-top: 0.25rem; }
@@ -103,6 +108,14 @@ public final class HtmlReportExporter implements ReportExporter {
                 .kpi-card.info .value { color: var(--info); }
                 .kpi-card.cov .value { color: #0d9488; }
                 .kpi-card.dup .value { color: #7c3aed; }
+
+                .nav-tabs { display: flex; gap: 0.5rem; margin-bottom: 1.5rem; border-bottom: 1px solid var(--border); padding-bottom: 0.5rem; }
+                .tab-btn { padding: 0.6rem 1.2rem; border-radius: 8px; font-weight: 600; font-size: 0.875rem; border: 1px solid transparent; background: transparent; cursor: pointer; color: var(--text-secondary); transition: all 0.2s ease; }
+                .tab-btn:hover { background: #e2e8f0; color: var(--text-primary); }
+                .tab-btn.active { background: var(--accent); color: #fff; }
+
+                .tab-content { display: none; }
+                .tab-content.active { display: block; }
                 
                 .section { background: var(--bg-card); border-radius: 12px; border: 1px solid var(--border); box-shadow: 0 1px 3px rgba(0,0,0,0.05); margin-bottom: 1.5rem; overflow: hidden; }
                 .section-header { padding: 1rem 1.5rem; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; background: #fafafa; }
@@ -135,6 +148,11 @@ public final class HtmlReportExporter implements ReportExporter {
                 .stat-box ul { list-style: none; }
                 .stat-box li { display: flex; justify-content: space-between; padding: 0.25rem 0; font-size: 0.875rem; border-bottom: 1px dashed var(--border); }
                 .stat-box li:last-child { border-bottom: none; }
+                
+                .chart-bar-container { margin-top: 0.5rem; background: #e2e8f0; border-radius: 9999px; height: 12px; overflow: hidden; display: flex; }
+                .chart-bar-err { background: var(--danger); }
+                .chart-bar-warn { background: var(--warning); }
+                .chart-bar-info { background: var(--info); }
                 
                 footer { text-align: center; color: var(--text-secondary); font-size: 0.8125rem; margin-top: 2rem; }
                 """);
@@ -177,14 +195,24 @@ public final class HtmlReportExporter implements ReportExporter {
                     .append(String.format("%,d / %,d lines", cov.coveredLines(), cov.totalLines()))
                     .append("</div>\n  </div>\n");
         } else {
-            sb.append("  <div class=\"kpi-card\">\n    <div class=\"label\">Test Coverage</div>\n    <div class=\"value\" style=\"font-size:1.1rem;color:var(--text-secondary);margin-top:0.5rem;\">N/A</div>\n    <div style=\"font-size:0.75rem;color:var(--text-secondary);margin-top:2px;\">Run mvn test first</div>\n  </div>\n");
+            sb.append("  <div class=\"kpi-card\">\n    <div class=\"label\">Test Coverage</div>\n    <div class=\"value\" style=\"font-size:1.1rem;color:var(--text-secondary);margin-top:0.5rem;\">N/A</div>\n    <div style=\"font-size:0.75rem;color:var(--text-secondary);margin-top:2px;\">Run with --collect-coverage</div>\n  </div>\n");
         }
         sb.append("</div>\n");
 
-        // Violations Section
+        // Navigation Tabs
+        sb.append("<div class=\"nav-tabs\">\n");
+        sb.append("  <button class=\"tab-btn active\" data-tab=\"tab-violations\">Violations Explorer (").append(totalViolations).append(")</button>\n");
+        sb.append("  <button class=\"tab-btn\" data-tab=\"tab-overview\">Overview & Topology</button>\n");
+        sb.append("  <button class=\"tab-btn\" data-tab=\"tab-duplication\">Duplication Breakdown</button>\n");
+        sb.append("  <button class=\"tab-btn\" data-tab=\"tab-coverage\">Test Coverage</button>\n");
+        sb.append("  <button class=\"tab-btn\" data-tab=\"tab-autofix\">Auto-Fix (--fix)</button>\n");
+        sb.append("</div>\n");
+
+        // TAB 1: VIOLATIONS
+        sb.append("<div id=\"tab-violations\" class=\"tab-content active\">\n");
         sb.append("<div class=\"section\">\n");
         sb.append("  <div class=\"section-header\">\n");
-        sb.append("    <h2>Violations (").append(totalViolations).append(")</h2>\n");
+        sb.append("    <h2>Active Violations (").append(totalViolations).append(")</h2>\n");
         sb.append("  </div>\n");
 
         // Controls
@@ -194,12 +222,12 @@ public final class HtmlReportExporter implements ReportExporter {
         sb.append("    <button class=\"filter-btn\" data-filter=\"ERROR\">Errors Only</button>\n");
         sb.append("    <button class=\"filter-btn\" data-filter=\"WARNING\">Warnings Only</button>\n");
         sb.append("    <button class=\"filter-btn\" data-filter=\"INFO\">Info Only</button>\n");
-        sb.append("    <button class=\"filter-btn\" data-category=\"PERF\">Session Leaks</button>\n");
-        sb.append("    <button class=\"filter-btn\" data-category=\"CLOUD\">Cloud Service</button>\n");
-        sb.append("    <button class=\"filter-btn\" data-category=\"SEC\">Security</button>\n");
-        sb.append("    <button class=\"filter-btn\" data-category=\"DEAD\">Dead Code</button>\n");
-        sb.append("    <button class=\"filter-btn\" data-category=\"DUP\">Duplicates</button>\n");
-        sb.append("    <button class=\"filter-btn\" data-category=\"SONAR\">Sonar Java</button>\n");
+        sb.append("    <button class=\"filter-btn\" data-category=\"PERF\">Session Leaks (").append(categoryCounts.getOrDefault("PERF", 0L)).append(")</button>\n");
+        sb.append("    <button class=\"filter-btn\" data-category=\"CLOUD\">Cloud Service (").append(categoryCounts.getOrDefault("CLOUD", 0L)).append(")</button>\n");
+        sb.append("    <button class=\"filter-btn\" data-category=\"SEC\">Security (").append(categoryCounts.getOrDefault("SEC", 0L)).append(")</button>\n");
+        sb.append("    <button class=\"filter-btn\" data-category=\"DEAD\">Dead Code (").append(categoryCounts.getOrDefault("DEAD", 0L)).append(")</button>\n");
+        sb.append("    <button class=\"filter-btn\" data-category=\"DUP\">Duplicates (").append(categoryCounts.getOrDefault("DUP", 0L)).append(")</button>\n");
+        sb.append("    <button class=\"filter-btn\" data-category=\"SONAR\">Sonar Java (").append(categoryCounts.getOrDefault("SONAR", 0L)).append(")</button>\n");
         sb.append("  </div>\n");
 
         // Table
@@ -242,35 +270,29 @@ public final class HtmlReportExporter implements ReportExporter {
                 sb.append("        </tr>\n");
             }
         }
+        sb.append("      </tbody>\n    </table>\n  </div>\n</div>\n</div>\n");
 
-        sb.append("      </tbody>\n    </table>\n  </div>\n</div>\n");
-
-        // Code Duplication Table
-        if (!dupMetrics.duplicateClasses().isEmpty()) {
-            sb.append("<div class=\"section\">\n");
-            sb.append("  <div class=\"section-header\">\n");
-            sb.append("    <h2>Duplication Breakdown by Class (").append(dupMetrics.duplicateClasses().size()).append(" Classes)</h2>\n");
-            sb.append("  </div>\n");
-            sb.append("  <div style=\"overflow-x:auto;\">\n");
-            sb.append("    <table>\n      <thead>\n        <tr>\n");
-            sb.append("          <th>Class Name</th>\n");
-            sb.append("          <th style=\"width:180px;\">Duplicate Lines</th>\n");
-            sb.append("          <th style=\"width:180px;\">Class Duplication %</th>\n");
-            sb.append("        </tr>\n      </thead>\n      <tbody>\n");
-            for (var dupClass : dupMetrics.duplicateClasses()) {
-                sb.append("        <tr>\n");
-                sb.append("          <td><code>").append(escape(dupClass.className())).append("</code></td>\n");
-                sb.append("          <td><strong>").append(dupClass.duplicatedLines()).append("</strong> lines</td>\n");
-                sb.append("          <td>").append(String.format("%.1f%%", dupClass.duplicationPercent())).append("</td>\n");
-                sb.append("        </tr>\n");
-            }
-            sb.append("      </tbody>\n    </table>\n  </div>\n</div>\n");
-        }
-
-        // Architecture & Scan Metrics
+        // TAB 2: OVERVIEW & TOPOLOGY
+        sb.append("<div id=\"tab-overview\" class=\"tab-content\">\n");
         sb.append("<div class=\"section\">\n");
-        sb.append("  <div class=\"section-header\">\n    <h2>Scan Statistics & Architecture Topology</h2>\n  </div>\n");
+        sb.append("  <div class=\"section-header\">\n    <h2>Architecture & Quality Overview</h2>\n  </div>\n");
         sb.append("  <div class=\"details-grid\">\n");
+        sb.append("    <div class=\"stat-box\">\n      <h4>Severity Distribution</h4>\n");
+        if (totalViolations > 0) {
+            double errPct = (errors * 100.0) / totalViolations;
+            double warnPct = (warnings * 100.0) / totalViolations;
+            double infoPct = (infos * 100.0) / totalViolations;
+            sb.append("      <div class=\"chart-bar-container\">\n");
+            if (errors > 0) sb.append("        <div class=\"chart-bar-err\" style=\"width:").append(errPct).append("%;\"></div>\n");
+            if (warnings > 0) sb.append("        <div class=\"chart-bar-warn\" style=\"width:").append(warnPct).append("%;\"></div>\n");
+            if (infos > 0) sb.append("        <div class=\"chart-bar-info\" style=\"width:").append(infoPct).append("%;\"></div>\n");
+            sb.append("      </div>\n");
+        }
+        sb.append("      <ul style=\"margin-top:1rem;\">\n");
+        sb.append("        <li><span>Errors</span><strong style=\"color:var(--danger);\">").append(errors).append("</strong></li>\n");
+        sb.append("        <li><span>Warnings</span><strong style=\"color:var(--warning);\">").append(warnings).append("</strong></li>\n");
+        sb.append("        <li><span>Info</span><strong style=\"color:var(--info);\">").append(infos).append("</strong></li>\n");
+        sb.append("      </ul>\n    </div>\n");
 
         sb.append("    <div class=\"stat-box\">\n      <h4>Repository Topology</h4>\n      <ul>\n");
         if (!report.scanStatistics().isEmpty()) {
@@ -285,20 +307,70 @@ public final class HtmlReportExporter implements ReportExporter {
         sb.append("        <li><span>Duplicate Method Blocks</span><strong>").append(dupMetrics.totalMethodBlocks()).append("</strong></li>\n");
         sb.append("        <li><span>Total Duplicated Lines</span><strong>").append(dupMetrics.duplicatedLines()).append("</strong></li>\n");
         sb.append("      </ul>\n    </div>\n");
+        sb.append("  </div>\n</div>\n</div>\n");
 
+        // TAB 3: DUPLICATION
+        sb.append("<div id=\"tab-duplication\" class=\"tab-content\">\n");
+        sb.append("<div class=\"section\">\n");
+        sb.append("  <div class=\"section-header\">\n");
+        sb.append("    <h2>PMD CPD Duplication Breakdown (").append(dupMetrics.duplicateClasses().size()).append(" Classes)</h2>\n");
+        sb.append("  </div>\n");
+        sb.append("  <div style=\"overflow-x:auto;\">\n");
+        sb.append("    <table>\n      <thead>\n        <tr>\n");
+        sb.append("          <th>Class Name</th>\n");
+        sb.append("          <th style=\"width:180px;\">Duplicate Lines</th>\n");
+        sb.append("          <th style=\"width:180px;\">Class Duplication %</th>\n");
+        sb.append("        </tr>\n      </thead>\n      <tbody>\n");
+        if (dupMetrics.duplicateClasses().isEmpty()) {
+            sb.append("        <tr><td colspan=\"3\" style=\"text-align:center;padding:2rem;color:var(--success);\">Zero duplicated code clones detected!</td></tr>\n");
+        } else {
+            for (var dupClass : dupMetrics.duplicateClasses()) {
+                sb.append("        <tr>\n");
+                sb.append("          <td><code>").append(escape(dupClass.className())).append("</code></td>\n");
+                sb.append("          <td><strong>").append(dupClass.duplicatedLines()).append("</strong> lines</td>\n");
+                sb.append("          <td>").append(String.format("%.1f%%", dupClass.duplicationPercent())).append("</td>\n");
+                sb.append("        </tr>\n");
+            }
+        }
+        sb.append("      </tbody>\n    </table>\n  </div>\n</div>\n</div>\n");
+
+        // TAB 4: COVERAGE
+        sb.append("<div id=\"tab-coverage\" class=\"tab-content\">\n");
+        sb.append("<div class=\"section\">\n");
+        sb.append("  <div class=\"section-header\">\n    <h2>JaCoCo Test Coverage Status</h2>\n  </div>\n");
+        sb.append("  <div class=\"details-grid\">\n");
         if (cov != null && cov.present()) {
-            sb.append("    <div class=\"stat-box\">\n      <h4>Test Coverage Metrics</h4>\n      <ul>\n");
+            sb.append("    <div class=\"stat-box\">\n      <h4>Coverage Summary</h4>\n      <ul>\n");
             sb.append("        <li><span>Line Coverage</span><strong>").append(String.format("%.1f%%", cov.lineCoveragePercent())).append("</strong></li>\n");
             sb.append("        <li><span>Covered / Total Lines</span><strong>").append(cov.coveredLines()).append(" / ").append(cov.totalLines()).append("</strong></li>\n");
             sb.append("        <li><span>Branch Coverage</span><strong>").append(String.format("%.1f%%", cov.branchCoveragePercent())).append("</strong></li>\n");
             sb.append("        <li><span>Covered / Total Branches</span><strong>").append(cov.coveredBranches()).append(" / ").append(cov.totalBranches()).append("</strong></li>\n");
             if (cov.sourcePath() != null) {
-                sb.append("        <li><span>Coverage Source</span><strong style=\"font-size:0.75rem;\">").append(escape(cov.sourcePath())).append("</strong></li>\n");
+                sb.append("        <li><span>Report File</span><strong style=\"font-size:0.75rem;\">").append(escape(cov.sourcePath())).append("</strong></li>\n");
             }
             sb.append("      </ul>\n    </div>\n");
+        } else {
+            sb.append("    <div class=\"stat-box\" style=\"grid-column: 1 / -1; padding: 2rem; text-align: center;\">\n");
+            sb.append("      <p style=\"color:var(--text-secondary);font-size:1rem;\">No JaCoCo coverage file was detected in standard target directories.<br>Run with <code>--collect-coverage</code> to execute unit tests and generate coverage artifacts automatically.</p>\n");
+            sb.append("    </div>\n");
         }
+        sb.append("  </div>\n</div>\n</div>\n");
 
-        sb.append("  </div>\n</div>\n");
+        // TAB 5: AUTO-FIX
+        sb.append("<div id=\"tab-autofix\" class=\"tab-content\">\n");
+        sb.append("<div class=\"section\">\n");
+        sb.append("  <div class=\"section-header\">\n    <h2>Safe Automated Remediation Engine (--fix)</h2>\n  </div>\n");
+        sb.append("  <div style=\"padding:1.5rem;\">\n");
+        sb.append("    <p style=\"margin-bottom:1rem;color:var(--text-secondary);\">The analyzer includes an integrated auto-fix engine capable of safely resolving deterministic code smells in place:</p>\n");
+        sb.append("    <ul style=\"margin-left:1.5rem;color:var(--text-primary);line-height:1.8;\">\n");
+        sb.append("      <li><strong>java:S1128 (Duplicate Imports):</strong> Automatically detects and removes redundant duplicate import statements while preserving package and class layout.</li>\n");
+        sb.append("      <li><strong>java:S1125 (Boolean Literals):</strong> Cleans up redundant <code>== true</code> and <code>== false</code> comparisons.</li>\n");
+        sb.append("      <li><strong>java:S4719 (StandardCharsets):</strong> Replaces literal <code>\"UTF-8\"</code> in <code>.getBytes()</code> with <code>StandardCharsets.UTF_8</code> and inserts necessary imports.</li>\n");
+        sb.append("    </ul>\n");
+        sb.append("    <div style=\"margin-top:1.5rem;background:#f1f5f9;padding:1rem;border-radius:8px;border-left:4px solid var(--accent);\">\n");
+        sb.append("      <p>💡 <strong>Usage:</strong> Run <code>aem-analyser --fix</code> to apply safe repairs, or <code>aem-analyser --fix-dry-run</code> to preview changes without modifying files.</p>\n");
+        sb.append("    </div>\n");
+        sb.append("  </div>\n</div>\n</div>\n");
 
         // Footer
         sb.append("<footer>\n");
@@ -312,9 +384,23 @@ public final class HtmlReportExporter implements ReportExporter {
                     const searchInput = document.getElementById('searchInput');
                     const filterButtons = document.querySelectorAll('.filter-btn');
                     const rows = document.querySelectorAll('.violation-row');
+                    const tabButtons = document.querySelectorAll('.tab-btn');
+                    const tabContents = document.querySelectorAll('.tab-content');
                     let activeFilter = 'all';
                     let activeCategory = null;
 
+                    // Tab Switching
+                    tabButtons.forEach(btn => {
+                        btn.addEventListener('click', function() {
+                            tabButtons.forEach(b => b.classList.remove('active'));
+                            tabContents.forEach(c => c.classList.remove('active'));
+                            this.classList.add('active');
+                            const target = document.getElementById(this.dataset.tab);
+                            if (target) target.classList.add('active');
+                        });
+                    });
+
+                    // Search & Filtering
                     function filterTable() {
                         const query = searchInput.value.toLowerCase().trim();
                         rows.forEach(row => {

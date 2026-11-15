@@ -21,6 +21,7 @@ public final class SonarRuleRegistry {
         register(org.sonar.java.checks.SystemOutOrErrUsageCheck::new); // S106
         register(org.sonar.java.checks.unused.UnusedPrivateMethodCheck::new); // S1144
         register(org.sonar.java.checks.unused.UnusedMethodParameterCheck::new); // S1172
+        register(org.sonar.java.checks.unused.UnusedLocalVariableCheck::new); // S1481
         register(org.sonar.java.checks.EmptyMethodsCheck::new); // S1186
         register(org.sonar.java.checks.UtilityClassWithPublicConstructorCheck::new); // S1118
         register(org.sonar.java.checks.naming.BadConstantNameCheck::new); // S115
@@ -37,6 +38,13 @@ public final class SonarRuleRegistry {
         register(io.github.rohithv16.aem.analyser.core.sonar.checks.DuplicateImportCheck::new); // S1128
         register(org.sonar.java.checks.IdenticalCasesInSwitchCheck::new); // S1871
         register(org.sonar.java.checks.RawTypeCheck::new); // S3740
+        register(org.sonar.java.checks.CollectionIsEmptyCheck::new); // S1155
+        register(org.sonar.java.checks.BooleanLiteralCheck::new); // S1125
+        register(org.sonar.java.checks.ReturnOfBooleanExpressionsCheck::new); // S1126
+        register(org.sonar.java.checks.ImmediatelyReturnedVariableCheck::new); // S1488
+        register(org.sonar.java.checks.StandardCharsetsConstantsCheck::new); // S4719
+        register(org.sonar.java.checks.ArrayDesignatorOnVariableCheck::new); // S1197
+        register(org.sonar.java.checks.NonShortCircuitLogicCheck::new); // S2178
 
         // Concurrency & multithreading
         register(org.sonar.java.checks.InterruptedExceptionCheck::new); // S2142
@@ -55,9 +63,16 @@ public final class SonarRuleRegistry {
         register(org.sonar.java.checks.NullShouldNotBeUsedWithOptionalCheck::new); // S2789
         register(org.sonar.java.checks.ReturnEmptyArrayNotNullCheck::new); // S1168
         register(org.sonar.java.checks.NullCheckWithInstanceofCheck::new); // S4201
+        register(org.sonar.java.checks.CatchUsesExceptionWithContextCheck::new); // S1166
+        register(org.sonar.java.checks.LoggedRethrownExceptionsCheck::new); // S2139
+        register(org.sonar.java.checks.CatchOfThrowableOrErrorCheck::new); // S1181
+        register(org.sonar.java.checks.NestedTryCatchCheck::new); // S1141
+        register(org.sonar.java.checks.RedundantThrowsDeclarationCheck::new); // S1130
 
         // Security smells
         register(org.sonar.java.checks.WeakSSLContextCheck::new); // S4423
+        register(org.sonar.java.checks.HardCodedSecretCheck::new); // S6418
+        register(org.sonar.java.checks.AccessibilityChangeCheck::new); // S3011
     }
 
     private static void register(Supplier<JavaFileScanner> supplier) {
