@@ -52,6 +52,9 @@ Run audits directly from the command line on any AEM repository:
 # Basic run with colored console output
 java -jar aem-analyser-cli/target/aem-analyser-cli.jar --project-root /path/to/aem-project
 
+# Collect fresh JaCoCo test code coverage dynamically (zero POM changes required)
+java -jar aem-analyser-cli/target/aem-analyser-cli.jar --project-root /path/to/aem-project --collect-coverage
+
 # Break build on warnings as well as errors
 java -jar aem-analyser-cli/target/aem-analyser-cli.jar --project-root /path/to/aem-project --fail-on-warning
 

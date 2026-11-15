@@ -69,12 +69,19 @@ public class AnalyserCli implements Runnable {
             description = "Service implementation class names to whitelist (never flagged unused).")
     private Set<String> ignoredServices;
 
+    @Option(names = {"--collect-coverage"},
+            description = "Automatically execute unit tests with dynamic JaCoCo instrumentation to generate fresh coverage reports (zero POM configuration required).")
+    private boolean collectCoverage;
+
     private final PrintWriter stdout = new PrintWriter(System.out, true, StandardCharsets.UTF_8);
 
     @Override
     public void run() {
         try {
             Path root = resolveProjectRoot();
+            if (collectCoverage) {
+                runCoverageCollection(root);
+            }
             AnalysisContext.Builder builder = AnalysisContext.builder(root);
             if (profiles != null && !profiles.isEmpty()) {
                 builder.activeProfiles(profiles);
@@ -145,6 +152,49 @@ public class AnalyserCli implements Runnable {
                 : Path.of("target/aem-analyser");
         Path resolved = Files.createDirectories(target.toAbsolutePath().normalize());
         return resolved.resolve(fileName);
+    }
+
+    private void runCoverageCollection(Path root) {
+        stdout.println("[INFO] Dynamic JaCoCo enabled: executing unit tests to collect test code coverage...");
+        List<String> cmd = resolveMavenCommand(root);
+        try {
+            ProcessBuilder pb = new ProcessBuilder(cmd);
+            pb.directory(root.toFile());
+            pb.inheritIO();
+            Process process = pb.start();
+            int exitCode = process.waitFor();
+            if (exitCode != 0) {
+                stdout.println("[WARNING] Maven test execution returned code " + exitCode + "; continuing analysis with available artifacts.");
+            } else {
+                stdout.println("[INFO] Test coverage collected successfully.");
+            }
+        } catch (IOException e) {
+            stdout.println("[WARNING] Unable to run Maven to collect coverage: " + e.getMessage());
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            stdout.println("[WARNING] Coverage collection interrupted.");
+        }
+    }
+
+    private List<String> resolveMavenCommand(Path root) {
+        boolean isWindows = System.getProperty("os.name", "").toLowerCase(Locale.ROOT).contains("win");
+        Path mvnw = root.resolve(isWindows ? "mvnw.cmd" : "mvnw");
+        String cmd;
+        if (Files.isExecutable(mvnw)) {
+            cmd = mvnw.toAbsolutePath().toString();
+        } else {
+            cmd = isWindows ? "mvn.cmd" : "mvn";
+        }
+        List<String> command = new ArrayList<>();
+        command.add(cmd);
+        command.add("org.jacoco:jacoco-maven-plugin:0.8.12:prepare-agent");
+        command.add("test");
+        command.add("org.jacoco:jacoco-maven-plugin:0.8.12:report");
+        command.add("-Dmaven.test.failure.ignore=true");
+        if (profiles != null && !profiles.isEmpty()) {
+            command.add("-P" + String.join(",", profiles));
+        }
+        return command;
     }
 
     int exitCode(AnalysisReport report) {
