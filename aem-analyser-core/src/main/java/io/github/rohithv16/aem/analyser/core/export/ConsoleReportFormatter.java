@@ -7,6 +7,7 @@ import io.github.rohithv16.aem.analyser.core.model.report.Violation;
 
 import java.io.IOException;
 import java.io.Writer;
+import java.util.Comparator;
 import java.util.List;
 
 /**
@@ -42,12 +43,66 @@ public final class ConsoleReportFormatter implements ReportExporter {
         StringBuilder sb = new StringBuilder(4096);
         String line = "=".repeat(80);
         String div = "-".repeat(80);
+
+        // Header
         sb.append(line).append('\n');
         sb.append(" AEM CODE ANALYSER - CROSS-BOUNDARY QUALITY REPORT\n");
         sb.append(line).append('\n');
         sb.append(" Project Root: ").append(report.projectRoot()).append('\n');
-        report.scanStatistics().forEach((key, value) ->
-                sb.append(' ').append(capitalize(key)).append(": ").append(value).append('\n'));
+        sb.append(line).append('\n').append('\n');
+
+        // 1. Violations first (sorted: ERROR -> WARNING -> INFO)
+        List<Violation> sortedViolations = report.violations().stream()
+                .sorted(Comparator.comparingInt((Violation v) -> switch (v.severity()) {
+                    case ERROR -> 1;
+                    case WARNING -> 2;
+                    case INFO -> 3;
+                }).thenComparing(Violation::filePath)
+                        .thenComparingInt(v -> v.region().startLine()))
+                .toList();
+
+        if (sortedViolations.isEmpty()) {
+            sb.append(" No cross-boundary violations detected.\n\n");
+        } else {
+            String reset = colorEnabled ? ANSI_RESET : "";
+            for (Violation violation : sortedViolations) {
+                String color = color(violation.severity());
+                sb.append(color).append('[').append(violation.severity()).append(']').append(reset);
+                sb.append(' ').append(color).append(violation.ruleId()).append(reset);
+                sb.append(": ").append(ruleTitle(violation.ruleId())).append('\n');
+                if (violation.subtype() != null) {
+                    sb.append("  Subtype: ").append(violation.subtype()).append('\n');
+                }
+                sb.append("  File: ").append(violation.filePath())
+                        .append(':').append(violation.region().startLine())
+                        .append(':').append(violation.region().startColumn()).append('\n');
+                violation.targetPidOpt().ifPresent(pid ->
+                        sb.append("  Target PID: ").append(pid).append('\n'));
+                sb.append("  ").append(violation.message()).append('\n');
+                violation.remediationOpt().ifPresent(r ->
+                        sb.append("  Remediation: ").append(r).append('\n'));
+                if (!violation.relatedLocations().isEmpty()) {
+                    sb.append("  Related:\n");
+                    violation.relatedLocations().forEach(related ->
+                            sb.append("    - ").append(related.filePath())
+                                    .append(':').append(related.region().startLine())
+                                    .append("  (").append(related.message())
+                                    .append(")\n"));
+                }
+                sb.append('\n');
+            }
+        }
+
+        // 2. Scan Summary & Metrics at the end
+        sb.append(line).append('\n');
+        sb.append(" SCAN SUMMARY & METRICS\n");
+        sb.append(line).append('\n');
+
+        if (!report.scanStatistics().isEmpty()) {
+            sb.append(" Scan Statistics:\n");
+            report.scanStatistics().forEach((key, value) ->
+                    sb.append("  ").append(capitalize(key)).append(": ").append(value).append('\n'));
+        }
 
         // Code Metrics & Coverage section
         sb.append(div).append('\n');
@@ -59,15 +114,9 @@ public final class ConsoleReportFormatter implements ReportExporter {
                 metrics.duplicatedLines(), metrics.duplicationPercent(), metrics.totalMethodBlocks()));
         if (!metrics.duplicateClasses().isEmpty()) {
             sb.append("                      Classes with duplicate code:\n");
-            int limit = 5;
-            for (int i = 0; i < Math.min(limit, metrics.duplicateClasses().size()); i++) {
-                var dupClass = metrics.duplicateClasses().get(i);
+            for (var dupClass : metrics.duplicateClasses()) {
                 sb.append(String.format("                       - %s: %,d dup lines (%.1f%% of class)\n",
                         dupClass.className(), dupClass.duplicatedLines(), dupClass.duplicationPercent()));
-            }
-            if (metrics.duplicateClasses().size() > limit) {
-                sb.append(String.format("                       ... and %,d more classes (see AEM-DUP-010 violations below)\n",
-                        metrics.duplicateClasses().size() - limit));
             }
         }
 
@@ -93,34 +142,7 @@ public final class ConsoleReportFormatter implements ReportExporter {
                 .append(infos).append(" Infos)\n");
         sb.append(" Execution Time: ").append(String.format("%.3f", report.durationMillis() / 1000.0))
                 .append(" s\n");
-        sb.append(line).append('\n').append('\n');
-
-        for (Violation violation : report.violations()) {
-            String color = color(violation.severity());
-            sb.append(color).append('[').append(violation.severity()).append(']').append(ANSI_RESET);
-            sb.append(' ').append(color).append(violation.ruleId()).append(ANSI_RESET);
-            sb.append(": ").append(ruleTitle(violation.ruleId())).append('\n');
-            if (violation.subtype() != null) {
-                sb.append("  Subtype: ").append(violation.subtype()).append('\n');
-            }
-            sb.append("  File: ").append(violation.filePath())
-                    .append(':').append(violation.region().startLine())
-                    .append(':').append(violation.region().startColumn()).append('\n');
-            violation.targetPidOpt().ifPresent(pid ->
-                    sb.append("  Target PID: ").append(pid).append('\n'));
-            sb.append("  ").append(violation.message()).append('\n');
-            violation.remediationOpt().ifPresent(r ->
-                    sb.append("  Remediation: ").append(r).append('\n'));
-            if (!violation.relatedLocations().isEmpty()) {
-                sb.append("  Related:\n");
-                violation.relatedLocations().forEach(related ->
-                        sb.append("    - ").append(related.filePath())
-                                .append(':').append(related.region().startLine())
-                                .append("  (").append(related.message())
-                                .append(")\n"));
-            }
-            sb.append('\n');
-        }
+        sb.append(line).append('\n');
 
         if (report.violations().isEmpty()) {
             sb.append(colorEnabled ? ANSI_GREEN : "");
