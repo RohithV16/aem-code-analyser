@@ -19,6 +19,11 @@
             <name>GitHub Packages</name>
             <url>https://maven.pkg.github.com/rohithv16/aem-code-analyser</url>
         </repository>
+        <snapshotRepository>
+            <id>github</id>
+            <name>GitHub Packages Snapshots</name>
+            <url>https://maven.pkg.github.com/rohithv16/aem-code-analyser</url>
+        </snapshotRepository>
     </distributionManagement>
 
     <modules>

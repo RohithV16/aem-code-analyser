@@ -1,0 +1,151 @@
+name: Release AEM Code Analyser
+
+on:
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: "Version bump"
+        required: true
+        default: "patch"
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          server-id: github
+          settings-path: ${{ github.workspace }}
+
+      - name: Bump version in POMs
+        id: bump
+        shell: bash
+        run: |
+          NEW_VERSION=$(python3 -c "
+          import xml.etree.ElementTree as ET
+          import sys
+
+          tree = ET.parse('pom.xml')
+          ns = {'m': 'http://maven.apache.org/POM/4.0.0'}
+          root = tree.getroot()
+          v_elem = root.find('m:version', ns)
+          raw_v = v_elem.text.strip().replace('-SNAPSHOT', '')
+          parts = [int(p) for p in raw_v.split('.') if p.isdigit()]
+          while len(parts) < 3:
+              parts.append(0)
+
+          bump = '${{ inputs.bump }}'.lower()
+          if bump == 'major':
+              parts[0] += 1
+              parts[1] = 0
+              parts[2] = 0
+          elif bump == 'minor':
+              parts[1] += 1
+              parts[2] = 0
+          elif bump == 'patch':
+              parts[2] += 1
+          else:
+              sys.exit(f'Unknown bump type: {bump}')
+
+          print(f'{parts[0]}.{parts[1]}.{parts[2]}')
+          ")
+          mvn versions:set -DnewVersion="${NEW_VERSION}" -DgenerateBackupPoms=false
+          echo "version=${NEW_VERSION}" >> "$GITHUB_OUTPUT"
+          echo "tag=v${NEW_VERSION}" >> "$GITHUB_OUTPUT"
+
+      - name: Build and package
+        run: mvn clean package --batch-mode
+
+      - name: Generate Checksums
+        shell: bash
+        run: |
+          cd aem-analyser-cli/target
+          sha256sum aem-analyser-cli.jar > SHA256SUMS.txt
+
+      - name: Commit version bump and push tag
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add pom.xml **/pom.xml
+          git commit -m "chore: release ${{ steps.bump.outputs.tag }} [skip ci]"
+          git tag -f "${{ steps.bump.outputs.tag }}"
+          git push origin "HEAD:${{ github.ref_name }}"
+          git push origin "refs/tags/${{ steps.bump.outputs.tag }}" --force
+
+      - name: Publish to GitHub Packages
+        run: mvn deploy -DskipTests -s ${{ github.workspace }}/settings.xml
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.bump.outputs.tag }}
+          name: AEM Code Analyser ${{ steps.bump.outputs.tag }}
+          generate_release_notes: true
+          files: |
+            aem-analyser-cli/target/aem-analyser-cli.jar
+            aem-analyser-cli/target/SHA256SUMS.txt
+          body: |
+            ### AEM Code Analyser ${{ steps.bump.outputs.tag }}
+
+            Dead code detection engine for Adobe Experience Manager (Phase 1: Java & OSGi Configurations).
+
+            #### 📦 CLI Standalone Binary
+            Download `aem-analyser-cli.jar` attached below and run:
+            ```bash
+            java -jar aem-analyser-cli.jar --project-root /path/to/aem-project
+            ```
+
+            Verify integrity:
+            ```bash
+            sha256sum -c SHA256SUMS.txt
+            ```
+
+            #### 🧩 Maven Plugin Integration
+            Add the GitHub Packages plugin repository and plugin definition to your project's `pom.xml`:
+
+            ```xml
+            <pluginRepositories>
+                <pluginRepository>
+                    <id>github</id>
+                    <name>GitHub Packages</name>
+                    <url>https://maven.pkg.github.com/RohithV16/aem-code-analyser</url>
+                </pluginRepository>
+            </pluginRepositories>
+            ```
+
+            ```xml
+            <plugin>
+                <groupId>io.github.rohithv16</groupId>
+                <artifactId>aem-analyser-maven-plugin</artifactId>
+                <version>${{ steps.bump.outputs.version }}</version>
+                <executions>
+                    <execution>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>check</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            ```
