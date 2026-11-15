@@ -50,6 +50,8 @@ public final class JavaSourceParser {
     private final SlingModelVisitor slingModelVisitor = new SlingModelVisitor();
     private final io.github.rohithv16.aem.analyser.core.parser.java.visitor.CodeBlockVisitor codeBlockVisitor =
             new io.github.rohithv16.aem.analyser.core.parser.java.visitor.CodeBlockVisitor();
+    private final io.github.rohithv16.aem.analyser.core.parser.java.visitor.ResourceLeakVisitor leakVisitor =
+            new io.github.rohithv16.aem.analyser.core.parser.java.visitor.ResourceLeakVisitor();
 
     public JavaSourceParseResult parse(Path filePath) {
         CompilationUnit cu;
@@ -158,11 +160,13 @@ public final class JavaSourceParser {
         }
 
         List<CodeBlockSnapshot> codeBlocks = codeBlockVisitor.extract(cu, filePath, packageName);
+        var leakResult = leakVisitor.analyze(cu, filePath);
         int lineCount = cu.getRange().map(r -> r.end.line).orElse(0);
 
         return new JavaSourceParseResult(filePath.toAbsolutePath().normalize(), packageName,
                 javaClasses, components, ocds, slingModels, pendingConsumptions,
-                pendingServiceInjections, pendingAdaptTo, exportedPackages, codeBlocks, administrativeCalls, lineCount);
+                pendingServiceInjections, pendingAdaptTo, exportedPackages, codeBlocks, administrativeCalls,
+                leakResult.leakFindings(), leakResult.traversalFindings(), lineCount);
     }
 
     private List<PendingConsumption> extractConsumptions(String fqn,

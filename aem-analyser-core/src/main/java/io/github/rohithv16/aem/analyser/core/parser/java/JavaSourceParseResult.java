@@ -4,6 +4,8 @@ import io.github.rohithv16.aem.analyser.core.model.graph.node.JavaClassNode;
 import io.github.rohithv16.aem.analyser.core.model.graph.node.OSGiComponentNode;
 import io.github.rohithv16.aem.analyser.core.model.graph.node.OSGiOcdNode;
 import io.github.rohithv16.aem.analyser.core.model.graph.node.SlingModelNode;
+import io.github.rohithv16.aem.analyser.core.model.perf.QueryTraversalFinding;
+import io.github.rohithv16.aem.analyser.core.model.perf.ResourceLeakFinding;
 
 import java.nio.file.Path;
 import java.util.List;
@@ -26,7 +28,28 @@ public record JavaSourceParseResult(
         Set<String> exportedPackages,
         List<CodeBlockSnapshot> codeBlocks,
         List<AdministrativeCall> administrativeCalls,
+        List<ResourceLeakFinding> resourceLeaks,
+        List<QueryTraversalFinding> queryTraversals,
         int lineCount) {
+
+    public JavaSourceParseResult(
+            Path filePath,
+            String packageName,
+            List<JavaClassNode> javaClasses,
+            List<OSGiComponentNode> components,
+            List<OSGiOcdNode> ocds,
+            List<SlingModelNode> slingModels,
+            List<PendingConsumption> pendingConsumptions,
+            List<PendingServiceInjection> pendingServiceInjections,
+            List<PendingAdaptTo> pendingAdaptTo,
+            Set<String> exportedPackages,
+            List<CodeBlockSnapshot> codeBlocks,
+            List<AdministrativeCall> administrativeCalls,
+            int lineCount) {
+        this(filePath, packageName, javaClasses, components, ocds, slingModels,
+                pendingConsumptions, pendingServiceInjections, pendingAdaptTo, exportedPackages,
+                codeBlocks, administrativeCalls, List.of(), List.of(), lineCount);
+    }
 
     public JavaSourceParseResult(
             Path filePath,
@@ -42,7 +65,7 @@ public record JavaSourceParseResult(
             List<CodeBlockSnapshot> codeBlocks,
             int lineCount) {
         this(filePath, packageName, javaClasses, components, ocds, slingModels,
-                pendingConsumptions, pendingServiceInjections, pendingAdaptTo, exportedPackages, codeBlocks, List.of(), lineCount);
+                pendingConsumptions, pendingServiceInjections, pendingAdaptTo, exportedPackages, codeBlocks, List.of(), List.of(), List.of(), lineCount);
     }
 
     public JavaSourceParseResult(
@@ -57,7 +80,7 @@ public record JavaSourceParseResult(
             List<PendingAdaptTo> pendingAdaptTo,
             Set<String> exportedPackages) {
         this(filePath, packageName, javaClasses, components, ocds, slingModels,
-                pendingConsumptions, pendingServiceInjections, pendingAdaptTo, exportedPackages, List.of(), List.of(), 0);
+                pendingConsumptions, pendingServiceInjections, pendingAdaptTo, exportedPackages, List.of(), List.of(), List.of(), List.of(), 0);
     }
 
     public JavaSourceParseResult {
@@ -71,5 +94,7 @@ public record JavaSourceParseResult(
         exportedPackages = Set.copyOf(exportedPackages == null ? Set.of() : exportedPackages);
         codeBlocks = List.copyOf(codeBlocks == null ? List.of() : codeBlocks);
         administrativeCalls = List.copyOf(administrativeCalls == null ? List.of() : administrativeCalls);
+        resourceLeaks = List.copyOf(resourceLeaks == null ? List.of() : resourceLeaks);
+        queryTraversals = List.copyOf(queryTraversals == null ? List.of() : queryTraversals);
     }
 }

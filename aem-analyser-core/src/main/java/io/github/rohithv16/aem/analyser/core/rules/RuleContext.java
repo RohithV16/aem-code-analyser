@@ -59,6 +59,14 @@ public record RuleContext(ReferenceGraph graph,
         return buildResult.administrativeCalls() == null ? List.of() : buildResult.administrativeCalls();
     }
 
+    public List<io.github.rohithv16.aem.analyser.core.model.perf.ResourceLeakFinding> resourceLeaks() {
+        return buildResult.resourceLeaks() == null ? List.of() : buildResult.resourceLeaks();
+    }
+
+    public List<io.github.rohithv16.aem.analyser.core.model.perf.QueryTraversalFinding> queryTraversals() {
+        return buildResult.queryTraversals() == null ? List.of() : buildResult.queryTraversals();
+    }
+
     public ReferenceGraphIndex index() {
         return graph.getIndex();
     }

@@ -284,16 +284,20 @@ public final class ReferenceGraphBuilder {
         }
         var sealed = graph.seal();
 
-        // Collect code blocks for clone analysis & administrative API calls
+        // Collect code blocks for clone analysis, administrative API calls, and resource leaks
         List<io.github.rohithv16.aem.analyser.core.parser.java.CodeBlockSnapshot> allCodeBlocks = new ArrayList<>();
         List<io.github.rohithv16.aem.analyser.core.parser.java.AdministrativeCall> allAdminCalls = new ArrayList<>();
+        List<io.github.rohithv16.aem.analyser.core.model.perf.ResourceLeakFinding> allLeaks = new ArrayList<>();
+        List<io.github.rohithv16.aem.analyser.core.model.perf.QueryTraversalFinding> allTraversals = new ArrayList<>();
         for (JavaSourceParseResult java : input.javaResults()) {
             allCodeBlocks.addAll(java.codeBlocks());
             allAdminCalls.addAll(java.administrativeCalls());
+            allLeaks.addAll(java.resourceLeaks());
+            allTraversals.addAll(java.queryTraversals());
         }
 
         return new GraphBuildResult(graph, unique, exportedPatterns, componentsByFqn,
-                configNodes, classNodes, modelNodes, allCodeBlocks, allAdminCalls, sealed);
+                configNodes, classNodes, modelNodes, allCodeBlocks, allAdminCalls, allLeaks, allTraversals, sealed);
     }
 
     private List<OSGiComponentNode> resolveComponentForPid(String pid,
@@ -399,7 +403,23 @@ public final class ReferenceGraphBuilder {
                                    Map<String, SlingModelNode> modelNodes,
                                    List<io.github.rohithv16.aem.analyser.core.parser.java.CodeBlockSnapshot> codeBlocks,
                                    List<io.github.rohithv16.aem.analyser.core.parser.java.AdministrativeCall> administrativeCalls,
+                                   List<io.github.rohithv16.aem.analyser.core.model.perf.ResourceLeakFinding> resourceLeaks,
+                                   List<io.github.rohithv16.aem.analyser.core.model.perf.QueryTraversalFinding> queryTraversals,
                                    org.jgrapht.Graph<PolyglotNode, PolyglotEdge> sealedGraph) {
+
+        public GraphBuildResult(ReferenceGraph graph,
+                                Set<PolyglotEdge> resolvedEdges,
+                                Set<String> exportedPatterns,
+                                Map<String, OSGiComponentNode> componentsByFqn,
+                                Map<String, OSGiConfigNode> configNodes,
+                                Map<String, JavaClassNode> classNodes,
+                                Map<String, SlingModelNode> modelNodes,
+                                List<io.github.rohithv16.aem.analyser.core.parser.java.CodeBlockSnapshot> codeBlocks,
+                                List<io.github.rohithv16.aem.analyser.core.parser.java.AdministrativeCall> administrativeCalls,
+                                org.jgrapht.Graph<PolyglotNode, PolyglotEdge> sealedGraph) {
+            this(graph, resolvedEdges, exportedPatterns, componentsByFqn, configNodes, classNodes, modelNodes,
+                    codeBlocks, administrativeCalls, List.of(), List.of(), sealedGraph);
+        }
 
         public GraphBuildResult(ReferenceGraph graph,
                                 Set<PolyglotEdge> resolvedEdges,
@@ -411,7 +431,7 @@ public final class ReferenceGraphBuilder {
                                 List<io.github.rohithv16.aem.analyser.core.parser.java.CodeBlockSnapshot> codeBlocks,
                                 org.jgrapht.Graph<PolyglotNode, PolyglotEdge> sealedGraph) {
             this(graph, resolvedEdges, exportedPatterns, componentsByFqn, configNodes, classNodes, modelNodes,
-                    codeBlocks, List.of(), sealedGraph);
+                    codeBlocks, List.of(), List.of(), List.of(), sealedGraph);
         }
     }
 }

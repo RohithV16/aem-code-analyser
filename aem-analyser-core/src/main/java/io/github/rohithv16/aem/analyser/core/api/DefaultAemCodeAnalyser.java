@@ -30,6 +30,9 @@ import io.github.rohithv16.aem.analyser.core.rules.impl.AemDup001Rule;
 import io.github.rohithv16.aem.analyser.core.rules.impl.AemDup002Rule;
 import io.github.rohithv16.aem.analyser.core.rules.impl.AemDup003Rule;
 import io.github.rohithv16.aem.analyser.core.rules.impl.AemDup010Rule;
+import io.github.rohithv16.aem.analyser.core.rules.impl.AemPerf001Rule;
+import io.github.rohithv16.aem.analyser.core.rules.impl.AemPerf002Rule;
+import io.github.rohithv16.aem.analyser.core.rules.impl.AemPerf003Rule;
 import io.github.rohithv16.aem.analyser.core.rules.impl.AemQual001Rule;
 import io.github.rohithv16.aem.analyser.core.rules.impl.AemQual002Rule;
 import io.github.rohithv16.aem.analyser.core.rules.impl.AemQual003Rule;
@@ -76,7 +79,10 @@ public final class DefaultAemCodeAnalyser implements AemCodeAnalyser {
             new AemQual002Rule(),
             new AemQual003Rule(),
             new AemQual004Rule(),
-            new AemQual005Rule());
+            new AemQual005Rule(),
+            new AemPerf001Rule(),
+            new AemPerf002Rule(),
+            new AemPerf003Rule());
 
     @Override
     public AnalysisReport analyze(AnalysisContext context) throws AnalysisException {
