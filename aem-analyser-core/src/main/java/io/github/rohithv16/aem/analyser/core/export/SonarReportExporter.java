@@ -98,7 +98,7 @@ public final class SonarReportExporter implements ReportExporter {
     }
 
     private String issueType(String ruleId) {
-        return RuleId.AEM_DEAD_001.id().equals(ruleId) ? "BUG" : "CODE_SMELL";
+        return (RuleId.AEM_DEAD_001.id().equals(ruleId) || RuleId.AEM_DUP_001.id().equals(ruleId)) ? "BUG" : "CODE_SMELL";
     }
 
     private int effortMinutes(String ruleId) {
@@ -108,6 +108,10 @@ public final class SonarReportExporter implements ReportExporter {
             case AEM_DEAD_003A -> 30;
             case AEM_DEAD_003B -> 5;
             case AEM_DEAD_003C -> 10;
+            case AEM_DUP_001 -> 20;
+            case AEM_DUP_002 -> 15;
+            case AEM_DUP_003 -> 15;
+            case AEM_DUP_010 -> 25;
         };
     }
 }

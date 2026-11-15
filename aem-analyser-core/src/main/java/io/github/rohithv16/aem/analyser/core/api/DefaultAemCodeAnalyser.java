@@ -20,6 +20,10 @@ import io.github.rohithv16.aem.analyser.core.rules.impl.AemDead002BRule;
 import io.github.rohithv16.aem.analyser.core.rules.impl.AemDead003ARule;
 import io.github.rohithv16.aem.analyser.core.rules.impl.AemDead003BRule;
 import io.github.rohithv16.aem.analyser.core.rules.impl.AemDead003CRule;
+import io.github.rohithv16.aem.analyser.core.rules.impl.AemDup001Rule;
+import io.github.rohithv16.aem.analyser.core.rules.impl.AemDup002Rule;
+import io.github.rohithv16.aem.analyser.core.rules.impl.AemDup003Rule;
+import io.github.rohithv16.aem.analyser.core.rules.impl.AemDup010Rule;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -50,7 +54,11 @@ public final class DefaultAemCodeAnalyser implements AemCodeAnalyser {
             new AemDead002BRule(),
             new AemDead003ARule(),
             new AemDead003BRule(),
-            new AemDead003CRule());
+            new AemDead003CRule(),
+            new AemDup001Rule(),
+            new AemDup002Rule(),
+            new AemDup003Rule(),
+            new AemDup010Rule());
 
     @Override
     public AnalysisReport analyze(AnalysisContext context) throws AnalysisException {
@@ -191,6 +199,7 @@ public final class DefaultAemCodeAnalyser implements AemCodeAnalyser {
         stats.put("osgiConfigs", buildResult.configNodes().size());
         stats.put("components", buildResult.componentsByFqn().size());
         stats.put("slingModels", buildResult.modelNodes().size());
+        stats.put("codeBlocks", buildResult.codeBlocks().size());
         stats.put("edges", buildResult.resolvedEdges().size());
         return stats;
     }

@@ -48,6 +48,8 @@ public final class JavaSourceParser {
     private final MetatypeOcdVisitor ocdVisitor = new MetatypeOcdVisitor();
     private final OsgiComponentVisitor componentVisitor = new OsgiComponentVisitor();
     private final SlingModelVisitor slingModelVisitor = new SlingModelVisitor();
+    private final io.github.rohithv16.aem.analyser.core.parser.java.visitor.CodeBlockVisitor codeBlockVisitor =
+            new io.github.rohithv16.aem.analyser.core.parser.java.visitor.CodeBlockVisitor();
 
     public JavaSourceParseResult parse(Path filePath) {
         CompilationUnit cu;
@@ -148,9 +150,11 @@ public final class JavaSourceParser {
             }
         }
 
+        List<CodeBlockSnapshot> codeBlocks = codeBlockVisitor.extract(cu, filePath, packageName);
+
         return new JavaSourceParseResult(filePath.toAbsolutePath().normalize(), packageName,
                 javaClasses, components, ocds, slingModels, pendingConsumptions,
-                pendingServiceInjections, pendingAdaptTo, exportedPackages);
+                pendingServiceInjections, pendingAdaptTo, exportedPackages, codeBlocks);
     }
 
     private List<PendingConsumption> extractConsumptions(String fqn,

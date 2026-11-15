@@ -117,6 +117,10 @@ public final class ConsoleReportFormatter implements ReportExporter {
             case AEM_DEAD_003A -> "Unused OSGi Service";
             case AEM_DEAD_003B -> "Unused Sling Model";
             case AEM_DEAD_003C -> "Inactive Delayed Component";
+            case AEM_DUP_001 -> "Duplicate Servlet Endpoint";
+            case AEM_DUP_002 -> "Duplicate OSGi Configuration";
+            case AEM_DUP_003 -> "Duplicate Sling Model";
+            case AEM_DUP_010 -> "Duplicate Code Block";
         };
     }
 
@@ -135,7 +139,7 @@ public final class ConsoleReportFormatter implements ReportExporter {
         if (key == null || key.isEmpty()) {
             return key;
         }
-        List<String> camel = List.of("cloudConfigs", "osgiConfigs", "slingModels");
+        List<String> camel = List.of("cloudConfigs", "osgiConfigs", "slingModels", "codeBlocks");
         if (camel.contains(key)) {
             return Character.toUpperCase(key.charAt(0)) + key.substring(1);
         }

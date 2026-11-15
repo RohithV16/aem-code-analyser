@@ -284,8 +284,14 @@ public final class ReferenceGraphBuilder {
         }
         var sealed = graph.seal();
 
+        // Collect code blocks for clone analysis
+        List<io.github.rohithv16.aem.analyser.core.parser.java.CodeBlockSnapshot> allCodeBlocks = new ArrayList<>();
+        for (JavaSourceParseResult java : input.javaResults()) {
+            allCodeBlocks.addAll(java.codeBlocks());
+        }
+
         return new GraphBuildResult(graph, unique, exportedPatterns, componentsByFqn,
-                configNodes, classNodes, modelNodes, sealed);
+                configNodes, classNodes, modelNodes, allCodeBlocks, sealed);
     }
 
     private List<OSGiComponentNode> resolveComponentForPid(String pid,
@@ -389,6 +395,7 @@ public final class ReferenceGraphBuilder {
                                    Map<String, OSGiConfigNode> configNodes,
                                    Map<String, JavaClassNode> classNodes,
                                    Map<String, SlingModelNode> modelNodes,
+                                   List<io.github.rohithv16.aem.analyser.core.parser.java.CodeBlockSnapshot> codeBlocks,
                                    org.jgrapht.Graph<PolyglotNode, PolyglotEdge> sealedGraph) {
     }
 }

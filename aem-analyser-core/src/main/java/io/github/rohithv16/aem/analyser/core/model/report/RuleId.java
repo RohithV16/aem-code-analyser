@@ -21,6 +21,18 @@ public enum RuleId {
             Severity.INFO),
     AEM_DEAD_003C("AEM-DEAD-003C", "InactiveDelayedComponent",
             "Component provides no service interfaces and immediate = false.",
+            Severity.WARNING),
+    AEM_DUP_001("AEM-DUP-001", "DuplicateServletEndpoint",
+            "Multiple OSGi servlets claim identical paths or resourceTypes/selectors/methods without ranking distinction.",
+            Severity.ERROR),
+    AEM_DUP_002("AEM-DUP-002", "DuplicateOsgiConfiguration",
+            "Conflicting or duplicate OSGi configuration targeting the same PID in the same runmode context.",
+            Severity.WARNING),
+    AEM_DUP_003("AEM-DUP-003", "DuplicateSlingModel",
+            "Multiple Sling Models bind to the exact same resourceType and adapter interface without condition.",
+            Severity.WARNING),
+    AEM_DUP_010("AEM-DUP-010", "DuplicateCodeBlock",
+            "Duplicate Java code block or method clone detected across repository classes.",
             Severity.WARNING);
 
     private final String id;

@@ -23,7 +23,23 @@ public record JavaSourceParseResult(
         List<PendingConsumption> pendingConsumptions,
         List<PendingServiceInjection> pendingServiceInjections,
         List<PendingAdaptTo> pendingAdaptTo,
-        Set<String> exportedPackages) {
+        Set<String> exportedPackages,
+        List<CodeBlockSnapshot> codeBlocks) {
+
+    public JavaSourceParseResult(
+            Path filePath,
+            String packageName,
+            List<JavaClassNode> javaClasses,
+            List<OSGiComponentNode> components,
+            List<OSGiOcdNode> ocds,
+            List<SlingModelNode> slingModels,
+            List<PendingConsumption> pendingConsumptions,
+            List<PendingServiceInjection> pendingServiceInjections,
+            List<PendingAdaptTo> pendingAdaptTo,
+            Set<String> exportedPackages) {
+        this(filePath, packageName, javaClasses, components, ocds, slingModels,
+                pendingConsumptions, pendingServiceInjections, pendingAdaptTo, exportedPackages, List.of());
+    }
 
     public JavaSourceParseResult {
         javaClasses = List.copyOf(javaClasses == null ? List.of() : javaClasses);
@@ -34,5 +50,6 @@ public record JavaSourceParseResult(
         pendingServiceInjections = List.copyOf(pendingServiceInjections == null ? List.of() : pendingServiceInjections);
         pendingAdaptTo = List.copyOf(pendingAdaptTo == null ? List.of() : pendingAdaptTo);
         exportedPackages = Set.copyOf(exportedPackages == null ? Set.of() : exportedPackages);
+        codeBlocks = List.copyOf(codeBlocks == null ? List.of() : codeBlocks);
     }
 }
