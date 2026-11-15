@@ -32,4 +32,25 @@ class AnalyserCliTest {
 
         assertEquals(tempDir.toAbsolutePath().normalize(), cli.resolveProjectRoot());
     }
+
+    @Test
+    void testFindJavaTestModulesIdentifiesOnlyJavaTestModules(@TempDir Path tempDir) throws java.io.IOException {
+        // Create root pom
+        java.nio.file.Files.writeString(tempDir.resolve("pom.xml"), "<project/>");
+
+        // Module 1: core (with src/test/java)
+        Path core = tempDir.resolve("core");
+        java.nio.file.Files.createDirectories(core.resolve("src/test/java"));
+        java.nio.file.Files.writeString(core.resolve("pom.xml"), "<project/>");
+
+        // Module 2: ui.frontend (no src/test/java)
+        Path uiFrontend = tempDir.resolve("ui.frontend");
+        java.nio.file.Files.createDirectories(uiFrontend.resolve("src/main"));
+        java.nio.file.Files.writeString(uiFrontend.resolve("pom.xml"), "<project/>");
+
+        AnalyserCli cli = new AnalyserCli();
+        java.util.List<String> modules = cli.findJavaTestModules(tempDir);
+
+        assertEquals(java.util.List.of("core"), modules, "Should only pick module containing src/test/java");
+    }
 }

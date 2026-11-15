@@ -187,14 +187,76 @@ public class AnalyserCli implements Runnable {
         }
         List<String> command = new ArrayList<>();
         command.add(cmd);
-        command.add("org.jacoco:jacoco-maven-plugin:0.8.12:prepare-agent");
-        command.add("test");
-        command.add("org.jacoco:jacoco-maven-plugin:0.8.12:report");
+        Path pomPath = root.resolve("pom.xml");
+        if (Files.isRegularFile(pomPath)) {
+            command.add("-f");
+            command.add(pomPath.toAbsolutePath().toString());
+        }
+
+        boolean hasJacoco = projectHasJacoco(root);
+        if (hasJacoco) {
+            command.add("test");
+        } else {
+            command.add("org.jacoco:jacoco-maven-plugin:0.8.12:prepare-agent");
+            command.add("test");
+            command.add("org.jacoco:jacoco-maven-plugin:0.8.12:report");
+        }
+
+        // Only build and test the Java modules that actually contain unit tests
+        List<String> testModules = findJavaTestModules(root);
+        if (!testModules.isEmpty()) {
+            command.add("-pl");
+            command.add(String.join(",", testModules));
+        }
+
         command.add("-Dmaven.test.failure.ignore=true");
+        command.add("-Dnpm.skip=true");
+        command.add("-Dfrontend.skip=true");
+        command.add("-Dskip.npm=true");
+        command.add("-Dcheckstyle.skip=true");
+        command.add("-Dspotless.check.skip=true");
+
         if (profiles != null && !profiles.isEmpty()) {
             command.add("-P" + String.join(",", profiles));
         }
         return command;
+    }
+
+    boolean projectHasJacoco(Path root) {
+        try (var stream = Files.walk(root, 4)) {
+            return stream.filter(p -> p.getFileName().toString().equals("pom.xml"))
+                    .anyMatch(pom -> {
+                        try {
+                            String content = Files.readString(pom);
+                            return content.contains("jacoco-maven-plugin");
+                        } catch (IOException e) {
+                            return false;
+                        }
+                    });
+        } catch (IOException e) {
+            return false;
+        }
+    }
+
+    List<String> findJavaTestModules(Path root) {
+        List<String> modules = new ArrayList<>();
+        try (var stream = Files.walk(root, 3)) {
+            stream.filter(p -> p.getFileName().toString().equals("pom.xml") && !p.equals(root.resolve("pom.xml")))
+                    .forEach(pom -> {
+                        Path moduleDir = pom.getParent();
+                        if (Files.isDirectory(moduleDir.resolve("src/test/java"))) {
+                            try {
+                                String rel = root.relativize(moduleDir).toString();
+                                if (!rel.isEmpty() && !modules.contains(rel)) {
+                                    modules.add(rel);
+                                }
+                            } catch (IllegalArgumentException ignored) {
+                            }
+                        }
+                    });
+        } catch (IOException ignored) {
+        }
+        return modules;
     }
 
     int exitCode(AnalysisReport report) {
