@@ -24,6 +24,11 @@ public final class DependencyBytecodeIndexer {
     private static final String COMPONENT_ANNOTATION = "Lorg/osgi/service/component/annotations/Component;";
 
     public DependencyIndex index(List<Path> jarFiles) {
+        return index(jarFiles, new io.github.rohithv16.aem.analyser.core.util.DiagnosticSink());
+    }
+
+    public DependencyIndex index(List<Path> jarFiles,
+                                 io.github.rohithv16.aem.analyser.core.util.DiagnosticSink diagnostics) {
         DependencyIndex index = new DependencyIndex();
         for (Path jar : jarFiles) {
             if (!Files.isRegularFile(jar) || !jar.getFileName().toString().toLowerCase(Locale.ROOT).endsWith(".jar")) {
@@ -39,11 +44,18 @@ public final class DependencyBytecodeIndexer {
                     try (InputStream in = jarFile.getInputStream(entry)) {
                         visitClass(in, index);
                     } catch (Exception e) {
-                        // malformed class: skip entry
+                        if (diagnostics != null) {
+                            diagnostics.add(io.github.rohithv16.aem.analyser.core.model.report.DiagnosticKind.MALFORMED_CLASS,
+                                    jar, entry.getName() + ": "
+                                            + io.github.rohithv16.aem.analyser.core.util.DiagnosticSink.reasonOf(e));
+                        }
                     }
                 }
             } catch (IOException e) {
-                // unreadable jar: skip
+                if (diagnostics != null) {
+                    diagnostics.add(io.github.rohithv16.aem.analyser.core.model.report.DiagnosticKind.DEPENDENCY_INDEX,
+                            jar, io.github.rohithv16.aem.analyser.core.util.DiagnosticSink.reasonOf(e));
+                }
             }
         }
         return index;

@@ -87,18 +87,18 @@ class SonarJavaScannerTest {
     }
 
     @Test
-    void testContentSyncBulkReplicationServletRules(@TempDir Path tempDir) throws IOException {
-        Path srcDir = tempDir.resolve("src/main/java/com/mandg/core/servlets/contentsync");
+    void testBulkServletRules(@TempDir Path tempDir) throws IOException {
+        Path srcDir = tempDir.resolve("src/main/java/com/example/servlets/shared");
         Files.createDirectories(srcDir);
-        Path javaFile = srcDir.resolve("ContentSyncBulkReplicationServlet.java");
+        Path javaFile = srcDir.resolve("BulkServlet.java");
 
         Files.writeString(javaFile,
-                "package com.mandg.core.servlets.contentsync;\n" +
+                "package com.example.core.servlets.shared;\n" +
                 "\n" +
                 "import java.util.Set;\n" +
                 "import java.util.Set;\n" +
                 "\n" +
-                "public class ContentSyncBulkReplicationServlet {\n" +
+                "public class BulkServlet {\n" +
                 "    private boolean isReplicableResource(String resourceType, String path) {\n" +
                 "        boolean replicable = false;\n" +
                 "        if (\"cq:Page\".equals(resourceType)) {\n" +
@@ -163,23 +163,5 @@ class SonarJavaScannerTest {
         assertTrue(ruleIds.contains("java:S1155"), "Expected java:S1155 (Collection.isEmpty): " + ruleIds);
         assertTrue(ruleIds.contains("java:S1125"), "Expected java:S1125 (Boolean literal): " + ruleIds);
         assertTrue(ruleIds.contains("java:S1181"), "Expected java:S1181 (Catch Throwable): " + ruleIds);
-    }
-
-    @Test
-    void testLiveContentSyncBulkReplicationServlet() {
-        Path mandgCore = Path.of("/Users/rvenat01/Documents/AEM/mandg/aemaacs-life/mandg/core");
-        if (!Files.isDirectory(mandgCore)) {
-            return;
-        }
-        SonarJavaScanner scanner = new SonarJavaScanner(mandgCore);
-        List<Violation> violations = scanner.scan();
-        List<Violation> servletViolations = violations.stream()
-                .filter(v -> v.filePath().contains("ContentSyncBulkReplicationServlet"))
-                .toList();
-
-        System.err.println("Total servlet violations found: " + servletViolations.size());
-        for (Violation v : servletViolations) {
-            System.err.println("  " + v.ruleId() + " -> " + v.message() + " at line " + (v.region() != null ? v.region().startLine() : -1));
-        }
     }
 }

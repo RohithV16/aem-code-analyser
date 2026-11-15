@@ -53,6 +53,17 @@ public final class AemDead003BRule implements RuleEvaluator {
         }
 
         for (SlingModelNode model : context.buildResult().modelNodes().values()) {
+            // 0. Nested models are injection DTOs used by their enclosing model.
+            if (model.isNested() || model.isExported()) {
+                continue;
+            }
+
+            // 0b. Models consumed through Sling Models injection (@Self, @ChildResource, @Named),
+            // as a superclass/interface, or as a return type of another model.
+            if (referencedByAnotherModel(model, context.buildResult().modelNodes().values())) {
+                continue;
+            }
+
             // 1. Used if adapted in Java code
             if (context.graph().inDegree(model, EdgeType.ADAPTS_TO) > 0) {
                 continue;
@@ -96,14 +107,31 @@ public final class AemDead003BRule implements RuleEvaluator {
                     RuleId.AEM_DEAD_003B.defaultLevel(),
                     "UNUSED_SLING_MODEL",
                     "Sling Model '" + model.getFqn()
-                            + "' has 0 Java adaptations, 0 HTL usages, and no active component resourceType binding.",
+                            + "' has 0 Java adaptations, 0 HTL usages, no injection/superclass references"
+                            + " from other models, and no active component resourceType binding.",
                     relativePath(context, model.getFilePath()),
                     region,
                     null,
-                    "Remove the unused Sling Model or bind it to an active component or HTL template.",
+                    "Remove the unused Sling Model or bind it to an active component, HTL template, or"
+                            + " another model's injection point.",
                     List.of()));
         }
         return violations;
+    }
+
+    private boolean referencedByAnotherModel(SlingModelNode model,
+                                             java.util.Collection<SlingModelNode> allModels) {
+        String simpleName = model.getFqn().substring(model.getFqn().lastIndexOf('.') + 1);
+        for (SlingModelNode other : allModels) {
+            if (other == model) {
+                continue;
+            }
+            if (other.getReferencedTypes().contains(model.getFqn())
+                    || other.getReferencedTypes().contains(simpleName)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private String relativePath(RuleContext context, java.nio.file.Path path) {

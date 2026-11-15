@@ -29,23 +29,34 @@ public final class AemQual003Rule implements RuleEvaluator {
     public List<Violation> evaluate(RuleContext context) {
         List<Violation> violations = new ArrayList<>();
         for (OSGiComponentNode component : context.components()) {
-            boolean hasSchedulerProp = false;
-            String matchingProp = null;
+            String matchingDetail = null;
             for (String prop : component.getComponentProperties()) {
                 String lower = prop.toLowerCase().strip();
-                if (lower.startsWith("scheduler.expression=") || lower.startsWith("scheduler.expression")
-                        || lower.startsWith("scheduler.period=") || lower.startsWith("scheduler.period")) {
-                    hasSchedulerProp = true;
-                    matchingProp = prop;
+                if (lower.contains("scheduler")
+                        && (lower.contains("expression") || lower.contains("period")
+                        || lower.contains("concurrent"))) {
+                    matchingDetail = prop;
                     break;
                 }
             }
 
-            boolean implementsSchedulerOptions = component.getServiceInterfaces().stream()
-                    .anyMatch(i -> i.endsWith("ScheduleOptions") || i.equals("org.apache.sling.commons.scheduler.ScheduleOptions"));
+            if (matchingDetail == null) {
+                matchingDetail = component.getDeclaredFields().stream()
+                        .map(OSGiComponentNode.DeclaredField::typeName)
+                        .filter(type -> type != null && (type.endsWith("Scheduler")
+                                || type.endsWith("ScheduleOptions")))
+                        .findFirst()
+                        .map(type -> "field " + type)
+                        .orElse(null);
+            }
 
-            if (hasSchedulerProp || implementsSchedulerOptions) {
-                String detail = matchingProp != null ? matchingProp : "ScheduleOptions";
+            boolean implementsSchedulerOptions = component.getInterfaces().stream()
+                    .anyMatch(i -> i.endsWith("ScheduleOptions"))
+                    || component.getServiceInterfaces().stream()
+                    .anyMatch(i -> i.endsWith("ScheduleOptions"));
+
+            if (matchingDetail != null || implementsSchedulerOptions) {
+                String detail = matchingDetail != null ? matchingDetail : "ScheduleOptions";
                 String relPath = relativePath(context, component.getFilePath());
                 int line = component.getSourceLocation() != null ? component.getSourceLocation().line() : 1;
                 violations.add(new Violation(

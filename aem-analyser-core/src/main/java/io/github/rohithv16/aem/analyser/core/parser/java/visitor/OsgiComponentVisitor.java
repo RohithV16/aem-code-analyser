@@ -66,17 +66,28 @@ public final class OsgiComponentVisitor {
         boolean immediateExplicitlySet = immediateValue.isPresent();
         boolean immediate = immediateValue.map(Boolean::parseBoolean).orElse(false);
 
-        Set<String> serviceInterfaces = new LinkedHashSet<>();
-        String componentClassName = type.getFullyQualifiedName().orElse(type.getNameAsString());
+        Set<String> implementedInterfaces = new LinkedHashSet<>();
         if (type.isClassOrInterfaceDeclaration()) {
             type.asClassOrInterfaceDeclaration().getImplementedTypes().stream()
-                    .map(t -> AnnotationUtils.resolveTypeName(t.getNameAsString(), packageName, imports, localTypes))
-                    .forEach(serviceInterfaces::add);
+                    .map(t -> AnnotationUtils.resolveTypeName(t.getNameWithScope(), packageName, imports, localTypes))
+                    .forEach(implementedInterfaces::add);
         }
-        AnnotationUtils.memberValues(annotation, "service").stream()
-                .filter(s -> !s.isBlank())
-                .map(s -> AnnotationUtils.resolveTypeName(s, packageName, imports, localTypes))
-                .forEach(serviceInterfaces::add);
+
+        Set<String> serviceInterfaces = new LinkedHashSet<>();
+        String componentClassName = type.getFullyQualifiedName().orElse(type.getNameAsString());
+        boolean serviceAttributeDeclared = annotation.isNormalAnnotationExpr()
+                && annotation.asNormalAnnotationExpr().getPairs().stream()
+                        .anyMatch(pair -> pair.getNameAsString().equals("service"));
+        if (serviceAttributeDeclared) {
+            // DS semantics: an explicit service member overrides the implemented interfaces.
+            // @Component(service = {}) therefore registers no service at all.
+            AnnotationUtils.memberValues(annotation, "service").stream()
+                    .filter(s -> !s.isBlank())
+                    .map(s -> AnnotationUtils.resolveTypeName(s, packageName, imports, localTypes))
+                    .forEach(serviceInterfaces::add);
+        } else {
+            serviceInterfaces.addAll(implementedInterfaces);
+        }
 
         String designatedOcdFqn = AnnotationUtils.findAnnotation(type.getAnnotations(), "Designate")
                 .flatMap(a -> AnnotationUtils.memberValue(a, "ocd"))
@@ -98,6 +109,14 @@ public final class OsgiComponentVisitor {
 
         Map<String, String> references = extractReferences(type, packageName, imports, localTypes);
 
+        String factoryId = AnnotationUtils.memberValue(annotation, "factory")
+                .filter(value -> !value.isBlank())
+                .orElse(null);
+        boolean enabled = AnnotationUtils.memberValue(annotation, "enabled")
+                .map(Boolean::parseBoolean)
+                .orElse(true);
+        boolean programmaticActivation = detectProgrammaticActivation(type, imports);
+
         List<OSGiComponentNode.DeclaredField> declaredFields = new ArrayList<>();
         for (FieldDeclaration field : type.getFields()) {
             boolean isStatic = field.isStatic();
@@ -116,7 +135,7 @@ public final class OsgiComponentVisitor {
                 JavaClassNode.Kind.CLASS,
                 modifiersOf(type),
                 superclassOf(type, packageName, imports),
-                Set.of(),
+                implementedInterfaces,
                 filePath,
                 MetatypeOcdVisitor.sourceLocation(type, filePath),
                 configurationPids,
@@ -127,7 +146,25 @@ public final class OsgiComponentVisitor {
                 references,
                 designatedOcdFqn,
                 componentProperties,
-                declaredFields));
+                declaredFields,
+                factoryId,
+                enabled,
+                programmaticActivation));
+    }
+
+    /**
+     * A component that touches the raw OSGi registry (ServiceTracker/BundleContext) may be created and
+     * activated by another component even without a service interface of its own.
+     */
+    private boolean detectProgrammaticActivation(TypeDeclaration<?> type, Map<String, String> imports) {
+        boolean imported = imports.values().stream()
+                .anyMatch(value -> value.contains("ServiceTracker") || value.contains("BundleContext"));
+        if (imported) {
+            return true;
+        }
+        return type.findAll(com.github.javaparser.ast.body.VariableDeclarator.class).stream()
+                .map(variable -> variable.getType().asString())
+                .anyMatch(name -> name.contains("ServiceTracker") || name.contains("BundleContext"));
     }
 
     private Map<String, String> extractReferences(TypeDeclaration<?> type, String packageName,
@@ -153,6 +190,30 @@ public final class OsgiComponentVisitor {
                     String target = targetService != null ? targetService : fieldType;
                     references.put(variable.getNameAsString(), target);
                 });
+            } else if (member instanceof com.github.javaparser.ast.body.MethodDeclaration method
+                    && method.getParameters().isNonEmpty()) {
+                // DS 1.4 bind method: @Reference void bind(Service service)
+                var parameter = method.getParameters().get(0);
+                String target = targetService != null ? targetService
+                        : AnnotationUtils.resolveTypeName(AnnotationUtils.elementType(parameter.getType().asString()),
+                                packageName, imports);
+                references.put(method.getNameAsString(), target);
+            }
+        }
+
+        // DS 1.4 constructor injection: @Activate Ctor(@Reference Service service)
+        for (var constructor : type.getConstructors()) {
+            for (var parameter : constructor.getParameters()) {
+                Optional<AnnotationExpr> reference = AnnotationUtils.findAnnotation(
+                        parameter.getAnnotations(), "Reference");
+                if (reference.isEmpty()) {
+                    continue;
+                }
+                String target = AnnotationUtils.memberValue(reference.get(), "service")
+                        .map(s -> AnnotationUtils.resolveTypeName(s, packageName, imports, localTypes))
+                        .orElseGet(() -> AnnotationUtils.resolveTypeName(
+                                AnnotationUtils.elementType(parameter.getType().asString()), packageName, imports));
+                references.put(parameter.getNameAsString(), target);
             }
         }
         return references;
@@ -162,7 +223,7 @@ public final class OsgiComponentVisitor {
         if (type.isClassOrInterfaceDeclaration()
                 && type.asClassOrInterfaceDeclaration().getExtendedTypes().isNonEmpty()) {
             return AnnotationUtils.resolveTypeName(
-                    type.asClassOrInterfaceDeclaration().getExtendedTypes().get(0).getNameAsString(),
+                    type.asClassOrInterfaceDeclaration().getExtendedTypes().get(0).getNameWithScope(),
                     packageName, imports);
         }
         return null;

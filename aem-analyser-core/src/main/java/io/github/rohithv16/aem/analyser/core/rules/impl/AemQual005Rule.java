@@ -42,7 +42,7 @@ public final class AemQual005Rule implements RuleEvaluator {
                     relPath,
                     new TextRegion(line, col, line, col + call.methodName().length()),
                     call.methodName(),
-                    "Refactor to use ResourceResolverFactory.getServiceResourceResolver(Map) with an explicit OSGi subservice mapping.",
+                    "Refactor to use a service-user-based resolver acquisition (for example ResourceResolverFactory.getServiceResourceResolver or getResourceResolver with a mapped subservice).",
                     List.of()
             ));
         }

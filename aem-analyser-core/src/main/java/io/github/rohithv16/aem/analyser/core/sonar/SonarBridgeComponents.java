@@ -248,7 +248,7 @@ public class SonarBridgeComponents extends SonarComponents {
                 pathStr,
                 region,
                 null,
-                "Follow SonarJava rule " + ruleKey + " (" + check.getClass().getSimpleName() + ") standards.",
+                "Follow SonarJava best practice for rule " + ruleKey + ".",
                 List.of()
         ));
     }
@@ -289,7 +289,7 @@ public class SonarBridgeComponents extends SonarComponents {
                 pathStr,
                 line > 0 ? TextRegion.forLine(line) : TextRegion.forWholeFile(),
                 null,
-                "Follow SonarJava rule " + ruleKey + " (" + check.getClass().getSimpleName() + ") standards.",
+                "Follow SonarJava best practice for rule " + ruleKey + ".",
                 List.of()
         ));
     }

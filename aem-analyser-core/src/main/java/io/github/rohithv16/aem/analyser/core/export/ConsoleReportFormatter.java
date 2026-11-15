@@ -77,7 +77,7 @@ public final class ConsoleReportFormatter implements ReportExporter {
                         .append(':').append(violation.region().startLine())
                         .append(':').append(violation.region().startColumn()).append('\n');
                 violation.targetPidOpt().ifPresent(pid ->
-                        sb.append("  Target PID: ").append(pid).append('\n'));
+                        sb.append("  Target: ").append(pid).append('\n'));
                 sb.append("  ").append(violation.message()).append('\n');
                 violation.remediationOpt().ifPresent(r ->
                         sb.append("  Remediation: ").append(r).append('\n'));
@@ -102,6 +102,11 @@ public final class ConsoleReportFormatter implements ReportExporter {
             sb.append(" Scan Statistics:\n");
             report.scanStatistics().forEach((key, value) ->
                     sb.append("  ").append(capitalize(key)).append(": ").append(value).append('\n'));
+        }
+
+        if (!report.diagnostics().isEmpty()) {
+            sb.append(" Diagnostics: ").append(report.diagnostics().size())
+                    .append(" file(s) skipped or degraded (run with --verbose for details)\n");
         }
 
         // Code Metrics & Coverage section
@@ -146,17 +151,17 @@ public final class ConsoleReportFormatter implements ReportExporter {
 
         if (report.violations().isEmpty()) {
             sb.append(colorEnabled ? ANSI_GREEN : "");
-            sb.append("BUILD SUCCESS: no cross-boundary dead code detected.");
+            sb.append("GATE PASSED: no cross-boundary dead code detected.");
             sb.append(colorEnabled ? ANSI_RESET : "");
             sb.append('\n').append(line).append('\n');
         } else if (errors > 0) {
             sb.append(colorEnabled ? ANSI_RED + ANSI_BOLD : "");
-            sb.append("BUILD FAILURE: ").append(errors).append(" critical cross-boundary error")
+            sb.append("GATE FAILED: ").append(errors).append(" error-severity finding")
                     .append(errors == 1 ? "" : "s").append(" detected.");
             sb.append(colorEnabled ? ANSI_RESET : "");
             sb.append('\n').append(line).append('\n');
         } else {
-            sb.append("BUILD SUCCESS WITH WARNINGS: ").append(warnings).append(" warning(s), ")
+            sb.append("GATE PASSED WITH WARNINGS: ").append(warnings).append(" warning(s), ")
                     .append(infos).append(" info message(s).").append('\n').append(line).append('\n');
         }
 
@@ -170,7 +175,7 @@ public final class ConsoleReportFormatter implements ReportExporter {
 
     private String ruleTitle(String ruleId) {
         if (ruleId != null && ruleId.startsWith("java:S")) {
-            return "SonarSource Java Quality (" + ruleId + ")";
+            return "SonarJava rule " + ruleId;
         }
         try {
             return switch (RuleId.fromId(ruleId)) {
@@ -198,6 +203,12 @@ public final class ConsoleReportFormatter implements ReportExporter {
                 case AEM_CLOUD_002 -> "Deprecated JSP Script (AEMaaCS)";
                 case AEM_SEC_001 -> "Unsafe HTL XSS Context Bypass";
                 case AEM_CLOUD_003 -> "Unmapped Subservice / Service User (AEMaaCS)";
+                case AEM_CLOUD_004 -> "Deprecated AEM API Usage (AEMaaCS)";
+                case AEM_CLOUD_005 -> "Invalid Runmode Folder (AEMaaCS)";
+                case AEM_QUAL_006 -> "Resolver/Session Stored in Component Field";
+                case AEM_DEAD_005 -> "Orphaned Clientlib Category";
+                case AEM_SEC_002 -> "Open Redirect / SSRF";
+                case AEM_PERF_004 -> "Unbounded JCR/Oak Query";
             };
         } catch (IllegalArgumentException e) {
             return ruleId;

@@ -43,7 +43,8 @@ public final class AemPerf002Rule implements RuleEvaluator {
                     relativePath(context, finding.filePath()),
                     region,
                     null,
-                    "Always close the owning ResourceResolver or call session.logout() in a finally block.",
+                    "Always close the owning ResourceResolver or call session.logout() only when this"
+                            + " session was obtained from repository.login* or loginService().",
                     List.of()
             ));
         }

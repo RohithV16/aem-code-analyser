@@ -19,6 +19,7 @@ import com.github.javaparser.ast.expr.ClassExpr;
 import com.github.javaparser.ast.expr.AnnotationExpr;
 
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -54,15 +55,33 @@ public final class JavaSourceParser {
             new io.github.rohithv16.aem.analyser.core.parser.java.visitor.ResourceLeakVisitor();
 
     public JavaSourceParseResult parse(Path filePath) {
+        return parseInternal(filePath, false);
+    }
+
+    /**
+     * Parses a file and fails loudly on syntax/read errors so the orchestration layer can record a
+     * diagnostic instead of silently losing every symbol in the file.
+     */
+    public JavaSourceParseResult parseStrict(Path filePath) {
+        return parseInternal(filePath, true);
+    }
+
+    private JavaSourceParseResult parseInternal(Path filePath, boolean strict) {
         CompilationUnit cu;
         try {
             ParseResult<CompilationUnit> result = new JavaParser(PARSER_CONFIGURATION)
                     .parse(Files.newBufferedReader(filePath));
             if (!result.isSuccessful() || result.getResult().isEmpty()) {
+                if (strict) {
+                    throw new IllegalArgumentException("Java parse failed: " + result.getProblems());
+                }
                 return emptyResult(filePath);
             }
             cu = result.getResult().get();
         } catch (IOException e) {
+            if (strict) {
+                throw new UncheckedIOException(e);
+            }
             return emptyResult(filePath);
         }
 
@@ -133,7 +152,7 @@ public final class JavaSourceParser {
         // adaptTo(Target.class) / ModelFactory.createModel scanning & administrative API calls
         for (MethodCallExpr call : cu.findAll(MethodCallExpr.class)) {
             String name = call.getNameAsString();
-            if (name.equals("loginAdministrative") || name.equals("getAdministrativeResourceResolver")) {
+            if (isAdministrativeCall(call)) {
                 String sourceFqn = enclosingTypeFqn(call, cu);
                 administrativeCalls.add(new AdministrativeCall(name, sourceFqn, filePath,
                         MetatypeOcdVisitor.sourceLocation(call, filePath)));
@@ -192,13 +211,13 @@ public final class JavaSourceParser {
         }
         Set<String> interfaces = type.isClassOrInterfaceDeclaration()
                 ? type.asClassOrInterfaceDeclaration().getImplementedTypes().stream()
-                .map(t -> AnnotationUtils.resolveTypeName(t.getNameAsString(), packageName, imports, localTypes))
+                .map(t -> AnnotationUtils.resolveTypeName(t.getNameWithScope(), packageName, imports, localTypes))
                 .collect(Collectors.toCollection(LinkedHashSet::new))
                 : Set.of();
         String superClass = type.isClassOrInterfaceDeclaration()
                 && type.asClassOrInterfaceDeclaration().getExtendedTypes().isNonEmpty()
                 ? AnnotationUtils.resolveTypeName(
-                type.asClassOrInterfaceDeclaration().getExtendedTypes().get(0).getNameAsString(),
+                type.asClassOrInterfaceDeclaration().getExtendedTypes().get(0).getNameWithScope(),
                 packageName, imports, localTypes)
                 : null;
         String fqn = type.getFullyQualifiedName().orElse(type.getNameAsString());
@@ -209,6 +228,26 @@ public final class JavaSourceParser {
                 : JavaClassNode.Kind.CLASS;
         return new JavaClassNode(fqn, kind, modifiers, superClass, interfaces, filePath,
                 MetatypeOcdVisitor.sourceLocation(type, filePath));
+    }
+
+    /**
+     * Detects deprecated administrative access across API shapes, not only two method names:
+     * explicit admin login/resolver methods and generic login/resolver calls whose credentials or
+     * auth map use the {@code admin}/{@code anonymous} user.
+     */
+    private boolean isAdministrativeCall(MethodCallExpr call) {
+        String name = call.getNameAsString();
+        if (name.equals("loginAdministrative") || name.equals("getAdministrativeResourceResolver")) {
+            return true;
+        }
+        if (!name.equals("login") && !name.contains("ResourceResolver")) {
+            return false;
+        }
+        String arguments = call.getArguments().toString().toLowerCase(java.util.Locale.ROOT);
+        boolean adminIdentity = arguments.contains("\"admin\"") || arguments.contains("\"anonymous\"");
+        boolean identityApi = arguments.contains("credentials") || arguments.contains("user")
+                || arguments.contains("simplecredentials");
+        return adminIdentity && identityApi;
     }
 
     private String enclosingTypeFqn(com.github.javaparser.ast.Node node, CompilationUnit cu) {

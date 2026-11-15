@@ -1,113 +1,59 @@
 package io.github.rohithv16.aem.analyser.maven;
 
-import io.github.rohithv16.aem.analyser.core.api.AnalysisContext;
 import io.github.rohithv16.aem.analyser.core.api.AemCodeAnalyser;
 import io.github.rohithv16.aem.analyser.core.api.DefaultAemCodeAnalyser;
+import io.github.rohithv16.aem.analyser.core.export.ReportFormat;
 import io.github.rohithv16.aem.analyser.core.model.report.AnalysisReport;
-import org.apache.maven.execution.MavenSession;
-import org.apache.maven.plugin.AbstractMojo;
 import org.apache.maven.plugin.MojoExecutionException;
+import org.apache.maven.plugin.MojoFailureException;
 import org.apache.maven.plugins.annotations.LifecyclePhase;
 import org.apache.maven.plugins.annotations.Mojo;
-import org.apache.maven.plugins.annotations.Parameter;
-import org.apache.maven.project.MavenProject;
 
-import java.io.File;
-import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 
 /**
  * FEAT-DELIV-01: {@code aem-analyser:report} — standalone report generation.
  * Runs the cross-boundary analysis and writes the configured export formats
- * (SARIF, SonarQube Generic Issue JSON, ANSI console text) to the build directory.
- * Never fails the build.
+ * (SARIF, SonarQube Generic Issue JSON, ANSI console text, HTML) without failing the build.
  */
 @Mojo(name = "report", aggregator = true, defaultPhase = LifecyclePhase.VERIFY)
-public class ReportMojo extends AbstractMojo {
-
-    @Parameter(defaultValue = "${session.executionRootDirectory}", readonly = true)
-    private File executionRoot;
-
-    @Parameter(property = "aem-analyser.projectRoot")
-    private File projectRoot;
-
-    /** Export formats to generate: SARIF, SONAR, CONSOLE (comma-separated). */
-    @Parameter(property = "aem-analyser.formats", defaultValue = "SARIF,SONAR")
-    private String formats;
-
-    @Parameter(property = "aem-analyser.skip", defaultValue = "false")
-    private boolean skip;
-
-    @Parameter(defaultValue = "${project}", readonly = true)
-    private MavenProject project;
-
-    @Parameter(defaultValue = "${session}", readonly = true)
-    private MavenSession session;
+public class ReportMojo extends AbstractAnalyserMojo {
 
     @Override
-    public void execute() throws MojoExecutionException {
-        if (skip) {
-            getLog().info("aem-analyser:report skipped (aem-analyser.skip=true)");
-            return;
-        }
-        if (project != null && session != null
-                && !session.getExecutionRootDirectory().equals(project.getBasedir().getAbsolutePath())) {
-            getLog().debug("aem-analyser:report runs only at the reactor root; skipping module "
-                    + project.getArtifactId());
-            return;
-        }
+    protected String goalName() {
+        return "report";
+    }
 
-        Path root = (projectRoot != null ? projectRoot.toPath() : executionRoot.toPath()).toAbsolutePath();
+    @Override
+    protected String defaultFormats() {
+        return "SARIF,SONAR";
+    }
+
+    @Override
+    public void execute() throws MojoExecutionException, MojoFailureException {
+        if (skipExecution()) {
+            return;
+        }
+        Path root = resolveRoot();
+        List<ReportFormat> reportFormats = resolvedFormats();
         getLog().info("AEM Code Analyser: generating reports for " + root);
 
         AnalysisReport report;
         try {
             AemCodeAnalyser analyser = new DefaultAemCodeAnalyser();
-            report = analyser.analyze(AnalysisContext.of(root));
+            report = analyser.analyze(buildContext(root));
         } catch (Exception e) {
             throw new MojoExecutionException("AEM Code Analyser failed: " + e.getMessage(), e);
         }
 
-        Path outputDirectory = project != null
-                ? project.getBuild().getDirectory() != null
-                ? Path.of(project.getBuild().getDirectory())
-                : root.resolve("target")
-                : root.resolve("target");
-        try {
-            writeReports(report, outputDirectory, List.of(formats.split("\\s*,\\s*")));
-            getLog().info("AEM Code Analyser reports written to " + outputDirectory);
-        } catch (IOException e) {
-            throw new MojoExecutionException("Failed to write analysis reports: " + e.getMessage(), e);
-        }
-    }
-
-    private void writeReports(AnalysisReport report, Path outputDirectory, List<String> formats) throws IOException {
-        Files.createDirectories(outputDirectory);
-        for (String format : formats) {
-            io.github.rohithv16.aem.analyser.core.export.ReportFormat reportFormat =
-                    io.github.rohithv16.aem.analyser.core.export.ReportFormat.valueOf(format.toUpperCase(java.util.Locale.ROOT));
-            var file = outputDirectory.resolve(switch (reportFormat) {
-                case SARIF -> "aem-analyser.sarif";
-                case SONAR -> "sonar-aem-analyser-report.json";
-                case CONSOLE -> "aem-analyser-report.txt";
-                case HTML -> "aem-analyser-report.html";
-            });
-            try (var writer = Files.newBufferedWriter(file)) {
-                switch (reportFormat) {
-                    case SARIF -> new io.github.rohithv16.aem.analyser.core.export.SarifReportExporter()
-                            .export(report, writer);
-                    case SONAR -> new io.github.rohithv16.aem.analyser.core.export.SonarReportExporter()
-                            .export(report, writer);
-                    case CONSOLE -> new io.github.rohithv16.aem.analyser.core.export.ConsoleReportFormatter()
-                            .export(report, writer);
-                    case HTML -> new io.github.rohithv16.aem.analyser.core.export.HtmlReportExporter()
-                            .export(report, writer);
-                }
-            } catch (io.github.rohithv16.aem.analyser.core.export.ExportException e) {
-                throw new IOException("Export failed: " + e.getMessage(), e);
-            }
-        }
+        report = applyFixes(root, report);
+        report = activeConfig.apply(report);
+        report = applyBaseline(root, report);
+        report = applyHistory(root, report);
+        writeReports(report, root, reportFormats);
+        logDiagnostics(report);
+        getLog().info("AEM Code Analyser: " + report.violations().size() + " violation(s) in "
+                + String.format("%.3f s", report.durationMillis() / 1000.0));
     }
 }

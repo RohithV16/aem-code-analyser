@@ -27,6 +27,10 @@ public final class MetatypeOcdVisitor {
         Optional<AnnotationExpr> ocdAnnotation = AnnotationUtils.findAnnotation(
                 type.getAnnotations(), "ObjectClassDefinition");
         if (ocdAnnotation.isEmpty()) {
+            // OSGi R7 @ComponentPropertyType: an annotation whose members are configuration keys.
+            ocdAnnotation = AnnotationUtils.findAnnotation(type.getAnnotations(), "ComponentPropertyType");
+        }
+        if (ocdAnnotation.isEmpty()) {
             return Optional.empty();
         }
 

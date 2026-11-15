@@ -133,5 +133,59 @@ class AnalyserCliTest {
         assertTrue(usage.contains("--fix"), "Usage should include --fix");
         assertTrue(usage.contains("--fix-dry-run"), "Usage should include --fix-dry-run");
         assertTrue(usage.contains("--fail-on"), "Usage should include --fail-on");
+        assertTrue(usage.contains("--baseline"), "Usage should include --baseline");
+        assertTrue(usage.contains("--update-baseline"), "Usage should include --update-baseline");
+        assertTrue(usage.contains("--dependency-jars"), "Usage should include --dependency-jars");
+        assertTrue(usage.contains("--ignore-config"), "Usage should include --ignore-config");
+        assertTrue(usage.contains("--list-rules"), "Usage should include --list-rules");
+        assertTrue(usage.contains("--explain"), "Usage should include --explain");
+        assertTrue(usage.contains("--no-html"), "Usage should include --no-html");
+    }
+
+    @Test
+    void executeReturnsTwoForInvalidFormat() {
+        AnalyserCli cli = new AnalyserCli();
+        new CommandLine(cli).parseArgs("--format", "BOGUS");
+        assertEquals(2, cli.execute());
+    }
+
+    @Test
+    void executeReturnsZeroForRuleExplain() {
+        AnalyserCli cli = new AnalyserCli();
+        new CommandLine(cli).parseArgs("--explain", "AEM-DEAD-001");
+        assertEquals(0, cli.execute());
+    }
+
+    @Test
+    void listsAndExplainsRules() {
+        AnalyserCli cli = new AnalyserCli();
+
+        StringWriter listOut = new StringWriter();
+        cli.printRules(new PrintWriter(listOut));
+        assertTrue(listOut.toString().contains("AEM-DEAD-001"), listOut.toString());
+
+        StringWriter explainOut = new StringWriter();
+        assertEquals(0, cli.printExplain(new PrintWriter(explainOut), "AEM-DEAD-002A"));
+        assertTrue(explainOut.toString().contains("GhostConfigurationProperty"), explainOut.toString());
+        assertTrue(explainOut.toString().contains("Remediation:"), explainOut.toString());
+
+        StringWriter unknownOut = new StringWriter();
+        assertEquals(2, cli.printExplain(new PrintWriter(unknownOut), "AEM-NOPE-999"));
+        assertTrue(unknownOut.toString().contains("Unknown rule"), unknownOut.toString());
+    }
+
+    @Test
+    void rejectsOutOfRangeNumericOptions() {
+        AnalyserCli coverage = new AnalyserCli();
+        new CommandLine(coverage).parseArgs("--min-coverage", "150");
+        assertThrows(IllegalArgumentException.class, coverage::validateNumericOptions);
+
+        AnalyserCli threads = new AnalyserCli();
+        new CommandLine(threads).parseArgs("--threads", "0");
+        assertThrows(IllegalArgumentException.class, threads::validateNumericOptions);
+
+        AnalyserCli duplication = new AnalyserCli();
+        new CommandLine(duplication).parseArgs("--max-duplication", "-1");
+        assertThrows(IllegalArgumentException.class, duplication::validateNumericOptions);
     }
 }

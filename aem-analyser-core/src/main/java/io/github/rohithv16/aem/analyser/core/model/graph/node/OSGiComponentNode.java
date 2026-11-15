@@ -31,6 +31,9 @@ public final class OSGiComponentNode extends JavaClassNode {
     private final String designatedOcdFqn;
     private final Set<String> componentProperties;
     private final List<DeclaredField> declaredFields;
+    private final String factoryId;
+    private final boolean enabled;
+    private final boolean programmaticActivation;
 
     public OSGiComponentNode(String fqn,
                              String name,
@@ -70,6 +73,32 @@ public final class OSGiComponentNode extends JavaClassNode {
                              String designatedOcdFqn,
                              Set<String> componentProperties,
                              List<DeclaredField> declaredFields) {
+        this(fqn, name, kind, modifiers, superClass, interfaces, filePath, sourceLocation,
+                configurationPids, configurationPolicy, immediate, immediateExplicitlySet,
+                serviceInterfaces, references, designatedOcdFqn, componentProperties, declaredFields,
+                null, true, false);
+    }
+
+    public OSGiComponentNode(String fqn,
+                             String name,
+                             Kind kind,
+                             Set<ModifierKind> modifiers,
+                             String superClass,
+                             Set<String> interfaces,
+                             Path filePath,
+                             SourceLocation sourceLocation,
+                             List<String> configurationPids,
+                             ConfigurationPolicy configurationPolicy,
+                             boolean immediate,
+                             boolean immediateExplicitlySet,
+                             Set<String> serviceInterfaces,
+                             Map<String, String> references,
+                             String designatedOcdFqn,
+                             Set<String> componentProperties,
+                             List<DeclaredField> declaredFields,
+                             String factoryId,
+                             boolean enabled,
+                             boolean programmaticActivation) {
         super(fqn, kind, modifiers, superClass, interfaces, filePath, sourceLocation);
         this.componentClassName = fqn;
         this.name = name;
@@ -82,6 +111,9 @@ public final class OSGiComponentNode extends JavaClassNode {
         this.designatedOcdFqn = designatedOcdFqn;
         this.componentProperties = new LinkedHashSet<>(componentProperties);
         this.declaredFields = List.copyOf(declaredFields == null ? List.of() : declaredFields);
+        this.factoryId = factoryId;
+        this.enabled = enabled;
+        this.programmaticActivation = programmaticActivation;
     }
 
     @Override
@@ -131,5 +163,21 @@ public final class OSGiComponentNode extends JavaClassNode {
 
     public List<DeclaredField> getDeclaredFields() {
         return declaredFields;
+    }
+
+    public Optional<String> getFactoryId() {
+        return Optional.ofNullable(factoryId);
+    }
+
+    public boolean isFactoryComponent() {
+        return factoryId != null && !factoryId.isBlank();
+    }
+
+    public boolean isEnabled() {
+        return enabled;
+    }
+
+    public boolean isProgrammaticActivation() {
+        return programmaticActivation;
     }
 }

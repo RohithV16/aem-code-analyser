@@ -28,11 +28,31 @@ public record ModuleDescriptor(
         String parentArtifactId,
         boolean hasModules,
         Set<Path> osgiConfigPaths,
-        Set<String> exportedPackages) {
+        Set<String> exportedPackages,
+        String bundleSymbolicName) {
+
+    public ModuleDescriptor(
+            String artifactId,
+            String groupId,
+            String packaging,
+            Path moduleDirectory,
+            Path pomPath,
+            ModuleClassification classification,
+            String parentArtifactId,
+            boolean hasModules,
+            Set<Path> osgiConfigPaths,
+            Set<String> exportedPackages) {
+        this(artifactId, groupId, packaging, moduleDirectory, pomPath, classification, parentArtifactId,
+                hasModules, osgiConfigPaths, exportedPackages, null);
+    }
 
     public ModuleDescriptor {
         osgiConfigPaths = Set.copyOf(osgiConfigPaths);
         exportedPackages = Set.copyOf(exportedPackages);
+    }
+
+    public java.util.Optional<String> bundleSymbolicNameOpt() {
+        return java.util.Optional.ofNullable(bundleSymbolicName);
     }
 
     public boolean is(ClassificationGroup group) {

@@ -12,6 +12,30 @@
     <name>AEM Code Analyser</name>
     <description>Cross-boundary dead code detection engine for Adobe Experience Manager (Phase 1: Java &amp; OSGi Configurations)</description>
     <url>https://github.com/rohithv16/aem-code-analyser</url>
+    <inceptionYear>2026</inceptionYear>
+
+    <licenses>
+        <license>
+            <name>Apache License, Version 2.0</name>
+            <url>https://www.apache.org/licenses/LICENSE-2.0.txt</url>
+            <distribution>repo</distribution>
+            <comments>Apache-2.0</comments>
+        </license>
+    </licenses>
+
+    <developers>
+        <developer>
+            <id>rohithv16</id>
+            <name>Rohith V</name>
+            <url>https://github.com/rohithv16</url>
+        </developer>
+    </developers>
+
+    <scm>
+        <connection>scm:git:git://github.com/rohithv16/aem-code-analyser.git</connection>
+        <developerConnection>scm:git:ssh://github.com/rohithv16/aem-code-analyser.git</developerConnection>
+        <url>https://github.com/rohithv16/aem-code-analyser</url>
+    </scm>
 
     <distributionManagement>
         <repository>
@@ -34,9 +58,11 @@
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <project.build.outputTimestamp>2026-11-15T00:00:00Z</project.build.outputTimestamp>
+        <japicmp.oldVersion>1.0.0</japicmp.oldVersion>
         <maven.compiler.release>21</maven.compiler.release>
         <junit.version>5.10.2</junit.version>
-        <javaparser.version>3.26.1</javaparser.version>
+        <javaparser.version>3.28.2</javaparser.version>
         <jackson.version>2.17.2</jackson.version>
         <asm.version>9.7</asm.version>
         <jgrapht.version>1.5.2</jgrapht.version>
@@ -97,6 +123,11 @@
             <dependency>
                 <groupId>com.fasterxml.jackson.core</groupId>
                 <artifactId>jackson-databind</artifactId>
+                <version>${jackson.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.fasterxml.jackson.dataformat</groupId>
+                <artifactId>jackson-dataformat-yaml</artifactId>
                 <version>${jackson.version}</version>
             </dependency>
             <dependency>
@@ -177,6 +208,32 @@
             </plugins>
         </pluginManagement>
         <plugins>
+            <!-- Fail fast on the wrong Java/Maven toolchain -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-enforcer-plugin</artifactId>
+                <version>3.5.0</version>
+                <executions>
+                    <execution>
+                        <id>enforce-toolchain</id>
+                        <goals>
+                            <goal>enforce</goal>
+                        </goals>
+                        <configuration>
+                            <rules>
+                                <requireJavaVersion>
+                                    <version>[21,22)</version>
+                                    <message>AEM Code Analyser targets Java 21. Set JAVA_HOME to a JDK 21 installation.</message>
+                                </requireJavaVersion>
+                                <requireMavenVersion>
+                                    <version>[3.9,4)</version>
+                                </requireMavenVersion>
+                                <banDuplicatePomDependencyVersions/>
+                            </rules>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
             <!-- JaCoCo Code Coverage -->
             <plugin>
                 <groupId>org.jacoco</groupId>
@@ -219,4 +276,144 @@
             </plugin>
         </plugins>
     </build>
+
+    <profiles>
+        <!-- Optional quality tooling: `mvn -Pquality verify`. Reports only; apply formatting with
+             `mvn spotless:apply` when desired. -->
+        <profile>
+            <id>quality</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-checkstyle-plugin</artifactId>
+                        <version>3.6.0</version>
+                        <configuration>
+                            <consoleOutput>true</consoleOutput>
+                            <failOnViolation>false</failOnViolation>
+                            <includeTestSourceDirectory>false</includeTestSourceDirectory>
+                        </configuration>
+                        <executions>
+                            <execution>
+                                <id>checkstyle-report</id>
+                                <phase>verify</phase>
+                                <goals>
+                                    <goal>check</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>com.diffplug.spotless</groupId>
+                        <artifactId>spotless-maven-plugin</artifactId>
+                        <version>2.43.0</version>
+                        <configuration>
+                            <java>
+                                <googleJavaFormat>
+                                    <version>1.22.0</version>
+                                </googleJavaFormat>
+                                <removeUnusedImports/>
+                                <endWithNewline/>
+                            </java>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+
+        <!-- Invoker integration tests live in the Maven plugin module (`mvn -Prun-its verify`). -->
+
+        <!-- Maven Central release: `mvn -Prelease-central deploy`. -->
+        <profile>
+            <id>release-central</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-source-plugin</artifactId>
+                        <version>3.3.1</version>
+                        <executions>
+                            <execution>
+                                <id>attach-sources</id>
+                                <goals><goal>jar-no-fork</goal></goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-javadoc-plugin</artifactId>
+                        <version>3.8.0</version>
+                        <executions>
+                            <execution>
+                                <id>attach-javadocs</id>
+                                <goals><goal>jar</goal></goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-gpg-plugin</artifactId>
+                        <version>3.2.4</version>
+                        <executions>
+                            <execution>
+                                <id>sign-artifacts</id>
+                                <phase>verify</phase>
+                                <goals><goal>sign</goal></goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.sonatype.central</groupId>
+                        <artifactId>central-publishing-maven-plugin</artifactId>
+                        <version>0.5.0</version>
+                        <extensions>true</extensions>
+                        <configuration>
+                            <publishingServerId>central</publishingServerId>
+                            <autoPublish>false</autoPublish>
+                        </configuration>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.cyclonedx</groupId>
+                        <artifactId>cyclonedx-maven-plugin</artifactId>
+                        <version>2.8.1</version>
+                        <executions>
+                            <execution>
+                                <id>sbom</id>
+                                <phase>verify</phase>
+                                <goals><goal>makeAggregateBom</goal></goals>
+                                <configuration>
+                                    <outputFormat>json</outputFormat>
+                                    <outputName>aem-code-analyser-sbom</outputName>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+
+        <!-- API compatibility gate: `mvn -Papi-check verify`. -->
+        <profile>
+            <id>api-check</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>com.github.siom79.japicmp</groupId>
+                        <artifactId>japicmp-maven-plugin</artifactId>
+                        <version>0.23.1</version>
+                        <configuration>
+                            <oldVersion>
+                                <dependency>
+                                    <groupId>io.github.rohithv16</groupId>
+                                    <artifactId>aem-analyser-core</artifactId>
+                                    <version>${japicmp.oldVersion}</version>
+                                </dependency>
+                            </oldVersion>
+                            <breakBuildOnBinaryIncompatibleModifications>true</breakBuildOnBinaryIncompatibleModifications>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 </project>

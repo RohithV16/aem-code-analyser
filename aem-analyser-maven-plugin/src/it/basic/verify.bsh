@@ -1,0 +1,14 @@
+import java.io.File;
+
+File report = new File(basedir, "target/aem-analyser-report.txt");
+if (!report.isFile()) {
+    throw new Exception("Expected report at " + report.getAbsolutePath());
+}
+if (report.length() == 0) {
+    throw new Exception("Report is empty: " + report.getAbsolutePath());
+}
+
+File html = new File(basedir, "target/aem-analyser-report.html");
+if (!html.isFile()) {
+    throw new Exception("Expected HTML dashboard at " + html.getAbsolutePath());
+}

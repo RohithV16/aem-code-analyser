@@ -1,3 +1,8 @@
+---
+layout: default
+title: Maven Central publishing guide
+---
+
 # Maven Central Publishing Guide for AEM Code Analyser
 
 This guide documents the complete procedure for publishing releases of `io.github.rohithv16:aem-code-analyser` and its submodules (`aem-analyser-core`, `aem-analyser-maven-plugin`, `aem-analyser-cli`) to **Maven Central** via the modern **Sonatype Central Portal** (`central.sonatype.com`).
@@ -106,7 +111,7 @@ Add the following 4 secrets:
 
 ### Step 4: Required POM Adjustments for Maven Central Compliance
 
-Maven Central enforces metadata, javadocs, sources, and GPG signatures. When ready to publish to Central, update the root [`pom.xml`](file:///Users/rvenat01/Documents/rohith/aem-code-analyser/pom.xml):
+Maven Central enforces metadata, javadocs, sources, and GPG signatures. When ready to publish to Central, update the root [`pom.xml`](../pom.xml):
 
 #### 1. Metadata (Licenses, Developers, SCM)
 Add directly under `<description>` in root `pom.xml`:
@@ -214,7 +219,7 @@ Add a dedicated Maven profile `release-central` so everyday local builds and tes
 
 ### Step 5: Updating GitHub Actions Workflow (`release.yml`)
 
-When activating Maven Central publishing, update [`.github/workflows/release.yml`](file:///Users/rvenat01/Documents/rohith/aem-code-analyser/.github/workflows/release.yml):
+When activating Maven Central publishing, update [`.github/workflows/release.yml`](../.github/workflows/release.yml):
 
 ```yaml
       - name: Import GPG Key

@@ -116,6 +116,53 @@ class AemCloudAndSecRulesTest {
     }
 
     @Test
+    void testAemCloud001_localRunmodeIsWarning() {
+        Path cfgPath = root.resolve(
+                "ui.config/src/main/content/jcr_root/apps/myapp/osgiconfig/config.local/com.example.MyService.cfg.json");
+        OSGiConfigNode config = new OSGiConfigNode(
+                cfgPath.toString(), cfgPath, null, "com.example.MyService", null, false,
+                Set.of("local"), ConfigFormat.CFG_JSON);
+        config.addProperty(new ConfigPropertyNode(
+                config.getId(), cfgPath, new SourceLocation(cfgPath, 3, 4),
+                "apiKey", "apiKey", "String", "local-dev-key", DataType.STRING, false));
+
+        ReferenceGraphBuilder.GraphBuildResult buildResult = new ReferenceGraphBuilder.GraphBuildResult(
+                new ReferenceGraph(), Collections.emptySet(), Collections.emptySet(),
+                Collections.emptyMap(), Map.of(config.getId(), config),
+                Collections.emptyMap(), Collections.emptyMap(), List.of(), List.of(), List.of(), List.of(),
+                null);
+
+        RuleContext ctx = new RuleContext(new ReferenceGraph(), buildResult, Set.of(), null, Set.of(), root);
+        List<Violation> violations = new AemCloud001Rule().evaluate(ctx);
+
+        assertEquals(1, violations.size());
+        assertEquals(Severity.WARNING, violations.get(0).severity(),
+                "config.local is not deployed by Cloud Manager");
+    }
+
+    @Test
+    void testAemSec001_dataSlyElementIsWarning() {
+        Path htlPath = root.resolve("ui.apps/components/tag/tag.html");
+        HtlUnsafeContextFinding finding = new HtlUnsafeContextFinding(
+                htlPath, 4, 18,
+                "<div data-sly-element=\"${properties.tag}\" data-sly-attribute=\"${attrs @ context='unsafe'}\">");
+
+        ReferenceGraphBuilder.GraphBuildResult buildResult = new ReferenceGraphBuilder.GraphBuildResult(
+                new ReferenceGraph(), Collections.emptySet(), Collections.emptySet(),
+                Collections.emptyMap(), Collections.emptyMap(),
+                Collections.emptyMap(), Collections.emptyMap(), List.of(), List.of(), List.of(), List.of(),
+                null);
+
+        RuleContext ctx = new RuleContext(new ReferenceGraph(), buildResult, Set.of(), null, Set.of(), root,
+                List.of(), List.of(), List.of(finding));
+        List<Violation> violations = new AemSec001Rule().evaluate(ctx);
+
+        assertEquals(1, violations.size());
+        assertEquals(Severity.WARNING, violations.get(0).severity(),
+                "data-sly-element cannot inject markup, so this is not an ERROR");
+    }
+
+    @Test
     void testAemCloud003_unmappedSubserviceDetected() {
         Path javaPath = root.resolve("core/MyServiceImpl.java");
         io.github.rohithv16.aem.analyser.core.model.serviceuser.SubserviceCall call =
@@ -291,5 +338,128 @@ class AemCloudAndSecRulesTest {
         assertEquals("UNRESOLVED_SERVICE_USER", violations.get(0).subtype());
         assertEquals(Severity.WARNING, violations.get(0).severity());
         assertTrue(violations.get(0).message().contains("ghost-user-404"));
+    }
+
+    @Test
+    void testAemCloud003_nullSubserviceWithSubserviceOnlyMappingsFailsOpen() {
+        Path javaPath = root.resolve("core/DefaultLoginServiceImpl.java");
+        io.github.rohithv16.aem.analyser.core.model.serviceuser.SubserviceCall call =
+                new io.github.rohithv16.aem.analyser.core.model.serviceuser.SubserviceCall(
+                        null, "com.example.DefaultLoginServiceImpl", javaPath, 42, 8,
+                        io.github.rohithv16.aem.analyser.core.model.serviceuser.SubserviceCall.Resolution.NULL);
+
+        Path cfgPath = root.resolve("ui.config/org.apache.sling.serviceusermapping.impl.ServiceUserMapperImpl.amended-x.cfg.json");
+        OSGiConfigNode config = new OSGiConfigNode(
+                cfgPath.toString(), cfgPath, null,
+                "org.apache.sling.serviceusermapping.impl.ServiceUserMapperImpl.amended~x",
+                null, false, Set.of(), ConfigFormat.CFG_JSON);
+        config.addProperty(new ConfigPropertyNode(
+                config.getId(), cfgPath, new SourceLocation(cfgPath, 2, 4),
+                "user.mapping", "user.mapping", "String[]",
+                "[\"com.example.core:some-service=[some-user]\"]", DataType.STRING, false));
+
+        ReferenceGraphBuilder.GraphBuildResult buildResult = new ReferenceGraphBuilder.GraphBuildResult(
+                new ReferenceGraph(), Collections.emptySet(), Collections.emptySet(),
+                Collections.emptyMap(), Map.of(config.getId(), config),
+                Collections.emptyMap(), Collections.emptyMap(), List.of(), List.of(), List.of(), List.of(),
+                List.of(call), null);
+
+        RuleContext ctx = new RuleContext(new ReferenceGraph(), buildResult, Set.of(), null, Set.of(), root);
+        List<Violation> violations = new AemCloud003Rule().evaluate(ctx);
+
+        assertTrue(violations.stream().noneMatch(v -> "UNMAPPED_DEFAULT_SUBSERVICE".equals(v.subtype())),
+                () -> "Existing mapper config should make a null-subservice call fail open: " + violations);
+    }
+
+    @Test
+    void testAemCloud003_nullSubserviceWithoutDefaultMappingFlagged() {
+        Path javaPath = root.resolve("core/DefaultLoginServiceImpl.java");
+        io.github.rohithv16.aem.analyser.core.model.serviceuser.SubserviceCall call =
+                new io.github.rohithv16.aem.analyser.core.model.serviceuser.SubserviceCall(
+                        null, "com.example.DefaultLoginServiceImpl", javaPath, 42, 8);
+
+        ReferenceGraphBuilder.GraphBuildResult buildResult = new ReferenceGraphBuilder.GraphBuildResult(
+                new ReferenceGraph(), Collections.emptySet(), Collections.emptySet(),
+                Collections.emptyMap(), Collections.emptyMap(),
+                Collections.emptyMap(), Collections.emptyMap(), List.of(), List.of(), List.of(), List.of(),
+                List.of(call), null);
+
+        RuleContext ctx = new RuleContext(new ReferenceGraph(), buildResult, Set.of(), null, Set.of(), root);
+        List<Violation> violations = new AemCloud003Rule().evaluate(ctx);
+
+        assertEquals(1, violations.size());
+        assertEquals("UNMAPPED_DEFAULT_SUBSERVICE", violations.get(0).subtype());
+        assertEquals(Severity.ERROR, violations.get(0).severity());
+    }
+
+    @Test
+    void testAemCloud003_unresolvedSubserviceConstantIsNotFlagged() {
+        Path javaPath = root.resolve("core/ImportJobExecutor.java");
+        io.github.rohithv16.aem.analyser.core.model.serviceuser.SubserviceCall call =
+                new io.github.rohithv16.aem.analyser.core.model.serviceuser.SubserviceCall(
+                        "IMPORT_SERVICE_SUBSERVICE_NAME", "com.example.ImportJobExecutor", javaPath, 222, 42);
+
+        ReferenceGraphBuilder.GraphBuildResult buildResult = new ReferenceGraphBuilder.GraphBuildResult(
+                new ReferenceGraph(), Collections.emptySet(), Collections.emptySet(),
+                Collections.emptyMap(), Collections.emptyMap(),
+                Collections.emptyMap(), Collections.emptyMap(), List.of(), List.of(), List.of(), List.of(),
+                List.of(call), null);
+
+        RuleContext ctx = new RuleContext(new ReferenceGraph(), buildResult, Set.of(), null, Set.of(), root);
+        List<Violation> violations = new AemCloud003Rule().evaluate(ctx);
+
+        assertTrue(violations.stream().noneMatch(v -> "UNMAPPED_SUBSERVICE_USER".equals(v.subtype())),
+                () -> "An unresolved Java constant must fail open, not ERROR: " + violations);
+    }
+
+    @Test
+    void testAemCloud003_unresolvedVariableIsNotFlaggedAsNull() {
+        Path javaPath = root.resolve("core/ImportJobExecutor.java");
+        io.github.rohithv16.aem.analyser.core.model.serviceuser.SubserviceCall call =
+                new io.github.rohithv16.aem.analyser.core.model.serviceuser.SubserviceCall(
+                        null, "com.example.ImportJobExecutor", javaPath, 727, 42,
+                        io.github.rohithv16.aem.analyser.core.model.serviceuser.SubserviceCall.Resolution.UNRESOLVED);
+
+        ReferenceGraphBuilder.GraphBuildResult buildResult = new ReferenceGraphBuilder.GraphBuildResult(
+                new ReferenceGraph(), Collections.emptySet(), Collections.emptySet(),
+                Collections.emptyMap(), Collections.emptyMap(),
+                Collections.emptyMap(), Collections.emptyMap(), List.of(), List.of(), List.of(), List.of(),
+                List.of(call), null);
+
+        RuleContext ctx = new RuleContext(new ReferenceGraph(), buildResult, Set.of(), null, Set.of(), root);
+        List<Violation> violations = new AemCloud003Rule().evaluate(ctx);
+
+        assertTrue(violations.stream().noneMatch(v -> "UNMAPPED_DEFAULT_SUBSERVICE".equals(v.subtype())),
+                () -> "An unresolved map variable must fail open: " + violations);
+    }
+
+    @Test
+    void testAemCloud003_nullSubserviceWithBundleLevelMappingIsMapped() {
+        Path javaPath = root.resolve("core/DefaultLoginServiceImpl.java");
+        io.github.rohithv16.aem.analyser.core.model.serviceuser.SubserviceCall call =
+                new io.github.rohithv16.aem.analyser.core.model.serviceuser.SubserviceCall(
+                        null, "com.example.DefaultLoginServiceImpl", javaPath, 42, 8);
+
+        Path cfgPath = root.resolve("ui.config/org.apache.sling.serviceusermapping.impl.ServiceUserMapperImpl.amended-default.cfg.json");
+        OSGiConfigNode config = new OSGiConfigNode(
+                cfgPath.toString(), cfgPath, null,
+                "org.apache.sling.serviceusermapping.impl.ServiceUserMapperImpl.amended~default",
+                null, false, Set.of(), ConfigFormat.CFG_JSON);
+        config.addProperty(new ConfigPropertyNode(
+                config.getId(), cfgPath, new SourceLocation(cfgPath, 2, 4),
+                "user.mapping", "user.mapping", "String[]",
+                "[\"com.example.core=[default-svc-user]\"]", DataType.STRING, false));
+
+        ReferenceGraphBuilder.GraphBuildResult buildResult = new ReferenceGraphBuilder.GraphBuildResult(
+                new ReferenceGraph(), Collections.emptySet(), Collections.emptySet(),
+                Collections.emptyMap(), Map.of(config.getId(), config),
+                Collections.emptyMap(), Collections.emptyMap(), List.of(), List.of(), List.of(), List.of(),
+                List.of(call), null);
+
+        RuleContext ctx = new RuleContext(new ReferenceGraph(), buildResult, Set.of(), null, Set.of(), root);
+        List<Violation> violations = new AemCloud003Rule().evaluate(ctx);
+
+        assertTrue(violations.stream().noneMatch(v -> "UNMAPPED_DEFAULT_SUBSERVICE".equals(v.subtype())),
+                () -> "Bundle-level mapping must satisfy a null subservice: " + violations);
     }
 }

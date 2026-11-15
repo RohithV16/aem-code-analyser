@@ -1,6 +1,8 @@
 package io.github.rohithv16.aem.analyser.core.git;
 
 import java.io.BufferedReader;
+import java.io.ByteArrayOutputStream;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -34,17 +36,21 @@ public final class GitDiffResolver {
                 return true;
             }
             String normalizedPath = filePath.replace('\\', '/').replaceAll("^/+", "");
-            boolean fileChanged = changedFiles.stream()
-                    .anyMatch(cf -> normalizedPath.endsWith(cf) || cf.endsWith(normalizedPath));
-            if (!fileChanged) {
+            String matchedFile = changedFiles.stream()
+                    .filter(cf -> normalizedPath.equals(cf) || normalizedPath.endsWith("/" + cf)
+                            || cf.endsWith("/" + normalizedPath))
+                    .findFirst()
+                    .orElse(null);
+            if (matchedFile == null) {
                 return false;
             }
-            Set<Integer> lines = null;
-            for (Map.Entry<String, Set<Integer>> entry : changedLines.entrySet()) {
-                String cf = entry.getKey();
-                if (normalizedPath.endsWith(cf) || cf.endsWith(normalizedPath)) {
-                    lines = entry.getValue();
-                    break;
+            Set<Integer> lines = changedLines.get(matchedFile);
+            if (lines == null) {
+                for (Map.Entry<String, Set<Integer>> entry : changedLines.entrySet()) {
+                    if (entry.getKey().equals(matchedFile)) {
+                        lines = entry.getValue();
+                        break;
+                    }
                 }
             }
             if (lines == null || lines.isEmpty() || line <= 0) {
@@ -68,49 +74,73 @@ public final class GitDiffResolver {
         Map<String, Set<Integer>> changedLines = new HashMap<>();
 
         try {
-            // 1. Check git status for unstaged/untracked files
-            runGitCommand(projectRoot, new String[]{"git", "status", "--porcelain"}, line -> {
-                if (line.length() >= 4) {
-                    String status = line.substring(0, 2);
-                    String file = line.substring(3).trim();
-                    if (!status.startsWith("D")) {
-                        changedFiles.add(normalize(file));
-                    }
-                }
-            });
+            readStatusPorcelainZ(projectRoot, changedFiles);
 
-            // 2. Run git diff -U0 to capture modified files and line ranges
-            String[] diffCmd;
+            // Committed changes since the merge base (PR semantics), when a ref is supplied.
             if (sinceRef != null && !sinceRef.isBlank()) {
-                diffCmd = new String[]{"git", "diff", "-U0", sinceRef.trim()};
-            } else {
-                diffCmd = new String[]{"git", "diff", "-U0", "HEAD"};
+                runDiff(projectRoot, new String[]{
+                        "git", "-c", "core.quotepath=false", "diff", "-U0",
+                        sinceRef.trim() + "...HEAD"}, changedFiles, changedLines);
             }
+            // Uncommitted working-tree changes (staged and unstaged).
+            runDiff(projectRoot, new String[]{
+                    "git", "-c", "core.quotepath=false", "diff", "-U0", "HEAD"},
+                    changedFiles, changedLines);
 
-            final String[] currentFile = new String[1];
-            runGitCommand(projectRoot, diffCmd, line -> {
-                if (line.startsWith("+++ b/")) {
-                    String rel = normalize(line.substring(6));
-                    currentFile[0] = rel;
-                    changedFiles.add(rel);
-                } else if (line.startsWith("@@") && currentFile[0] != null) {
-                    Matcher matcher = HUNK_PATTERN.matcher(line);
-                    if (matcher.find()) {
-                        int startLine = Integer.parseInt(matcher.group(1));
-                        int count = matcher.group(2) != null ? Integer.parseInt(matcher.group(2)) : 1;
-                        Set<Integer> lines = changedLines.computeIfAbsent(currentFile[0], k -> new HashSet<>());
-                        for (int i = 0; i < count; i++) {
-                            lines.add(startLine + i);
-                        }
-                    }
-                }
-            });
-
-            return new GitDiffResult(true, Collections.unmodifiableSet(changedFiles), Collections.unmodifiableMap(changedLines));
+            return new GitDiffResult(true, Collections.unmodifiableSet(changedFiles),
+                    Collections.unmodifiableMap(changedLines));
         } catch (Exception e) {
             // Fallback: if git fails, do not drop violations
             return new GitDiffResult(false, Collections.emptySet(), Collections.emptyMap());
         }
+    }
+
+    /**
+     * Parses {@code git status --porcelain=v1 -z --untracked-files=all}. The NUL-separated form keeps
+     * spaces/unicode intact, lists untracked files individually and gives rename old/new paths.
+     */
+    private void readStatusPorcelainZ(Path projectRoot, Set<String> changedFiles) throws Exception {
+        byte[] bytes = runGitCommandBytes(projectRoot, new String[]{
+                "git", "-c", "core.quotepath=false", "status",
+                "--porcelain=v1", "-z", "--untracked-files=all"});
+        String[] entries = new String(bytes, StandardCharsets.UTF_8).split("\0", -1);
+        for (int i = 0; i < entries.length; i++) {
+            String entry = entries[i];
+            if (entry.length() < 4) {
+                continue;
+            }
+            String status = entry.substring(0, 2);
+            String path = entry.substring(3);
+            boolean renamedOrCopied = status.startsWith("R") || status.startsWith("C");
+            if (!status.startsWith("D")) {
+                changedFiles.add(normalize(path));
+            }
+            if (renamedOrCopied && i + 1 < entries.length) {
+                i++; // consume the old path that follows a rename/copy entry
+            }
+        }
+    }
+
+    private void runDiff(Path projectRoot, String[] diffCmd,
+                         Set<String> changedFiles, Map<String, Set<Integer>> changedLines) throws Exception {
+        final String[] currentFile = new String[1];
+        runGitCommand(projectRoot, diffCmd, line -> {
+            if (line.startsWith("+++ b/")) {
+                String rel = normalize(line.substring(6));
+                currentFile[0] = rel;
+                changedFiles.add(rel);
+            } else if (line.startsWith("@@") && currentFile[0] != null) {
+                Matcher matcher = HUNK_PATTERN.matcher(line);
+                if (matcher.find()) {
+                    int startLine = Integer.parseInt(matcher.group(1));
+                    int count = matcher.group(2) != null ? Integer.parseInt(matcher.group(2)) : 1;
+                    Set<Integer> lines = changedLines.computeIfAbsent(currentFile[0], k -> new HashSet<>());
+                    for (int i = 0; i < count; i++) {
+                        lines.add(startLine + i);
+                    }
+                }
+            }
+        });
     }
 
     private Path findGitDir(Path dir) {
@@ -125,20 +155,33 @@ public final class GitDiffResolver {
     }
 
     private String normalize(String path) {
-        return path.replace('\\', '/').replaceAll("^/+", "").trim();
+        return path.replace('\\', '/').replaceAll("^/+", "");
     }
 
     private void runGitCommand(Path dir, String[] command, java.util.function.Consumer<String> lineConsumer) throws Exception {
         ProcessBuilder pb = new ProcessBuilder(command);
         pb.directory(dir.toFile());
-        pb.redirectErrorStream(true);
+        pb.redirectError(ProcessBuilder.Redirect.DISCARD);
         Process p = pb.start();
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(p.getInputStream(), StandardCharsets.UTF_8))) {
-            String l;
-            while ((l = reader.readLine()) != null) {
-                lineConsumer.accept(l);
+            String line;
+            while ((line = reader.readLine()) != null) {
+                lineConsumer.accept(line);
             }
         }
         p.waitFor();
+    }
+
+    private byte[] runGitCommandBytes(Path dir, String[] command) throws Exception {
+        ProcessBuilder pb = new ProcessBuilder(command);
+        pb.directory(dir.toFile());
+        pb.redirectError(ProcessBuilder.Redirect.DISCARD);
+        Process p = pb.start();
+        ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+        try (InputStream in = p.getInputStream()) {
+            in.transferTo(buffer);
+        }
+        p.waitFor();
+        return buffer.toByteArray();
     }
 }

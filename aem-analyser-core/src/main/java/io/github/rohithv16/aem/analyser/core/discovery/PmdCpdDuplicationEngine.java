@@ -13,8 +13,11 @@ import net.sourceforge.pmd.cpd.Match;
 import net.sourceforge.pmd.lang.document.FileLocation;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.*;
 
 /**
@@ -85,6 +88,7 @@ public final class PmdCpdDuplicationEngine {
         int duplicatedLines = 0;
         Map<Path, Integer> fileDuplicatedLines = new HashMap<>();
         List<Violation> violations = new ArrayList<>();
+        List<CodeMetrics.DuplicateBlock> duplicateBlockDetails = new ArrayList<>();
 
         for (Match match : matches) {
             List<Mark> marks = new ArrayList<>(match.getMarkSet());
@@ -105,12 +109,26 @@ public final class PmdCpdDuplicationEngine {
                 Path otherPath = Path.of(otherLoc.getFileId().getOriginalPath()).toAbsolutePath().normalize();
                 String otherClassName = fileClassNames.getOrDefault(otherPath, otherPath.getFileName().toString());
 
+                if (isSameFileOverlap(firstPath, firstLoc, otherPath, otherLoc)) {
+                    continue; // a shifted window in the same file is not a cross-boundary clone
+                }
+                if (isDelegationOnly(firstPath, firstLoc) || isDelegationOnly(otherPath, otherLoc)) {
+                    continue; // constructor delegation / delegating accessors are framework boilerplate
+                }
+
                 duplicateBlocks++;
                 duplicatedLines += lineCount;
                 fileDuplicatedLines.merge(otherPath, lineCount, Integer::sum);
+                int codeLines = countCodeLines(otherPath, otherLoc);
 
                 String relFirst = relativize(projectRoot, firstPath);
                 String relOther = relativize(projectRoot, otherPath);
+
+                duplicateBlockDetails.add(new CodeMetrics.DuplicateBlock(
+                        relOther, otherLoc.getStartLine(), otherLoc.getEndLine(),
+                        relFirst, firstLoc.getStartLine(), firstLoc.getEndLine(),
+                        lineCount, countCodeLines(otherPath, otherLoc), tokenCount,
+                        blockFingerprint(relOther, otherLoc.getStartLine(), tokenCount)));
 
                 List<RelatedLocation> related = List.of(new RelatedLocation(
                         String.format("Original block in %s (%d lines, %d tokens)", firstClassName, lineCount, tokenCount),
@@ -122,9 +140,9 @@ public final class PmdCpdDuplicationEngine {
                         RuleId.AEM_DUP_010.id(),
                         RuleId.AEM_DUP_010.defaultLevel(),
                         "DUPLICATE_CODE_BLOCK",
-                        String.format("Duplicate code block (%d lines, %d tokens) in %s matches %s (lines %d-%d).",
-                                lineCount, tokenCount, otherClassName, firstClassName,
-                                firstLoc.getStartLine(), firstLoc.getEndLine()),
+                        String.format("Duplicate code block (%d lines, %d code lines, %d tokens): %s:%d-%d matches %s:%d-%d.",
+                                lineCount, codeLines, tokenCount, relOther, otherLoc.getStartLine(), otherLoc.getEndLine(),
+                                relFirst, firstLoc.getStartLine(), firstLoc.getEndLine()),
                         relOther,
                         new TextRegion(otherLoc.getStartLine(), 1, otherLoc.getEndLine(), 1),
                         otherClassName,
@@ -157,10 +175,93 @@ public final class PmdCpdDuplicationEngine {
                 duplicatedLines,
                 duplicateBlocks,
                 dupPct,
-                duplicateClasses
+                duplicateClasses,
+                duplicateBlockDetails
         );
 
         return new Result(metrics, violations);
+    }
+
+    private int countCodeLines(Path file, FileLocation location) {
+        try {
+            List<String> lines = Files.readAllLines(file);
+            int code = 0;
+            for (int line = Math.max(0, location.getStartLine() - 1);
+                 line < Math.min(lines.size(), location.getEndLine()); line++) {
+                String text = lines.get(line).strip();
+                if (text.isEmpty() || text.startsWith("//") || text.startsWith("*")
+                        || text.startsWith("/*")) {
+                    continue;
+                }
+                code++;
+            }
+            return code;
+        } catch (IOException e) {
+            return Math.max(0, location.getEndLine() - location.getStartLine() + 1);
+        }
+    }
+
+    /**
+     * Stable identity for one duplicated block (survives line moves and message wording changes).
+     */
+    private String blockFingerprint(String file, int startLine, int tokens) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] hash = digest.digest((file + "|" + startLine + "|" + tokens)
+                    .getBytes(StandardCharsets.UTF_8));
+            StringBuilder hex = new StringBuilder();
+            for (int i = 0; i < 6; i++) {
+                hex.append(Character.forDigit((hash[i] >> 4) & 0xF, 16));
+                hex.append(Character.forDigit(hash[i] & 0xF, 16));
+            }
+            return hex.toString();
+        } catch (NoSuchAlgorithmException e) {
+            return Integer.toHexString((file + startLine + tokens).hashCode());
+        }
+    }
+
+    private boolean isSameFileOverlap(Path firstPath, FileLocation first,
+                                      Path otherPath, FileLocation other) {
+        if (!firstPath.equals(otherPath)) {
+            return false;
+        }
+        return first.getStartLine() <= other.getEndLine() && other.getStartLine() <= first.getEndLine();
+    }
+
+    /**
+     * Constructor-delegation chains and delegating accessor blocks are boilerplate, not copy-paste
+     * business logic. Treat a block as delegation-only when at least 80% of its meaningful lines are
+     * method signatures, {@code this(...)}/{@code super(...)} calls, or simple returns.
+     */
+    private boolean isDelegationOnly(Path file, FileLocation location) {
+        if (file == null || !Files.isRegularFile(file)) {
+            return false;
+        }
+        try {
+            List<String> lines = Files.readAllLines(file);
+            int meaningful = 0;
+            int delegating = 0;
+            for (int line = Math.max(0, location.getStartLine() - 1);
+                 line < Math.min(lines.size(), location.getEndLine()); line++) {
+                String text = lines.get(line).strip();
+                if (text.isEmpty() || text.startsWith("//") || text.startsWith("*")
+                        || text.startsWith("/*") || text.startsWith("@")
+                        || text.equals("{") || text.equals("}")) {
+                    continue;
+                }
+                meaningful++;
+                if (text.startsWith("return ") || text.startsWith("this(") || text.startsWith("super(")
+                        || text.matches(".*\\{\\s*return\\s+[\\w.$()\"' ]+;\\s*\\}.*")
+                        || text.matches(".*\\{\\s*(this|super)\\([^)]*\\);\\s*\\}.*")
+                        || text.matches("^(public|protected|private|static|final|abstract|default|\\s)*"
+                        + "[\\w<>\\[\\], ?.]+\\s+\\w+\\([^)]*\\)\\s*\\{?$")) {
+                    delegating++;
+                }
+            }
+            return meaningful > 0 && delegating * 10 >= meaningful * 8;
+        } catch (IOException e) {
+            return false;
+        }
     }
 
     private String relativize(Path projectRoot, Path path) {

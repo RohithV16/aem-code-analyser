@@ -62,7 +62,8 @@ public final class AemDead004Rule implements RuleEvaluator {
                         relativePath(context, usage.filePath()),
                         region,
                         null,
-                        "Verify class name spelling, create the missing model class, or update the HTL reference.",
+                        "Verify class name spelling, create the missing model class (check both src/main/java"
+                                + " and content-package jcr_root sources), or update the HTL reference.",
                         List.of()
                 ));
             }

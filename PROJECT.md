@@ -112,7 +112,7 @@ The AEM Code Analyser employs a **Decoupled Tri-Tier Architecture** centered aro
 
 ### Milestone 1 (M1): Foundation & Generic Multi-Module Discovery Engine
 - **Objective**: Establish project foundation and implement generic, recursive Maven reactor discovery capable of analyzing arbitrary multi-module layouts without hardcoded paths.
-- **Key Deliverables**: `pom.xml`, `aem-analyser-core` module setup, `ProjectDiscoveryEngine`, `ModuleDescriptor`, 11-category module classifier with `<embeddeds>` container package disambiguation, non-Maven `CloudConfigDiscoveryEngine`, 3-layer tooling exclusion (`lombok.config`), multi-tenant test fixtures modeled after `aemaacs-life` and `rohith-aem-portfolio`.
+- **Key Deliverables**: `pom.xml`, `aem-analyser-core` module setup, `ProjectDiscoveryEngine`, `ModuleDescriptor`, 11-category module classifier with `<embeddeds>` container package disambiguation, non-Maven `CloudConfigDiscoveryEngine`, 3-layer tooling exclusion (`lombok.config`), multi-tenant test fixtures modeled after `an enterprise AEM project` and `a standard AEM archetype project`.
 - **Success Criteria**: 100% accurate classification across all 32 modules in reference repositories (0.0% unclassified rate); complete isolation from non-OSGi tooling configurations.
 
 ### Milestone 2 (M2): Polyglot Parsing & AST Symbol Extraction Engine
@@ -128,7 +128,7 @@ The AEM Code Analyser employs a **Decoupled Tri-Tier Architecture** centered aro
 ### Milestone 4 (M4): Dead Code Detection Rules & Violation Engine
 - **Objective**: Implement Phase 1 detection algorithms with rigorous false-positive elimination.
 - **Key Deliverables**: Rule evaluators for `AEM-DEAD-001` (DS 1.4 §112.8.2 `ActivePids(K)` with default PID suppression and `"$"` wildcard, detecting `ORPHANED_OCD_NAMED_CONFIG`), `AEM-DEAD-002A` (ghost properties with typed key stripping), `AEM-DEAD-002B` (multi-component OCD call aggregation via `CONSUMES_PROPERTY` in-degree), `AEM-DEAD-003A` (service interface package exports and tightened `immediate = true`), `AEM-DEAD-003B` (Sling Models), and `AEM-DEAD-003C` (inactive delayed components); Platform PID Catalog; 11-category System Entry Point Catalog (including Whiteboard SPIs).
-- **Success Criteria**: Flawlessly flags real-world production defects (`ContentSyncReplicationServletConfig.cfg.json` and `FlourishCmpConfig.cfg.json`) while maintaining zero false positives on whiteboard servlets, SPI injectors, and platform configs.
+- **Success Criteria**: Flawlessly flags real-world production defects (`SharedServletConfig.cfg.json` and `ContentConfig.cfg.json`) while maintaining zero false positives on whiteboard servlets, SPI injectors, and platform configs.
 
 ### Milestone 5 (M5): Delivery Mechanisms (Maven Plugin & CLI) & Exporters
 - **Objective**: Package the analyzer into developer-ready delivery forms with industry-standard CI reporting.
@@ -323,11 +323,11 @@ public interface ReportExporter {
 Every phase and feature of the analyzer must be independently verifiable against real-world test cases:
 1. **Unit Testing**: Golden-file test suites validating JavaParser annotation visitors, Jackson token location tracking, Felix `.config` parser, Metatype 1.4 name normalization, and individual rule evaluators.
 2. **Integration Testing Against Reference Repositories**:
-   - **Standard Archetype (`rohith-aem-portfolio`)**: Confirms zero false positives on standard factory configurations (`SiteIndexingProfileImpl~en.cfg.json`), underscore properties (`webconsole_configurationFactory_nameHint`), and whiteboard servlets.
-   - **Enterprise Multi-Tenant (`aemaacs-life`)**: Confirms detection of the two real-world production defects:
-     - `com.mandg.core.servlets.contentsync.ContentSyncReplicationServletConfig.cfg.json` (Flagged as Orphaned / Mismatched PID).
-     - `com.mandg.core.config.FlourishCmpConfig.cfg.json` (Flagged as Orphaned OCD named config).
-     - Mixed `.config` parsing in `whitelabel` without syntax failure.
+   - **Standard Archetype (`a standard AEM archetype project`)**: Confirms zero false positives on standard factory configurations (`SiteIndexingProfileImpl~en.cfg.json`), underscore properties (`webconsole_configurationFactory_nameHint`), and whiteboard servlets.
+   - **Enterprise Multi-Tenant (`an enterprise AEM project`)**: Confirms detection of the two real-world production defects:
+     - `com.example.core.servlets.shared.SharedServletConfig.cfg.json` (Flagged as Orphaned / Mismatched PID).
+     - `com.example.core.config.ContentConfig.cfg.json` (Flagged as Orphaned OCD named config).
+     - Mixed `.config` parsing in `brand` without syntax failure.
 3. **Format Conformance**:
    - Validate exported `.sarif` files against the official OASIS SARIF 2.1.0 JSON Schema using JSON schema validators.
    - Validate `sonar-report.json` against SonarQube Generic Issue Import specifications.

@@ -114,7 +114,19 @@ public final class PlatformPidCatalog {
         if (EXACT_PIDS.contains(pid)) {
             return true;
         }
-        return WILDCARD_PREFIXES.stream().anyMatch(pid::startsWith);
+        return WILDCARD_PREFIXES.stream().anyMatch(prefix -> matchesPrefix(pid, prefix));
+    }
+
+    /**
+     * Segment-boundary prefix match: {@code com.adobe.aem} must not match
+     * {@code com.adobe.aemfoo.MyPid}. A prefix that already ends with a dot keeps its
+     * package semantics; a class-level prefix additionally matches its exact PID.
+     */
+    private static boolean matchesPrefix(String pid, String prefix) {
+        if (prefix.endsWith(".")) {
+            return pid.startsWith(prefix);
+        }
+        return pid.equals(prefix) || pid.startsWith(prefix + ".");
     }
 
     public static Set<String> exactPids() {

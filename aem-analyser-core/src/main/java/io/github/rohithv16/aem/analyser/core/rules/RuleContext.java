@@ -25,7 +25,25 @@ public record RuleContext(ReferenceGraph graph,
                           Path projectRoot,
                           List<HtlUsage> htlUsages,
                           List<CqComponentDefinition> cqComponents,
-                          List<HtlUnsafeContextFinding> htlUnsafeContexts) {
+                          List<HtlUnsafeContextFinding> htlUnsafeContexts,
+                          List<io.github.rohithv16.aem.analyser.core.model.discovery.ModuleDescriptor> modules) {
+
+    public RuleContext {
+        modules = List.copyOf(modules == null ? List.of() : modules);
+    }
+
+    public RuleContext(ReferenceGraph graph,
+                       ReferenceGraphBuilder.GraphBuildResult buildResult,
+                       Set<String> exportedPackages,
+                       DependencyBytecodeIndexer.DependencyIndex dependencyIndex,
+                       Set<String> ignoredServices,
+                       Path projectRoot,
+                       List<HtlUsage> htlUsages,
+                       List<CqComponentDefinition> cqComponents,
+                       List<HtlUnsafeContextFinding> htlUnsafeContexts) {
+        this(graph, buildResult, exportedPackages, dependencyIndex, ignoredServices, projectRoot,
+                htlUsages, cqComponents, htlUnsafeContexts, List.of());
+    }
 
     public RuleContext(ReferenceGraph graph,
                        ReferenceGraphBuilder.GraphBuildResult buildResult,
@@ -35,7 +53,7 @@ public record RuleContext(ReferenceGraph graph,
                        Path projectRoot,
                        List<HtlUsage> htlUsages,
                        List<CqComponentDefinition> cqComponents) {
-        this(graph, buildResult, exportedPackages, dependencyIndex, ignoredServices, projectRoot, htlUsages, cqComponents, List.of());
+        this(graph, buildResult, exportedPackages, dependencyIndex, ignoredServices, projectRoot, htlUsages, cqComponents, List.of(), List.of());
     }
 
     public RuleContext(ReferenceGraph graph,
@@ -44,7 +62,20 @@ public record RuleContext(ReferenceGraph graph,
                        DependencyBytecodeIndexer.DependencyIndex dependencyIndex,
                        Set<String> ignoredServices,
                        Path projectRoot) {
-        this(graph, buildResult, exportedPackages, dependencyIndex, ignoredServices, projectRoot, List.of(), List.of(), List.of());
+        this(graph, buildResult, exportedPackages, dependencyIndex, ignoredServices, projectRoot,
+                List.of(), List.of(), List.of(), List.of());
+    }
+
+    public java.util.Optional<String> bundleSymbolicNameFor(Path file) {
+        if (file == null || modules == null) {
+            return java.util.Optional.empty();
+        }
+        Path absolute = file.toAbsolutePath().normalize();
+        return modules.stream()
+                .filter(module -> module.bundleSymbolicName() != null)
+                .filter(module -> absolute.startsWith(module.moduleDirectory()))
+                .max(java.util.Comparator.comparingInt(module -> module.moduleDirectory().getNameCount()))
+                .map(io.github.rohithv16.aem.analyser.core.model.discovery.ModuleDescriptor::bundleSymbolicName);
     }
 
     public List<OSGiComponentNode> components() {

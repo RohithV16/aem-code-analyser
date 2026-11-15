@@ -11,11 +11,9 @@ import io.github.rohithv16.aem.analyser.core.model.graph.node.SlingModelNode;
 import io.github.rohithv16.aem.analyser.core.model.discovery.ModuleDescriptor;
 import io.github.rohithv16.aem.analyser.core.model.report.CoverageReport;
 import io.github.rohithv16.aem.analyser.core.model.report.Violation;
-import io.github.rohithv16.aem.analyser.core.parser.java.CodeBlockSnapshot;
 import io.github.rohithv16.aem.analyser.core.rules.impl.AemDup001Rule;
 import io.github.rohithv16.aem.analyser.core.rules.impl.AemDup002Rule;
 import io.github.rohithv16.aem.analyser.core.rules.impl.AemDup003Rule;
-import io.github.rohithv16.aem.analyser.core.rules.impl.AemDup010Rule;
 import org.junit.jupiter.api.Test;
 
 import java.nio.file.Path;
@@ -99,6 +97,42 @@ class DuplicateRulesTest {
     }
 
     @Test
+    void testAemDup002_primaryLocationIsIndependentOfDiscoveryOrder() {
+        OSGiConfigNode json = new OSGiConfigNode(
+                "json", root.resolve("config/com.example.Service.cfg.json"),
+                new SourceLocation(root.resolve("config/com.example.Service.cfg.json"), 1, 1),
+                "com.example.Service", null, false, Set.of(), ConfigFormat.CFG_JSON
+        );
+        OSGiConfigNode config = new OSGiConfigNode(
+                "config", root.resolve("config/com.example.Service.config"),
+                new SourceLocation(root.resolve("config/com.example.Service.config"), 1, 1),
+                "com.example.Service", null, false, Set.of(), ConfigFormat.PROPERTIES
+        );
+
+        String forward = primaryPath(List.of(json, config));
+        String reverse = primaryPath(List.of(config, json));
+
+        assertEquals(forward, reverse,
+                () -> "Duplicate OSGi config reporting must not depend on discovery order");
+        assertEquals("config/com.example.Service.config", forward);
+    }
+
+    private String primaryPath(List<OSGiConfigNode> configs) {
+        java.util.Map<String, OSGiConfigNode> byId = new java.util.LinkedHashMap<>();
+        configs.forEach(config -> byId.put(config.getId(), config));
+        ReferenceGraphBuilder.GraphBuildResult buildResult = new ReferenceGraphBuilder.GraphBuildResult(
+                new ReferenceGraph(), Collections.emptySet(), Collections.emptySet(),
+                Collections.emptyMap(), byId,
+                Collections.emptyMap(), Collections.emptyMap(), List.of(), null
+        );
+        RuleContext ctx = new RuleContext(buildResult.graph(), buildResult, Collections.emptySet(), null,
+                Collections.emptySet(), root);
+        List<Violation> violations = new AemDup002Rule().evaluate(ctx);
+        assertEquals(1, violations.size());
+        return violations.get(0).filePath();
+    }
+
+    @Test
     void testAemDup003_duplicateSlingModel() {
         SlingModelNode m1 = new SlingModelNode(
                 "com.example.HeaderA", Collections.emptySet(), null,
@@ -131,32 +165,5 @@ class DuplicateRulesTest {
         assertEquals(1, violations.size());
         assertEquals("AEM-DUP-003", violations.get(0).ruleId());
         assertTrue(violations.get(0).message().contains("my/cmp/header"));
-    }
-
-    @Test
-    void testAemDup010_duplicateCodeBlock() {
-        CodeBlockSnapshot b1 = new CodeBlockSnapshot(
-                root.resolve("ServiceA.java"), "com.example.ServiceA", "processAsset",
-                20, 35, 16, 8, "hash123", "while (nodes.hasNext()) { ... }"
-        );
-
-        CodeBlockSnapshot b2 = new CodeBlockSnapshot(
-                root.resolve("ServiceB.java"), "com.example.ServiceB", "handleAsset",
-                50, 65, 16, 8, "hash123", "while (nodes.hasNext()) { ... }"
-        );
-
-        ReferenceGraphBuilder.GraphBuildResult buildResult = new ReferenceGraphBuilder.GraphBuildResult(
-                new ReferenceGraph(), Collections.emptySet(), Collections.emptySet(),
-                Collections.emptyMap(), Collections.emptyMap(), Collections.emptyMap(),
-                Collections.emptyMap(), List.of(b1, b2), null
-        );
-
-        RuleContext ctx = new RuleContext(buildResult.graph(), buildResult, Collections.emptySet(), null, Collections.emptySet(), root);
-        AemDup010Rule rule = new AemDup010Rule();
-        List<Violation> violations = rule.evaluate(ctx);
-
-        assertEquals(1, violations.size());
-        assertEquals("AEM-DUP-010", violations.get(0).ruleId());
-        assertTrue(violations.get(0).message().contains("com.example.ServiceA::processAsset"));
     }
 }

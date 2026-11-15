@@ -75,7 +75,25 @@ public enum RuleId {
             Severity.ERROR),
     AEM_CLOUD_003("AEM-CLOUD-003", "UnmappedSubserviceUser",
             "Java call to getServiceResourceResolver() has no matching ServiceUserMapperImpl.amended mapping or system user definition.",
-            Severity.ERROR);
+            Severity.ERROR),
+    AEM_CLOUD_004("AEM-CLOUD-004", "DeprecatedAemApiUsage",
+            "Java source imports or uses an API deprecated in AEM as a Cloud Service.",
+            Severity.WARNING),
+    AEM_CLOUD_005("AEM-CLOUD-005", "InvalidRunmodeFolder",
+            "OSGi configuration lives in a runmode folder that is not a recognised AEM runmode.",
+            Severity.WARNING),
+    AEM_QUAL_006("AEM-QUAL-006", "ResolverStoredInComponentField",
+            "OSGi component stores a request-scoped ResourceResolver or JCR Session in an instance field.",
+            Severity.WARNING),
+    AEM_DEAD_005("AEM-DEAD-005", "OrphanedClientlibCategory",
+            "A client library category is never referenced by an HTL/JSP template or another client library.",
+            Severity.INFO),
+    AEM_SEC_002("AEM-SEC-002", "OpenRedirectOrSsrf",
+            "User-controlled input flows into a redirect or outbound HTTP request.",
+            Severity.WARNING),
+    AEM_PERF_004("AEM-PERF-004", "UnboundedQuery",
+            "JCR/Oak query has no limit and may scan an unbounded result set.",
+            Severity.WARNING);
 
     private final String id;
     private final String name;

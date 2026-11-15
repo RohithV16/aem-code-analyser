@@ -14,11 +14,17 @@ import io.github.rohithv16.aem.analyser.core.model.serviceuser.SubserviceCall;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 
 /**
- * Precision AST extractor for getServiceResourceResolver(...) and loginService(...) subservice usages.
+ * Precision AST extractor for service-resolver acquisitions with a subservice:
+ * {@code ResourceResolverFactory.getServiceResourceResolver(Map)},
+ * {@code ResourceResolverFactory.getResourceResolver(Map)} and
+ * {@code SlingRepository.loginService(String, ...)} (plus legacy login variants).
  */
 public final class SubserviceCallExtractor {
 
@@ -39,24 +45,42 @@ public final class SubserviceCallExtractor {
                 });
             }
         }
+        Set<String> factoryReceivers = collectFactoryReceivers(cu);
 
         for (MethodCallExpr call : cu.findAll(MethodCallExpr.class)) {
             String name = call.getNameAsString();
-            if (!name.equals("getServiceResourceResolver") && !name.equals("loginService")) {
+            if (!isAcquisitionCall(call, factoryReceivers) || call.getArguments().isEmpty()) {
                 continue;
             }
 
             String subservice = null;
-            if (name.equals("loginService") && !call.getArguments().isEmpty()) {
-                subservice = resolveSubserviceString(call.getArgument(0), localConstants);
-            } else if (name.equals("getServiceResourceResolver") && !call.getArguments().isEmpty()) {
-                Expression arg = call.getArgument(0);
-                subservice = resolveFromMapExpression(arg, call, localConstants);
+            SubserviceCall.Resolution resolution = SubserviceCall.Resolution.UNRESOLVED;
+            if (name.equals("loginService") || name.equals("loginAdministrative")) {
+                Expression argument = call.getArgument(0);
+                if (argument.isNullLiteralExpr()) {
+                    resolution = SubserviceCall.Resolution.NULL;
+                } else {
+                    subservice = resolveSubserviceString(argument, localConstants);
+                    resolution = subservice != null
+                            ? SubserviceCall.Resolution.LITERAL
+                            : SubserviceCall.Resolution.UNRESOLVED;
+                }
+            } else {
+                Expression argument = call.getArgument(0);
+                if (argument.isNullLiteralExpr()) {
+                    resolution = SubserviceCall.Resolution.NULL;
+                } else {
+                    subservice = resolveFromMapExpression(argument, call, localConstants);
+                    resolution = subservice != null
+                            ? SubserviceCall.Resolution.LITERAL
+                            : SubserviceCall.Resolution.UNRESOLVED;
+                }
             }
 
-            int line = call.getRange().map(r -> r.begin.line).orElse(1);
-            int col = call.getRange().map(r -> r.begin.column).orElse(1);
-            results.add(new SubserviceCall(subservice, classFqn, filePath, line, col));
+            var nameRange = call.getName().getRange();
+            int line = nameRange.map(r -> r.begin.line).orElse(1);
+            int col = nameRange.map(r -> r.begin.column).orElse(1);
+            results.add(new SubserviceCall(subservice, classFqn, filePath, line, col, resolution));
         }
 
         return results;
@@ -85,8 +109,8 @@ public final class SubserviceCallExtractor {
                 }
                 for (MethodCallExpr methodCall : enclosingMethod.findAll(MethodCallExpr.class)) {
                     if (methodCall.getNameAsString().equals("put") && methodCall.getArguments().size() >= 2) {
-                        String key = methodCall.getArgument(0).toString();
-                        if (key.contains("SUBSERVICE") || key.contains("subservice")) {
+                        String key = methodCall.getArgument(0).toString().toLowerCase(java.util.Locale.ROOT);
+                        if (key.contains("subservice")) {
                             return resolveSubserviceString(methodCall.getArgument(1), localConstants);
                         }
                     }
@@ -98,26 +122,43 @@ public final class SubserviceCallExtractor {
     }
 
     private String extractStringFromMapCall(Expression expr, Map<String, String> localConstants) {
-        if (!expr.isMethodCallExpr()) {
+        if (expr == null) {
             return null;
         }
-        MethodCallExpr mce = expr.asMethodCallExpr();
-        String name = mce.getNameAsString();
-        if (name.equals("singletonMap") || name.equals("of")) {
+        // Find the subservice entry in any map construction (Map.of, singletonMap, ofEntries/entry,
+        // put, ImmutableMap.of, unmodifiableMap(...), ...), not just one API shape.
+        for (MethodCallExpr mce : expr.findAll(MethodCallExpr.class)) {
+            String name = mce.getNameAsString();
             var args = mce.getArguments();
-            for (int i = 0; i < args.size() - 1; i += 2) {
-                Expression keyExpr = args.get(i);
-                Expression valExpr = args.get(i + 1);
-                String keyStr = keyExpr.toString();
-                if (keyStr.contains("SUBSERVICE") || keyStr.contains("subservice")) {
-                    return resolveSubserviceString(valExpr, localConstants);
+            if ((name.equals("entry") || name.equals("put")) && args.size() >= 2
+                    && isSubserviceKey(args.get(0))) {
+                String value = resolveSubserviceString(args.get(1), localConstants);
+                if (value != null) {
+                    return value;
                 }
             }
-            if (args.size() == 2) {
-                return resolveSubserviceString(args.get(1), localConstants);
+            if ((name.equals("of") || name.equals("singletonMap")) && args.size() >= 2) {
+                for (int i = 0; i + 1 < args.size(); i += 2) {
+                    if (isSubserviceKey(args.get(i))) {
+                        String value = resolveSubserviceString(args.get(i + 1), localConstants);
+                        if (value != null) {
+                            return value;
+                        }
+                    }
+                }
+                if (args.size() == 2) {
+                    String value = resolveSubserviceString(args.get(1), localConstants);
+                    if (value != null) {
+                        return value;
+                    }
+                }
             }
         }
         return null;
+    }
+
+    private boolean isSubserviceKey(Expression keyExpression) {
+        return keyExpression.toString().toLowerCase(Locale.ROOT).contains("subservice");
     }
 
     private String resolveSubserviceString(Expression expr, Map<String, String> localConstants) {
@@ -126,16 +167,64 @@ public final class SubserviceCallExtractor {
         }
         if (expr.isNameExpr()) {
             String id = expr.asNameExpr().getNameAsString();
-            if (localConstants.containsKey(id)) {
-                return localConstants.get(id);
-            }
-            return id;
+            return localConstants.get(id); // null when unresolved: caller marks UNRESOLVED
         }
         if (expr.isFieldAccessExpr()) {
             FieldAccessExpr fae = expr.asFieldAccessExpr();
-            return fae.getNameAsString();
+            // Constants declared in this file are resolvable even when referenced as Constants.X.
+            return localConstants.get(fae.getNameAsString());
         }
         return null;
+    }
+
+    /**
+     * A service-resolver acquisition is any factory/repository API that takes authentication info,
+     * not a single hardcoded method name. {@code getResourceResolver(Map)} is only treated as a
+     * factory call when the receiver is a factory/repository (so {@code asset.getResourceResolver()}
+     * is not misclassified).
+     */
+    private boolean isAcquisitionCall(MethodCallExpr call, Set<String> factoryReceivers) {
+        String name = call.getNameAsString();
+        if (name.equals("loginService") || name.equals("loginAdministrative")
+                || name.equals("getServiceResourceResolver")) {
+            return true;
+        }
+        if (!name.equals("getResourceResolver")) {
+            return false;
+        }
+        String scopeText = call.getScope().map(Expression::toString).orElse("");
+        String simpleScope = call.getScope().filter(Expression::isNameExpr)
+                .map(expression -> expression.asNameExpr().getNameAsString())
+                .orElse(scopeText);
+        String lower = scopeText.toLowerCase(Locale.ROOT);
+        return factoryReceivers.contains(simpleScope)
+                || lower.contains("factory")
+                || lower.contains("repository");
+    }
+
+    private Set<String> collectFactoryReceivers(CompilationUnit cu) {
+        Set<String> names = new HashSet<>();
+        for (FieldDeclaration field : cu.findAll(FieldDeclaration.class)) {
+            if (isFactoryType(field.getElementType().asString())) {
+                field.getVariables().forEach(variable -> names.add(variable.getNameAsString()));
+            }
+        }
+        for (com.github.javaparser.ast.body.Parameter parameter
+                : cu.findAll(com.github.javaparser.ast.body.Parameter.class)) {
+            if (isFactoryType(parameter.getType().asString())) {
+                names.add(parameter.getNameAsString());
+            }
+        }
+        for (VariableDeclarator variable : cu.findAll(VariableDeclarator.class)) {
+            if (isFactoryType(variable.getType().asString())) {
+                names.add(variable.getNameAsString());
+            }
+        }
+        return names;
+    }
+
+    private boolean isFactoryType(String type) {
+        return type.contains("ResourceResolverFactory") || type.contains("SlingRepository");
     }
 
     private MethodDeclaration findEnclosingMethod(MethodCallExpr call) {

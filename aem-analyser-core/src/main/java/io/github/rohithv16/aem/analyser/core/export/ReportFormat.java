@@ -7,5 +7,8 @@ public enum ReportFormat {
     SARIF,
     SONAR,
     CONSOLE,
-    HTML
+    HTML,
+    GITHUB,
+    GITLAB,
+    AZURE
 }

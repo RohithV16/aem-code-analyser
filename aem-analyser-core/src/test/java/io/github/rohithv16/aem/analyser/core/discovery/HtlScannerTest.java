@@ -53,6 +53,22 @@ class HtlScannerTest {
     }
 
     @Test
+    void testDetectsMultilineDataSlyUse(@TempDir Path tempDir) throws IOException {
+        Files.writeString(tempDir.resolve("multi.html"), """
+                <div data-sly-use.model=
+                     "com.example.core.models.MultiLineModel">
+                    ${model.title}
+                </div>
+                """);
+
+        List<HtlUsage> usages = new HtlScanner().scanDirectory(tempDir);
+
+        assertEquals(1, usages.size());
+        assertEquals("com.example.core.models.MultiLineModel", usages.get(0).target());
+        assertEquals(1, usages.get(0).line());
+    }
+
+    @Test
     void testDetectsUnsafeContext(@TempDir Path tempDir) throws IOException {
         String htlContent = """
                 <div>

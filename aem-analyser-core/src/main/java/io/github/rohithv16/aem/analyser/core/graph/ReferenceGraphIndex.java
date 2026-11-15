@@ -13,7 +13,6 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
-import java.util.stream.Collectors;
 
 /**
  * FEAT-GRAPH-02: secondary concurrent in-memory lookup indices providing O(1)
@@ -63,11 +62,22 @@ public final class ReferenceGraphIndex {
     }
 
     public void registerConfig(OSGiConfigNode config) {
-        if (config.getPid() != null) {
-            runmodeIndex.computeIfAbsent(
-                    config.getRunmodes().stream().sorted().collect(Collectors.joining("+")),
-                    k -> new ArrayList<>()).add(config);
+        if (config.getPid() == null) {
+            return;
         }
+        // A config can be active in several runmodes (e.g. config.author.dev). Index it under
+        // every individual runmode so single-runmode lookups resolve; a combined "author+dev"
+        // key can never be hit by getConfigsForRunmode("author").
+        if (config.getRunmodes().isEmpty()) {
+            runmodeIndex.computeIfAbsent("", k -> new ArrayList<>()).add(config);
+            return;
+        }
+        config.getRunmodes().stream()
+                .filter(runmode -> runmode != null && !runmode.isBlank())
+                .map(runmode -> runmode.toLowerCase(Locale.ROOT))
+                .distinct()
+                .sorted()
+                .forEach(runmode -> runmodeIndex.computeIfAbsent(runmode, k -> new ArrayList<>()).add(config));
     }
 
     public List<OSGiComponentNode> findComponentsByPid(String pid) {

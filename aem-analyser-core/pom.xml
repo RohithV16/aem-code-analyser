@@ -15,10 +15,14 @@
     <description>Headless cross-boundary analysis engine: discovery, AST parsing, reference graph, rules and exporters</description>
 
     <dependencies>
-        <!-- Java AST parsing -->
-        <dependency>
+        <!-- Java AST parsing -->        <dependency>
             <groupId>com.github.javaparser</groupId>
             <artifactId>javaparser-core</artifactId>
+        </dependency>
+        <!-- Jackson YAML for project configuration -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.dataformat</groupId>
+            <artifactId>jackson-dataformat-yaml</artifactId>
         </dependency>
         <!-- OSGi .cfg.json streaming parser with location tracking -->
         <dependency>
@@ -82,4 +86,13 @@
             <scope>test</scope>
         </dependency>
     </dependencies>
+
+    <build>
+        <resources>
+            <resource>
+                <directory>src/main/resources</directory>
+                <filtering>true</filtering>
+            </resource>
+        </resources>
+    </build>
 </project>

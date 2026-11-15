@@ -6,8 +6,13 @@ import com.fasterxml.jackson.core.JsonLocation;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonToken;
 import com.fasterxml.jackson.core.json.JsonReadFeature;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.Reader;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -30,6 +35,8 @@ public final class CfgJsonConfigParser {
             .enable(JsonReadFeature.ALLOW_SINGLE_QUOTES)
             .build();
 
+    private static final ObjectMapper MAPPER = new ObjectMapper(JSON_FACTORY);
+
     /**
      * Parses the root JSON object of a .cfg.json file.
      *
@@ -38,7 +45,8 @@ public final class CfgJsonConfigParser {
      */
     public Map<String, ConfigPropertyEntry> parse(Path file) throws IOException {
         Map<String, ConfigPropertyEntry> properties = new LinkedHashMap<>();
-        try (JsonParser parser = JSON_FACTORY.createParser(Files.newBufferedReader(file))) {
+        try (Reader reader = openUtf8Reader(file);
+             JsonParser parser = JSON_FACTORY.createParser(reader)) {
             if (parser.nextToken() != JsonToken.START_OBJECT) {
                 throw new IOException("Expected JSON object at root of " + file);
             }
@@ -48,11 +56,30 @@ public final class CfgJsonConfigParser {
                 parser.nextToken();
                 ConfigPropertyEntry entry = readProperty(parser, keyLocation, rawKey);
                 if (entry != null) {
-                    properties.put(entry.baseKey(), entry);
+                    // Felix/Aether deployments are last-wins, but keeping the first occurrence gives
+                    // a stable location for rules and prevents silent context switches.
+                    properties.putIfAbsent(entry.baseKey(), entry);
                 }
             }
         }
         return properties;
+    }
+
+    /**
+     * Opens a UTF-8 reader and consumes a leading BOM (U+FEFF). Some editors and Windows tools emit
+     * one, and Jackson rejects it as an unexpected character, which used to drop the whole file.
+     */
+    private Reader openUtf8Reader(Path file) throws IOException {
+        BufferedReader reader = Files.newBufferedReader(file, StandardCharsets.UTF_8);
+        reader.mark(1);
+        int first = reader.read();
+        if (first != 0xFEFF) {
+            if (first == -1) {
+                return reader;
+            }
+            reader.reset();
+        }
+        return reader;
     }
 
     private ConfigPropertyEntry readProperty(JsonParser parser, JsonLocation keyLocation, String rawKey)
@@ -96,57 +123,9 @@ public final class CfgJsonConfigParser {
     }
 
     private String readRawArrayOrObject(JsonParser parser) throws IOException {
-        // The parser is positioned ON the START_ARRAY / START_OBJECT token
-        JsonToken current = parser.currentToken();
-        boolean isArray = current == JsonToken.START_ARRAY;
-        StringBuilder sb = new StringBuilder(isArray ? "[" : "{");
-        int depth = 1;
-        boolean first = true;
-        while (depth > 0) {
-            JsonToken token = parser.nextToken();
-            if (token == null) {
-                break;
-            }
-            switch (token) {
-                case START_ARRAY -> {
-                    if (!first) {
-                        sb.append(',');
-                    }
-                    sb.append('[');
-                    depth++;
-                }
-                case START_OBJECT -> {
-                    if (!first) {
-                        sb.append(',');
-                    }
-                    sb.append('{');
-                    depth++;
-                }
-                case END_ARRAY -> {
-                    sb.append(']');
-                    depth--;
-                }
-                case END_OBJECT -> {
-                    sb.append('}');
-                    depth--;
-                }
-                default -> {
-                    if (!first) {
-                        sb.append(',');
-                    }
-                    sb.append(switch (token) {
-                        case VALUE_STRING -> '"' + parser.getValueAsString().replace("\"", "\\\"") + '"';
-                        case VALUE_TRUE, VALUE_FALSE -> String.valueOf(parser.getBooleanValue());
-                        case VALUE_NUMBER_INT, VALUE_NUMBER_FLOAT -> parser.getValueAsString();
-                        case VALUE_NULL -> "null";
-                        case VALUE_EMBEDDED_OBJECT -> '"' + parser.getValueAsString() + '"';
-                        default -> "null";
-                    });
-                }
-            }
-            first = false;
-        }
-        return sb.toString();
+        // Delegate nested value fidelity to Jackson so object keys, escaping and nulls round-trip.
+        JsonNode node = MAPPER.readTree(parser);
+        return node == null || node.isMissingNode() ? "null" : node.toString();
     }
 
     /**

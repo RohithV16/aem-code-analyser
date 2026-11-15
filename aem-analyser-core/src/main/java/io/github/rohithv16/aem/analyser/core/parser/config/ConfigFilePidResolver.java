@@ -1,19 +1,30 @@
 package io.github.rohithv16.aem.analyser.core.parser.config;
 
-import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
  * Shared OSGi configuration file name / PID resolution:
  * <ul>
- *   <li>OSGi PID grammar validation (at least one dot)</li>
- *   <li>Factory delimiter splitting: tilde for RFC 724 (.cfg.json), tilde-then-hyphen for legacy .config</li>
+ *   <li>OSGi PID grammar validation (at least one dot, hyphens allowed)</li>
+ *   <li>Factory delimiter splitting: tilde for RFC 724 (.cfg.json), hyphen for legacy .config</li>
  * </ul>
+ *
+ * <p>Hyphens are legal inside an OSGi PID. For legacy {@code .config} files the hyphen is also
+ * the factory delimiter, so resolution is inherently ambiguous when the PID itself contains a
+ * hyphen. The resolver always splits on the last hyphen whose prefix is a valid PID and reports
+ * {@link ResolvedPid#ambiguousHyphen()} so graph-time disambiguation can revisit the decision.
  */
 public final class ConfigFilePidResolver {
 
-    private static final Pattern PID_GRAMMAR = Pattern.compile(
-            "^(?<pid>[a-zA-Z0-9_]+(?:\\.[a-zA-Z0-9_]+)+)(~(?<namedFactory>[a-zA-Z0-9_.-]+)|-(?<legacyFactory>[a-zA-Z0-9_.-]+))?$");
+    /** OSGi PID grammar: dot-separated segments; letters, digits, underscore and hyphen. */
+    private static final Pattern PID_PATTERN = Pattern.compile(
+            "^[a-zA-Z0-9_-]+(?:\\.[a-zA-Z0-9_-]+)+$");
+
+    /** Factory subname grammar (legacy and RFC 724). */
+    private static final Pattern FACTORY_SUBNAME_PATTERN = Pattern.compile(
+            "^[a-zA-Z0-9_.-]+$");
+
+    private static final ResolvedPid INVALID = new ResolvedPid(null, null, false, false);
 
     private ConfigFilePidResolver() {
     }
@@ -30,30 +41,67 @@ public final class ConfigFilePidResolver {
     }
 
     public static ResolvedPid resolve(String baseName, boolean isCfgJson) {
-        if (baseName == null) {
-            return new ResolvedPid(null, null, false, false);
+        if (baseName == null || baseName.isBlank()) {
+            return INVALID;
         }
-        Matcher matcher = PID_GRAMMAR.matcher(baseName);
-        if (!matcher.matches()) {
-            return new ResolvedPid(null, null, false, false);
+
+        // RFC 724: only the tilde is a factory delimiter, for both .cfg.json and legacy .config.
+        int tilde = baseName.indexOf('~');
+        if (tilde >= 0) {
+            String pid = baseName.substring(0, tilde);
+            String subname = baseName.substring(tilde + 1);
+            if (!isValidPid(pid) || !isValidFactorySubname(subname)) {
+                return INVALID;
+            }
+            return new ResolvedPid(pid, subname, true, false);
         }
-        String namedFactory = matcher.group("namedFactory");
-        String legacyFactory = matcher.group("legacyFactory");
-        if (namedFactory != null) {
-            // RFC 724: the tilde is always a factory delimiter
-            return new ResolvedPid(matcher.group("pid"), namedFactory, true, false);
+
+        // Legacy .config: a hyphen may be the factory delimiter. Try the last hyphen first so
+        // that hyphenated PIDs (my-service.pid-instance) resolve to the longest valid PID.
+        if (!isCfgJson) {
+            int hyphen = baseName.lastIndexOf('-');
+            if (hyphen > 0) {
+                String pid = baseName.substring(0, hyphen);
+                String subname = baseName.substring(hyphen + 1);
+                if (isValidPid(pid) && isValidFactorySubname(subname)) {
+                    // A numeric suffix (…-1, …-2) is unambiguously a factory instance. Anything
+                    // else could also be a hyphenated PID segment, so flag it for disambiguation.
+                    boolean ambiguous = !subname.chars().allMatch(Character::isDigit);
+                    return new ResolvedPid(pid, subname, true, ambiguous);
+                }
+            }
         }
-        if (!isCfgJson && legacyFactory != null) {
-            // Legacy .config: the hyphen is a factory delimiter (graph-time disambiguation
-            // may be required when the suffix itself contains dots)
-            return new ResolvedPid(matcher.group("pid"), legacyFactory, true, legacyFactory.contains("."));
+
+        // No usable factory delimiter: hyphens are ordinary PID characters for .cfg.json and
+        // for legacy .config files whose hyphen split would not yield a valid PID.
+        if (!isValidPid(baseName)) {
+            return INVALID;
         }
-        // No factory delimiter for this format (hyphens are legal PID characters in
-        // .cfg.json names): the entire file name is the PID
         return new ResolvedPid(baseName, null, false, false);
     }
 
     public static boolean isValidPid(String baseName) {
-        return baseName != null && PID_GRAMMAR.matcher(baseName).matches();
+        return baseName != null && PID_PATTERN.matcher(baseName).matches();
+    }
+
+    /**
+     * Strips a supported OSGi configuration extension from a file name.
+     * Longest extension wins so {@code Foo.content.xml} and {@code Foo.cfg.json} resolve correctly.
+     */
+    public static String stripExtension(String fileName) {
+        if (fileName == null) {
+            return null;
+        }
+        String lower = fileName.toLowerCase(java.util.Locale.ROOT);
+        for (String ext : java.util.List.of(".cfg.json", ".content.xml", ".config", ".cfg")) {
+            if (lower.endsWith(ext)) {
+                return fileName.substring(0, fileName.length() - ext.length());
+            }
+        }
+        return fileName;
+    }
+
+    private static boolean isValidFactorySubname(String subname) {
+        return subname != null && !subname.isBlank() && FACTORY_SUBNAME_PATTERN.matcher(subname).matches();
     }
 }

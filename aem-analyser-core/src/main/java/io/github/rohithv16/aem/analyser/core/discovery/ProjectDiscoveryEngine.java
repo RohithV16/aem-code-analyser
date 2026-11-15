@@ -9,6 +9,7 @@ import org.apache.maven.model.Profile;
 import org.apache.maven.model.io.ModelReader;
 import org.codehaus.plexus.util.xml.Xpp3Dom;
 
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayDeque;
@@ -40,10 +41,18 @@ public final class ProjectDiscoveryEngine implements AutoCloseable {
     private final ModuleClassifier classifier = new ModuleClassifier();
     private final OsgiConfigScanner osgiConfigScanner = new OsgiConfigScanner();
     private final CloudConfigDiscoveryEngine cloudConfigEngine = new CloudConfigDiscoveryEngine();
+    private final io.github.rohithv16.aem.analyser.core.util.DiagnosticSink diagnostics;
     private List<String> activeProfiles = List.of();
 
     public ProjectDiscoveryEngine() {
+        this(new io.github.rohithv16.aem.analyser.core.util.DiagnosticSink());
+    }
+
+    public ProjectDiscoveryEngine(io.github.rohithv16.aem.analyser.core.util.DiagnosticSink diagnostics) {
         this.modelReader = new org.apache.maven.model.io.DefaultModelReader();
+        this.diagnostics = diagnostics == null
+                ? new io.github.rohithv16.aem.analyser.core.util.DiagnosticSink()
+                : diagnostics;
     }
 
     public DiscoveryResult discover(Path projectRoot, List<String> activeProfiles) {
@@ -69,9 +78,10 @@ public final class ProjectDiscoveryEngine implements AutoCloseable {
             modelsByPath.put(pomPath.toAbsolutePath().normalize(), model);
 
             Path moduleDirectory = pomPath.getParent();
-            collectChildModulePoms(model, moduleDirectory, queue);
+            List<String> modelModules = collectModules(model);
+            collectChildModulePoms(modelModules, moduleDirectory, queue);
 
-            modules.add(buildDescriptor(model, pomPath, moduleDirectory, activeProfiles));
+            modules.add(buildDescriptor(model, pomPath, moduleDirectory, activeProfiles, modelModules));
         }
 
         List<CloudConfigDescriptor> cloudConfigs = cloudConfigEngine.discover(projectRoot);
@@ -86,8 +96,8 @@ public final class ProjectDiscoveryEngine implements AutoCloseable {
         }
     }
 
-    private void collectChildModulePoms(Model model, Path moduleDirectory, Deque<Path> queue) {
-        for (String module : collectModules(model)) {
+    private void collectChildModulePoms(List<String> modelModules, Path moduleDirectory, Deque<Path> queue) {
+        for (String module : modelModules) {
             Path childDir = moduleDirectory.resolve(module).normalize();
             Path childPom = Files.isRegularFile(childDir.resolve("pom.xml"))
                     ? childDir.resolve("pom.xml")
@@ -99,25 +109,33 @@ public final class ProjectDiscoveryEngine implements AutoCloseable {
     }
 
     /**
-     * Collects modules of always-active profiles plus explicitly activated profiles.
+     * Collects the effective module list using Maven profile semantics: explicitly activated
+     * profiles win, and {@code activeByDefault} profiles are ignored for this POM as soon as any
+     * profile of the same POM is activated explicitly.
      */
     private List<String> collectModules(Model model) {
-        List<String> modules = new ArrayList<>(model.getModules());
-        for (Profile profile : model.getProfiles()) {
+        Set<String> modules = new java.util.LinkedHashSet<>(model.getModules());
+        List<Profile> profiles = model.getProfiles();
+        if (profiles == null || profiles.isEmpty()) {
+            return List.copyOf(modules);
+        }
+
+        Set<String> requested = activeProfiles == null ? Set.of() : Set.copyOf(activeProfiles);
+        boolean anyExplicitlyActivated = profiles.stream().anyMatch(p -> requested.contains(p.getId()));
+
+        for (Profile profile : profiles) {
+            boolean explicitlyActivated = requested.contains(profile.getId());
             boolean activeByDefault = profile.getActivation() != null
                     && profile.getActivation().isActiveByDefault();
-            boolean explicitlyActivated = activeProfiles != null
-                    && !activeProfiles.isEmpty()
-                    && activeProfiles.contains(profile.getId());
-            if (activeByDefault || explicitlyActivated) {
+            if (explicitlyActivated || (activeByDefault && !anyExplicitlyActivated)) {
                 modules.addAll(profile.getModules());
             }
         }
-        return modules;
+        return List.copyOf(modules);
     }
 
     private ModuleDescriptor buildDescriptor(Model model, Path pomPath, Path moduleDirectory,
-                                             List<String> activeProfiles) {
+                                             List<String> activeProfiles, List<String> modelModules) {
         String artifactId = model.getArtifactId() != null ? model.getArtifactId() : moduleDirectory.getFileName().toString();
         String packaging = model.getPackaging() != null ? model.getPackaging() : "jar";
         String groupId = model.getGroupId() != null
@@ -137,13 +155,13 @@ public final class ProjectDiscoveryEngine implements AutoCloseable {
                 || (model.getDependencyManagement() != null && model.getDependencyManagement().getDependencies().stream()
                         .anyMatch(d -> AEM_SDK_API.equals(d.getArtifactId()) || UBER_JAR.equals(d.getArtifactId())));
 
-        List<OsgiConfigScanner.DiscoveredConfig> configs = osgiConfigScanner.scanModule(moduleDirectory);
+        List<OsgiConfigScanner.DiscoveredConfig> configs = osgiConfigScanner.scanModule(moduleDirectory, diagnostics);
         Set<Path> configPaths = new LinkedHashSet<>();
         configs.forEach(c -> configPaths.add(c.absolutePath()));
 
         ModuleClassification classification = classifier.classify(new ModuleClassifier.ClassificationInput(
                 artifactId, packaging, moduleDirectory,
-                !collectModules(model).isEmpty(),
+                !modelModules.isEmpty(),
                 fvConfig,
                 !configPaths.isEmpty(),
                 hasBndPlugin,
@@ -160,7 +178,47 @@ public final class ProjectDiscoveryEngine implements AutoCloseable {
                 model.getParent() == null ? null : model.getParent().getArtifactId(),
                 !collectModules(model).isEmpty(),
                 configPaths,
-                ExportPackageCollector.collect(model, moduleDirectory));
+                ExportPackageCollector.collect(model, moduleDirectory),
+                detectBundleSymbolicName(model, moduleDirectory));
+    }
+
+    /**
+     * Best-effort Bundle-SymbolicName from {@code bnd.bnd} or the maven-bundle-plugin instructions.
+     */
+    private String detectBundleSymbolicName(Model model, Path moduleDirectory) {
+        Path bnd = moduleDirectory.resolve("bnd.bnd");
+        if (Files.isRegularFile(bnd)) {
+            try {
+                for (String line : Files.readAllLines(bnd)) {
+                    String trimmed = line.strip();
+                    if (trimmed.startsWith("Bundle-SymbolicName:")) {
+                        String value = trimmed.substring("Bundle-SymbolicName:".length()).strip();
+                        int directive = value.indexOf(';');
+                        if (directive > 0) {
+                            value = value.substring(0, directive);
+                        }
+                        if (!value.isBlank()) {
+                            return value;
+                        }
+                    }
+                }
+            } catch (IOException ignored) {
+                // fall through to the POM
+            }
+        }
+        for (Plugin plugin : model.getBuild() == null ? java.util.List.<Plugin>of() : model.getBuild().getPlugins()) {
+            if (plugin.getConfiguration() instanceof Xpp3Dom configuration) {
+                Xpp3Dom instructions = configuration.getChild("instructions");
+                if (instructions != null) {
+                    Xpp3Dom symbolicName = instructions.getChild("Bundle-SymbolicName");
+                    if (symbolicName != null && symbolicName.getValue() != null
+                            && !symbolicName.getValue().isBlank()) {
+                        return symbolicName.getValue().strip();
+                    }
+                }
+            }
+        }
+        return null;
     }
 
     private Optional<Plugin> findPlugin(Model model, String artifactId) {

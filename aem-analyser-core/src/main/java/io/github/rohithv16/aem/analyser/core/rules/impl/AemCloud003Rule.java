@@ -26,9 +26,10 @@ import java.util.stream.Stream;
 
 /**
  * Rule AEM-CLOUD-003: Unmapped Subservice or Unresolved Service User.
- * Cross-references Java getServiceResourceResolver() calls with OSGi ServiceUserMapperImpl.amended
- * configurations and project-generic system user declarations across arbitrary YAML definitions,
- * repoinit scripts, OSGi configs, and JCR content packages.
+ * Cross-references Java service-resolver acquisitions (factory/repository APIs with a subservice)
+ * with OSGi ServiceUserMapperImpl.amended configurations and project-generic system user
+ * declarations across arbitrary YAML definitions, repoinit scripts, OSGi configs, and JCR content
+ * packages.
  */
 public final class AemCloud003Rule implements RuleEvaluator {
 
@@ -110,14 +111,19 @@ public final class AemCloud003Rule implements RuleEvaluator {
 
         // 1. Extract OSGi Service User Mappings
         Set<String> mappedSubservices = new HashSet<>();
+        Set<String> defaultMappedBundles = new HashSet<>();
+        Map<String, Set<String>> mappingsByBundle = new HashMap<>();
         Map<String, String> subserviceToUser = new HashMap<>();
         Map<String, OSGiConfigNode> subserviceToConfig = new HashMap<>();
+        boolean anyMapperConfig = false;
 
         for (OSGiConfigNode config : context.configs()) {
             if (config.getPid() != null && config.getPid().startsWith(SERVICE_USER_MAPPER_PID_PREFIX)) {
+                anyMapperConfig = true;
                 ConfigPropertyNode prop = config.getProperty("user.mapping");
                 if (prop != null && prop.getRawValue() != null) {
-                    parseMappingEntries(prop.getRawValue(), config, mappedSubservices, subserviceToUser, subserviceToConfig);
+                    parseMappingEntries(prop.getRawValue(), config, mappedSubservices, defaultMappedBundles,
+                            mappingsByBundle, subserviceToUser, subserviceToConfig);
                 }
             }
         }
@@ -125,15 +131,58 @@ public final class AemCloud003Rule implements RuleEvaluator {
         // 2. Discover declared system users across all project sources generically
         Set<String> declaredUsers = discoverDeclaredSystemUsers(context);
 
-        // 3. Cross-reference Java getServiceResourceResolver calls against mappedSubservices
+        // 3. Cross-reference service-resolver acquisitions against mappedSubservices
         for (SubserviceCall call : context.subserviceCalls()) {
+            if (call.resolution() == SubserviceCall.Resolution.UNRESOLVED) {
+                // A variable/constant we could not evaluate is not the same as an explicit null.
+                // Fail open instead of guessing a subservice name.
+                continue;
+            }
             String subservice = call.subserviceName();
-            if (subservice != null && !subservice.isBlank() && !mappedSubservices.contains(subservice)) {
+            String callerBundle = context.bundleSymbolicNameFor(call.filePath()).orElse(null);
+            if (subservice == null || subservice.isBlank()) {
+                if (callerBundle != null && defaultMappedBundles.contains(callerBundle)) {
+                    continue;
+                }
+                // A resolver acquisition without an explicit subservice resolves through the calling
+                // bundle's default (bundle-level) user mapping. Report only when the project has no mapper
+                // configuration at all: when mappings exist, the bundle may be covered by an
+                // external or platform mapping we cannot see, so fail open.
+                if (!anyMapperConfig && defaultMappedBundles.isEmpty()) {
+                    violations.add(new Violation(
+                            RuleId.AEM_CLOUD_003.id(),
+                            RuleId.AEM_CLOUD_003.defaultLevel(),
+                            "UNMAPPED_DEFAULT_SUBSERVICE",
+                            "Java service-resolver acquisition without an explicit subservice uses the bundle's default "
+                                    + "subservice, but no bundle-level 'user.mapping' entry exists in any "
+                                    + "ServiceUserMapperImpl.amended configuration.",
+                            relativePath(context, call.filePath()),
+                            new TextRegion(call.line(), call.column(), call.line(), call.column() + 26),
+                            null,
+                            "Add a bundle-level mapping '<bundle-symbolic-name>=[<service-user-name>]' to "
+                                    + "'org.apache.sling.serviceusermapping.impl.ServiceUserMapperImpl.amended' "
+                                    + "or pass an explicit subservice name and map it.",
+                            List.of()
+                    ));
+                }
+                continue;
+            }
+            boolean mapped = mappedSubservices.contains(subservice);
+            if (callerBundle != null && mappingsByBundle.containsKey(callerBundle)) {
+                mapped = mappingsByBundle.get(callerBundle).contains(subservice);
+            }
+            if (!mapped) {
+                if (isUnresolvedConstant(subservice)) {
+                    // The extractor could not resolve a cross-file constant to its literal value.
+                    // Comparing a Java symbol such as SOME_SERVICE_SUBSERVICE_NAME with mapping values
+                    // would be a guaranteed false positive, so fail open.
+                    continue;
+                }
                 violations.add(new Violation(
                         RuleId.AEM_CLOUD_003.id(),
                         RuleId.AEM_CLOUD_003.defaultLevel(),
                         "UNMAPPED_SUBSERVICE_USER",
-                        "Java call to getServiceResourceResolver() with subservice '" + subservice
+                        "Java service-resolver acquisition with subservice '" + subservice
                                 + "' has no matching 'user.mapping' in any ServiceUserMapperImpl.amended configuration.",
                         relativePath(context, call.filePath()),
                         new TextRegion(call.line(), call.column(), call.line(), call.column() + 26),
@@ -169,20 +218,38 @@ public final class AemCloud003Rule implements RuleEvaluator {
         return violations;
     }
 
+    private boolean isUnresolvedConstant(String subservice) {
+        // Java constant names are upper snake case. Literal Sling subservices are normally lower
+        // case, dot- or hyphen-separated. Only treat a wholly upper-case token as unresolved so a
+        // genuinely odd literal is still checked.
+        return subservice != null
+                && subservice.matches("[A-Z][A-Z0-9_]{2,}")
+                && (subservice.contains("_") || subservice.length() > 6);
+    }
+
     private void parseMappingEntries(String rawValue, OSGiConfigNode config,
                                      Set<String> mappedSubservices,
+                                     Set<String> defaultMappedBundles,
+                                     Map<String, Set<String>> mappingsByBundle,
                                      Map<String, String> subserviceToUser,
                                      Map<String, OSGiConfigNode> subserviceToConfig) {
         Matcher matcher = MAPPING_ENTRY_PATTERN.matcher(rawValue);
         while (matcher.find()) {
+            String bundleId = matcher.group(1);
             String subservice = matcher.group(2);
             String user = matcher.group(3);
             if (subservice != null && !subservice.isBlank()) {
                 mappedSubservices.add(subservice);
+                if (bundleId != null && !bundleId.isBlank()) {
+                    mappingsByBundle.computeIfAbsent(bundleId, key -> new HashSet<>()).add(subservice);
+                }
                 if (user != null && !user.isBlank()) {
                     subserviceToUser.put(subservice, user);
                     subserviceToConfig.put(subservice, config);
                 }
+            } else if (bundleId != null && !bundleId.isBlank()) {
+                // Bundle-level mapping: "com.example.bundle=[user]" (no ':' subservice).
+                defaultMappedBundles.add(bundleId);
             }
         }
     }
@@ -303,7 +370,7 @@ public final class AemCloud003Rule implements RuleEvaluator {
                     }
                 }
 
-                // Check for new YAML list item entry key: e.g. - mandg-content-user:
+                // Check for new YAML list item entry key (e.g. a system-user block):
                 Matcher keyMatcher = YAML_KEY_PATTERN.matcher(line);
                 if (keyMatcher.find()) {
                     String matchedKey = keyMatcher.group(1);

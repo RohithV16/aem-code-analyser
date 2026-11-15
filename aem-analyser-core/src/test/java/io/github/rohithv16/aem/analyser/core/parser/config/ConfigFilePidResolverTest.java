@@ -11,8 +11,8 @@ class ConfigFilePidResolverTest {
     @Test
     void splitsTildeFactoryForCfgJson() {
         ConfigFilePidResolver.ResolvedPid resolved =
-                ConfigFilePidResolver.resolve("com.mandg.core.service.ElasticSearchImpl~en-customer", true);
-        assertEquals("com.mandg.core.service.ElasticSearchImpl", resolved.pid());
+                ConfigFilePidResolver.resolve("com.example.core.service.SearchServiceImpl~en-customer", true);
+        assertEquals("com.example.core.service.SearchServiceImpl", resolved.pid());
         assertEquals("en-customer", resolved.factorySubname());
         assertTrue(resolved.isFactory());
     }
@@ -39,6 +39,53 @@ class ConfigFilePidResolverTest {
         ConfigFilePidResolver.ResolvedPid resolved =
                 ConfigFilePidResolver.resolve("com.day.cq.foo-bar.1.0", false);
         assertTrue(resolved.ambiguousHyphen());
+    }
+
+    @Test
+    void splitsTildeFactoryWithHyphenatedPid() {
+        ConfigFilePidResolver.ResolvedPid resolved =
+                ConfigFilePidResolver.resolve("my-service.pid~tenant-a", true);
+        assertEquals("my-service.pid", resolved.pid());
+        assertEquals("tenant-a", resolved.factorySubname());
+        assertTrue(resolved.isFactory());
+        assertFalse(resolved.ambiguousHyphen());
+    }
+
+    @Test
+    void acceptsHyphenInLeadingPidSegment() {
+        ConfigFilePidResolver.ResolvedPid resolved =
+                ConfigFilePidResolver.resolve("my-service.pid", true);
+        assertEquals("my-service.pid", resolved.pid());
+        assertFalse(resolved.isFactory());
+        assertTrue(ConfigFilePidResolver.isValidPid("my-service.pid"));
+    }
+
+    @Test
+    void resolvesLegacyHyphenatedPidWithFactorySuffix() {
+        ConfigFilePidResolver.ResolvedPid resolved =
+                ConfigFilePidResolver.resolve("my-service.pid-instance", false);
+        assertEquals("my-service.pid", resolved.pid());
+        assertEquals("instance", resolved.factorySubname());
+        assertTrue(resolved.isFactory());
+        assertTrue(resolved.ambiguousHyphen());
+    }
+
+    @Test
+    void numericLegacyFactorySuffixIsNotAmbiguous() {
+        ConfigFilePidResolver.ResolvedPid resolved =
+                ConfigFilePidResolver.resolve("com.example.Service-1", false);
+        assertEquals("com.example.Service", resolved.pid());
+        assertEquals("1", resolved.factorySubname());
+        assertFalse(resolved.ambiguousHyphen());
+    }
+
+    @Test
+    void stripExtensionHandlesEverySupportedFormat() {
+        assertEquals("com.example.Foo", ConfigFilePidResolver.stripExtension("com.example.Foo.cfg.json"));
+        assertEquals("com.example.Foo", ConfigFilePidResolver.stripExtension("com.example.Foo.content.xml"));
+        assertEquals("com.example.Foo", ConfigFilePidResolver.stripExtension("com.example.Foo.config"));
+        assertEquals("com.example.Foo", ConfigFilePidResolver.stripExtension("com.example.Foo.cfg"));
+        assertEquals("com.example.Foo", ConfigFilePidResolver.stripExtension("com.example.Foo"));
     }
 
     @Test

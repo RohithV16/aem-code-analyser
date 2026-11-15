@@ -10,9 +10,10 @@ import io.github.rohithv16.aem.analyser.core.rules.RuleEvaluator;
 
 import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeMap;
 import java.util.TreeSet;
 
 /**
@@ -32,7 +33,9 @@ public final class AemDup002Rule implements RuleEvaluator {
     @Override
     public List<Violation> evaluate(RuleContext context) {
         List<Violation> violations = new ArrayList<>();
-        Map<String, List<OSGiConfigNode>> groupedConfigs = new HashMap<>();
+        // TreeMap keeps violation output stable across runs; a HashMap made the primary/related
+        // location of a duplicate pair depend on filesystem discovery order.
+        Map<String, List<OSGiConfigNode>> groupedConfigs = new TreeMap<>();
 
         for (OSGiConfigNode config : context.configs()) {
             String runmodeKey = String.join(".", new TreeSet<>(config.getRunmodes()));
@@ -42,8 +45,11 @@ public final class AemDup002Rule implements RuleEvaluator {
         }
 
         for (Map.Entry<String, List<OSGiConfigNode>> entry : groupedConfigs.entrySet()) {
-            List<OSGiConfigNode> duplicates = entry.getValue();
-            if (duplicates.size() > 1) {
+            if (entry.getValue().size() > 1) {
+                // Deterministic ordering: the lexicographically first file is always the "first
+                // definition", regardless of the order discovery supplied the nodes.
+                List<OSGiConfigNode> duplicates = new ArrayList<>(entry.getValue());
+                duplicates.sort(Comparator.comparing(c -> relativePath(context, c.getFilePath())));
                 OSGiConfigNode first = duplicates.get(0);
                 for (int i = 1; i < duplicates.size(); i++) {
                     OSGiConfigNode duplicate = duplicates.get(i);

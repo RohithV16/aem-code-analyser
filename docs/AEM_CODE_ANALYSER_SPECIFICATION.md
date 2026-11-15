@@ -1,3 +1,8 @@
+---
+layout: default
+title: Application specification
+---
+
 # AEM Code Analyser: Technical Specification & Phase-by-Phase Implementation Plan
 ## Cross-Boundary Dead Code Detection Engine (Phase 1: Java & OSGi Configurations)
 
@@ -60,10 +65,10 @@ When applied to AEM applications, these tools fail fundamentally:
 - **Configuration Disconnection**: Static analyzers do not parse `.cfg.json` or `.config` files against Java classes. When a service class is deleted, renamed, or refactored, its configuration files remain untouched in `ui.config`, accumulating as "zombie configurations." Furthermore, typos in configuration keys or mismatches between component PIDs and Metatype interfaces go completely unnoticed until runtime.
 
 ### 1.3 Real-World Production Bug Evidence
-The polyglot boundary gap is not a theoretical concern. Empirical inspection of enterprise production AEM repositories (specifically `/Users/rvenat01/Documents/AEM/mandg/aemaacs-life`) reveals severe bugs caused by the absence of cross-boundary analysis:
+The polyglot boundary gap is not a theoretical concern. Empirical inspection of enterprise production AEM repositories (specifically `an enterprise AEM project`) reveals severe bugs caused by the absence of cross-boundary analysis:
 
-#### Case Study 1: Silent Configuration Ignorance via PID Mismatch (`ContentSyncReplicationServletConfig`)
-- **Location**: `mandg/ui.config/.../config.author/com.mandg.core.servlets.contentsync.ContentSyncReplicationServletConfig.cfg.json` (also replicated across `config.author.dev`, `config.author.stage`, `config.author.prod`, and `config.author.rde`).
+#### Case Study 1: Silent Configuration Ignorance via PID Mismatch (`SharedServletConfig`)
+- **Location**: `example/ui.config/.../config.author/com.example.core.servlets.shared.SharedServletConfig.cfg.json` (also replicated across `config.author.dev`, `config.author.stage`, `config.author.prod`, and `config.author.rde`).
 - **Configuration Content**:
   ```json
   {
@@ -73,33 +78,33 @@ The polyglot boundary gap is not a theoretical concern. Empirical inspection of 
     "trackCommitPauseMs": 150
   }
   ```
-- **Java Metatype Class**: `com.mandg.core.config.contentsync.ContentSyncReplicationServletConfig` (Note the package: `com.mandg.core.config`, **not** `com.mandg.core.servlets`!).
+- **Java Metatype Class**: `com.example.core.config.shared.SharedServletConfig` (Note the package: `com.example.core.config`, **not** `com.example.core.servlets`!).
 - **Consuming Components**:
-  - `ContentSyncBulkReplicationServlet.java:47`: `@Designate(ocd = ContentSyncReplicationServletConfig.class)`
-  - `ContentSyncTrackActivityServlet.java:47`: `@Designate(ocd = ContentSyncReplicationServletConfig.class)`
-  - `ContentSyncTrackedCleanupServlet.java:38`: `@Designate(ocd = ContentSyncReplicationServletConfig.class)`
+  - `BulkReplicationServlet.java:47`: `@Designate(ocd = SharedServletConfig.class)`
+  - `TrackActivityServlet.java:47`: `@Designate(ocd = SharedServletConfig.class)`
+  - `TrackedCleanupServlet.java:38`: `@Designate(ocd = SharedServletConfig.class)`
 - **The Defect**:
-  Under the OSGi Declarative Services 1.4 Specification (§112.8), the configuration PID defaults to the `@Component` class FQCN (`com.mandg.core.servlets.contentsync.ContentSyncBulkReplicationServlet`). The `@Designate` annotation merely links the OCD metatype XML; it does **not** change the component's PID.
-  Because the configuration file was named `com.mandg.core.servlets.contentsync.ContentSyncReplicationServletConfig.cfg.json` (a class that is not a component), the OSGi ConfigurationAdmin never bound the configuration.
+  Under the OSGi Declarative Services 1.4 Specification (§112.8), the configuration PID defaults to the `@Component` class FQCN (`com.example.core.servlets.shared.BulkReplicationServlet`). The `@Designate` annotation merely links the OCD metatype XML; it does **not** change the component's PID.
+  Because the configuration file was named `com.example.core.servlets.shared.SharedServletConfig.cfg.json` (a class that is not a component), the OSGi ConfigurationAdmin never bound the configuration.
 - **Production Impact**: In production, the servlets ran with hardcoded default values (`trackCommitBatchSize = 200`, `trackCommitPauseMs = 0`), completely ignoring the custom production performance tuning (`trackCommitBatchSize = 50`, `trackCommitPauseMs = 150`). Neither Maven compilation, nor Cloud Manager SonarQube, nor SpotBugs detected this discrepancy.
 
-#### Case Study 2: 100% Orphaned Configuration via OCD Naming (`FlourishCmpConfig`)
-- **Location**: `mandg/ui.config/src/main/content/jcr_root/apps/mandg/osgiconfig/config/com.mandg.core.config.FlourishCmpConfig.cfg.json`.
-- **Target Java Component**: `com.mandg.core.services.impl.FlourishCmpServiceImpl`:
+#### Case Study 2: 100% Orphaned Configuration via OCD Naming (`ContentConfig`)
+- **Location**: `example/ui.config/src/main/content/jcr_root/apps/example/osgiconfig/config/com.example.core.config.ContentConfig.cfg.json`.
+- **Target Java Component**: `com.example.core.services.impl.ContentServiceImpl`:
   ```java
-  @Designate(ocd = FlourishCmpConfig.class)
-  @Component(service = FlourishCmpService.class, immediate = true)
-  public class FlourishCmpServiceImpl implements FlourishCmpService
+  @Designate(ocd = ContentConfig.class)
+  @Component(service = ContentCmpService.class, immediate = true)
+  public class ContentServiceImpl implements ContentCmpService
   ```
 - **The Defect**:
-  The developer named the `.cfg.json` file after the `@ObjectClassDefinition` interface (`com.mandg.core.config.FlourishCmpConfig`) instead of the `@Component` implementation class (`com.mandg.core.services.impl.FlourishCmpServiceImpl`). Because `@Component` lacked `configurationPid = "com.mandg.core.config.FlourishCmpConfig"`, the configuration file was 100% orphaned. OSGi ConfigurationAdmin never loaded it, and the service ran with default configuration values indefinitely.
+  The developer named the `.cfg.json` file after the `@ObjectClassDefinition` interface (`com.example.core.config.ContentConfig`) instead of the `@Component` implementation class (`com.example.core.services.impl.ContentServiceImpl`). Because `@Component` lacked `configurationPid = "com.example.core.config.ContentConfig"`, the configuration file was 100% orphaned. OSGi ConfigurationAdmin never loaded it, and the service ran with default configuration values indefinitely.
 
-#### Case Study 3: Polyglot Sling Model Reference Gap (`IDGenerationModel`)
-- **Location**: `mandg/core/src/main/java/com/mandg/core/models/IDGenerationModel.java`.
-- **Java References**: Running `grep -rn "IDGenerationModel" mandg/core/src/main/java` yielded **0** call sites. A standard Java static analyzer would classify this class as dead code.
+#### Case Study 3: Polyglot Sling Model Reference Gap (`TabbedContentModel`)
+- **Location**: `example/core/src/main/java/com/example/core/models/TabbedContentModel.java`.
+- **Java References**: Running `grep -rn "TabbedContentModel" example/core/src/main/java` yielded **0** call sites. A standard Java static analyzer would classify this class as dead code.
 - **Polyglot Call Sites**: The model was actively instantiated in HTL templates:
-  - `mandg/ui.apps/.../components/tabs/tabs.html:17`: `data-sly-use.idModel="com.mandg.core.models.IDGenerationModel"`
-  - `mandg/ui.apps/.../components/accordion/accordion.html:2`: `data-sly-use.idModel="com.mandg.core.models.IDGenerationModel"`
+  - `example/ui.apps/.../components/tabs/tabs.html:17`: `data-sly-use.idModel="com.example.core.models.TabbedContentModel"`
+  - `example/ui.apps/.../components/accordion/accordion.html:2`: `data-sly-use.idModel="com.example.core.models.TabbedContentModel"`
 - **Conclusion**: A dead code analyzer must understand polyglot relationships to avoid false positive flags on valid components while catching true orphans.
 
 ---
@@ -153,7 +158,7 @@ AEM projects store configurations in multiple formats across runmode directories
   - Official parser for `.config` format. Handles all Felix type escapes (`I`, `L`, `D`, `B`, arrays) and string escape sequences.
 
 #### RFC 724 & Felix Typed Key Stripping:
-In enterprise AEM repositories (e.g., `aemaacs-life/.../com.adobe.granite.workflow.purge.Scheduler~completed.cfg.json`), configuration keys routinely specify RFC 724 type hints:
+In enterprise AEM repositories (e.g., `an enterprise AEM project/.../com.adobe.granite.workflow.purge.Scheduler~completed.cfg.json`), configuration keys routinely specify RFC 724 type hints:
 ```json
 "scheduledpurge.daysold:Integer": 30
 ```
@@ -185,8 +190,8 @@ Keys starting with `:` (RFC 724 comments like `:comment` or framework metadata l
 #### Factory Delimiter Splitting & Cloud Manager Placeholders:
 1. **Factory Delimiters**:
    - For `.cfg.json` (RFC 724): Split strictly on the **first tilde (`~`)** delimiter:
-     `com.mandg.core.service.ElasticSearchImpl~en-customer.cfg.json` $\longrightarrow$ PID: `com.mandg.core.service.ElasticSearchImpl`, Subname: `en-customer`.
-     *Never* split on hyphens (`-`) for `.cfg.json` files, preserving hyphenated factory subnames (`en-customer`, `dwp-import`).
+     `com.example.core.service.SearchServiceImpl~en-customer.cfg.json` $\longrightarrow$ PID: `com.example.core.service.SearchServiceImpl`, Subname: `en-customer`.
+     *Never* split on hyphens (`-`) for `.cfg.json` files, preserving hyphenated factory subnames (`en-customer`, `content-import`).
    - For legacy `.config`: Inspect for `~` first; if absent, inspect for `-` and disambiguate using known component/platform PIDs.
 2. **Cloud Manager Environment Placeholders**:
    When a value matches `$[env:VAR]` or `$[secret:KEY]`, `isEnvPlaceholder` is marked `true`. The validator bypasses strict JSON-to-Java primitive type validation (e.g., Jackson `VALUE_STRING` vs. Java `int`). For default values containing URLs or colons (`default=https://api.example.com:8080`), default string extraction locates `indexOf(";default=")`, taking everything up to the trailing `]`.
@@ -282,8 +287,8 @@ where:
 
 1. **`OSGiConfigNode`**:
    - `id`: URI composite of `filePath` and `runmodes`.
-   - `pid`: The target Service PID (e.g., `com.mandg.core.services.impl.ApigeeConnectionServiceImpl`).
-   - `factorySubname`: Optional factory identifier (e.g., `en-customer` from `ElasticSiteImpl~en-customer.cfg.json`).
+   - `pid`: The target Service PID (e.g., `com.example.core.services.impl.IntegrationConnectionServiceImpl`).
+   - `factorySubname`: Optional factory identifier (e.g., `en-customer` from `SearchSiteImpl~en-customer.cfg.json`).
    - `isFactory`: Boolean indicating factory configuration.
    - `runmodes`: Normalized set of runmodes (`{"author", "dev"}` for `config.author.dev`).
    - `format`: Enum (`CFG_JSON`, `FELIX_CONFIG`, `PROPERTIES`).
@@ -377,7 +382,7 @@ where:
 ### 3.4 Scalability & Concurrency: Thread-Confined Ingestion Pipeline
 
 #### 3.4.1 JavaParser AST Memory Explosion & Mitigation
-In large enterprise codebases (such as `aemaacs-life` containing ~5,000 Java classes), JavaParser `CompilationUnit` ASTs retain full lexical tokens, comments, and symbol-solver metamodels, consuming 400 KB to 1.2 MB per file. Retaining 5,000 ASTs across the full analysis lifecycle requires $2.5\text{ GB} - 5.0\text{ GB}$ of resident heap memory, causing `OutOfMemoryError: Java heap space` on standard CI runners constrained to 1–2 GB heap limits.
+In large enterprise codebases (such as `an enterprise AEM project` containing ~5,000 Java classes), JavaParser `CompilationUnit` ASTs retain full lexical tokens, comments, and symbol-solver metamodels, consuming 400 KB to 1.2 MB per file. Retaining 5,000 ASTs across the full analysis lifecycle requires $2.5\text{ GB} - 5.0\text{ GB}$ of resident heap memory, causing `OutOfMemoryError: Java heap space` on standard CI runners constrained to 1–2 GB heap limits.
 
 To solve this, the analyzer introduces the `CONSUMES_PROPERTY` edge and enforces immediate AST dereferencing:
 1. During AST visitation in Milestone 2, the `ComponentPropertyConsumptionVisitor` identifies configuration calls (`config.methodName()`) on-the-fly and records lightweight `ConsumesPropertyEdge` records.
@@ -512,7 +517,7 @@ $$\text{Subtype}(C) = \begin{cases}
 \text{ORPHANED\_CONFIGURATION} & \text{otherwise}
 \end{cases}$$
 
-- **`ORPHANED_OCD_NAMED_CONFIG`** (Case Study 2: `FlourishCmpConfig`): Emitted when a configuration file targets an `@ObjectClassDefinition` interface FQN, but no active `@Component` specifies this PID in `configurationPid`.
+- **`ORPHANED_OCD_NAMED_CONFIG`** (Case Study 2: `ContentConfig`): Emitted when a configuration file targets an `@ObjectClassDefinition` interface FQN, but no active `@Component` specifies this PID in `configurationPid`.
 - **`IGNORED_CONFIGURATION_POLICY`**: Emitted when a configuration file targets a component that declares `configurationPolicy = ConfigurationPolicy.IGNORE`.
 - **`ORPHANED_CONFIGURATION`**: Emitted when the PID is completely unrecognized.
 
@@ -635,9 +640,9 @@ Flags an `@AttributeDefinition` method declared on an `@ObjectClassDefinition` i
 
 ##### Multi-Component OCD Sharing & In-Degree Evaluation:
 In enterprise AEM codebases (as seen in Case Study 1), multiple components frequently share a single `@ObjectClassDefinition` interface via `@Designate(ocd = SharedConfig.class)`:
-- `ContentSyncBulkReplicationServlet` calls `config.bulkReplicationBatchSize()`
-- `ContentSyncTrackActivityServlet` calls `config.trackCommitBatchSize()` and `config.trackCommitPauseMs()`
-- `ContentSyncTrackedCleanupServlet` calls `config.enabled()`
+- `BulkReplicationServlet` calls `config.bulkReplicationBatchSize()`
+- `TrackActivityServlet` calls `config.trackCommitBatchSize()` and `config.trackCommitPauseMs()`
+- `TrackedCleanupServlet` calls `config.enabled()`
 
 Evaluating call sites per single component class erroneously flags methods called by peer servlets as unconsumed.
 The analyzer resolves this by aggregating call sites across **all designating components** using the incoming `CONSUMES_PROPERTY` edges:
@@ -658,13 +663,13 @@ $$\text{DesignatingComponents}(O) \neq \emptyset \quad \land \quad \text{InDegre
 Flags an OSGi component providing a service interface that is never injected anywhere in the application.
 
 ##### Exported Package Evaluation on Service Interfaces:
-In standard OSGi bundle architectures (e.g. `mandg/core`), service implementation classes $K$ reside in private internal packages (`com.mandg.core.services.impl`), while service interfaces reside in exported API packages (`com.mandg.core.services`).
+In standard OSGi bundle architectures (e.g. `example/core`), service implementation classes $K$ reside in private internal packages (`com.example.core.services.impl`), while service interfaces reside in exported API packages (`com.example.core.services`).
 Evaluating export status on the implementation class $K$'s package produces false positives on every private implementation of a shared public API.
 
 The analyzer strictly evaluates bundle package exports against the **service interfaces**:
 Let $\text{ExportedPackages}$ be the set of package patterns exported by bundle manifests, `bnd.bnd`, or POM plugin instructions:
 $$\text{IsPackageExported}(pkg, \text{ExportedPackages}) \iff \exists \pi \in \text{ExportedPackages} : \text{MatchesExportPattern}(pkg, \pi) \lor \text{HasAnnotation}(pkg, \text{"@Export"})$$
-where Bnd directives (e.g. `;version="1.0.0"`) are stripped and wildcard patterns (`com.mandg.core.services.*`, `com.mandg.*`) are matched hierarchically.
+where Bnd directives (e.g. `;version="1.0.0"`) are stripped and wildcard patterns (`com.example.core.services.*`, `com.example.*`) are matched hierarchically.
 
 ##### Tightened `immediate = true` Semantics & Zombie Service Elimination:
 In enterprise codebases, developers regularly annotate business services with `@Component(service = MyService.class, immediate = true)`. Unused business services must NOT escape dead code analysis simply because `immediate = true`.
@@ -715,11 +720,11 @@ Flags a Sling Model class with $0$ Java adaptations.
 
 ### 5.1 The Multi-Module Challenge in Enterprise AEM Repositories
 Enterprise AEM codebases exhibit significant layout diversity:
-- **Standard Maven Archetype** (`rohith-aem-portfolio`): Flat parent POM containing 10 modules: `all`, `core`, `ui.apps`, `ui.config`, `ui.content`, `ui.frontend`, etc.
-- **Enterprise Multi-Tenant Repositories** (`aemaacs-life`): Deeply nested multi-tenant hierarchy:
-  - Root POM defines `<modules>`: `pipelines`, `dispatcher`, `mandg`, `whitelabel`.
-  - Sub-aggregators `mandg/pom.xml` and `whitelabel/pom.xml` define independent stacks (`core`, `ui.apps`, `ui.config`, `ui.content`, `ui.acl`, `all`).
-  - Specialized content packages (e.g., `mandg/ui.acl` for Netcentric AC Tool).
+- **Standard Maven Archetype** (`a standard AEM archetype project`): Flat parent POM containing 10 modules: `all`, `core`, `ui.apps`, `ui.config`, `ui.content`, `ui.frontend`, etc.
+- **Enterprise Multi-Tenant Repositories** (`an enterprise AEM project`): Deeply nested multi-tenant hierarchy:
+  - Root POM defines `<modules>`: `pipelines`, `dispatcher`, `example`, `brand`.
+  - Sub-aggregators `example/pom.xml` and `brand/pom.xml` define independent stacks (`core`, `ui.apps`, `ui.config`, `ui.content`, `ui.acl`, `all`).
+  - Specialized content packages (e.g., `example/ui.acl` for Netcentric AC Tool).
   - Non-Maven configuration folders (`config/dev/cdn.yaml`, `config/prod/cdn.yaml`).
 
 Any static analysis tool that hardcodes paths such as `/core` or `/ui.config` fails immediately when executed on enterprise repositories.
@@ -753,7 +758,7 @@ The discovery engine implements a recursive traversal mechanism powered by Apach
 
 ### 5.3 Deterministic 11-Category Semantic Module Classification
 
-To eliminate classification collisions across enterprise multi-tenant repositories (such as `aemaacs-life` containing 21 modules and 4 CDN configs), the discovery engine implements an expanded 11-category Maven module taxonomy, an independent non-Maven Cloud Configuration Discovery Phase, and strict packaging disambiguation:
+To eliminate classification collisions across enterprise multi-tenant repositories (such as `an enterprise AEM project` containing 21 modules and 4 CDN configs), the discovery engine implements an expanded 11-category Maven module taxonomy, an independent non-Maven Cloud Configuration Discovery Phase, and strict packaging disambiguation:
 
 ```java
 package io.github.rohithv16.aem.analyser.core.model.discovery;
@@ -821,7 +826,7 @@ Modules are evaluated in strict hierarchical order:
 ```
 
 #### 5.3.2 Exact Disambiguation for `packageType=container`
-Both deployment container packages (`mandg.all`, `rohithaem-portfolio.all`) and configuration packages (`mandg.ui.config`, `rohithaem-portfolio.ui.config`) declare `<packageType>container</packageType>` in the `filevault-package-maven-plugin`.
+Both deployment container packages (`example.all`, `rohithaem-portfolio.all`) and configuration packages (`example.ui.config`, `rohithaem-portfolio.ui.config`) declare `<packageType>container</packageType>` in the `filevault-package-maven-plugin`.
 
 The engine disambiguates them with 100% determinism:
 ```java
@@ -851,7 +856,7 @@ public static ModuleClassification disambiguateContainerPackage(
 ```
 
 #### 5.3.3 Precision Directory Scanning & Runmode Resolution
-To prevent false-positive collisions where Sling Rewriter XML pipelines (`apps/mandg/config/rewriter/asset/.content.xml`) or workflow launcher configurations (`conf/.../settings/workflow/launcher/config`) hijack `ui.apps` and `ui.content` as configuration modules, the discovery scanner strictly anchors OSGi configuration paths:
+To prevent false-positive collisions where Sling Rewriter XML pipelines (`apps/example/config/rewriter/asset/.content.xml`) or workflow launcher configurations (`conf/.../settings/workflow/launcher/config`) hijack `ui.apps` and `ui.content` as configuration modules, the discovery scanner strictly anchors OSGi configuration paths:
 
 ```
 AEM Cloud Service Strict Anchor:
@@ -864,11 +869,11 @@ Legacy AEM 6.5 Fallback Anchor:
 - Runmode tokens are extracted directly from folder name segments: `config.author.dev` $\longrightarrow$ `{"author", "dev"}`.
 
 #### 5.3.4 False File Hazard Elimination: Three-Layer Defense-in-Depth
-If an analyzer searches the filesystem using a naive glob (`**/*.config`), developer tooling files (such as `whitelabel/lombok.config` containing `lombok.log.fieldName=LOG`, `.editorconfig`, or `checkstyle.config`) are accidentally ingested as OSGi configuration files, causing false `AEM-DEAD-001: Orphaned PID 'lombok'` violations.
+If an analyzer searches the filesystem using a naive glob (`**/*.config`), developer tooling files (such as `brand/lombok.config` containing `lombok.log.fieldName=LOG`, `.editorconfig`, or `checkstyle.config`) are accidentally ingested as OSGi configuration files, causing false `AEM-DEAD-001: Orphaned PID 'lombok'` violations.
 
 The analyzer enforces a **Three-Layer Defense-in-Depth Model**:
 1. **Layer 1: Strict Path Confinement**:
-   Target file must reside inside `src/main/content/jcr_root/apps/**/osgiconfig/`. Any file outside this path (such as `whitelabel/lombok.config` at module root) is rejected immediately.
+   Target file must reside inside `src/main/content/jcr_root/apps/**/osgiconfig/`. Any file outside this path (such as `brand/lombok.config` at module root) is rejected immediately.
 2. **Layer 2: Filename & Extension Whitelist / Blacklist**:
    Explicit blacklist rejects `lombok.config`, `.editorconfig`, `checkstyle.config`. Allowed extensions are strictly limited to `.cfg.json`, `.config`, `.cfg`, and `.content.xml`.
 3. **Layer 3: OSGi PID Grammar Validation**:
@@ -879,7 +884,7 @@ The analyzer enforces a **Three-Layer Defense-in-Depth Model**:
    Unqualified single-word names (like `lombok`) fail grammar validation and are rejected.
 
 #### 5.3.5 Non-Maven Cloud Configuration Discovery Engine
-In modern AEM as a Cloud Service repositories (`aemaacs-life/config/`), declarative CDN and WAF traffic filter rules reside at repository root outside the Maven reactor hierarchy:
+In modern AEM as a Cloud Service repositories (`an enterprise AEM project/config/`), declarative CDN and WAF traffic filter rules reside at repository root outside the Maven reactor hierarchy:
 - `config/dev/cdn.yaml`
 - `config/stage/cdn.yaml`
 - `config/prod/cdn.yaml`
@@ -991,7 +996,7 @@ The analyzer strictly complies with the OASIS SARIF 2.1.0 Errata 01 Standard:
             {
               "physicalLocation": {
                 "artifactLocation": {
-                  "uri": "mandg/ui.config/src/main/content/jcr_root/apps/mandg/osgiconfig/config/com.example.PaymentServiceImpl.cfg.json",
+                  "uri": "example/ui.config/src/main/content/jcr_root/apps/example/osgiconfig/config/com.example.PaymentServiceImpl.cfg.json",
                   "uriBaseId": "%SRCROOT%"
                 },
                 "region": {
@@ -1008,7 +1013,7 @@ The analyzer strictly complies with the OASIS SARIF 2.1.0 Errata 01 Standard:
               "id": 1,
               "physicalLocation": {
                 "artifactLocation": {
-                  "uri": "mandg/core/src/main/java/com/example/PaymentServiceImpl.java",
+                  "uri": "example/core/src/main/java/com/example/PaymentServiceImpl.java",
                   "uriBaseId": "%SRCROOT%"
                 },
                 "region": {
@@ -1033,7 +1038,7 @@ The analyzer strictly complies with the OASIS SARIF 2.1.0 Errata 01 Standard:
 ### 6.2 SonarQube Generic Issue Import Format & Coordinate Transformation
 
 #### 6.2.1 Multi-Module Reactor Path Normalization
-In multi-module Maven projects (e.g. `aemaacs-life`), the SonarQube scanner executes at the top-level reactor root (`session.getTopLevelProject().getBasedir()`). If an issue report emits submodule-relative paths (e.g. `src/main/content/...`), SonarQube rejects the report with `"The issue cannot be imported: the file ... does not exist"`.
+In multi-module Maven projects (e.g. `an enterprise AEM project`), the SonarQube scanner executes at the top-level reactor root (`session.getTopLevelProject().getBasedir()`). If an issue report emits submodule-relative paths (e.g. `src/main/content/...`), SonarQube rejects the report with `"The issue cannot be imported: the file ... does not exist"`.
 
 The exporter guarantees all file paths are normalized relative to the **reactor root**:
 ```java
@@ -1043,7 +1048,7 @@ public static String toNormalizedPath(Path reactorRoot, Path absolutePath) {
                       .replace('\\', '/');
 }
 ```
-This produces `mandg/ui.config/src/main/content/...`, which SonarQube resolves without error.
+This produces `example/ui.config/src/main/content/...`, which SonarQube resolves without error.
 
 #### 6.2.2 Mathematical Coordinate Transformation ($f_{\text{Sonar}}$)
 SonarQube Generic Issue Import format enforces two strict coordinate rules:
@@ -1085,8 +1090,8 @@ Native ingestion format for Adobe Cloud Manager and on-premise SonarQube instanc
       "severity": "BLOCKER",
       "type": "BUG",
       "primaryLocation": {
-        "message": "Orphaned OSGi Configuration: No matching component or platform service found for PID 'com.mandg.core.servlets.contentsync.ContentSyncReplicationServletConfig'.",
-        "filePath": "mandg/ui.config/src/main/content/jcr_root/apps/mandg/osgiconfig/config.author/com.mandg.core.servlets.contentsync.ContentSyncReplicationServletConfig.cfg.json",
+        "message": "Orphaned OSGi Configuration: No matching component or platform service found for PID 'com.example.core.servlets.shared.SharedServletConfig'.",
+        "filePath": "example/ui.config/src/main/content/jcr_root/apps/example/osgiconfig/config.author/com.example.core.servlets.shared.SharedServletConfig.cfg.json",
         "textRange": {
           "startLine": 1,
           "startColumn": 0,
@@ -1103,7 +1108,7 @@ Native ingestion format for Adobe Cloud Manager and on-premise SonarQube instanc
       "type": "CODE_SMELL",
       "primaryLocation": {
         "message": "Dead configuration property 'obsoleteEndpoint' in 'PaymentServiceImpl.cfg.json' has no corresponding attribute definition in 'PaymentServiceImpl$Config'.",
-        "filePath": "mandg/ui.config/src/main/content/jcr_root/apps/mandg/osgiconfig/config/com.example.PaymentServiceImpl.cfg.json",
+        "filePath": "example/ui.config/src/main/content/jcr_root/apps/example/osgiconfig/config/com.example.PaymentServiceImpl.cfg.json",
         "textRange": {
           "startLine": 4,
           "startColumn": 2,
@@ -1114,7 +1119,7 @@ Native ingestion format for Adobe Cloud Manager and on-premise SonarQube instanc
       "secondaryLocations": [
         {
           "message": "Target @ObjectClassDefinition interface definition",
-          "filePath": "mandg/core/src/main/java/com/example/PaymentServiceImpl.java",
+          "filePath": "example/core/src/main/java/com/example/PaymentServiceImpl.java",
           "textRange": {
             "startLine": 45,
             "startColumn": 2,
@@ -1136,29 +1141,29 @@ Interactive developer output formatted with colored status indicators, file coor
 ================================================================================
  AEM CODE ANALYSER - POLYGLOT DEAD CODE REPORT
 ================================================================================
- Project Root: /Users/rvenat01/Documents/AEM/mandg/aemaacs-life
+ Project Root: an enterprise AEM project
  Scanned: 4 Bundles, 48 OSGi Configs, 112 Components, 36 Sling Models
  Total Violations: 2 (2 Errors, 0 Warnings)
  Execution Time: 1.124 s
 --------------------------------------------------------------------------------
 
 [ERROR] AEM-DEAD-001: Orphaned OSGi Configuration
-  File: mandg/ui.config/.../config.author/com.mandg.core.servlets.contentsync.ContentSyncReplicationServletConfig.cfg.json:1:1
-  Target PID: com.mandg.core.servlets.contentsync.ContentSyncReplicationServletConfig
+  File: example/ui.config/.../config.author/com.example.core.servlets.shared.SharedServletConfig.cfg.json:1:1
+  Target PID: com.example.core.servlets.shared.SharedServletConfig
   Root Cause: Configuration PID matches none of the 3 designated servlets:
-              - ContentSyncBulkReplicationServlet
-              - ContentSyncTrackActivityServlet
-              - ContentSyncTrackedCleanupServlet
+              - BulkReplicationServlet
+              - TrackActivityServlet
+              - TrackedCleanupServlet
   Remediation: Rename configuration file to target servlet PID or declare explicit
                @Component(configurationPid = "...") on the target servlet.
 
 [ERROR] AEM-DEAD-001: Orphaned OSGi Configuration (OCD Interface Named)
-  File: mandg/ui.config/.../config/com.mandg.core.config.FlourishCmpConfig.cfg.json:1:1
-  Target PID: com.mandg.core.config.FlourishCmpConfig
+  File: example/ui.config/.../config/com.example.core.config.ContentConfig.cfg.json:1:1
+  Target PID: com.example.core.config.ContentConfig
   Root Cause: File named after @ObjectClassDefinition interface rather than @Component PID
-              'com.mandg.core.services.impl.FlourishCmpServiceImpl'.
-  Remediation: Rename configuration file to 'com.mandg.core.services.impl.FlourishCmpServiceImpl.cfg.json'
-               or add configurationPid = "com.mandg.core.config.FlourishCmpConfig" to @Component.
+              'com.example.core.services.impl.ContentServiceImpl'.
+  Remediation: Rename configuration file to 'com.example.core.services.impl.ContentServiceImpl.cfg.json'
+               or add configurationPid = "com.example.core.config.ContentConfig" to @Component.
 
 --------------------------------------------------------------------------------
 BUILD FAILURE: 2 critical cross-boundary errors detected.
@@ -1198,7 +1203,7 @@ The implementation of Phase 1 is sequenced into five distinct, verifiable milest
   4. Implement 11-category semantic module classification heuristics with `<embeddeds>` container disambiguation and strict `osgiconfig/` directory anchoring.
   5. Implement `CloudConfigDiscoveryEngine` discovering non-Maven root `config/{dev,stage,prod,rde}/cdn.yaml` and WAF descriptors.
   6. Implement 3-layer tooling exclusion eliminating `lombok.config`, `.editorconfig`, and validating OSGi PID grammars.
-  7. Build unit test fixtures modeled after `rohith-aem-portfolio` (flat) and `aemaacs-life` (nested multi-tenant).
+  7. Build unit test fixtures modeled after `a standard AEM archetype project` (flat) and `an enterprise AEM project` (nested multi-tenant).
 - **Edge Cases**:
   - Aggregator POMs with non-standard directory structures.
   - Bundles missing `<sourceDirectory>` elements (defaulting correctly to `src/main/java`).
@@ -1268,7 +1273,7 @@ The implementation of Phase 1 is sequenced into five distinct, verifiable milest
   - Runmode inheritance and precedence overrides.
   - Exported interfaces in public API packages implemented by private bundle classes.
 - **Verification Strategy**:
-  - Execute analyzer against `aemaacs-life` fixture: verify detection of `ContentSyncReplicationServletConfig.cfg.json` and `FlourishCmpConfig.cfg.json`.
+  - Execute analyzer against `an enterprise AEM project` fixture: verify detection of `SharedServletConfig.cfg.json` and `ContentConfig.cfg.json`.
 
 ### Milestone 5 (M5): Delivery Mechanisms (Maven Plugin & CLI) & Exporters
 - **Prerequisites**: M4 completion.

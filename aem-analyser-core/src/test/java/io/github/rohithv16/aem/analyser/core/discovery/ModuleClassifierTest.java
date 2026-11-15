@@ -83,6 +83,20 @@ class ModuleClassifierTest {
     }
 
     @Test
+    void plainJarWithoutBndPluginOrAemSdkIsNotABundle() {
+        assertEquals(ModuleClassification.UNCLASSIFIED,
+                new ModuleClassifier().classify(input("myapp.plain", "jar", false,
+                        FileVaultPluginConfig.fromPluginConfiguration("myapp.plain", null), false, false)));
+    }
+
+    @Test
+    void parentPomWithoutModulesIsAnAggregator() {
+        assertEquals(ModuleClassification.AGGREGATOR_MODULE,
+                new ModuleClassifier().classify(input("myapp-parent", "pom", false,
+                        FileVaultPluginConfig.fromPluginConfiguration("myapp-parent", null), false, false)));
+    }
+
+    @Test
     void frontendModuleByPackageJson() throws Exception {
         Path frontendDir = tempDir.resolve("myapp.ui.frontend");
         java.nio.file.Files.createDirectories(frontendDir);

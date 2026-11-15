@@ -29,9 +29,11 @@ public final class AemSec001Rule implements RuleEvaluator {
         }
 
         for (HtlUnsafeContextFinding finding : context.htlUnsafeContexts()) {
+            boolean elementSink = finding.snippet() != null && finding.snippet().contains("data-sly-element");
             violations.add(new Violation(
                     RuleId.AEM_SEC_001.id(),
-                    RuleId.AEM_SEC_001.defaultLevel(),
+                    elementSink ? io.github.rohithv16.aem.analyser.core.model.report.Severity.WARNING
+                            : RuleId.AEM_SEC_001.defaultLevel(),
                     "UNSAFE_HTL_CONTEXT_BYPASS",
                     "HTL expression uses '@ context=\\'unsafe\\'' which disables automatic XSS protection: " + finding.snippet(),
                     relativePath(context, finding.filePath()),

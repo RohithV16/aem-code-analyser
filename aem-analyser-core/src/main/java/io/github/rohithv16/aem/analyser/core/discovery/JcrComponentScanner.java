@@ -17,6 +17,8 @@ import java.util.stream.Stream;
  */
 public final class JcrComponentScanner {
 
+    private static final long MAX_FILE_SIZE_BYTES = 10L * 1024 * 1024;
+
     private static final Pattern RESOURCE_SUPER_TYPE_PATTERN = Pattern.compile(
             "sling:resourceSuperType=\"([^\"]+)\""
     );
@@ -28,6 +30,17 @@ public final class JcrComponentScanner {
     );
 
     public List<CqComponentDefinition> scanDirectory(Path directory) {
+        return scanDirectory(directory, new io.github.rohithv16.aem.analyser.core.util.DiagnosticSink());
+    }
+
+    public List<CqComponentDefinition> scanDirectory(Path directory,
+                                                     io.github.rohithv16.aem.analyser.core.util.DiagnosticSink diagnostics) {
+        return scanDirectory(directory, diagnostics, MAX_FILE_SIZE_BYTES);
+    }
+
+    public List<CqComponentDefinition> scanDirectory(Path directory,
+                                                     io.github.rohithv16.aem.analyser.core.util.DiagnosticSink diagnostics,
+                                                     long maxFileSizeBytes) {
         List<CqComponentDefinition> components = new ArrayList<>();
         if (directory == null || !Files.isDirectory(directory)) {
             return components;
@@ -37,15 +50,28 @@ public final class JcrComponentScanner {
             stream.filter(Files::isRegularFile)
                     .filter(p -> p.getFileName().toString().equals(".content.xml"))
                     .filter(this::isNotIgnored)
-                    .forEach(xmlFile -> scanContentXml(xmlFile, components));
-        } catch (IOException ignored) {
+                    .forEach(xmlFile -> scanContentXml(xmlFile, components, diagnostics, maxFileSizeBytes));
+        } catch (IOException e) {
+            if (diagnostics != null) {
+                diagnostics.add(io.github.rohithv16.aem.analyser.core.model.report.DiagnosticKind.UNREADABLE_TREE,
+                        directory, io.github.rohithv16.aem.analyser.core.util.DiagnosticSink.reasonOf(e));
+            }
         }
 
         return components;
     }
 
-    private void scanContentXml(Path xmlFile, List<CqComponentDefinition> collector) {
+    private void scanContentXml(Path xmlFile, List<CqComponentDefinition> collector,
+                                io.github.rohithv16.aem.analyser.core.util.DiagnosticSink diagnostics,
+                                long maxFileSizeBytes) {
         try {
+            if (Files.size(xmlFile) > maxFileSizeBytes) {
+                if (diagnostics != null) {
+                    diagnostics.add(io.github.rohithv16.aem.analyser.core.model.report.DiagnosticKind.FILE_TOO_LARGE,
+                            xmlFile, "exceeds " + (maxFileSizeBytes / (1024 * 1024)) + " MiB");
+                }
+                return;
+            }
             String content = Files.readString(xmlFile);
             if (!content.contains("jcr:primaryType=\"cq:Component\"")) {
                 return;
@@ -63,7 +89,11 @@ public final class JcrComponentScanner {
             collector.add(new CqComponentDefinition(
                     compDir, xmlFile, resType, superType, title, group, hasClassic, hasClassic ? classicDialog : null
             ));
-        } catch (IOException ignored) {
+        } catch (IOException e) {
+            if (diagnostics != null) {
+                diagnostics.add(io.github.rohithv16.aem.analyser.core.model.report.DiagnosticKind.UNREADABLE_TREE,
+                        xmlFile, io.github.rohithv16.aem.analyser.core.util.DiagnosticSink.reasonOf(e));
+            }
         }
     }
 

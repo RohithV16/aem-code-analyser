@@ -31,6 +31,18 @@ public final class AemDead003CRule implements RuleEvaluator {
             if (!component.getServiceInterfaces().isEmpty()) {
                 continue;
             }
+            if (!component.isEnabled()) {
+                continue; // explicitly disabled: intentional, not an activation bug
+            }
+            if (component.isFactoryComponent()) {
+                continue; // factory components are instantiated on demand from a factory config
+            }
+            if (component.isProgrammaticActivation()) {
+                continue; // activated through ServiceTracker/BundleContext by another component
+            }
+            if (component.getConfigurationPolicy() == OSGiComponentNode.ConfigurationPolicy.REQUIRE) {
+                continue; // only activates when its PID is configured; not automatically dead
+            }
             if (!component.isImmediateExplicitlySet() || component.isImmediate()) {
                 continue;
             }

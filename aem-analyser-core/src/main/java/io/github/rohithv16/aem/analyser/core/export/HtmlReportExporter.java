@@ -1,16 +1,21 @@
 package io.github.rohithv16.aem.analyser.core.export;
 
+import io.github.rohithv16.aem.analyser.core.history.RunSummary;
 import io.github.rohithv16.aem.analyser.core.model.report.AnalysisReport;
+import io.github.rohithv16.aem.analyser.core.model.report.CodeMetrics;
 import io.github.rohithv16.aem.analyser.core.model.report.Severity;
 import io.github.rohithv16.aem.analyser.core.model.report.Violation;
 
 import java.io.IOException;
 import java.io.Writer;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.stream.Collectors;
 
@@ -22,6 +27,28 @@ public final class HtmlReportExporter implements ReportExporter {
 
     private static final DateTimeFormatter ISO_FORMATTER =
             DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss z").withZone(ZoneId.systemDefault());
+
+    private final java.time.Clock clock;
+    private final int maxViolations;
+    private final List<RunSummary> history;
+
+    public HtmlReportExporter() {
+        this(java.time.Clock.systemDefaultZone(), 5000, List.of());
+    }
+
+    public HtmlReportExporter(java.time.Clock clock) {
+        this(clock, 5000, List.of());
+    }
+
+    public HtmlReportExporter(java.time.Clock clock, int maxViolations) {
+        this(clock, maxViolations, List.of());
+    }
+
+    public HtmlReportExporter(java.time.Clock clock, int maxViolations, List<RunSummary> history) {
+        this.clock = clock == null ? java.time.Clock.systemDefaultZone() : clock;
+        this.maxViolations = Math.max(1, maxViolations);
+        this.history = List.copyOf(history == null ? List.of() : history);
+    }
 
     @Override
     public ReportFormat getFormat() {
@@ -139,6 +166,8 @@ public final class HtmlReportExporter implements ReportExporter {
                 .pill-info { background: var(--info-bg); color: var(--info); border: 1px solid var(--info-border); }
                 
                 .code-loc { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 0.8125rem; color: #0284c7; }
+                .snippet { background: #0f172a; color: #e2e8f0; padding: 0.75rem; border-radius: 6px; overflow-x: auto; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 0.75rem; line-height: 1.45; margin-top: 0.5rem; white-space: pre; }
+                details summary { cursor: pointer; color: #0284c7; font-size: 0.8125rem; }
                 .rule-code { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-weight: 600; color: #334155; }
                 .remediation { margin-top: 0.35rem; font-size: 0.8125rem; color: var(--text-secondary); background: #f1f5f9; padding: 0.4rem 0.6rem; border-radius: 4px; border-left: 3px solid var(--accent); }
                 
@@ -163,7 +192,7 @@ public final class HtmlReportExporter implements ReportExporter {
         sb.append("  <div class=\"header-title\">\n");
         sb.append("    <h1>⚡ AEM Code Analyser</h1>\n");
         sb.append("    <p>Project Root: <code>").append(escape(report.projectRoot().toString())).append("</code> &bull; Generated: ")
-                .append(ISO_FORMATTER.format(Instant.now())).append(" &bull; Duration: ")
+                .append(ISO_FORMATTER.format(Instant.now(clock))).append(" &bull; Duration: ")
                 .append(String.format("%.2fs", report.durationMillis() / 1000.0)).append("</p>\n");
         sb.append("  </div>\n");
         sb.append("  <div><span class=\"status-badge ").append(statusBadgeClass).append("\">").append(statusText).append("</span></div>\n");
@@ -243,7 +272,11 @@ public final class HtmlReportExporter implements ReportExporter {
         if (sortedViolations.isEmpty()) {
             sb.append("        <tr><td colspan=\"4\" style=\"text-align:center;padding:2rem;color:var(--success);font-weight:600;\">🎉 Clean build! No architectural or quality violations detected.</td></tr>\n");
         } else {
+            int rendered = 0;
             for (Violation v : sortedViolations) {
+                if (rendered++ >= maxViolations) {
+                    break;
+                }
                 String pillClass = switch (v.severity()) {
                     case ERROR -> "pill-error";
                     case WARNING -> "pill-warning";
@@ -268,6 +301,12 @@ public final class HtmlReportExporter implements ReportExporter {
                 }
                 sb.append("          </td>\n");
                 sb.append("        </tr>\n");
+            }
+            if (sortedViolations.size() > maxViolations) {
+                sb.append("        <tr><td colspan=\"4\" style=\"text-align:center;padding:1rem;color:var(--text-secondary);\">")
+                        .append(sortedViolations.size() - maxViolations)
+                        .append(" more violation(s) omitted from this dashboard; use --format SARIF or SONAR for the full set.")
+                        .append("</td></tr>\n");
             }
         }
         sb.append("      </tbody>\n    </table>\n  </div>\n</div>\n</div>\n");
@@ -309,6 +348,30 @@ public final class HtmlReportExporter implements ReportExporter {
         sb.append("      </ul>\n    </div>\n");
         sb.append("  </div>\n</div>\n</div>\n");
 
+        // Run history / trend
+        if (!history.isEmpty()) {
+            sb.append("<div class=\"section\">\n  <div class=\"section-header\">\n");
+            sb.append("    <h2>Run History (last ").append(history.size()).append(")</h2>\n  </div>\n");
+            sb.append("  <div style=\"overflow-x:auto;\">\n    <table>\n      <thead><tr>\n");
+            sb.append("        <th>Run</th><th>Total</th><th>Errors</th><th>Warnings</th>")
+                    .append("<th>Info</th><th>Duplication</th><th>Duration</th>\n");
+            sb.append("      </tr></thead>\n      <tbody>\n");
+            int run = 1;
+            for (RunSummary summary : history) {
+                sb.append("        <tr>\n");
+                sb.append("          <td>#").append(run++).append(" <span style=\"font-size:0.75rem;color:var(--text-secondary);\">")
+                        .append(escape(summary.timestamp())).append("</span></td>\n");
+                sb.append("          <td><strong>").append(summary.total()).append("</strong></td>\n");
+                sb.append("          <td>").append(summary.errors()).append("</td>\n");
+                sb.append("          <td>").append(summary.warnings()).append("</td>\n");
+                sb.append("          <td>").append(summary.infos()).append("</td>\n");
+                sb.append("          <td>").append(String.format("%.1f%%", summary.duplicationPercent())).append("</td>\n");
+                sb.append("          <td>").append(String.format("%.1f s", summary.durationMillis() / 1000.0)).append("</td>\n");
+                sb.append("        </tr>\n");
+            }
+            sb.append("      </tbody>\n    </table>\n  </div>\n</div>\n");
+        }
+
         // TAB 3: DUPLICATION
         sb.append("<div id=\"tab-duplication\" class=\"tab-content\">\n");
         sb.append("<div class=\"section\">\n");
@@ -332,7 +395,46 @@ public final class HtmlReportExporter implements ReportExporter {
                 sb.append("        </tr>\n");
             }
         }
-        sb.append("      </tbody>\n    </table>\n  </div>\n</div>\n</div>\n");
+        sb.append("      </tbody>\n    </table>\n  </div>\n</div>\n");
+
+        // Duplicate block details: what the duplicated lines are and where they came from.
+        if (!dupMetrics.duplicateBlockDetails().isEmpty()) {
+            sb.append("<div class=\"section\">\n");
+            sb.append("  <div class=\"section-header\">\n");
+            sb.append("    <h2>Duplicate Blocks (").append(dupMetrics.duplicateBlockDetails().size()).append(")</h2>\n");
+            sb.append("  </div>\n  <div style=\"overflow-x:auto;\">\n");
+            sb.append("    <table>\n      <thead>\n        <tr>\n");
+            sb.append("          <th>Kind</th>\n");
+            sb.append("          <th>Duplicate</th>\n");
+            sb.append("          <th>Original</th>\n");
+            sb.append("          <th>Lines</th>\n");
+            sb.append("          <th>Code lines</th>\n");
+            sb.append("          <th>Tokens</th>\n");
+            sb.append("          <th>Fingerprint</th>\n");
+            sb.append("          <th>Preview</th>\n");
+            sb.append("        </tr>\n      </thead>\n      <tbody>\n");
+            for (CodeMetrics.DuplicateBlock block : dupMetrics.duplicateBlockDetails()) {
+                String kind = classifyDuplicate(report.projectRoot(), block);
+                sb.append("        <tr>\n");
+                sb.append("          <td><span class=\"pill pill-info\">").append(escape(kind)).append("</span></td>\n");
+                sb.append("          <td><span class=\"code-loc\">").append(escape(block.duplicateFile()))
+                        .append(':').append(block.duplicateStartLine()).append('-').append(block.duplicateEndLine())
+                        .append("</span></td>\n");
+                sb.append("          <td><span class=\"code-loc\">").append(escape(block.originalFile()))
+                        .append(':').append(block.originalStartLine()).append('-').append(block.originalEndLine())
+                        .append("</span></td>\n");
+                sb.append("          <td><strong>").append(block.duplicatedLines()).append("</strong></td>\n");
+                sb.append("          <td>").append(block.codeLines()).append("</td>\n");
+                sb.append("          <td>").append(block.tokens()).append("</td>\n");
+                sb.append("          <td><code>").append(escape(block.fingerprint())).append("</code></td>\n");
+                sb.append("          <td><details><summary>Show duplicated lines</summary><pre class=\"snippet\">")
+                        .append(escape(previewLines(report.projectRoot(), block)))
+                        .append("</pre></details></td>\n");
+                sb.append("        </tr>\n");
+            }
+            sb.append("      </tbody>\n    </table>\n  </div>\n</div>\n");
+        }
+        sb.append("</div>\n");
 
         // TAB 4: COVERAGE
         sb.append("<div id=\"tab-coverage\" class=\"tab-content\">\n");
@@ -448,6 +550,61 @@ public final class HtmlReportExporter implements ReportExporter {
         return sb.toString();
     }
 
+    private String classifyDuplicate(Path projectRoot, CodeMetrics.DuplicateBlock block) {
+        List<String> lines = readBlock(projectRoot, block);
+        String text = String.join("\n", lines).toLowerCase(Locale.ROOT);
+        long accessors = lines.stream()
+                .map(String::strip)
+                .filter(line -> line.matches(
+                        "^(public|protected|private|static|final|\\s)*[\\w<>\\[\\], ?.]+\\s+\\w+\\([^)]*\\)\\s*\\{\\s*return\\s+[\\w.$()\"' ]+;\\s*\\}$"))
+                .count();
+        if (accessors >= Math.max(2, lines.size() / 2)) {
+            return "Accessor boilerplate";
+        }
+        if (text.contains("this(") || text.contains("super(")) {
+            return "Constructor delegation";
+        }
+        if (text.contains("if (") || text.contains("for (") || text.contains("while (")
+                || text.contains("switch (") || text.contains("try {")) {
+            return "Control-flow logic";
+        }
+        if (text.contains("@override")) {
+            return "Method block";
+        }
+        return "Statement block";
+    }
+
+    private String previewLines(Path projectRoot, CodeMetrics.DuplicateBlock block) {
+        List<String> lines = readBlock(projectRoot, block);
+        if (lines.isEmpty()) {
+            return "(source not available)";
+        }
+        StringBuilder preview = new StringBuilder();
+        int shown = Math.min(8, lines.size());
+        for (int i = 0; i < shown; i++) {
+            preview.append(String.format("%4d | %s%n", block.duplicateStartLine() + i, lines.get(i)));
+        }
+        if (lines.size() > shown) {
+            preview.append("     | ... ").append(lines.size() - shown).append(" more line(s)");
+        }
+        return preview.toString();
+    }
+
+    private List<String> readBlock(Path projectRoot, CodeMetrics.DuplicateBlock block) {
+        try {
+            Path file = Path.of(block.duplicateFile());
+            if (!file.isAbsolute() && projectRoot != null) {
+                file = projectRoot.resolve(block.duplicateFile());
+            }
+            List<String> all = Files.readAllLines(file);
+            int from = Math.max(0, block.duplicateStartLine() - 1);
+            int to = Math.min(all.size(), block.duplicateEndLine());
+            return from < to ? all.subList(from, to) : List.of();
+        } catch (IOException | RuntimeException e) {
+            return List.of();
+        }
+    }
+
     private String getRuleCategory(String ruleId) {
         if (ruleId.startsWith("java:S")) return "SONAR";
         if (ruleId.startsWith("AEM-PERF-")) return "PERF";
@@ -466,6 +623,9 @@ public final class HtmlReportExporter implements ReportExporter {
                 .replace("<", "&lt;")
                 .replace(">", "&gt;")
                 .replace("\"", "&quot;")
-                .replace("'", "&#x27;");
+                .replace("'", "&#x27;")
+                .replace("\r", "&#13;")
+                .replace("\n", "&#10;")
+                .replaceAll("[\\p{Cntrl}&&[^\\x09]]", "");
     }
 }

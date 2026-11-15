@@ -100,7 +100,7 @@ public final class ReferenceGraphBuilder {
         }
 
         for (OsgiConfigDefinition config : input.configs()) {
-            OSGiConfigNode configNode = toConfigNode(config, configPropertyNodes);
+            OSGiConfigNode configNode = toConfigNode(config, configPropertyNodes, componentsByFqn);
             if (!configNodes.containsKey(configNode.getId())) {
                 configNodes.put(configNode.getId(), configNode);
                 graph.addVertex(configNode);
@@ -378,11 +378,30 @@ public final class ReferenceGraphBuilder {
     }
 
     private OSGiConfigNode toConfigNode(OsgiConfigDefinition definition,
-                                        Map<String, ConfigPropertyNode> configPropertyNodes) {
+                                        Map<String, ConfigPropertyNode> configPropertyNodes,
+                                        Map<String, OSGiComponentNode> componentsByFqn) {
         Path filePath = definition.filePath();
+        String pid = definition.pid();
+        String factorySubname = definition.factoryIdentifier();
+        boolean isFactory = definition.isFactory();
+
+        // Legacy .config file names are ambiguous when both the PID and the factory subname may
+        // contain hyphens. If the whole base name binds to exactly one component and the split PID
+        // binds to none, the hyphen belongs to the PID, not to a factory delimiter.
+        if (definition.factoryAmbiguous() && pid != null && factorySubname != null) {
+            String wholePid = pid + "-" + factorySubname;
+            List<OSGiComponentNode> splitMatches = resolveComponentForPid(pid, componentsByFqn);
+            List<OSGiComponentNode> wholeMatches = resolveComponentForPid(wholePid, componentsByFqn);
+            if (wholeMatches.size() == 1 && splitMatches.isEmpty()) {
+                pid = wholePid;
+                factorySubname = null;
+                isFactory = false;
+            }
+        }
+
         OSGiConfigNode node = new OSGiConfigNode(
                 filePath.toString(), filePath, null,
-                definition.pid(), definition.factoryIdentifier(), definition.isFactory(),
+                pid, factorySubname, isFactory,
                 definition.runmodes(), definition.format());
         for (var entry : definition.properties().values()) {
             ConfigPropertyNode propertyNode = new ConfigPropertyNode(

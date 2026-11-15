@@ -62,17 +62,22 @@ public final class AemCloud001Rule implements RuleEvaluator {
                         ? new TextRegion(loc.line(), loc.column(), loc.line(), loc.column() + key.length())
                         : TextRegion.forWholeFile();
 
+                // config.local is a local-SDK-only runmode and is not deployed by Cloud Manager.
+                var severity = isLocalOnlyConfig(config)
+                        ? io.github.rohithv16.aem.analyser.core.model.report.Severity.WARNING
+                        : RuleId.AEM_CLOUD_001.defaultLevel();
+
                 violations.add(new Violation(
                         RuleId.AEM_CLOUD_001.id(),
-                        RuleId.AEM_CLOUD_001.defaultLevel(),
+                        severity,
                         "HARDCODED_CLOUD_SECRET",
                         "OSGi configuration property '" + prop.getKey() + "' in '" + config.getPid()
                                 + "' contains a plaintext hardcoded secret.",
                         relativePath(context, config.getFilePath()),
                         region,
                         null,
-                        "Externalize secret via Adobe Cloud Manager secret variable: '$[secret:"
-                                + suggestEnvName(config.getPid(), prop.getKey()) + "]'.",
+                        "Externalize the value as a Cloud Manager secret and reference it with"
+                                + " '$[secret:<ENV_VAR_NAME>]'.",
                         List.of()
                 ));
             }
@@ -109,9 +114,13 @@ public final class AemCloud001Rule implements RuleEvaluator {
         return false;
     }
 
-    private String suggestEnvName(String pid, String key) {
-        String cleanPid = pid.substring(pid.lastIndexOf('.') + 1);
-        return (cleanPid + "_" + key).replaceAll("[^A-Za-z0-9]", "_").toUpperCase(Locale.ROOT);
+    private boolean isLocalOnlyConfig(OSGiConfigNode config) {
+        if (config.getFilePath() == null) {
+            return false;
+        }
+        String path = config.getFilePath().toString().replace('\\', '/').toLowerCase(Locale.ROOT);
+        return path.contains("/config.local/") || path.contains("/config.local.")
+                || path.contains("/osgiconfig/config.local/");
     }
 
     private String relativePath(RuleContext context, java.nio.file.Path path) {

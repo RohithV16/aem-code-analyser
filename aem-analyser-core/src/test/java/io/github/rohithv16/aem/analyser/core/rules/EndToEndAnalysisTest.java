@@ -14,6 +14,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -104,33 +105,33 @@ class EndToEndAnalysisTest {
                 </project>
                 """);
 
-        // ── Case Study 2: FlourishCmpConfig (OCD-named orphaned config) ──
-        write("core/src/main/java/com/example/core/services/FlourishCmpService.java", """
+        // ── Case Study 2: ContentConfig (OCD-named orphaned config) ──
+        write("core/src/main/java/com/example/core/services/ContentService.java", """
                 package com.example.core.services;
-                public interface FlourishCmpService {
+                public interface ContentService {
                     String doWork();
                 }
                 """);
-        write("core/src/main/java/com/example/core/config/FlourishCmpConfig.java", """
+        write("core/src/main/java/com/example/core/config/ContentConfig.java", """
                 package com.example.core.config;
                 import org.osgi.service.metatype.annotations.ObjectClassDefinition;
-                @ObjectClassDefinition(name = "Flourish Configuration")
-                public @interface FlourishCmpConfig {
+                @ObjectClassDefinition(name = "Content Configuration")
+                public @interface ContentConfig {
                     boolean enabled() default true;
-                    String endpointUrl() default "https://flourish.example.com";
+                    String endpointUrl() default "https://content.example.com";
                     String obsoleteProp() default "unused";
                 }
                 """);
-        write("core/src/main/java/com/example/core/services/impl/FlourishCmpServiceImpl.java", """
+        write("core/src/main/java/com/example/core/services/impl/ContentServiceImpl.java", """
                 package com.example.core.services.impl;
-                import com.example.core.config.FlourishCmpConfig;
-                import com.example.core.services.FlourishCmpService;
+                import com.example.core.config.ContentConfig;
+                import com.example.core.services.ContentService;
                 import org.osgi.service.component.annotations.Component;
                 import org.osgi.service.component.annotations.Designate;
-                @Designate(ocd = FlourishCmpConfig.class)
-                @Component(service = FlourishCmpService.class, immediate = true)
-                public class FlourishCmpServiceImpl implements FlourishCmpService {
-                    private FlourishCmpConfig config;
+                @Designate(ocd = ContentConfig.class)
+                @Component(service = ContentService.class, immediate = true)
+                public class ContentServiceImpl implements ContentService {
+                    private ContentConfig config;
                     @Override
                     public String doWork() {
                         boolean active = config.enabled();
@@ -140,13 +141,13 @@ class EndToEndAnalysisTest {
                 }
                 """);
 
-        // ── Case Study 1: ContentSyncReplicationServletConfig (PID mismatch, shared OCD) ──
-        write("core/src/main/java/com/example/core/config/contentsync/ContentSyncReplicationServletConfig.java", """
-                package com.example.core.config.contentsync;
+        // ── Case Study 1: SharedServletConfig (PID mismatch, shared OCD) ──
+        write("core/src/main/java/com/example/core/config/shared/SharedServletConfig.java", """
+                package com.example.core.config.shared;
                 import org.osgi.service.metatype.annotations.AttributeDefinition;
                 import org.osgi.service.metatype.annotations.ObjectClassDefinition;
                 @ObjectClassDefinition(name = "Content Sync Replication Servlet Configuration")
-                public @interface ContentSyncReplicationServletConfig {
+                public @interface SharedServletConfig {
                     @AttributeDefinition(name = "Enabled", description = "Whether servlets are active")
                     boolean enabled() default false;
                     @AttributeDefinition int bulkReplicationBatchSize() default 200;
@@ -154,30 +155,30 @@ class EndToEndAnalysisTest {
                     @AttributeDefinition int trackCommitPauseMs() default 0;
                 }
                 """);
-        write("core/src/main/java/com/example/core/servlets/contentsync/ContentSyncBulkReplicationServlet.java", """
-                package com.example.core.servlets.contentsync;
-                import com.example.core.config.contentsync.ContentSyncReplicationServletConfig;
+        write("core/src/main/java/com/example/core/servlets/shared/BulkServlet.java", """
+                package com.example.core.servlets.shared;
+                import com.example.core.config.shared.SharedServletConfig;
                 import org.osgi.service.component.annotations.Component;
                 import org.osgi.service.component.annotations.Designate;
-                @Designate(ocd = ContentSyncReplicationServletConfig.class)
+                @Designate(ocd = SharedServletConfig.class)
                 @Component(service = javax.servlet.Servlet.class, immediate = true)
-                public class ContentSyncBulkReplicationServlet implements javax.servlet.Servlet {
-                    private ContentSyncReplicationServletConfig config;
+                public class BulkServlet implements javax.servlet.Servlet {
+                    private SharedServletConfig config;
                     public void process() {
                         int batchSize = config.bulkReplicationBatchSize();
                         int commitBatch = config.trackCommitBatchSize();
                     }
                 }
                 """);
-        write("core/src/main/java/com/example/core/servlets/contentsync/ContentSyncTrackActivityServlet.java", """
-                package com.example.core.servlets.contentsync;
-                import com.example.core.config.contentsync.ContentSyncReplicationServletConfig;
+        write("core/src/main/java/com/example/core/servlets/shared/TrackServlet.java", """
+                package com.example.core.servlets.shared;
+                import com.example.core.config.shared.SharedServletConfig;
                 import org.osgi.service.component.annotations.Component;
                 import org.osgi.service.component.annotations.Designate;
-                @Designate(ocd = ContentSyncReplicationServletConfig.class)
+                @Designate(ocd = SharedServletConfig.class)
                 @Component(service = javax.servlet.Servlet.class, immediate = true)
-                public class ContentSyncTrackActivityServlet implements javax.servlet.Servlet {
-                    private ContentSyncReplicationServletConfig config;
+                public class TrackServlet implements javax.servlet.Servlet {
+                    private SharedServletConfig config;
                     public void process() {
                         int pauseMs = config.trackCommitPauseMs();
                         boolean on = config.enabled();
@@ -187,14 +188,14 @@ class EndToEndAnalysisTest {
 
         // ── False positive eliminations ──
         // Whiteboard servlet with underscore metatype property and factory config
-        write("core/src/main/java/com/example/core/servlets/StyleIndexingProfileServlet.java", """
+        write("core/src/main/java/com/example/core/servlets/PathBoundServlet.java", """
                 package com.example.core.servlets;
                 import org.osgi.service.component.annotations.Component;
                 import org.apache.sling.api.servlets.SlingSafeMethodsServlet;
                 import org.osgi.service.metatype.annotations.AttributeDefinition;
                 import org.osgi.service.metatype.annotations.ObjectClassDefinition;
-                @Component(service = javax.servlet.Servlet.class, property = "sling.servlet.paths=/bin/styleprofile")
-                public class StyleIndexingProfileServlet extends SlingSafeMethodsServlet {
+                @Component(service = javax.servlet.Servlet.class, property = "sling.servlet.paths=/bin/pathservice")
+                public class PathBoundServlet extends SlingSafeMethodsServlet {
                 }
                 """);
 
@@ -230,7 +231,7 @@ class EndToEndAnalysisTest {
         // ── ui.config configuration files ──
         String configRoot = "ui.config/src/main/content/jcr_root/apps/example/osgiconfig/";
         // Case Study 1: orphaned config named after the OCD class, not the servlet PIDs
-        write(configRoot + "config.author/com.example.core.config.contentsync.ContentSyncReplicationServletConfig.cfg.json",
+        write(configRoot + "config.author/com.example.core.config.shared.SharedServletConfig.cfg.json",
                 """
                         {
                           "enabled": true,
@@ -240,7 +241,7 @@ class EndToEndAnalysisTest {
                         }
                         """);
         // Case Study 2: orphaned config named after the OCD interface
-        write(configRoot + "config/com.example.core.config.FlourishCmpConfig.cfg.json",
+        write(configRoot + "config/com.example.core.config.ContentConfig.cfg.json",
                 """
                         {
                           "enabled": true,
@@ -248,11 +249,11 @@ class EndToEndAnalysisTest {
                         }
                         """);
         // Correctly bound config with one ghost property and one whitelisted property
-        write(configRoot + "config/com.example.core.services.impl.FlourishCmpServiceImpl.cfg.json",
+        write(configRoot + "config/com.example.core.services.impl.ContentServiceImpl.cfg.json",
                 """
                         {
                           "enabled:Integer": 1,
-                          "endpointUrl": "https://flourish.example.com",
+                          "endpointUrl": "https://content.example.com",
                           "obsoleteEndpoint": "https://old.example.com",
                           "webconsole_configurationFactory_nameHint": "{name} config"
                         }
@@ -314,13 +315,13 @@ class EndToEndAnalysisTest {
         write("core/src/main/java/com/example/core/services/impl/LiveServiceConsumer.java", """
                 package com.example.core.services.impl;
                 import com.example.core.services.FactoryService;
-                import com.example.core.services.FlourishCmpService;
+                import com.example.core.services.ContentService;
                 import org.osgi.service.component.annotations.Component;
                 import org.osgi.service.component.annotations.Reference;
                 @Component(immediate = true)
                 public class LiveServiceConsumer {
                     @Reference
-                    private FlourishCmpService flourishCmpService;
+                    private ContentService contentService;
                     @Reference
                     private FactoryService factoryService;
                 }
@@ -405,7 +406,7 @@ class EndToEndAnalysisTest {
 
         // Whiteboard servlet is never flagged as unused service
         assertFalse(allViolations.stream().anyMatch(v -> v.filePath() != null
-                        && v.filePath().contains("StyleIndexingProfileServlet")
+                        && v.filePath().contains("PathBoundServlet")
                         && RuleId.AEM_DEAD_003A.id().equals(v.ruleId())),
                 () -> "Whiteboard servlet falsely flagged as unused service: " + allViolations);
 
@@ -418,6 +419,23 @@ class EndToEndAnalysisTest {
         assertFalse(allViolations.stream().anyMatch(v -> v.message() != null
                         && v.message().contains("scheduledpurge")),
                 () -> "Typed key falsely flagged: " + allViolations);
+    }
+
+    @Test
+    void ignoredConfigPathsExcludeMatchingConfigFiles() throws Exception {
+        writeFixtureProject();
+        AnalysisContext context = AnalysisContext.builder(projectRoot)
+                .ignoredConfigPaths(Set.of("ui.config/**/config.author/**"))
+                .build();
+
+        AnalysisReport report = new DefaultAemCodeAnalyser().analyze(context);
+
+        List<Violation> orphans = report.violations().stream()
+                .filter(v -> RuleId.AEM_DEAD_001.id().equals(v.ruleId()))
+                .toList();
+        assertEquals(1, orphans.size(),
+                () -> "Only the non-ignored orphaned config must remain: " + orphans);
+        assertTrue(orphans.get(0).filePath().contains("ContentConfig"));
     }
 
     private String extractKey(String message) {

@@ -20,8 +20,16 @@ public final class HtlScanner {
 
     public record HtlScanResult(List<HtlUsage> usages, List<HtlUnsafeContextFinding> unsafeContexts) {}
 
+    private static final long MAX_FILE_SIZE_BYTES = 10L * 1024 * 1024;
+
     private static final Pattern SLY_USE_PATTERN = Pattern.compile(
             "data-sly-use(?:\\.([a-zA-Z0-9_$-]+))?\\s*=\\s*([\"'])(.*?)\\2"
+    );
+
+    /** Same expression but across line breaks (multi-line HTL attributes). */
+    private static final Pattern SLY_USE_PATTERN_MULTILINE = Pattern.compile(
+            "data-sly-use(?:\\.([a-zA-Z0-9_$-]+))?\\s*=\\s*([\"'])(.*?)\\2",
+            Pattern.DOTALL
     );
 
     private static final Pattern EXPR_TARGET_PATTERN = Pattern.compile(
@@ -34,6 +42,15 @@ public final class HtlScanner {
     );
 
     public HtlScanResult scan(Path directory) {
+        return scan(directory, new io.github.rohithv16.aem.analyser.core.util.DiagnosticSink());
+    }
+
+    public HtlScanResult scan(Path directory, io.github.rohithv16.aem.analyser.core.util.DiagnosticSink diagnostics) {
+        return scan(directory, diagnostics, MAX_FILE_SIZE_BYTES);
+    }
+
+    public HtlScanResult scan(Path directory, io.github.rohithv16.aem.analyser.core.util.DiagnosticSink diagnostics,
+                              long maxFileSizeBytes) {
         List<HtlUsage> usages = new ArrayList<>();
         List<HtlUnsafeContextFinding> unsafeContexts = new ArrayList<>();
         if (directory == null || !Files.isDirectory(directory)) {
@@ -44,8 +61,12 @@ public final class HtlScanner {
             stream.filter(Files::isRegularFile)
                     .filter(p -> p.getFileName().toString().endsWith(".html"))
                     .filter(this::isNotIgnored)
-                    .forEach(htmlFile -> scanFile(htmlFile, usages, unsafeContexts));
-        } catch (IOException ignored) {
+                    .forEach(htmlFile -> scanFile(htmlFile, usages, unsafeContexts, diagnostics, maxFileSizeBytes));
+        } catch (IOException e) {
+            if (diagnostics != null) {
+                diagnostics.add(io.github.rohithv16.aem.analyser.core.model.report.DiagnosticKind.UNREADABLE_TREE,
+                        directory, io.github.rohithv16.aem.analyser.core.util.DiagnosticSink.reasonOf(e));
+            }
         }
 
         return new HtlScanResult(usages, unsafeContexts);
@@ -56,37 +77,88 @@ public final class HtlScanner {
     }
 
     public void scanFile(Path htmlFile, List<HtlUsage> usagesCollector, List<HtlUnsafeContextFinding> unsafeCollector) {
-        try (BufferedReader reader = Files.newBufferedReader(htmlFile)) {
-            String line;
-            int lineNum = 0;
-            while ((line = reader.readLine()) != null) {
-                lineNum++;
+        scanFile(htmlFile, usagesCollector, unsafeCollector,
+                new io.github.rohithv16.aem.analyser.core.util.DiagnosticSink());
+    }
 
-                // 1. Scan data-sly-use usages
-                Matcher matcher = SLY_USE_PATTERN.matcher(line);
-                while (matcher.find()) {
-                    String identifier = matcher.group(1);
-                    String rawTarget = matcher.group(3);
-                    String target = rawTarget;
+    public void scanFile(Path htmlFile, List<HtlUsage> usagesCollector,
+                         List<HtlUnsafeContextFinding> unsafeCollector,
+                         io.github.rohithv16.aem.analyser.core.util.DiagnosticSink diagnostics) {
+        scanFile(htmlFile, usagesCollector, unsafeCollector, diagnostics, MAX_FILE_SIZE_BYTES);
+    }
 
-                    Matcher exprMatcher = EXPR_TARGET_PATTERN.matcher(rawTarget);
-                    if (exprMatcher.matches()) {
-                        target = exprMatcher.group(1);
-                    }
-
-                    int col = matcher.start() + 1;
-                    usagesCollector.add(new HtlUsage(htmlFile, lineNum, col, identifier, target.strip()));
+    public void scanFile(Path htmlFile, List<HtlUsage> usagesCollector,
+                         List<HtlUnsafeContextFinding> unsafeCollector,
+                         io.github.rohithv16.aem.analyser.core.util.DiagnosticSink diagnostics,
+                         long maxFileSizeBytes) {
+        try {
+            if (Files.size(htmlFile) > maxFileSizeBytes) {
+                if (diagnostics != null) {
+                    diagnostics.add(io.github.rohithv16.aem.analyser.core.model.report.DiagnosticKind.FILE_TOO_LARGE,
+                            htmlFile, "exceeds " + (maxFileSizeBytes / (1024 * 1024)) + " MiB");
                 }
-
-                // 2. Scan unsafe context bypasses
-                Matcher unsafeMatcher = UNSAFE_CONTEXT_PATTERN.matcher(line);
-                while (unsafeMatcher.find()) {
-                    int col = unsafeMatcher.start() + 1;
-                    unsafeCollector.add(new HtlUnsafeContextFinding(htmlFile, lineNum, col, line.trim()));
-                }
+                return;
             }
-        } catch (IOException ignored) {
+        } catch (IOException e) {
+            if (diagnostics != null) {
+                diagnostics.add(io.github.rohithv16.aem.analyser.core.model.report.DiagnosticKind.UNREADABLE_TREE,
+                        htmlFile, io.github.rohithv16.aem.analyser.core.util.DiagnosticSink.reasonOf(e));
+            }
+            return;
         }
+        try {
+            String content = Files.readString(htmlFile);
+
+            // 1. data-sly-use usages, including attributes that span multiple lines.
+            Matcher matcher = SLY_USE_PATTERN_MULTILINE.matcher(content);
+            while (matcher.find()) {
+                String identifier = matcher.group(1);
+                String rawTarget = matcher.group(3);
+                String target = rawTarget;
+
+                Matcher exprMatcher = EXPR_TARGET_PATTERN.matcher(rawTarget);
+                if (exprMatcher.matches()) {
+                    target = exprMatcher.group(1);
+                }
+
+                usagesCollector.add(new HtlUsage(htmlFile, lineNumber(content, matcher.start()),
+                        column(content, matcher.start()), identifier, target.strip()));
+            }
+
+            // 2. Unsafe context bypasses, with a snippet from the containing line.
+            Matcher unsafeMatcher = UNSAFE_CONTEXT_PATTERN.matcher(content);
+            while (unsafeMatcher.find()) {
+                int start = unsafeMatcher.start();
+                int lineStart = content.lastIndexOf('\n', start) + 1;
+                int lineEnd = content.indexOf('\n', start);
+                if (lineEnd < 0) {
+                    lineEnd = content.length();
+                }
+                unsafeCollector.add(new HtlUnsafeContextFinding(htmlFile,
+                        lineNumber(content, start), column(content, start),
+                        content.substring(lineStart, lineEnd).trim()));
+            }
+        } catch (IOException e) {
+            if (diagnostics != null) {
+                diagnostics.add(io.github.rohithv16.aem.analyser.core.model.report.DiagnosticKind.UNREADABLE_TREE,
+                        htmlFile, io.github.rohithv16.aem.analyser.core.util.DiagnosticSink.reasonOf(e));
+            }
+        }
+    }
+
+    private int lineNumber(String content, int offset) {
+        int line = 1;
+        for (int i = 0; i < offset; i++) {
+            if (content.charAt(i) == '\n') {
+                line++;
+            }
+        }
+        return line;
+    }
+
+    private int column(String content, int offset) {
+        int newline = content.lastIndexOf('\n', offset - 1);
+        return offset - newline;
     }
 
     public void scanFile(Path htmlFile, List<HtlUsage> collector) {

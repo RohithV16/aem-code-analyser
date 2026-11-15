@@ -101,4 +101,28 @@ class ConsoleReportFormatterTest {
             assertTrue(out.contains("Class" + i + ":"), "Duplicate class Class" + i + " must be present in output");
         }
     }
+
+    @Test
+    void diagnosticsSummaryIsPrintedWhenFilesWereSkipped() throws Exception {
+        AnalysisReport report = new AnalysisReport(
+                Path.of("/dummy/root"),
+                Map.of("modules", 2),
+                List.of(),
+                10,
+                CoverageReport.notFound(),
+                new CodeMetrics(0, 0, 0, 0, 0, 0.0),
+                List.of(
+                        io.github.rohithv16.aem.analyser.core.model.report.AnalysisDiagnostic.of(
+                                io.github.rohithv16.aem.analyser.core.model.report.DiagnosticKind.JAVA_PARSE_ERROR,
+                                Path.of("/dummy/Broken.java"), "syntax error"),
+                        io.github.rohithv16.aem.analyser.core.model.report.AnalysisDiagnostic.of(
+                                io.github.rohithv16.aem.analyser.core.model.report.DiagnosticKind.CONFIG_PARSE_ERROR,
+                                Path.of("/dummy/config.cfg.json"), "invalid JSON")));
+
+        StringWriter writer = new StringWriter();
+        new ConsoleReportFormatter(false).export(report, writer);
+
+        assertTrue(writer.toString().contains("Diagnostics: 2 file(s) skipped or degraded"),
+                writer.toString());
+    }
 }

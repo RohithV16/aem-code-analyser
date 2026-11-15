@@ -42,17 +42,11 @@ public final class OsgiConfigParser {
             throw new IOException("Unsupported OSGi configuration file format: " + file);
         }
 
-        String baseName = stripExtension(fileName, isCfgJson);
+        String baseName = ConfigFilePidResolver.stripExtension(fileName);
         ConfigFilePidResolver.ResolvedPid resolved = ConfigFilePidResolver.resolve(baseName, isCfgJson);
         return new OsgiConfigDefinition(file.toAbsolutePath().normalize(), resolved.pid(),
                 resolved.factorySubname(), resolved.isFactory(), resolved.ambiguousHyphen(),
                 runmodes, format, properties);
-    }
-
-    private String stripExtension(String fileName, boolean isCfgJson) {
-        return isCfgJson
-                ? fileName.substring(0, fileName.length() - ".cfg.json".length())
-                : fileName.substring(0, fileName.lastIndexOf('.'));
     }
 
     public boolean isSupported(Path file) {

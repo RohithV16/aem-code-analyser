@@ -37,6 +37,9 @@ public final class ModuleClassifier {
                 if (isTestModule(artifactId) && !input.hasBndPlugin()) {
                     return ModuleClassification.TEST_MODULE;
                 }
+                if (artifactId.endsWith("-parent") || artifactId.endsWith(".parent")) {
+                    return ModuleClassification.AGGREGATOR_MODULE;
+                }
                 return ModuleClassification.PIPELINE_MODULE;
             }
             case "content-package" -> {
@@ -52,7 +55,8 @@ public final class ModuleClassifier {
                 if (packaging.equals("bundle") || input.hasBndPlugin() || input.dependsOnAemSdk()) {
                     return ModuleClassification.BUNDLE_MODULE;
                 }
-                return ModuleClassification.BUNDLE_MODULE;
+                // A plain jar without bnd/AEM SDK is not an OSGi bundle. Do not pretend it is.
+                return ModuleClassification.UNCLASSIFIED;
             }
             default -> {
                 if (idOrPathMentionsDispatcher) {
@@ -73,6 +77,11 @@ public final class ModuleClassifier {
         // Condition 1: embeddeds are the definitive signature of the 'all' container
         if (input.fileVaultConfig() != null && input.fileVaultConfig().hasEmbeddeds()) {
             return ModuleClassification.CONTAINER_MODULE;
+        }
+        // Condition 1b: conf-only content package (ACL / context-aware config, no apps tree)
+        if (hasJcrSubdirectory(input.moduleDirectory(), "conf")
+                && !hasJcrSubdirectory(input.moduleDirectory(), "apps")) {
+            return ModuleClassification.ACL_MODULE;
         }
         // Condition 2: physical OSGi config files under strict osgiconfig/ anchoring identify ui.config
         if (input.hasValidOsgiConfigs()) {

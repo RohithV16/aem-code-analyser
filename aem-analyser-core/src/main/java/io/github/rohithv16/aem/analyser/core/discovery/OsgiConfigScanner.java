@@ -47,6 +47,11 @@ public final class OsgiConfigScanner {
     }
 
     public List<DiscoveredConfig> scanModule(Path moduleDirectory) {
+        return scanModule(moduleDirectory, new io.github.rohithv16.aem.analyser.core.util.DiagnosticSink());
+    }
+
+    public List<DiscoveredConfig> scanModule(Path moduleDirectory,
+                                             io.github.rohithv16.aem.analyser.core.util.DiagnosticSink diagnostics) {
         Path jcrRoot = moduleDirectory.resolve("src/main/content/jcr_root/apps");
         if (!Files.isDirectory(jcrRoot)) {
             return List.of();
@@ -57,7 +62,10 @@ public final class OsgiConfigScanner {
                   .filter(this::isCandidateExtension)
                   .forEach(file -> accept(file, moduleDirectory).ifPresent(results::add));
         } catch (IOException | UncheckedIOException e) {
-            // unreadable subtree: skip silently, discovery must not fail the analysis
+            if (diagnostics != null) {
+                diagnostics.add(io.github.rohithv16.aem.analyser.core.model.report.DiagnosticKind.UNREADABLE_TREE,
+                        jcrRoot, io.github.rohithv16.aem.analyser.core.util.DiagnosticSink.reasonOf(e));
+            }
         }
         return results;
     }
@@ -130,13 +138,7 @@ public final class OsgiConfigScanner {
     }
 
     private String stripExtension(String fileName) {
-        String lower = fileName.toLowerCase(Locale.ROOT);
-        for (String ext : List.of(".cfg.json", ".content.xml", ".config", ".cfg")) {
-            if (lower.endsWith(ext)) {
-                return fileName.substring(0, fileName.length() - ext.length());
-            }
-        }
-        return fileName;
+        return ConfigFilePidResolver.stripExtension(fileName);
     }
 
     public Set<String> resolveRunmodes(String folderName) {

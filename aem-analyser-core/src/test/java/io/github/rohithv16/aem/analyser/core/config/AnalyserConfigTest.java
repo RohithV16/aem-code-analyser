@@ -1,0 +1,61 @@
+package io.github.rohithv16.aem.analyser.core.config;
+
+import io.github.rohithv16.aem.analyser.core.model.graph.TextRegion;
+import io.github.rohithv16.aem.analyser.core.model.report.AnalysisReport;
+import io.github.rohithv16.aem.analyser.core.model.report.Severity;
+import io.github.rohithv16.aem.analyser.core.model.report.Violation;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.List;
+import java.util.Map;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+class AnalyserConfigTest {
+
+    @TempDir
+    Path root;
+
+    @Test
+    void loadsYamlAndAppliesEnablementAndSeverity() throws Exception {
+        Files.writeString(root.resolve(AnalyserConfigLoader.DEFAULT_FILE), """
+                schemaVersion: 1
+                rules:
+                  AEM-DEAD-003B:
+                    enabled: false
+                  AEM-SEC-001:
+                    severity: WARNING
+                allowlists:
+                  services:
+                    - com.example.LegacyService
+                  configPaths:
+                    - ui.config/**/config.local/**
+                """);
+
+        AnalyserConfig config = AnalyserConfigLoader.loadIfPresent(root);
+
+        assertFalse(config.isEnabled("AEM-DEAD-003B"));
+        assertTrue(config.isEnabled("AEM-DEAD-001"));
+        assertTrue(config.allowlists().services().contains("com.example.LegacyService"));
+
+        AnalysisReport report = new AnalysisReport(root, Map.of(), List.of(
+                violation("AEM-DEAD-003B", Severity.INFO),
+                violation("AEM-SEC-001", Severity.ERROR),
+                violation("AEM-DEAD-001", Severity.ERROR)), 1);
+        AnalysisReport adjusted = config.apply(report);
+
+        assertEquals(2, adjusted.violations().size());
+        assertTrue(adjusted.violations().stream()
+                .anyMatch(v -> v.ruleId().equals("AEM-SEC-001") && v.severity() == Severity.WARNING));
+    }
+
+    private Violation violation(String ruleId, Severity severity) {
+        return new Violation(ruleId, severity, "X", "message", "core/A.java",
+                new TextRegion(1, 1, 1, 2), null, null, List.of());
+    }
+}
