@@ -130,4 +130,5 @@ mvn clean deploy -DskipTests
 ```
 
 ### Publishing to Maven Central (Sonatype Central)
-For general public distribution, configure the Maven Central publisher extension or Sonatype Nexus Staging plugin. Refer to [Central Portal Documentation](https://central.sonatype.org/).
+For global public distribution without requiring authentication tokens or custom repositories, refer to the step-by-step guide:
+[Maven Central Publishing Guide](docs/MAVEN_CENTRAL_PUBLISHING_GUIDE.md).
