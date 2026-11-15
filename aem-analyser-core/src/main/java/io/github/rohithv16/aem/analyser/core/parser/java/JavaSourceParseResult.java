@@ -24,7 +24,8 @@ public record JavaSourceParseResult(
         List<PendingServiceInjection> pendingServiceInjections,
         List<PendingAdaptTo> pendingAdaptTo,
         Set<String> exportedPackages,
-        List<CodeBlockSnapshot> codeBlocks) {
+        List<CodeBlockSnapshot> codeBlocks,
+        int lineCount) {
 
     public JavaSourceParseResult(
             Path filePath,
@@ -38,7 +39,7 @@ public record JavaSourceParseResult(
             List<PendingAdaptTo> pendingAdaptTo,
             Set<String> exportedPackages) {
         this(filePath, packageName, javaClasses, components, ocds, slingModels,
-                pendingConsumptions, pendingServiceInjections, pendingAdaptTo, exportedPackages, List.of());
+                pendingConsumptions, pendingServiceInjections, pendingAdaptTo, exportedPackages, List.of(), 0);
     }
 
     public JavaSourceParseResult {

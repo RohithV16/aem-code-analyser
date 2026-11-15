@@ -35,6 +35,11 @@
             <groupId>org.jgrapht</groupId>
             <artifactId>jgrapht-core</artifactId>
         </dependency>
+        <!-- JaCoCo coverage ingestion -->
+        <dependency>
+            <groupId>org.jacoco</groupId>
+            <artifactId>org.jacoco.core</artifactId>
+        </dependency>
         <!-- Maven POM model for multi-module discovery -->
         <dependency>
             <groupId>org.apache.maven</groupId>

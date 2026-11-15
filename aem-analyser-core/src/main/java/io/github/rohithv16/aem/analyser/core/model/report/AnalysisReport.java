@@ -15,12 +15,28 @@ import java.util.Map;
 public record AnalysisReport(Path projectRoot,
                              Map<String, Integer> scanStatistics,
                              List<Violation> violations,
-                             long durationMillis) {
+                             long durationMillis,
+                             CoverageReport coverageReport,
+                             CodeMetrics codeMetrics) {
+
+    public AnalysisReport(Path projectRoot,
+                          Map<String, Integer> scanStatistics,
+                          List<Violation> violations,
+                          long durationMillis) {
+        this(projectRoot, scanStatistics, violations, durationMillis,
+                CoverageReport.notFound(), new CodeMetrics(0, 0, 0, 0, 0, 0.0));
+    }
 
     public AnalysisReport {
         projectRoot = projectRoot.toAbsolutePath().normalize();
         scanStatistics = Map.copyOf(scanStatistics == null ? Map.of() : scanStatistics);
         violations = List.copyOf(violations == null ? List.of() : violations);
+        if (coverageReport == null) {
+            coverageReport = CoverageReport.notFound();
+        }
+        if (codeMetrics == null) {
+            codeMetrics = new CodeMetrics(0, 0, 0, 0, 0, 0.0);
+        }
     }
 
     public long countBySeverity(Severity severity) {

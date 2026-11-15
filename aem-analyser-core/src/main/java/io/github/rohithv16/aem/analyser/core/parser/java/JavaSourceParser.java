@@ -151,10 +151,11 @@ public final class JavaSourceParser {
         }
 
         List<CodeBlockSnapshot> codeBlocks = codeBlockVisitor.extract(cu, filePath, packageName);
+        int lineCount = cu.getRange().map(r -> r.end.line).orElse(0);
 
         return new JavaSourceParseResult(filePath.toAbsolutePath().normalize(), packageName,
                 javaClasses, components, ocds, slingModels, pendingConsumptions,
-                pendingServiceInjections, pendingAdaptTo, exportedPackages, codeBlocks);
+                pendingServiceInjections, pendingAdaptTo, exportedPackages, codeBlocks, lineCount);
     }
 
     private List<PendingConsumption> extractConsumptions(String fqn,

@@ -31,6 +31,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -93,9 +94,34 @@ public final class DefaultAemCodeAnalyser implements AemCodeAnalyser {
                     .thenComparing(v -> v.region().startLine())
                     .thenComparing(Violation::ruleId));
 
+            // ── Metrics & Coverage discovery ──────────────────────────────────────
+            Map<String, List<io.github.rohithv16.aem.analyser.core.parser.java.CodeBlockSnapshot>> blocksByHash = new HashMap<>();
+            for (var block : buildResult.codeBlocks()) {
+                blocksByHash.computeIfAbsent(block.normalizedHash(), k -> new ArrayList<>()).add(block);
+            }
+            int duplicateBlocks = 0;
+            int duplicatedLines = 0;
+            for (var group : blocksByHash.values()) {
+                if (group.size() > 1) {
+                    for (int i = 1; i < group.size(); i++) {
+                        duplicateBlocks++;
+                        duplicatedLines += group.get(i).lineCount();
+                    }
+                }
+            }
+            int totalJavaFiles = javaResults.size();
+            int totalJavaLines = javaResults.stream().mapToInt(JavaSourceParseResult::lineCount).sum();
+            int totalMethodBlocks = buildResult.codeBlocks().size();
+            double dupPct = totalJavaLines > 0 ? (duplicatedLines * 100.0) / totalJavaLines : 0.0;
+            var codeMetrics = new io.github.rohithv16.aem.analyser.core.model.report.CodeMetrics(
+                    totalJavaFiles, totalJavaLines, totalMethodBlocks, duplicatedLines, duplicateBlocks, dupPct);
+
+            var coverageEngine = new io.github.rohithv16.aem.analyser.core.discovery.CoverageDiscoveryEngine();
+            var coverageReport = coverageEngine.discover(context.projectRoot(), discoveryResult.modules());
+
             long durationMillis = (System.nanoTime() - start) / 1_000_000;
             return new AnalysisReport(context.projectRoot(), scanStatistics(discoveryResult, buildResult),
-                    violations, durationMillis);
+                    violations, durationMillis, coverageReport, codeMetrics);
         } catch (IOException | RuntimeException e) {
             throw new AnalysisException("Analysis failed: " + e.getMessage(), e);
         }

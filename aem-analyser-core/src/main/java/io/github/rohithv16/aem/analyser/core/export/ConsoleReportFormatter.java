@@ -41,12 +41,36 @@ public final class ConsoleReportFormatter implements ReportExporter {
     public void export(AnalysisReport report, Writer writer) throws ExportException {
         StringBuilder sb = new StringBuilder(4096);
         String line = "=".repeat(80);
+        String div = "-".repeat(80);
         sb.append(line).append('\n');
-        sb.append(" AEM CODE ANALYSER - POLYGLOT DEAD CODE REPORT\n");
+        sb.append(" AEM CODE ANALYSER - CROSS-BOUNDARY QUALITY REPORT\n");
         sb.append(line).append('\n');
         sb.append(" Project Root: ").append(report.projectRoot()).append('\n');
         report.scanStatistics().forEach((key, value) ->
                 sb.append(' ').append(capitalize(key)).append(": ").append(value).append('\n'));
+
+        // Code Metrics & Coverage section
+        sb.append(div).append('\n');
+        sb.append(" [Code Metrics]\n");
+        var metrics = report.codeMetrics();
+        sb.append(String.format("  Java Source Files:  %,d classes (%,d lines of code)\n",
+                metrics.totalJavaFiles(), metrics.totalJavaLines()));
+        sb.append(String.format("  Duplicate Code:     %,d duplicate lines (%.1f%% duplication) across %,d blocks\n",
+                metrics.duplicatedLines(), metrics.duplicationPercent(), metrics.totalMethodBlocks()));
+
+        var cov = report.coverageReport();
+        if (cov != null && cov.present()) {
+            sb.append(String.format("  Test Code Coverage: %.1f%% Lines (%,d / %,d) | %.1f%% Branches (%,d / %,d)\n",
+                    cov.lineCoveragePercent(), cov.coveredLines(), cov.totalLines(),
+                    cov.branchCoveragePercent(), cov.coveredBranches(), cov.totalBranches()));
+            if (cov.sourcePath() != null) {
+                sb.append("                      [from ").append(cov.sourcePath()).append("]\n");
+            }
+        } else {
+            sb.append("  Test Code Coverage: Not detected (run 'mvn test' first to generate JaCoCo report)\n");
+        }
+        sb.append(div).append('\n');
+
         long errors = report.countBySeverity(Severity.ERROR);
         long warnings = report.countBySeverity(Severity.WARNING);
         long infos = report.countBySeverity(Severity.INFO);
