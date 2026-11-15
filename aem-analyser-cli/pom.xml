@@ -36,6 +36,13 @@
             <artifactId>maven-model-builder</artifactId>
             <scope>runtime</scope>
         </dependency>
+        <!-- Silent SLF4J logger for CLI -->
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-nop</artifactId>
+            <version>1.7.36</version>
+            <scope>runtime</scope>
+        </dependency>
     </dependencies>
 
     <build>

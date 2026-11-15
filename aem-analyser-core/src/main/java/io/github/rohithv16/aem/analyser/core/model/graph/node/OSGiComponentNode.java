@@ -18,6 +18,8 @@ public final class OSGiComponentNode extends JavaClassNode {
 
     public enum ConfigurationPolicy { OPTIONAL, REQUIRE, IGNORE }
 
+    public record DeclaredField(String name, String typeName, SourceLocation location, boolean isStatic) {}
+
     private final String componentClassName;
     private final String name;
     private final List<String> configurationPids;
@@ -28,6 +30,7 @@ public final class OSGiComponentNode extends JavaClassNode {
     private final Map<String, String> references;
     private final String designatedOcdFqn;
     private final Set<String> componentProperties;
+    private final List<DeclaredField> declaredFields;
 
     public OSGiComponentNode(String fqn,
                              String name,
@@ -45,6 +48,28 @@ public final class OSGiComponentNode extends JavaClassNode {
                              Map<String, String> references,
                              String designatedOcdFqn,
                              Set<String> componentProperties) {
+        this(fqn, name, kind, modifiers, superClass, interfaces, filePath, sourceLocation,
+                configurationPids, configurationPolicy, immediate, immediateExplicitlySet,
+                serviceInterfaces, references, designatedOcdFqn, componentProperties, List.of());
+    }
+
+    public OSGiComponentNode(String fqn,
+                             String name,
+                             Kind kind,
+                             Set<ModifierKind> modifiers,
+                             String superClass,
+                             Set<String> interfaces,
+                             Path filePath,
+                             SourceLocation sourceLocation,
+                             List<String> configurationPids,
+                             ConfigurationPolicy configurationPolicy,
+                             boolean immediate,
+                             boolean immediateExplicitlySet,
+                             Set<String> serviceInterfaces,
+                             Map<String, String> references,
+                             String designatedOcdFqn,
+                             Set<String> componentProperties,
+                             List<DeclaredField> declaredFields) {
         super(fqn, kind, modifiers, superClass, interfaces, filePath, sourceLocation);
         this.componentClassName = fqn;
         this.name = name;
@@ -56,6 +81,7 @@ public final class OSGiComponentNode extends JavaClassNode {
         this.references = new LinkedHashMap<>(references);
         this.designatedOcdFqn = designatedOcdFqn;
         this.componentProperties = new LinkedHashSet<>(componentProperties);
+        this.declaredFields = List.copyOf(declaredFields == null ? List.of() : declaredFields);
     }
 
     @Override
@@ -101,5 +127,9 @@ public final class OSGiComponentNode extends JavaClassNode {
 
     public Set<String> getComponentProperties() {
         return componentProperties;
+    }
+
+    public List<DeclaredField> getDeclaredFields() {
+        return declaredFields;
     }
 }

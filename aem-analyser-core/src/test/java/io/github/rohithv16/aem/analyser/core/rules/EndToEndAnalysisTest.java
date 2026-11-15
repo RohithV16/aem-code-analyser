@@ -405,8 +405,9 @@ class EndToEndAnalysisTest {
 
         // Whiteboard servlet is never flagged as unused service
         assertFalse(allViolations.stream().anyMatch(v -> v.filePath() != null
-                        && v.filePath().contains("StyleIndexingProfileServlet")),
-                () -> "Whiteboard servlet falsely flagged: " + allViolations);
+                        && v.filePath().contains("StyleIndexingProfileServlet")
+                        && RuleId.AEM_DEAD_003A.id().equals(v.ruleId())),
+                () -> "Whiteboard servlet falsely flagged as unused service: " + allViolations);
 
         // webconsole_configurationFactory_nameHint is whitelisted as framework property
         assertFalse(allViolations.stream().anyMatch(v -> v.message() != null

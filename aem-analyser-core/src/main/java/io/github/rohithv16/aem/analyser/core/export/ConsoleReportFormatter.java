@@ -158,6 +158,11 @@ public final class ConsoleReportFormatter implements ReportExporter {
             case AEM_DUP_002 -> "Duplicate OSGi Configuration";
             case AEM_DUP_003 -> "Duplicate Sling Model";
             case AEM_DUP_010 -> "Duplicate Code Block";
+            case AEM_QUAL_001 -> "Path-Bound Sling Servlet Registration (CQBP-75)";
+            case AEM_QUAL_002 -> "Implementation of @ProviderType Product API (CQBP-84)";
+            case AEM_QUAL_003 -> "Whiteboard Sling Scheduler Usage (AMSCORE-554)";
+            case AEM_QUAL_004 -> "Unsafe Mutable State in OSGi Component (CQBP-ThreadSafety)";
+            case AEM_QUAL_005 -> "Deprecated Administrative API Usage (AMSCORE-553)";
         };
     }
 

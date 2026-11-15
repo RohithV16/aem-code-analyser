@@ -284,14 +284,16 @@ public final class ReferenceGraphBuilder {
         }
         var sealed = graph.seal();
 
-        // Collect code blocks for clone analysis
+        // Collect code blocks for clone analysis & administrative API calls
         List<io.github.rohithv16.aem.analyser.core.parser.java.CodeBlockSnapshot> allCodeBlocks = new ArrayList<>();
+        List<io.github.rohithv16.aem.analyser.core.parser.java.AdministrativeCall> allAdminCalls = new ArrayList<>();
         for (JavaSourceParseResult java : input.javaResults()) {
             allCodeBlocks.addAll(java.codeBlocks());
+            allAdminCalls.addAll(java.administrativeCalls());
         }
 
         return new GraphBuildResult(graph, unique, exportedPatterns, componentsByFqn,
-                configNodes, classNodes, modelNodes, allCodeBlocks, sealed);
+                configNodes, classNodes, modelNodes, allCodeBlocks, allAdminCalls, sealed);
     }
 
     private List<OSGiComponentNode> resolveComponentForPid(String pid,
@@ -396,6 +398,20 @@ public final class ReferenceGraphBuilder {
                                    Map<String, JavaClassNode> classNodes,
                                    Map<String, SlingModelNode> modelNodes,
                                    List<io.github.rohithv16.aem.analyser.core.parser.java.CodeBlockSnapshot> codeBlocks,
+                                   List<io.github.rohithv16.aem.analyser.core.parser.java.AdministrativeCall> administrativeCalls,
                                    org.jgrapht.Graph<PolyglotNode, PolyglotEdge> sealedGraph) {
+
+        public GraphBuildResult(ReferenceGraph graph,
+                                Set<PolyglotEdge> resolvedEdges,
+                                Set<String> exportedPatterns,
+                                Map<String, OSGiComponentNode> componentsByFqn,
+                                Map<String, OSGiConfigNode> configNodes,
+                                Map<String, JavaClassNode> classNodes,
+                                Map<String, SlingModelNode> modelNodes,
+                                List<io.github.rohithv16.aem.analyser.core.parser.java.CodeBlockSnapshot> codeBlocks,
+                                org.jgrapht.Graph<PolyglotNode, PolyglotEdge> sealedGraph) {
+            this(graph, resolvedEdges, exportedPatterns, componentsByFqn, configNodes, classNodes, modelNodes,
+                    codeBlocks, List.of(), sealedGraph);
+        }
     }
 }

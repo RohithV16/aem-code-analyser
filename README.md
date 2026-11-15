@@ -16,6 +16,14 @@ Traditional static analyzers (SonarQube, SpotBugs, PMD) operate in single-langua
 * **Unconsumed OCD Properties (`AEM-DEAD-002B`):** Flags `@AttributeDefinition` methods on configuration interfaces that are never called anywhere in Java.
 * **Unused OSGi Services (`AEM-DEAD-003A`):** Identifies OSGi components that are never injected via `@Reference` and do not serve as system entry points (servlets, workflows, filters, schedulers, whiteboard SPIs).
 * **Unused Sling Models (`AEM-DEAD-003B`):** Advisory notices for Sling Models without direct Java adaptations.
+* **Inactive Delayed Components (`AEM-DEAD-003C`):** Flags components with no service interfaces and `immediate = false`.
+* **Duplicate Detection Rules (`AEM-DUP-*`):** Flags duplicate servlet endpoints (`AEM-DUP-001`), duplicate OSGi configurations (`AEM-DUP-002`), duplicate Sling Model bindings (`AEM-DUP-003`), and cloned method code blocks (`AEM-DUP-010`).
+* **Adobe Cloud Manager Quality Rules (`AEM-QUAL-*`):**
+  * **Path-Bound Servlet Registration (`AEM-QUAL-001` / CQBP-75):** Flags servlets registered by path (`sling.servlet.paths`) instead of resource types.
+  * **ProviderType Implementation (`AEM-QUAL-002` / CQBP-84):** Flags custom classes implementing or extending product `@ProviderType` interfaces.
+  * **Whiteboard Sling Scheduler Usage (`AEM-QUAL-003` / AMSCORE-554):** Flags whiteboard schedulers, recommending cluster-aware Sling Scheduled Jobs.
+  * **Unsafe Component State (`AEM-QUAL-004` / CQBP-ThreadSafety):** Flags non-thread-safe/session fields (`ResourceResolver`, `Session`, etc.) inside OSGi `@Component` singletons.
+  * **Deprecated Administrative Access (`AEM-QUAL-005` / AMSCORE-553):** Flags calls to `loginAdministrative()` and `getAdministrativeResourceResolver()`.
 * **Multi-Format Export:** Outputs rich ANSI terminal reports, canonical OASIS SARIF 2.1.0, and SonarQube Generic Issue Import JSON.
 
 ---

@@ -127,9 +127,16 @@ public final class JavaSourceParser {
             pendingConsumptions.addAll(extractConsumptions(classNode.getFqn(), type, packageName, imports, localTypes, filePath));
         }
 
-        // adaptTo(Target.class) / ModelFactory.createModel scanning
+        List<AdministrativeCall> administrativeCalls = new ArrayList<>();
+        // adaptTo(Target.class) / ModelFactory.createModel scanning & administrative API calls
         for (MethodCallExpr call : cu.findAll(MethodCallExpr.class)) {
             String name = call.getNameAsString();
+            if (name.equals("loginAdministrative") || name.equals("getAdministrativeResourceResolver")) {
+                String sourceFqn = enclosingTypeFqn(call, cu);
+                administrativeCalls.add(new AdministrativeCall(name, sourceFqn, filePath,
+                        MetatypeOcdVisitor.sourceLocation(call, filePath)));
+                continue;
+            }
             if (!name.equals("adaptTo") && !name.equals("getModel") && !name.equals("createModel")) {
                 continue;
             }
@@ -155,7 +162,7 @@ public final class JavaSourceParser {
 
         return new JavaSourceParseResult(filePath.toAbsolutePath().normalize(), packageName,
                 javaClasses, components, ocds, slingModels, pendingConsumptions,
-                pendingServiceInjections, pendingAdaptTo, exportedPackages, codeBlocks, lineCount);
+                pendingServiceInjections, pendingAdaptTo, exportedPackages, codeBlocks, administrativeCalls, lineCount);
     }
 
     private List<PendingConsumption> extractConsumptions(String fqn,

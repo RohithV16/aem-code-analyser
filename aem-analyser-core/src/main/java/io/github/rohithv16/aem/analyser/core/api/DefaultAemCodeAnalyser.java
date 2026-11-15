@@ -24,6 +24,11 @@ import io.github.rohithv16.aem.analyser.core.rules.impl.AemDup001Rule;
 import io.github.rohithv16.aem.analyser.core.rules.impl.AemDup002Rule;
 import io.github.rohithv16.aem.analyser.core.rules.impl.AemDup003Rule;
 import io.github.rohithv16.aem.analyser.core.rules.impl.AemDup010Rule;
+import io.github.rohithv16.aem.analyser.core.rules.impl.AemQual001Rule;
+import io.github.rohithv16.aem.analyser.core.rules.impl.AemQual002Rule;
+import io.github.rohithv16.aem.analyser.core.rules.impl.AemQual003Rule;
+import io.github.rohithv16.aem.analyser.core.rules.impl.AemQual004Rule;
+import io.github.rohithv16.aem.analyser.core.rules.impl.AemQual005Rule;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -59,7 +64,11 @@ public final class DefaultAemCodeAnalyser implements AemCodeAnalyser {
             new AemDup001Rule(),
             new AemDup002Rule(),
             new AemDup003Rule(),
-            new AemDup010Rule());
+            new AemQual001Rule(),
+            new AemQual002Rule(),
+            new AemQual003Rule(),
+            new AemQual004Rule(),
+            new AemQual005Rule());
 
     @Override
     public AnalysisReport analyze(AnalysisContext context) throws AnalysisException {
@@ -94,58 +103,15 @@ public final class DefaultAemCodeAnalyser implements AemCodeAnalyser {
                     .thenComparing(v -> v.region().startLine())
                     .thenComparing(Violation::ruleId));
 
-            // ── Metrics & Coverage discovery ──────────────────────────────────────
-            Map<String, List<io.github.rohithv16.aem.analyser.core.parser.java.CodeBlockSnapshot>> blocksByHash = new HashMap<>();
-            for (var block : buildResult.codeBlocks()) {
-                blocksByHash.computeIfAbsent(block.normalizedHash(), k -> new ArrayList<>()).add(block);
-            }
+            // ── Open-Source PMD CPD Duplicate Detection ──────────────────────────
+            var pmdEngine = new io.github.rohithv16.aem.analyser.core.discovery.PmdCpdDuplicationEngine();
+            var pmdResult = pmdEngine.analyze(context.projectRoot(), javaResults);
+            violations.addAll(pmdResult.violations());
+            var codeMetrics = pmdResult.metrics();
 
-            Map<Path, Integer> fileLineCounts = new HashMap<>();
-            for (var res : javaResults) {
-                fileLineCounts.put(res.filePath(), res.lineCount());
-            }
-
-            Map<Path, Integer> fileDuplicatedLines = new HashMap<>();
-            Map<Path, String> fileClassNames = new HashMap<>();
-            int duplicateBlocks = 0;
-            int duplicatedLines = 0;
-            for (var group : blocksByHash.values()) {
-                if (group.size() > 1) {
-                    for (int i = 1; i < group.size(); i++) {
-                        duplicateBlocks++;
-                        var block = group.get(i);
-                        int lines = block.lineCount();
-                        duplicatedLines += lines;
-                        fileDuplicatedLines.merge(block.filePath(), lines, Integer::sum);
-                        fileClassNames.putIfAbsent(block.filePath(), block.classFqn());
-                    }
-                }
-            }
-
-            List<io.github.rohithv16.aem.analyser.core.model.report.CodeMetrics.ClassDuplication> duplicateClasses = new ArrayList<>();
-            for (var entry : fileDuplicatedLines.entrySet()) {
-                Path filePath = entry.getKey();
-                int dupLines = entry.getValue();
-                int totalLines = fileLineCounts.getOrDefault(filePath, 0);
-                double pct = totalLines > 0 ? (dupLines * 100.0) / totalLines : 0.0;
-                String className = fileClassNames.getOrDefault(filePath, filePath.getFileName().toString());
-                String relPath;
-                try {
-                    relPath = context.projectRoot().relativize(filePath).toString();
-                } catch (IllegalArgumentException e) {
-                    relPath = filePath.toString();
-                }
-                duplicateClasses.add(new io.github.rohithv16.aem.analyser.core.model.report.CodeMetrics.ClassDuplication(
-                        className, relPath, dupLines, totalLines, pct));
-            }
-            duplicateClasses.sort(Comparator.comparingInt(io.github.rohithv16.aem.analyser.core.model.report.CodeMetrics.ClassDuplication::duplicatedLines).reversed());
-
-            int totalJavaFiles = javaResults.size();
-            int totalJavaLines = javaResults.stream().mapToInt(JavaSourceParseResult::lineCount).sum();
-            int totalMethodBlocks = buildResult.codeBlocks().size();
-            double dupPct = totalJavaLines > 0 ? (duplicatedLines * 100.0) / totalJavaLines : 0.0;
-            var codeMetrics = new io.github.rohithv16.aem.analyser.core.model.report.CodeMetrics(
-                    totalJavaFiles, totalJavaLines, totalMethodBlocks, duplicatedLines, duplicateBlocks, dupPct, duplicateClasses);
+            violations.sort(Comparator.comparing(Violation::filePath)
+                    .thenComparing(v -> v.region().startLine())
+                    .thenComparing(Violation::ruleId));
 
             var coverageEngine = new io.github.rohithv16.aem.analyser.core.discovery.CoverageDiscoveryEngine();
             var coverageReport = coverageEngine.discover(context.projectRoot(), discoveryResult.modules());

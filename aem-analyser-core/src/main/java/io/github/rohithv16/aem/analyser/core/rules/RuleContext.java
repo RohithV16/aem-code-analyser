@@ -38,6 +38,14 @@ public record RuleContext(ReferenceGraph graph,
         return buildResult.codeBlocks() == null ? List.of() : buildResult.codeBlocks();
     }
 
+    public List<io.github.rohithv16.aem.analyser.core.model.graph.node.JavaClassNode> javaClasses() {
+        return buildResult.classNodes() == null ? List.of() : List.copyOf(buildResult.classNodes().values());
+    }
+
+    public List<io.github.rohithv16.aem.analyser.core.parser.java.AdministrativeCall> administrativeCalls() {
+        return buildResult.administrativeCalls() == null ? List.of() : buildResult.administrativeCalls();
+    }
+
     public ReferenceGraphIndex index() {
         return graph.getIndex();
     }

@@ -25,7 +25,25 @@ public record JavaSourceParseResult(
         List<PendingAdaptTo> pendingAdaptTo,
         Set<String> exportedPackages,
         List<CodeBlockSnapshot> codeBlocks,
+        List<AdministrativeCall> administrativeCalls,
         int lineCount) {
+
+    public JavaSourceParseResult(
+            Path filePath,
+            String packageName,
+            List<JavaClassNode> javaClasses,
+            List<OSGiComponentNode> components,
+            List<OSGiOcdNode> ocds,
+            List<SlingModelNode> slingModels,
+            List<PendingConsumption> pendingConsumptions,
+            List<PendingServiceInjection> pendingServiceInjections,
+            List<PendingAdaptTo> pendingAdaptTo,
+            Set<String> exportedPackages,
+            List<CodeBlockSnapshot> codeBlocks,
+            int lineCount) {
+        this(filePath, packageName, javaClasses, components, ocds, slingModels,
+                pendingConsumptions, pendingServiceInjections, pendingAdaptTo, exportedPackages, codeBlocks, List.of(), lineCount);
+    }
 
     public JavaSourceParseResult(
             Path filePath,
@@ -39,7 +57,7 @@ public record JavaSourceParseResult(
             List<PendingAdaptTo> pendingAdaptTo,
             Set<String> exportedPackages) {
         this(filePath, packageName, javaClasses, components, ocds, slingModels,
-                pendingConsumptions, pendingServiceInjections, pendingAdaptTo, exportedPackages, List.of(), 0);
+                pendingConsumptions, pendingServiceInjections, pendingAdaptTo, exportedPackages, List.of(), List.of(), 0);
     }
 
     public JavaSourceParseResult {
@@ -52,5 +70,6 @@ public record JavaSourceParseResult(
         pendingAdaptTo = List.copyOf(pendingAdaptTo == null ? List.of() : pendingAdaptTo);
         exportedPackages = Set.copyOf(exportedPackages == null ? Set.of() : exportedPackages);
         codeBlocks = List.copyOf(codeBlocks == null ? List.of() : codeBlocks);
+        administrativeCalls = List.copyOf(administrativeCalls == null ? List.of() : administrativeCalls);
     }
 }

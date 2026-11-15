@@ -40,6 +40,11 @@
             <groupId>org.jacoco</groupId>
             <artifactId>org.jacoco.core</artifactId>
         </dependency>
+        <!-- Open-source PMD CPD for industry-standard code duplication -->
+        <dependency>
+            <groupId>net.sourceforge.pmd</groupId>
+            <artifactId>pmd-java</artifactId>
+        </dependency>
         <!-- Maven POM model for multi-module discovery -->
         <dependency>
             <groupId>org.apache.maven</groupId>

@@ -33,7 +33,22 @@ public enum RuleId {
             Severity.WARNING),
     AEM_DUP_010("AEM-DUP-010", "DuplicateCodeBlock",
             "Duplicate Java code block or method clone detected across repository classes.",
-            Severity.WARNING);
+            Severity.WARNING),
+    AEM_QUAL_001("AEM-QUAL-001", "PathBoundServletRegistration",
+            "Sling servlet registered using paths instead of resource types (CQBP-75).",
+            Severity.WARNING),
+    AEM_QUAL_002("AEM-QUAL-002", "ProviderTypeImplementation",
+            "Custom code implements or extends @ProviderType product interface (CQBP-84).",
+            Severity.ERROR),
+    AEM_QUAL_003("AEM-QUAL-003", "SlingSchedulerUsage",
+            "Sling whiteboard scheduler used instead of Sling Scheduled Jobs (AMSCORE-554).",
+            Severity.WARNING),
+    AEM_QUAL_004("AEM-QUAL-004", "UnsafeComponentState",
+            "Non-thread-safe or session-bound object stored in OSGi component field (CQBP-ThreadSafety).",
+            Severity.ERROR),
+    AEM_QUAL_005("AEM-QUAL-005", "AdministrativeAccessUsage",
+            "Deprecated administrative login or resource resolver API used (AMSCORE-553).",
+            Severity.ERROR);
 
     private final String id;
     private final String name;

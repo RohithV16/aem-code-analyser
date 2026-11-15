@@ -98,6 +98,18 @@ public final class OsgiComponentVisitor {
 
         Map<String, String> references = extractReferences(type, packageName, imports, localTypes);
 
+        List<OSGiComponentNode.DeclaredField> declaredFields = new ArrayList<>();
+        for (FieldDeclaration field : type.getFields()) {
+            boolean isStatic = field.isStatic();
+            field.getVariables().forEach(variable -> {
+                String fieldType = AnnotationUtils.resolveTypeName(
+                        AnnotationUtils.elementType(variable.getType().asString()), packageName, imports);
+                SourceLocation loc = MetatypeOcdVisitor.sourceLocation(variable, filePath);
+                declaredFields.add(new OSGiComponentNode.DeclaredField(
+                        variable.getNameAsString(), fieldType, loc, isStatic));
+            });
+        }
+
         return Optional.of(new OSGiComponentNode(
                 componentClassName,
                 name.orElse(null),
@@ -114,7 +126,8 @@ public final class OsgiComponentVisitor {
                 serviceInterfaces,
                 references,
                 designatedOcdFqn,
-                componentProperties));
+                componentProperties,
+                declaredFields));
     }
 
     private Map<String, String> extractReferences(TypeDeclaration<?> type, String packageName,

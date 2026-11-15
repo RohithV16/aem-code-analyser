@@ -48,6 +48,7 @@
         <maven-surefire-plugin.version>3.2.5</maven-surefire-plugin.version>
         <maven-shade-plugin.version>3.5.3</maven-shade-plugin.version>
         <jacoco.version>0.8.12</jacoco.version>
+        <pmd.version>7.0.0</pmd.version>
         <maven-pmd-plugin.version>3.22.0</maven-pmd-plugin.version>
     </properties>
 
@@ -84,6 +85,11 @@
                 <groupId>org.jacoco</groupId>
                 <artifactId>org.jacoco.core</artifactId>
                 <version>${jacoco.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>net.sourceforge.pmd</groupId>
+                <artifactId>pmd-java</artifactId>
+                <version>${pmd.version}</version>
             </dependency>
             <dependency>
                 <groupId>info.picocli</groupId>

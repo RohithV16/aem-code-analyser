@@ -93,7 +93,13 @@ The AEM Code Analyser employs a **Decoupled Tri-Tier Architecture** centered aro
 | **FEAT-RULE-04** | Rule AEM-DEAD-002B (Unconsumed OCD Properties) | `core` | **M4** | Detects `@AttributeDefinition` methods never accessed, aggregating call sites across all designating components via `CONSUMES_PROPERTY` in-degree. | Planned |
 | **FEAT-RULE-05** | Rule AEM-DEAD-003A / 003C (Unused Services) | `core` | **M4** | Detects unused OSGi services evaluating service interface package exports and tightened `immediate = true` semantics; flags inactive delayed components. | Planned |
 | **FEAT-RULE-06** | System Entry Point Catalog | `core` | **M4** | 11-category catalog exempting Servlets, Filters, EventHandlers, Schedulers, Workflows, and Whiteboard SPIs (Injectors, Exporters, AuthHandlers). | Planned |
-| **FEAT-RULE-07** | Rule AEM-DEAD-003B (Unused Sling Models) | `core` | **M4** | Detects Sling Models with 0 Java adaptations, unbound `resourceType`, and not exported. | Planned |
+| **FEAT-RULE-07** | Rule AEM-DEAD-003B (Unused Sling Models) | `core` | **M4** | Detects Sling Models with 0 Java adaptations, unbound `resourceType`, and not exported. | Complete |
+| **FEAT-RULE-08** | Rule AEM-QUAL-001 (Path-Bound Servlets / CQBP-75) | `core` | **M4** | Detects servlets registered via `sling.servlet.paths` instead of resource types. | Complete |
+| **FEAT-RULE-09** | Rule AEM-QUAL-002 (ProviderType Implementation / CQBP-84) | `core` | **M4** | Detects custom classes implementing/extending `@ProviderType` product interfaces. | Complete |
+| **FEAT-RULE-10** | Rule AEM-QUAL-003 (Sling Scheduler Usage / AMSCORE-554) | `core` | **M4** | Detects whiteboard Sling Schedulers; enforces Sling Scheduled Jobs for cluster reliability. | Complete |
+| **FEAT-RULE-11** | Rule AEM-QUAL-004 (Unsafe Component State / CQBP-ThreadSafety) | `core` | **M4** | Detects session/request fields (`ResourceResolver`, `Session`) in `@Component` singletons. | Complete |
+| **FEAT-RULE-12** | Rule AEM-QUAL-005 (Administrative Logins / AMSCORE-553) | `core` | **M4** | Detects deprecated `loginAdministrative()` and `getAdministrativeResourceResolver()`. | Complete |
+| **FEAT-DUP-01** | Rules AEM-DUP-001/002/003/010 (Duplication Engine) | `core` | **M4** | Detects duplicate endpoints, duplicate configs, duplicate Sling Models, and code clones. | Complete |
 | **FEAT-DELIV-01** | Maven Plugin (`aem-analyser-maven-plugin`) | `maven-plugin` | **M5** | Maven Mojo bindings for `check` and `report`, lifecycle hooks, and build-fail thresholds. | Planned |
 | **FEAT-DELIV-02** | Standalone CLI (`aem-analyser-cli`) | `cli` | **M5** | Picocli CLI executable, parameter handling (`--project-root`, `--fail-on-warning`, `--format`). | Planned |
 | **FEAT-REP-01** | SARIF 2.1.0 Exporter | `core` | **M5** | Canonical OASIS SARIF 2.1.0 exporter with `ruleIndex`, `%SRCROOT%`, and 1-based coordinates for GitHub Code Scanning / Azure DevOps. | Planned |
