@@ -14,7 +14,7 @@ import java.util.function.Supplier;
  */
 public final class SonarRuleRegistry {
 
-    private static final Map<String, Supplier<JavaFileScanner>> RULE_FACTORIES = new HashMap<>();
+    private static final Map<String, List<Supplier<JavaFileScanner>>> RULE_FACTORIES = new HashMap<>();
 
     static {
         // Code smells & clean code
@@ -34,6 +34,8 @@ public final class SonarRuleRegistry {
         register(org.sonar.java.checks.TodoTagPresenceCheck::new); // S1135
         register(org.sonar.java.checks.WildcardImportsShouldNotBeUsedCheck::new); // S2208
         register(org.sonar.java.checks.UselessImportCheck::new); // S1128
+        register(io.github.rohithv16.aem.analyser.core.sonar.checks.DuplicateImportCheck::new); // S1128
+        register(org.sonar.java.checks.IdenticalCasesInSwitchCheck::new); // S1871
         register(org.sonar.java.checks.RawTypeCheck::new); // S3740
 
         // Concurrency & multithreading
@@ -62,18 +64,24 @@ public final class SonarRuleRegistry {
         JavaFileScanner scanner = supplier.get();
         Rule rule = scanner.getClass().getAnnotation(Rule.class);
         if (rule != null && rule.key() != null) {
-            RULE_FACTORIES.put(rule.key().toUpperCase(), supplier);
-            RULE_FACTORIES.put("S" + rule.key().toUpperCase().replace("S", ""), supplier);
-            RULE_FACTORIES.put("JAVA:" + rule.key().toUpperCase(), supplier);
+            addFactory(rule.key().toUpperCase(), supplier);
+            addFactory("S" + rule.key().toUpperCase().replace("S", ""), supplier);
+            addFactory("JAVA:" + rule.key().toUpperCase(), supplier);
         }
-        RULE_FACTORIES.put(scanner.getClass().getSimpleName().toUpperCase(), supplier);
+        addFactory(scanner.getClass().getSimpleName().toUpperCase(), supplier);
+    }
+
+    private static void addFactory(String key, Supplier<JavaFileScanner> supplier) {
+        RULE_FACTORIES.computeIfAbsent(key, k -> new ArrayList<>()).add(supplier);
     }
 
     public static List<JavaFileScanner> createDefaultChecks() {
         Map<Class<?>, JavaFileScanner> map = new HashMap<>();
-        for (Supplier<JavaFileScanner> supplier : RULE_FACTORIES.values()) {
-            JavaFileScanner scanner = supplier.get();
-            map.putIfAbsent(scanner.getClass(), scanner);
+        for (List<Supplier<JavaFileScanner>> list : RULE_FACTORIES.values()) {
+            for (Supplier<JavaFileScanner> supplier : list) {
+                JavaFileScanner scanner = supplier.get();
+                map.putIfAbsent(scanner.getClass(), scanner);
+            }
         }
         return new ArrayList<>(map.values());
     }
@@ -85,10 +93,12 @@ public final class SonarRuleRegistry {
         String[] tokens = rulesetFilter.split("[,;\\s]+");
         Map<Class<?>, JavaFileScanner> map = new HashMap<>();
         for (String token : tokens) {
-            Supplier<JavaFileScanner> factory = RULE_FACTORIES.get(token.trim().toUpperCase());
-            if (factory != null) {
-                JavaFileScanner scanner = factory.get();
-                map.putIfAbsent(scanner.getClass(), scanner);
+            List<Supplier<JavaFileScanner>> list = RULE_FACTORIES.get(token.trim().toUpperCase());
+            if (list != null) {
+                for (Supplier<JavaFileScanner> supplier : list) {
+                    JavaFileScanner scanner = supplier.get();
+                    map.putIfAbsent(scanner.getClass(), scanner);
+                }
             }
         }
         if (map.isEmpty()) {

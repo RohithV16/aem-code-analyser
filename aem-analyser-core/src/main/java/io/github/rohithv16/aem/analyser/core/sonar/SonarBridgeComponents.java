@@ -25,6 +25,7 @@ public class SonarBridgeComponents extends SonarComponents {
 
     private final Path projectRoot;
     private final List<Violation> violations = new ArrayList<>();
+    private final java.util.Set<String> reportedSignatures = new java.util.HashSet<>();
 
     public SonarBridgeComponents(Path projectRoot, InternalSensorContext sensorContext) {
         super(null, sensorContext.fileSystem(),
@@ -78,6 +79,11 @@ public class SonarBridgeComponents extends SonarComponents {
             }
         }
 
+        String sig = ruleId + ":" + pathStr + ":" + region.startLine();
+        if (!reportedSignatures.add(sig)) {
+            return;
+        }
+
         Severity severity = determineSeverity(ruleKey);
 
         violations.add(new Violation(
@@ -112,6 +118,11 @@ public class SonarBridgeComponents extends SonarComponents {
                 } catch (Exception ignored) {
                 }
             }
+        }
+
+        String sig = ruleId + ":" + pathStr + ":" + line;
+        if (!reportedSignatures.add(sig)) {
+            return;
         }
 
         Severity severity = determineSeverity(ruleKey);
