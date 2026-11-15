@@ -135,7 +135,7 @@ The AEM Code Analyser employs a **Decoupled Tri-Tier Architecture** centered aro
 
 ### 5.1 Polyglot Node Base Contract
 ```java
-package io.github.aemtools.analyser.core.model.graph;
+package io.github.rohithv16.aem.analyser.core.model.graph;
 
 import java.nio.file.Path;
 
@@ -149,7 +149,7 @@ public interface PolyglotNode {
 
 ### 5.2 Directed Polyglot Edge Base Contract & Taxonomy
 ```java
-package io.github.aemtools.analyser.core.model.graph;
+package io.github.rohithv16.aem.analyser.core.model.graph;
 
 public interface PolyglotEdge {
     EdgeType getEdgeType();
@@ -173,10 +173,10 @@ public enum EdgeType {
 
 ### 5.3 Specialized Property Consumption Edge
 ```java
-package io.github.aemtools.analyser.core.model.graph.edge;
+package io.github.rohithv16.aem.analyser.core.model.graph.edge;
 
-import io.github.aemtools.analyser.core.model.graph.*;
-import io.github.aemtools.analyser.core.model.graph.node.*;
+import io.github.rohithv16.aem.analyser.core.model.graph.*;
+import io.github.rohithv16.aem.analyser.core.model.graph.node.*;
 
 public record ConsumesPropertyEdge(
     OSGiComponentNode sourceComponent,
@@ -205,7 +205,7 @@ public record ConsumesPropertyEdge(
 
 ### 5.4 Multi-Module Classification Taxonomy
 ```java
-package io.github.aemtools.analyser.core.model.discovery;
+package io.github.rohithv16.aem.analyser.core.model.discovery;
 
 public enum ModuleClassification {
     AGGREGATOR_MODULE,        // Maven aggregator POM containing child <modules>
@@ -227,7 +227,7 @@ public enum ModuleClassification {
 
 ### 5.5 Universal Coordinates & Issue Location Model
 ```java
-package io.github.aemtools.analyser.core.model.graph;
+package io.github.rohithv16.aem.analyser.core.model.graph;
 
 import java.nio.file.Path;
 
@@ -242,7 +242,7 @@ public record TextRegion(int startLine, int startColumn, int endLine, int endCol
 
 ### 5.6 Core Analysis Engine Contract
 ```java
-package io.github.aemtools.analyser.core.api;
+package io.github.rohithv16.aem.analyser.core.api;
 
 public interface AemCodeAnalyser {
     AnalysisReport analyze(AnalysisContext context) throws AnalysisException;
@@ -251,9 +251,9 @@ public interface AemCodeAnalyser {
 
 ### 5.7 Report Exporter Contract
 ```java
-package io.github.aemtools.analyser.core.export;
+package io.github.rohithv16.aem.analyser.core.export;
 
-import io.github.aemtools.analyser.core.model.report.AnalysisReport;
+import io.github.rohithv16.aem.analyser.core.model.report.AnalysisReport;
 import java.io.Writer;
 
 public interface ReportExporter {

@@ -4,14 +4,22 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>io.github.aemtools</groupId>
+    <groupId>io.github.rohithv16</groupId>
     <artifactId>aem-code-analyser</artifactId>
     <version>1.0.0-SNAPSHOT</version>
     <packaging>pom</packaging>
 
     <name>AEM Code Analyser</name>
     <description>Cross-boundary dead code detection engine for Adobe Experience Manager (Phase 1: Java &amp; OSGi Configurations)</description>
-    <url>https://github.com/aem-analyser/aem-code-analyser</url>
+    <url>https://github.com/rohithv16/aem-code-analyser</url>
+
+    <distributionManagement>
+        <repository>
+            <id>github</id>
+            <name>GitHub Packages</name>
+            <url>https://maven.pkg.github.com/rohithv16/aem-code-analyser</url>
+        </repository>
+    </distributionManagement>
 
     <modules>
         <module>aem-analyser-core</module>

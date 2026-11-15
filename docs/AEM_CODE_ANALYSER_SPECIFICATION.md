@@ -412,12 +412,12 @@ The analyzer implements a **Two-Phase Thread-Confined Ingestion Pipeline**:
 
 #### 3.4.3 Property Consumption Edge Data Contract
 ```java
-package io.github.aemtools.analyser.core.model.graph.edge;
+package io.github.rohithv16.aem.analyser.core.model.graph.edge;
 
-import io.github.aemtools.analyser.core.model.graph.PolyglotEdge;
-import io.github.aemtools.analyser.core.model.graph.node.OSGiComponentNode;
-import io.github.aemtools.analyser.core.model.graph.node.OcdPropertyMethodNode;
-import io.github.aemtools.analyser.core.model.graph.SourceLocation;
+import io.github.rohithv16.aem.analyser.core.model.graph.PolyglotEdge;
+import io.github.rohithv16.aem.analyser.core.model.graph.node.OSGiComponentNode;
+import io.github.rohithv16.aem.analyser.core.model.graph.node.OcdPropertyMethodNode;
+import io.github.rohithv16.aem.analyser.core.model.graph.SourceLocation;
 
 public record ConsumesPropertyEdge(
     OSGiComponentNode sourceComponent,
@@ -575,7 +575,7 @@ The normalizer executes in two deterministic stages:
      - Literal char $\longrightarrow$ char (advance 1)
 
 ```java
-package io.github.aemtools.analyser.core.graph;
+package io.github.rohithv16.aem.analyser.core.graph;
 
 public final class MetatypeNameNormalizer {
     public static String normalizeMethodName(String methodName, String explicitAttributeId) {
@@ -756,7 +756,7 @@ The discovery engine implements a recursive traversal mechanism powered by Apach
 To eliminate classification collisions across enterprise multi-tenant repositories (such as `aemaacs-life` containing 21 modules and 4 CDN configs), the discovery engine implements an expanded 11-category Maven module taxonomy, an independent non-Maven Cloud Configuration Discovery Phase, and strict packaging disambiguation:
 
 ```java
-package io.github.aemtools.analyser.core.model.discovery;
+package io.github.rohithv16.aem.analyser.core.model.discovery;
 
 public enum ModuleClassification {
     AGGREGATOR_MODULE,        // Maven aggregator POM containing child <modules>

@@ -69,7 +69,7 @@ To automatically enforce dead-code quality checks in any AEM project during `mvn
 <build>
     <plugins>
         <plugin>
-            <groupId>io.github.aemtools</groupId>
+            <groupId>io.github.rohithv16</groupId>
             <artifactId>aem-analyser-maven-plugin</artifactId>
             <version>1.0.0-SNAPSHOT</version>
             <executions>

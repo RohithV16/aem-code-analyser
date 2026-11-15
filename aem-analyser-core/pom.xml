@@ -5,7 +5,7 @@
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-        <groupId>io.github.aemtools</groupId>
+        <groupId>io.github.rohithv16</groupId>
         <artifactId>aem-code-analyser</artifactId>
         <version>1.0.0-SNAPSHOT</version>
     </parent>
