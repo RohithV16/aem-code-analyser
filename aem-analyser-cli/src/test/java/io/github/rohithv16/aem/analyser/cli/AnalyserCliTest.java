@@ -53,4 +53,19 @@ class AnalyserCliTest {
 
         assertEquals(java.util.List.of("core"), modules, "Should only pick module containing src/test/java");
     }
+
+    @Test
+    void testFindExistingCoverageDiscoversExecOrCsv(@TempDir Path tempDir) throws java.io.IOException {
+        AnalyserCli cli = new AnalyserCli();
+        assertNull(cli.findExistingCoverage(tempDir));
+
+        Path target = tempDir.resolve("core/target");
+        java.nio.file.Files.createDirectories(target);
+        Path execFile = target.resolve("jacoco.exec");
+        java.nio.file.Files.writeString(execFile, "mock");
+
+        Path found = cli.findExistingCoverage(tempDir);
+        assertNotNull(found);
+        assertEquals(execFile, found);
+    }
 }

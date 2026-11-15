@@ -73,6 +73,10 @@ public class AnalyserCli implements Runnable {
             description = "Automatically execute unit tests with dynamic JaCoCo instrumentation to generate fresh coverage reports (zero POM configuration required).")
     private boolean collectCoverage;
 
+    @Option(names = {"--force"},
+            description = "Force re-execution of unit tests when using --collect-coverage even if coverage artifacts already exist.")
+    private boolean force;
+
     private final PrintWriter stdout = new PrintWriter(System.out, true, StandardCharsets.UTF_8);
 
     @Override
@@ -155,6 +159,13 @@ public class AnalyserCli implements Runnable {
     }
 
     private void runCoverageCollection(Path root) {
+        Path existing = findExistingCoverage(root);
+        if (existing != null && !force) {
+            String rel = root.relativize(existing).toString();
+            stdout.println("[INFO] Existing JaCoCo coverage found (" + rel + "); skipping test execution. Use --force to re-run.");
+            return;
+        }
+
         stdout.println("[INFO] Dynamic JaCoCo enabled: executing unit tests to collect test code coverage...");
         List<String> cmd = resolveMavenCommand(root);
         try {
@@ -220,6 +231,18 @@ public class AnalyserCli implements Runnable {
             command.add("-P" + String.join(",", profiles));
         }
         return command;
+    }
+
+    Path findExistingCoverage(Path root) {
+        try (var stream = Files.walk(root, 4)) {
+            return stream.filter(p -> {
+                String s = p.toString();
+                return (s.endsWith("target/jacoco.exec") || s.endsWith("target/site/jacoco/jacoco.csv"))
+                        && Files.isRegularFile(p);
+            }).findFirst().orElse(null);
+        } catch (IOException e) {
+            return null;
+        }
     }
 
     boolean projectHasJacoco(Path root) {
