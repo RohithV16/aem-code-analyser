@@ -6,13 +6,13 @@ import io.github.rohithv16.aem.analyser.core.graph.ReferenceGraphIndex;
 import io.github.rohithv16.aem.analyser.core.model.graph.node.OSGiComponentNode;
 import io.github.rohithv16.aem.analyser.core.model.graph.node.OSGiConfigNode;
 import io.github.rohithv16.aem.analyser.core.model.htl.CqComponentDefinition;
+import io.github.rohithv16.aem.analyser.core.model.htl.HtlUnsafeContextFinding;
 import io.github.rohithv16.aem.analyser.core.model.htl.HtlUsage;
 import io.github.rohithv16.aem.analyser.core.parser.bytecode.DependencyBytecodeIndexer;
 
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Set;
-import java.util.function.Function;
 
 /**
  * Shared evaluation context handed to every rule evaluator.
@@ -24,7 +24,19 @@ public record RuleContext(ReferenceGraph graph,
                           Set<String> ignoredServices,
                           Path projectRoot,
                           List<HtlUsage> htlUsages,
-                          List<CqComponentDefinition> cqComponents) {
+                          List<CqComponentDefinition> cqComponents,
+                          List<HtlUnsafeContextFinding> htlUnsafeContexts) {
+
+    public RuleContext(ReferenceGraph graph,
+                       ReferenceGraphBuilder.GraphBuildResult buildResult,
+                       Set<String> exportedPackages,
+                       DependencyBytecodeIndexer.DependencyIndex dependencyIndex,
+                       Set<String> ignoredServices,
+                       Path projectRoot,
+                       List<HtlUsage> htlUsages,
+                       List<CqComponentDefinition> cqComponents) {
+        this(graph, buildResult, exportedPackages, dependencyIndex, ignoredServices, projectRoot, htlUsages, cqComponents, List.of());
+    }
 
     public RuleContext(ReferenceGraph graph,
                        ReferenceGraphBuilder.GraphBuildResult buildResult,
@@ -32,7 +44,7 @@ public record RuleContext(ReferenceGraph graph,
                        DependencyBytecodeIndexer.DependencyIndex dependencyIndex,
                        Set<String> ignoredServices,
                        Path projectRoot) {
-        this(graph, buildResult, exportedPackages, dependencyIndex, ignoredServices, projectRoot, List.of(), List.of());
+        this(graph, buildResult, exportedPackages, dependencyIndex, ignoredServices, projectRoot, List.of(), List.of(), List.of());
     }
 
     public List<OSGiComponentNode> components() {

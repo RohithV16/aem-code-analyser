@@ -51,4 +51,25 @@ class HtlScannerTest {
         assertTrue(usages.stream().anyMatch(u -> "nav.js".equals(u.target())
                 && !u.isJavaClass()));
     }
+
+    @Test
+    void testDetectsUnsafeContext(@TempDir Path tempDir) throws IOException {
+        String htlContent = """
+                <div>
+                    <h1>${properties.title}</h1>
+                    <div class="content">${properties.richText @ context='unsafe'}</div>
+                    <span data-sly-test="${properties.tag @ context="unsafe"}">Tag</span>
+                </div>
+                """;
+        Path htlFile = tempDir.resolve("content.html");
+        Files.writeString(htlFile, htlContent);
+
+        HtlScanner scanner = new HtlScanner();
+        var result = scanner.scan(tempDir);
+
+        assertEquals(2, result.unsafeContexts().size());
+        assertEquals(3, result.unsafeContexts().get(0).line());
+        assertTrue(result.unsafeContexts().get(0).snippet().contains("@ context='unsafe'"));
+        assertEquals(4, result.unsafeContexts().get(1).line());
+    }
 }

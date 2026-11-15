@@ -8,6 +8,7 @@ import io.github.rohithv16.aem.analyser.core.graph.ReferenceGraphBuilder;
 import io.github.rohithv16.aem.analyser.core.model.discovery.ModuleClassification;
 import io.github.rohithv16.aem.analyser.core.model.discovery.ModuleDescriptor;
 import io.github.rohithv16.aem.analyser.core.model.htl.CqComponentDefinition;
+import io.github.rohithv16.aem.analyser.core.model.htl.HtlUnsafeContextFinding;
 import io.github.rohithv16.aem.analyser.core.model.htl.HtlUsage;
 import io.github.rohithv16.aem.analyser.core.model.report.AnalysisReport;
 import io.github.rohithv16.aem.analyser.core.model.report.Violation;
@@ -18,6 +19,8 @@ import io.github.rohithv16.aem.analyser.core.parser.java.JavaSourceParseResult;
 import io.github.rohithv16.aem.analyser.core.parser.java.JavaSourceParser;
 import io.github.rohithv16.aem.analyser.core.rules.RuleContext;
 import io.github.rohithv16.aem.analyser.core.rules.RuleEvaluator;
+import io.github.rohithv16.aem.analyser.core.rules.impl.AemCloud001Rule;
+import io.github.rohithv16.aem.analyser.core.rules.impl.AemCloud002Rule;
 import io.github.rohithv16.aem.analyser.core.rules.impl.AemComp001Rule;
 import io.github.rohithv16.aem.analyser.core.rules.impl.AemDead001Rule;
 import io.github.rohithv16.aem.analyser.core.rules.impl.AemDead002ARule;
@@ -38,6 +41,7 @@ import io.github.rohithv16.aem.analyser.core.rules.impl.AemQual002Rule;
 import io.github.rohithv16.aem.analyser.core.rules.impl.AemQual003Rule;
 import io.github.rohithv16.aem.analyser.core.rules.impl.AemQual004Rule;
 import io.github.rohithv16.aem.analyser.core.rules.impl.AemQual005Rule;
+import io.github.rohithv16.aem.analyser.core.rules.impl.AemSec001Rule;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -82,7 +86,10 @@ public final class DefaultAemCodeAnalyser implements AemCodeAnalyser {
             new AemQual005Rule(),
             new AemPerf001Rule(),
             new AemPerf002Rule(),
-            new AemPerf003Rule());
+            new AemPerf003Rule(),
+            new AemCloud001Rule(),
+            new AemCloud002Rule(),
+            new AemSec001Rule());
 
     @Override
     public AnalysisReport analyze(AnalysisContext context) throws AnalysisException {
@@ -98,10 +105,13 @@ public final class DefaultAemCodeAnalyser implements AemCodeAnalyser {
             // ── Phase A2: HTL & Component scanning ──────────────────────────────
             var htlScanner = new HtlScanner();
             List<HtlUsage> htlUsages = new ArrayList<>();
+            List<HtlUnsafeContextFinding> htlUnsafeContexts = new ArrayList<>();
             var compScanner = new JcrComponentScanner();
             List<CqComponentDefinition> cqComponents = new ArrayList<>();
             for (ModuleDescriptor module : discoveryResult.modules()) {
-                htlUsages.addAll(htlScanner.scanDirectory(module.moduleDirectory()));
+                var htlResult = htlScanner.scan(module.moduleDirectory());
+                htlUsages.addAll(htlResult.usages());
+                htlUnsafeContexts.addAll(htlResult.unsafeContexts());
                 cqComponents.addAll(compScanner.scanDirectory(module.moduleDirectory()));
             }
 
@@ -119,7 +129,7 @@ public final class DefaultAemCodeAnalyser implements AemCodeAnalyser {
             // ── Rule evaluation ───────────────────────────────────────────────────
             RuleContext ruleContext = new RuleContext(buildResult.graph(), buildResult,
                     Set.copyOf(exportedPatterns), dependencyIndex, context.ignoredServices(), context.projectRoot(),
-                    htlUsages, cqComponents);
+                    htlUsages, cqComponents, htlUnsafeContexts);
             List<Violation> violations = new ArrayList<>();
             for (RuleEvaluator rule : rules) {
                 violations.addAll(rule.evaluate(ruleContext));
