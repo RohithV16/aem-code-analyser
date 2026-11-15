@@ -5,11 +5,9 @@ import io.github.rohithv16.aem.analyser.core.model.report.CoverageReport;
 import org.jacoco.core.analysis.Analyzer;
 import org.jacoco.core.analysis.CoverageBuilder;
 import org.jacoco.core.analysis.IClassCoverage;
-import org.jacoco.core.analysis.ICounter;
 import org.jacoco.core.tools.ExecFileLoader;
 
 import java.io.BufferedReader;
-import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;

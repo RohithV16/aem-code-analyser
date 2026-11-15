@@ -179,4 +179,117 @@ class AemCloudAndSecRulesTest {
 
         assertEquals(0, violations.size());
     }
+
+    @Test
+    void testAemCloud003_genericYamlDiscoveredInArbitraryPath(@TempDir Path tempDir) throws IOException {
+        Path yamlPath = tempDir.resolve("custom-module/config/security-rules.yaml");
+        Files.createDirectories(yamlPath.getParent());
+        Files.writeString(yamlPath,
+                "- user_config:\n" +
+                "    - generic-audit-user:\n" +
+                "       - name:\n" +
+                "         isSystemUser: true\n" +
+                "         path: /home/users/system/custom\n");
+
+        Path javaPath = tempDir.resolve("core/AuditServiceImpl.java");
+        io.github.rohithv16.aem.analyser.core.model.serviceuser.SubserviceCall call =
+                new io.github.rohithv16.aem.analyser.core.model.serviceuser.SubserviceCall(
+                        "audit-subservice", "com.example.AuditServiceImpl", javaPath, 30, 8);
+
+        Path cfgPath = tempDir.resolve("ui.config/org.apache.sling.serviceusermapping.impl.ServiceUserMapperImpl.amended-audit.cfg.json");
+        OSGiConfigNode config = new OSGiConfigNode(
+                cfgPath.toString(), cfgPath, null,
+                "org.apache.sling.serviceusermapping.impl.ServiceUserMapperImpl.amended~audit",
+                null, false, Set.of(), ConfigFormat.CFG_JSON);
+
+        ConfigPropertyNode mappingProp = new ConfigPropertyNode(
+                config.getId(), cfgPath, new SourceLocation(cfgPath, 2, 4),
+                "user.mapping", "user.mapping", "String[]",
+                "[\"com.example.core:audit-subservice=[generic-audit-user]\"]", DataType.STRING, false);
+        config.addProperty(mappingProp);
+
+        ReferenceGraphBuilder.GraphBuildResult buildResult = new ReferenceGraphBuilder.GraphBuildResult(
+                new ReferenceGraph(), Collections.emptySet(), Collections.emptySet(),
+                Collections.emptyMap(), Map.of(config.getId(), config),
+                Collections.emptyMap(), Collections.emptyMap(), List.of(), List.of(), List.of(), List.of(),
+                List.of(call), null);
+
+        RuleContext ctx = new RuleContext(new ReferenceGraph(), buildResult, Set.of(), null, Set.of(), tempDir);
+        List<Violation> violations = new AemCloud003Rule().evaluate(ctx);
+
+        assertEquals(0, violations.size());
+    }
+
+    @Test
+    void testAemCloud003_fileVaultJcrXmlDiscovered(@TempDir Path tempDir) throws IOException {
+        Path jcrPath = tempDir.resolve("ui.content/jcr_root/home/users/system/vault-svc-user/.content.xml");
+        Files.createDirectories(jcrPath.getParent());
+        Files.writeString(jcrPath,
+                "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n" +
+                "<jcr:root xmlns:jcr=\"http://www.jcp.org/jcr/1.0\" xmlns:rep=\"internal\"\n" +
+                "    jcr:primaryType=\"rep:SystemUser\"\n" +
+                "    rep:authorizableId=\"vault-svc-user\"/>\n");
+
+        Path javaPath = tempDir.resolve("core/VaultServiceImpl.java");
+        io.github.rohithv16.aem.analyser.core.model.serviceuser.SubserviceCall call =
+                new io.github.rohithv16.aem.analyser.core.model.serviceuser.SubserviceCall(
+                        "vault-subservice", "com.example.VaultServiceImpl", javaPath, 35, 8);
+
+        Path cfgPath = tempDir.resolve("ui.config/org.apache.sling.serviceusermapping.impl.ServiceUserMapperImpl.amended-vault.cfg.json");
+        OSGiConfigNode config = new OSGiConfigNode(
+                cfgPath.toString(), cfgPath, null,
+                "org.apache.sling.serviceusermapping.impl.ServiceUserMapperImpl.amended~vault",
+                null, false, Set.of(), ConfigFormat.CFG_JSON);
+
+        ConfigPropertyNode mappingProp = new ConfigPropertyNode(
+                config.getId(), cfgPath, new SourceLocation(cfgPath, 2, 4),
+                "user.mapping", "user.mapping", "String[]",
+                "[\"com.example.core:vault-subservice=[vault-svc-user]\"]", DataType.STRING, false);
+        config.addProperty(mappingProp);
+
+        ReferenceGraphBuilder.GraphBuildResult buildResult = new ReferenceGraphBuilder.GraphBuildResult(
+                new ReferenceGraph(), Collections.emptySet(), Collections.emptySet(),
+                Collections.emptyMap(), Map.of(config.getId(), config),
+                Collections.emptyMap(), Collections.emptyMap(), List.of(), List.of(), List.of(), List.of(),
+                List.of(call), null);
+
+        RuleContext ctx = new RuleContext(new ReferenceGraph(), buildResult, Set.of(), null, Set.of(), tempDir);
+        List<Violation> violations = new AemCloud003Rule().evaluate(ctx);
+
+        assertEquals(0, violations.size());
+    }
+
+    @Test
+    void testAemCloud003_unresolvedServiceUserFlagged() {
+        Path javaPath = root.resolve("core/GhostServiceImpl.java");
+        io.github.rohithv16.aem.analyser.core.model.serviceuser.SubserviceCall call =
+                new io.github.rohithv16.aem.analyser.core.model.serviceuser.SubserviceCall(
+                        "ghost-subservice", "com.example.GhostServiceImpl", javaPath, 40, 8);
+
+        Path cfgPath = root.resolve("ui.config/org.apache.sling.serviceusermapping.impl.ServiceUserMapperImpl.amended-ghost.cfg.json");
+        OSGiConfigNode config = new OSGiConfigNode(
+                cfgPath.toString(), cfgPath, null,
+                "org.apache.sling.serviceusermapping.impl.ServiceUserMapperImpl.amended~ghost",
+                null, false, Set.of(), ConfigFormat.CFG_JSON);
+
+        ConfigPropertyNode mappingProp = new ConfigPropertyNode(
+                config.getId(), cfgPath, new SourceLocation(cfgPath, 2, 4),
+                "user.mapping", "user.mapping", "String[]",
+                "[\"com.example.core:ghost-subservice=[ghost-user-404]\"]", DataType.STRING, false);
+        config.addProperty(mappingProp);
+
+        ReferenceGraphBuilder.GraphBuildResult buildResult = new ReferenceGraphBuilder.GraphBuildResult(
+                new ReferenceGraph(), Collections.emptySet(), Collections.emptySet(),
+                Collections.emptyMap(), Map.of(config.getId(), config),
+                Collections.emptyMap(), Collections.emptyMap(), List.of(), List.of(), List.of(), List.of(),
+                List.of(call), null);
+
+        RuleContext ctx = new RuleContext(new ReferenceGraph(), buildResult, Set.of(), null, Set.of(), root);
+        List<Violation> violations = new AemCloud003Rule().evaluate(ctx);
+
+        assertEquals(1, violations.size());
+        assertEquals("UNRESOLVED_SERVICE_USER", violations.get(0).subtype());
+        assertEquals(Severity.WARNING, violations.get(0).severity());
+        assertTrue(violations.get(0).message().contains("ghost-user-404"));
+    }
 }
