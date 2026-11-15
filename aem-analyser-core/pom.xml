@@ -45,6 +45,27 @@
             <groupId>net.sourceforge.pmd</groupId>
             <artifactId>pmd-java</artifactId>
         </dependency>
+        <!-- Embedded SonarSource java-frontend & java-checks -->
+        <dependency>
+            <groupId>org.sonarsource.sonarlint.core</groupId>
+            <artifactId>sonarlint-plugin-api</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.sonarsource.api.plugin</groupId>
+            <artifactId>sonar-plugin-api</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.sonarsource.java</groupId>
+            <artifactId>java-frontend</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.sonarsource.java</groupId>
+            <artifactId>java-checks</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.sonarsource.java</groupId>
+            <artifactId>java-checks-testkit</artifactId>
+        </dependency>
         <!-- Maven POM model for multi-module discovery -->
         <dependency>
             <groupId>org.apache.maven</groupId>

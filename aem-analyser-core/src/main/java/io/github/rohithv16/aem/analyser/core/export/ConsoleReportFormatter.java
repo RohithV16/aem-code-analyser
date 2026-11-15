@@ -169,32 +169,39 @@ public final class ConsoleReportFormatter implements ReportExporter {
     }
 
     private String ruleTitle(String ruleId) {
-        return switch (RuleId.fromId(ruleId)) {
-            case AEM_DEAD_001 -> "Orphaned OSGi Configuration";
-            case AEM_DEAD_002A -> "Ghost Configuration Property";
-            case AEM_DEAD_002B -> "Unconsumed OCD Property";
-            case AEM_DEAD_003A -> "Unused OSGi Service";
-            case AEM_DEAD_003B -> "Unused Sling Model";
-            case AEM_DEAD_003C -> "Inactive Delayed Component";
-            case AEM_DUP_001 -> "Duplicate Servlet Endpoint";
-            case AEM_DUP_002 -> "Duplicate OSGi Configuration";
-            case AEM_DUP_003 -> "Duplicate Sling Model";
-            case AEM_DUP_010 -> "Duplicate Code Block";
-            case AEM_QUAL_001 -> "Path-Bound Sling Servlet Registration (CQBP-75)";
-            case AEM_QUAL_002 -> "Implementation of @ProviderType Product API (CQBP-84)";
-            case AEM_QUAL_003 -> "Whiteboard Sling Scheduler Usage (AMSCORE-554)";
-            case AEM_QUAL_004 -> "Unsafe Mutable State in OSGi Component (CQBP-ThreadSafety)";
-            case AEM_QUAL_005 -> "Deprecated Administrative API Usage (AMSCORE-553)";
-            case AEM_DEAD_004 -> "Broken HTL Reference";
-            case AEM_COMP_001 -> "Deprecated Classic UI Dialog (dialog.xml)";
-            case AEM_PERF_001 -> "Unclosed ResourceResolver (Session Leak Risk)";
-            case AEM_PERF_002 -> "Unclosed JCR Session Leak";
-            case AEM_PERF_003 -> "Oak Query Traversal Risk";
-            case AEM_CLOUD_001 -> "Plaintext Secret in Configuration (AEMaaCS)";
-            case AEM_CLOUD_002 -> "Deprecated JSP Script (AEMaaCS)";
-            case AEM_SEC_001 -> "Unsafe HTL XSS Context Bypass";
-            case AEM_CLOUD_003 -> "Unmapped Subservice / Service User (AEMaaCS)";
-        };
+        if (ruleId != null && ruleId.startsWith("java:S")) {
+            return "SonarSource Java Quality (" + ruleId + ")";
+        }
+        try {
+            return switch (RuleId.fromId(ruleId)) {
+                case AEM_DEAD_001 -> "Orphaned OSGi Configuration";
+                case AEM_DEAD_002A -> "Ghost Configuration Property";
+                case AEM_DEAD_002B -> "Unconsumed OCD Property";
+                case AEM_DEAD_003A -> "Unused OSGi Service";
+                case AEM_DEAD_003B -> "Unused Sling Model";
+                case AEM_DEAD_003C -> "Inactive Delayed Component";
+                case AEM_DUP_001 -> "Duplicate Servlet Endpoint";
+                case AEM_DUP_002 -> "Duplicate OSGi Configuration";
+                case AEM_DUP_003 -> "Duplicate Sling Model";
+                case AEM_DUP_010 -> "Duplicate Code Block";
+                case AEM_QUAL_001 -> "Path-Bound Sling Servlet Registration (CQBP-75)";
+                case AEM_QUAL_002 -> "Implementation of @ProviderType Product API (CQBP-84)";
+                case AEM_QUAL_003 -> "Whiteboard Sling Scheduler Usage (AMSCORE-554)";
+                case AEM_QUAL_004 -> "Unsafe Mutable State in OSGi Component (CQBP-ThreadSafety)";
+                case AEM_QUAL_005 -> "Deprecated Administrative API Usage (AMSCORE-553)";
+                case AEM_DEAD_004 -> "Broken HTL Reference";
+                case AEM_COMP_001 -> "Deprecated Classic UI Dialog (dialog.xml)";
+                case AEM_PERF_001 -> "Unclosed ResourceResolver (Session Leak Risk)";
+                case AEM_PERF_002 -> "Unclosed JCR Session Leak";
+                case AEM_PERF_003 -> "Oak Query Traversal Risk";
+                case AEM_CLOUD_001 -> "Plaintext Secret in Configuration (AEMaaCS)";
+                case AEM_CLOUD_002 -> "Deprecated JSP Script (AEMaaCS)";
+                case AEM_SEC_001 -> "Unsafe HTL XSS Context Bypass";
+                case AEM_CLOUD_003 -> "Unmapped Subservice / Service User (AEMaaCS)";
+            };
+        } catch (IllegalArgumentException e) {
+            return ruleId;
+        }
     }
 
     private String color(Severity severity) {

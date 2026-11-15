@@ -101,4 +101,21 @@ class AnalyserCliTest {
         assertFalse(status3.isFresh());
         assertTrue(status3.reason().contains("Foo.java"));
     }
+
+    @Test
+    void testSonarCliOptionsRegistered() {
+        AnalyserCli cli = new AnalyserCli();
+        CommandLine cmd = new CommandLine(cli);
+
+        StringWriter sw = new StringWriter();
+        cmd.usage(new PrintWriter(sw));
+        String usage = sw.toString();
+
+        assertTrue(usage.contains("--sonar"), "Usage should include --sonar option");
+        assertTrue(usage.contains("--no-sonar"), "Usage should include --no-sonar option");
+        assertTrue(usage.contains("--sonar-rules"), "Usage should include --sonar-rules option");
+
+        cmd.parseArgs("--no-sonar");
+        assertTrue(cli.isNoSonar(), "noSonar flag should be true when --no-sonar passed");
+    }
 }

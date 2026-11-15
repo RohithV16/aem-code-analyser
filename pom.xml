@@ -50,10 +50,38 @@
         <jacoco.version>0.8.12</jacoco.version>
         <pmd.version>7.0.0</pmd.version>
         <maven-pmd-plugin.version>3.22.0</maven-pmd-plugin.version>
+        <sonarjava.version>8.1.0.36477</sonarjava.version>
+        <sonar-plugin-api.version>10.2.0.1908</sonar-plugin-api.version>
+        <sonarlint-plugin-api.version>9.8.0.76914</sonarlint-plugin-api.version>
     </properties>
 
     <dependencyManagement>
         <dependencies>
+            <dependency>
+                <groupId>org.sonarsource.sonarlint.core</groupId>
+                <artifactId>sonarlint-plugin-api</artifactId>
+                <version>${sonarlint-plugin-api.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.sonarsource.api.plugin</groupId>
+                <artifactId>sonar-plugin-api</artifactId>
+                <version>${sonar-plugin-api.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.sonarsource.java</groupId>
+                <artifactId>java-frontend</artifactId>
+                <version>${sonarjava.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.sonarsource.java</groupId>
+                <artifactId>java-checks</artifactId>
+                <version>${sonarjava.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.sonarsource.java</groupId>
+                <artifactId>java-checks-testkit</artifactId>
+                <version>${sonarjava.version}</version>
+            </dependency>
             <dependency>
                 <groupId>org.junit</groupId>
                 <artifactId>junit-bom</artifactId>

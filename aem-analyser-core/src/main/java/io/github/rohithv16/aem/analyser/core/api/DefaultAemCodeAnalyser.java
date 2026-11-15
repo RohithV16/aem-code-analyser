@@ -143,6 +143,13 @@ public final class DefaultAemCodeAnalyser implements AemCodeAnalyser {
             violations.addAll(pmdResult.violations());
             var codeMetrics = pmdResult.metrics();
 
+            // ── Embedded SonarSource Java Analysis ───────────────────────────────
+            if (context.enableSonar()) {
+                var sonarChecks = io.github.rohithv16.aem.analyser.core.sonar.SonarRuleRegistry.createChecksFor(context.sonarRules());
+                var sonarScanner = new io.github.rohithv16.aem.analyser.core.sonar.SonarJavaScanner(context.projectRoot(), sonarChecks);
+                violations.addAll(sonarScanner.scan());
+            }
+
             violations.sort(Comparator.comparing(Violation::filePath)
                     .thenComparing(v -> v.region().startLine())
                     .thenComparing(Violation::ruleId));

@@ -95,6 +95,26 @@ public class AnalyserCli implements Runnable {
             description = "Quality Gate: maximum tolerated warning count before failing the build.")
     private Integer maxWarnings;
 
+    @Option(names = {"--sonar"}, defaultValue = "true",
+            description = "Enable embedded SonarJava analysis (default: true).")
+    private boolean sonar = true;
+
+    @Option(names = {"--no-sonar"},
+            description = "Disable embedded SonarJava analysis.")
+    private boolean noSonar;
+
+    @Option(names = {"--sonar-rules"},
+            description = "SonarJava ruleset filter (default: 'default', or comma-separated rule IDs e.g. S106,S1147).")
+    private String sonarRules;
+
+    boolean isSonar() {
+        return sonar;
+    }
+
+    boolean isNoSonar() {
+        return noSonar;
+    }
+
     private final PrintWriter stdout = new PrintWriter(System.out, true, StandardCharsets.UTF_8);
 
     @Override
@@ -106,13 +126,18 @@ public class AnalyserCli implements Runnable {
             }
             AnalysisContext.Builder builder = AnalysisContext.builder(root);
             if (profiles != null && !profiles.isEmpty()) {
-                builder.activeProfiles(profiles);
+                builder = builder.activeProfiles(profiles);
             }
             if (threads != null && threads > 0) {
-                builder.threads(threads);
+                builder = builder.threads(threads);
             }
             if (ignoredServices != null && !ignoredServices.isEmpty()) {
-                builder.ignoredServices(ignoredServices);
+                builder = builder.ignoredServices(ignoredServices);
+            }
+            boolean enableSonar = sonar && !noSonar;
+            builder = builder.enableSonar(enableSonar);
+            if (sonarRules != null && !sonarRules.isBlank()) {
+                builder = builder.sonarRules(sonarRules);
             }
 
             AnalysisReport report = new DefaultAemCodeAnalyser().analyze(builder.build());

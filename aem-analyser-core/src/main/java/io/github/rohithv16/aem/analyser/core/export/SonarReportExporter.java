@@ -98,6 +98,9 @@ public final class SonarReportExporter implements ReportExporter {
     }
 
     private String issueType(String ruleId) {
+        if (ruleId != null && ruleId.startsWith("java:S")) {
+            return "CODE_SMELL";
+        }
         if (RuleId.AEM_DEAD_001.id().equals(ruleId) ||
                 RuleId.AEM_DEAD_004.id().equals(ruleId) ||
                 RuleId.AEM_DUP_001.id().equals(ruleId) ||
@@ -116,30 +119,37 @@ public final class SonarReportExporter implements ReportExporter {
     }
 
     private int effortMinutes(String ruleId) {
-        return switch (RuleId.fromId(ruleId)) {
-            case AEM_DEAD_001 -> 15;
-            case AEM_DEAD_002A, AEM_DEAD_002B -> 10;
-            case AEM_DEAD_003A -> 30;
-            case AEM_DEAD_003B -> 5;
-            case AEM_DEAD_003C -> 10;
-            case AEM_DEAD_004 -> 15;
-            case AEM_COMP_001 -> 20;
-            case AEM_DUP_001 -> 20;
-            case AEM_DUP_002 -> 15;
-            case AEM_DUP_003 -> 15;
-            case AEM_DUP_010 -> 25;
-            case AEM_QUAL_001 -> 15;
-            case AEM_QUAL_002 -> 30;
-            case AEM_QUAL_003 -> 20;
-            case AEM_QUAL_004 -> 20;
-            case AEM_QUAL_005 -> 25;
-            case AEM_PERF_001 -> 30;
-            case AEM_PERF_002 -> 30;
-            case AEM_PERF_003 -> 25;
-            case AEM_CLOUD_001 -> 15;
-            case AEM_CLOUD_002 -> 30;
-            case AEM_SEC_001 -> 20;
-            case AEM_CLOUD_003 -> 25;
-        };
+        if (ruleId != null && ruleId.startsWith("java:S")) {
+            return 10;
+        }
+        try {
+            return switch (RuleId.fromId(ruleId)) {
+                case AEM_DEAD_001 -> 15;
+                case AEM_DEAD_002A, AEM_DEAD_002B -> 10;
+                case AEM_DEAD_003A -> 30;
+                case AEM_DEAD_003B -> 5;
+                case AEM_DEAD_003C -> 10;
+                case AEM_DEAD_004 -> 15;
+                case AEM_COMP_001 -> 20;
+                case AEM_DUP_001 -> 20;
+                case AEM_DUP_002 -> 15;
+                case AEM_DUP_003 -> 15;
+                case AEM_DUP_010 -> 25;
+                case AEM_QUAL_001 -> 15;
+                case AEM_QUAL_002 -> 30;
+                case AEM_QUAL_003 -> 20;
+                case AEM_QUAL_004 -> 20;
+                case AEM_QUAL_005 -> 25;
+                case AEM_PERF_001 -> 30;
+                case AEM_PERF_002 -> 30;
+                case AEM_PERF_003 -> 25;
+                case AEM_CLOUD_001 -> 15;
+                case AEM_CLOUD_002 -> 30;
+                case AEM_SEC_001 -> 20;
+                case AEM_CLOUD_003 -> 25;
+            };
+        } catch (IllegalArgumentException e) {
+            return 10;
+        }
     }
 }

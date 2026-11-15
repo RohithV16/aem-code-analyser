@@ -51,6 +51,17 @@ public final class SarifReportExporter implements ReportExporter {
 
         List<Map<String, Object>> results = new ArrayList<>();
         for (Violation violation : report.violations()) {
+            if (!ruleIndexes.containsKey(violation.ruleId())) {
+                int newIdx = ruleDefinitions.size();
+                ruleIndexes.put(violation.ruleId(), newIdx);
+                Map<String, Object> definition = new LinkedHashMap<>();
+                definition.put("id", violation.ruleId());
+                definition.put("name", violation.ruleId());
+                definition.put("shortDescription", Map.of("text", violation.message()));
+                definition.put("defaultConfiguration",
+                        Map.of("level", sarifLevel(violation.severity())));
+                ruleDefinitions.add(definition);
+            }
             Map<String, Object> result = new LinkedHashMap<>();
             result.put("ruleId", violation.ruleId());
             result.put("ruleIndex", ruleIndexes.get(violation.ruleId()));

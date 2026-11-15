@@ -199,6 +199,7 @@ public final class HtmlReportExporter implements ReportExporter {
         sb.append("    <button class=\"filter-btn\" data-category=\"SEC\">Security</button>\n");
         sb.append("    <button class=\"filter-btn\" data-category=\"DEAD\">Dead Code</button>\n");
         sb.append("    <button class=\"filter-btn\" data-category=\"DUP\">Duplicates</button>\n");
+        sb.append("    <button class=\"filter-btn\" data-category=\"SONAR\">Sonar Java</button>\n");
         sb.append("  </div>\n");
 
         // Table
@@ -362,6 +363,7 @@ public final class HtmlReportExporter implements ReportExporter {
     }
 
     private String getRuleCategory(String ruleId) {
+        if (ruleId.startsWith("java:S")) return "SONAR";
         if (ruleId.startsWith("AEM-PERF-")) return "PERF";
         if (ruleId.startsWith("AEM-CLOUD-")) return "CLOUD";
         if (ruleId.startsWith("AEM-SEC-")) return "SEC";

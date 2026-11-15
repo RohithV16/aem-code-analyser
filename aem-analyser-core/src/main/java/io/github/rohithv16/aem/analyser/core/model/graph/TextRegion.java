@@ -9,6 +9,11 @@ public record TextRegion(int startLine, int startColumn, int endLine, int endCol
         return new TextRegion(1, 1, 1, 2);
     }
 
+    public static TextRegion forLine(int line) {
+        int l = Math.max(1, line);
+        return new TextRegion(l, 1, l, 2);
+    }
+
     public TextRegion {
         if (startLine < 1) {
             startLine = 1;
