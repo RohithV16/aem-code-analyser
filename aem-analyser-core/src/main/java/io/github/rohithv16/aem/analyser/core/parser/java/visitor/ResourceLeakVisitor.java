@@ -50,10 +50,10 @@ public final class ResourceLeakVisitor {
 
             // 1. ResourceResolver Factory call
             if (RESOLVER_FACTORY_METHODS.contains(name)) {
-                if (!isInsideTryWithResources(call)) {
+                if (!isInsideTryWithResources(call) && !isDirectlyReturned(call)) {
                     String varName = findAssignedVariableName(call);
                     Node enclosingScope = findEnclosingScope(call);
-                    if (varName == null || enclosingScope == null || !isClosedInScope(enclosingScope, varName, "close")) {
+                    if (varName == null || enclosingScope == null || (!isClosedInScope(enclosingScope, varName, "close") && !isReturnedFromMethod(enclosingScope, varName))) {
                         int line = call.getRange().map(r -> r.begin.line).orElse(1);
                         int col = call.getRange().map(r -> r.begin.column).orElse(1);
                         leaks.add(new ResourceLeakFinding(
@@ -65,10 +65,10 @@ public final class ResourceLeakVisitor {
 
             // 2. JCR Session login call
             if (SESSION_LOGIN_METHODS.contains(name)) {
-                if (!isInsideTryWithResources(call)) {
+                if (!isInsideTryWithResources(call) && !isDirectlyReturned(call)) {
                     String varName = findAssignedVariableName(call);
                     Node enclosingScope = findEnclosingScope(call);
-                    if (varName == null || enclosingScope == null || (!isClosedInScope(enclosingScope, varName, "logout") && !isClosedInScope(enclosingScope, varName, "close"))) {
+                    if (varName == null || enclosingScope == null || (!isClosedInScope(enclosingScope, varName, "logout") && !isClosedInScope(enclosingScope, varName, "close") && !isReturnedFromMethod(enclosingScope, varName))) {
                         int line = call.getRange().map(r -> r.begin.line).orElse(1);
                         int col = call.getRange().map(r -> r.begin.column).orElse(1);
                         leaks.add(new ResourceLeakFinding(
@@ -82,10 +82,10 @@ public final class ResourceLeakVisitor {
             if (name.equals("adaptTo") && call.getArguments().size() == 1) {
                 Expression arg = call.getArgument(0);
                 if (arg instanceof ClassExpr classExpr && classExpr.getType().asString().equals("Session")) {
-                    if (!isInsideTryWithResources(call)) {
+                    if (!isInsideTryWithResources(call) && !isDirectlyReturned(call)) {
                         String varName = findAssignedVariableName(call);
                         Node enclosingScope = findEnclosingScope(call);
-                        if (varName == null || enclosingScope == null || (!isClosedInScope(enclosingScope, varName, "logout") && !isClosedInScope(enclosingScope, varName, "close"))) {
+                        if (varName == null || enclosingScope == null || (!isClosedInScope(enclosingScope, varName, "logout") && !isClosedInScope(enclosingScope, varName, "close") && !isReturnedFromMethod(enclosingScope, varName))) {
                             int line = call.getRange().map(r -> r.begin.line).orElse(1);
                             int col = call.getRange().map(r -> r.begin.column).orElse(1);
                             leaks.add(new ResourceLeakFinding(
@@ -161,6 +161,31 @@ public final class ResourceLeakVisitor {
             if (call.getNameAsString().equals(closeMethod)) {
                 var scopeExpr = call.getScope();
                 if (scopeExpr.isPresent() && scopeExpr.get().toString().equals(varName)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private boolean isDirectlyReturned(Node node) {
+        Node current = node;
+        while (current != null) {
+            if (current instanceof com.github.javaparser.ast.stmt.ReturnStmt) {
+                return true;
+            }
+            if (current instanceof MethodDeclaration) {
+                break;
+            }
+            current = current.getParentNode().orElse(null);
+        }
+        return false;
+    }
+
+    private boolean isReturnedFromMethod(Node scope, String varName) {
+        if (scope instanceof MethodDeclaration md && varName != null) {
+            for (com.github.javaparser.ast.stmt.ReturnStmt ret : md.findAll(com.github.javaparser.ast.stmt.ReturnStmt.class)) {
+                if (ret.getExpression().isPresent() && ret.getExpression().get().toString().equals(varName)) {
                     return true;
                 }
             }

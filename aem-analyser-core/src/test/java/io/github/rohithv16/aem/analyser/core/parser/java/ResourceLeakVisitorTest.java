@@ -130,4 +130,23 @@ class ResourceLeakVisitorTest {
         assertEquals(1, result.traversalFindings().size());
         assertEquals("SELECT * FROM [nt:base]", result.traversalFindings().get(0).queryString());
     }
+
+    @Test
+    void testDoesNotFlagDirectlyReturnedResolver() {
+        String code = """
+                package com.example;
+                import org.apache.sling.api.resource.ResourceResolverFactory;
+                import org.apache.sling.api.resource.ResourceResolver;
+                public class FactoryService {
+                    ResourceResolverFactory factory;
+                    public ResourceResolver getServiceResolver() throws Exception {
+                        return factory.getServiceResourceResolver(null);
+                    }
+                }
+                """;
+        CompilationUnit cu = parser.parse(code).getResult().orElseThrow();
+        var result = visitor.analyze(cu, Path.of("FactoryService.java"));
+
+        assertTrue(result.leakFindings().isEmpty(), "Factory method returning resolver directly should not be flagged as leak");
+    }
 }

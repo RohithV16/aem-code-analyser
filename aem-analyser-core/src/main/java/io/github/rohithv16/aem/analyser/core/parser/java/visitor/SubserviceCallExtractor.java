@@ -104,18 +104,17 @@ public final class SubserviceCallExtractor {
         MethodCallExpr mce = expr.asMethodCallExpr();
         String name = mce.getNameAsString();
         if (name.equals("singletonMap") || name.equals("of")) {
-            for (Expression arg : mce.getArguments()) {
-                if (arg.isStringLiteralExpr()) {
-                    String val = arg.asStringLiteralExpr().getValue();
-                    if (!val.equalsIgnoreCase("sling.service.subservice") && !val.equalsIgnoreCase("subservice")) {
-                        return val;
-                    }
-                } else if (arg.isNameExpr() || arg.isFieldAccessExpr()) {
-                    String resolved = resolveSubserviceString(arg, localConstants);
-                    if (resolved != null && !resolved.equalsIgnoreCase("sling.service.subservice")) {
-                        return resolved;
-                    }
+            var args = mce.getArguments();
+            for (int i = 0; i < args.size() - 1; i += 2) {
+                Expression keyExpr = args.get(i);
+                Expression valExpr = args.get(i + 1);
+                String keyStr = keyExpr.toString();
+                if (keyStr.contains("SUBSERVICE") || keyStr.contains("subservice")) {
+                    return resolveSubserviceString(valExpr, localConstants);
                 }
+            }
+            if (args.size() == 2) {
+                return resolveSubserviceString(args.get(1), localConstants);
             }
         }
         return null;
