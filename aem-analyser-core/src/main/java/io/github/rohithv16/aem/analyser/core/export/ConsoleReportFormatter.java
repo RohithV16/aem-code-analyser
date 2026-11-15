@@ -185,6 +185,14 @@ public final class ConsoleReportFormatter implements ReportExporter {
             case AEM_QUAL_003 -> "Whiteboard Sling Scheduler Usage (AMSCORE-554)";
             case AEM_QUAL_004 -> "Unsafe Mutable State in OSGi Component (CQBP-ThreadSafety)";
             case AEM_QUAL_005 -> "Deprecated Administrative API Usage (AMSCORE-553)";
+            case AEM_DEAD_004 -> "Broken HTL Reference";
+            case AEM_COMP_001 -> "Deprecated Classic UI Dialog (dialog.xml)";
+            case AEM_PERF_001 -> "Unclosed ResourceResolver (Session Leak Risk)";
+            case AEM_PERF_002 -> "Unclosed JCR Session Leak";
+            case AEM_PERF_003 -> "Oak Query Traversal Risk";
+            case AEM_CLOUD_001 -> "Plaintext Secret in Configuration (AEMaaCS)";
+            case AEM_CLOUD_002 -> "Deprecated JSP Script (AEMaaCS)";
+            case AEM_SEC_001 -> "Unsafe HTL XSS Context Bypass";
         };
     }
 
@@ -203,7 +211,7 @@ public final class ConsoleReportFormatter implements ReportExporter {
         if (key == null || key.isEmpty()) {
             return key;
         }
-        List<String> camel = List.of("cloudConfigs", "osgiConfigs", "slingModels", "codeBlocks");
+        List<String> camel = List.of("cloudConfigs", "osgiConfigs", "slingModels", "codeBlocks", "cqComponents", "htlUsages");
         if (camel.contains(key)) {
             return Character.toUpperCase(key.charAt(0)) + key.substring(1);
         }

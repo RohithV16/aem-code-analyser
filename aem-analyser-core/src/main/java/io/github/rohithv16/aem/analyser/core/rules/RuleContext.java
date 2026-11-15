@@ -5,6 +5,8 @@ import io.github.rohithv16.aem.analyser.core.graph.ReferenceGraphBuilder;
 import io.github.rohithv16.aem.analyser.core.graph.ReferenceGraphIndex;
 import io.github.rohithv16.aem.analyser.core.model.graph.node.OSGiComponentNode;
 import io.github.rohithv16.aem.analyser.core.model.graph.node.OSGiConfigNode;
+import io.github.rohithv16.aem.analyser.core.model.htl.CqComponentDefinition;
+import io.github.rohithv16.aem.analyser.core.model.htl.HtlUsage;
 import io.github.rohithv16.aem.analyser.core.parser.bytecode.DependencyBytecodeIndexer;
 
 import java.nio.file.Path;
@@ -20,7 +22,18 @@ public record RuleContext(ReferenceGraph graph,
                           Set<String> exportedPackages,
                           DependencyBytecodeIndexer.DependencyIndex dependencyIndex,
                           Set<String> ignoredServices,
-                          Path projectRoot) {
+                          Path projectRoot,
+                          List<HtlUsage> htlUsages,
+                          List<CqComponentDefinition> cqComponents) {
+
+    public RuleContext(ReferenceGraph graph,
+                       ReferenceGraphBuilder.GraphBuildResult buildResult,
+                       Set<String> exportedPackages,
+                       DependencyBytecodeIndexer.DependencyIndex dependencyIndex,
+                       Set<String> ignoredServices,
+                       Path projectRoot) {
+        this(graph, buildResult, exportedPackages, dependencyIndex, ignoredServices, projectRoot, List.of(), List.of());
+    }
 
     public List<OSGiComponentNode> components() {
         return List.copyOf(buildResult.componentsByFqn().values());

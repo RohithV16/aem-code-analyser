@@ -26,13 +26,67 @@ public final class AemDead003BRule implements RuleEvaluator {
     @Override
     public List<Violation> evaluate(RuleContext context) {
         List<Violation> violations = new java.util.ArrayList<>();
+
+        // Collect all class names / FQNs referenced in HTL
+        java.util.Set<String> htlReferencedClasses = new java.util.HashSet<>();
+        if (context.htlUsages() != null) {
+            for (var usage : context.htlUsages()) {
+                if (usage.isJavaClass()) {
+                    htlReferencedClasses.add(usage.javaClassName());
+                    String simple = usage.javaClassName();
+                    int lastDot = simple.lastIndexOf('.');
+                    if (lastDot != -1) {
+                        htlReferencedClasses.add(simple.substring(lastDot + 1));
+                    }
+                }
+            }
+        }
+
+        // Collect all component resource types
+        java.util.Set<String> componentResourceTypes = new java.util.HashSet<>();
+        if (context.cqComponents() != null) {
+            for (var comp : context.cqComponents()) {
+                if (comp.resourceType() != null) {
+                    componentResourceTypes.add(comp.resourceType());
+                }
+            }
+        }
+
         for (SlingModelNode model : context.buildResult().modelNodes().values()) {
+            // 1. Used if adapted in Java code
             if (context.graph().inDegree(model, EdgeType.ADAPTS_TO) > 0) {
                 continue;
             }
-            if (model.getResourceType().isPresent()) {
-                continue; // retained as active candidate until Phase 2 HTL analysis
+
+            // 2. Used if referenced in HTL templates (by FQN, simple name, or adapter interface)
+            String simpleName = model.getFqn().substring(model.getFqn().lastIndexOf('.') + 1);
+            if (htlReferencedClasses.contains(model.getFqn()) || htlReferencedClasses.contains(simpleName)) {
+                continue;
             }
+            boolean adapterUsedInHtl = false;
+            for (String adapter : model.getAdapters()) {
+                if (htlReferencedClasses.contains(adapter)) {
+                    adapterUsedInHtl = true;
+                    break;
+                }
+                int lastDot = adapter.lastIndexOf('.');
+                if (lastDot != -1 && htlReferencedClasses.contains(adapter.substring(lastDot + 1))) {
+                    adapterUsedInHtl = true;
+                    break;
+                }
+            }
+            if (adapterUsedInHtl) {
+                continue;
+            }
+
+            // 3. Used if bound to a declared JCR component resourceType
+            if (model.getResourceType().isPresent()) {
+                String modelResType = model.getResourceType().get();
+                if (componentResourceTypes.isEmpty() || componentResourceTypes.contains(modelResType)) {
+                    continue;
+                }
+            }
+
             var location = model.getSourceLocation();
             TextRegion region = location == null ? TextRegion.forWholeFile()
                     : new TextRegion(location.line(), location.column(),
@@ -42,13 +96,11 @@ public final class AemDead003BRule implements RuleEvaluator {
                     RuleId.AEM_DEAD_003B.defaultLevel(),
                     "UNUSED_SLING_MODEL",
                     "Sling Model '" + model.getFqn()
-                            + "' has 0 Java adaptations and no resourceType binding"
-                            + " (Pending Phase 2 HTL cross-referencing).",
+                            + "' has 0 Java adaptations, 0 HTL usages, and no active component resourceType binding.",
                     relativePath(context, model.getFilePath()),
                     region,
                     null,
-                    "Confirm usage in HTL (data-sly-use) before deleting; if truly unused,"
-                            + " remove the model class.",
+                    "Remove the unused Sling Model or bind it to an active component or HTL template.",
                     List.of()));
         }
         return violations;

@@ -1,10 +1,14 @@
 package io.github.rohithv16.aem.analyser.core.api;
 
+import io.github.rohithv16.aem.analyser.core.discovery.HtlScanner;
+import io.github.rohithv16.aem.analyser.core.discovery.JcrComponentScanner;
 import io.github.rohithv16.aem.analyser.core.discovery.OsgiConfigScanner;
 import io.github.rohithv16.aem.analyser.core.discovery.ProjectDiscoveryEngine;
 import io.github.rohithv16.aem.analyser.core.graph.ReferenceGraphBuilder;
 import io.github.rohithv16.aem.analyser.core.model.discovery.ModuleClassification;
 import io.github.rohithv16.aem.analyser.core.model.discovery.ModuleDescriptor;
+import io.github.rohithv16.aem.analyser.core.model.htl.CqComponentDefinition;
+import io.github.rohithv16.aem.analyser.core.model.htl.HtlUsage;
 import io.github.rohithv16.aem.analyser.core.model.report.AnalysisReport;
 import io.github.rohithv16.aem.analyser.core.model.report.Violation;
 import io.github.rohithv16.aem.analyser.core.parser.bytecode.DependencyBytecodeIndexer;
@@ -14,12 +18,14 @@ import io.github.rohithv16.aem.analyser.core.parser.java.JavaSourceParseResult;
 import io.github.rohithv16.aem.analyser.core.parser.java.JavaSourceParser;
 import io.github.rohithv16.aem.analyser.core.rules.RuleContext;
 import io.github.rohithv16.aem.analyser.core.rules.RuleEvaluator;
+import io.github.rohithv16.aem.analyser.core.rules.impl.AemComp001Rule;
 import io.github.rohithv16.aem.analyser.core.rules.impl.AemDead001Rule;
 import io.github.rohithv16.aem.analyser.core.rules.impl.AemDead002ARule;
 import io.github.rohithv16.aem.analyser.core.rules.impl.AemDead002BRule;
 import io.github.rohithv16.aem.analyser.core.rules.impl.AemDead003ARule;
 import io.github.rohithv16.aem.analyser.core.rules.impl.AemDead003BRule;
 import io.github.rohithv16.aem.analyser.core.rules.impl.AemDead003CRule;
+import io.github.rohithv16.aem.analyser.core.rules.impl.AemDead004Rule;
 import io.github.rohithv16.aem.analyser.core.rules.impl.AemDup001Rule;
 import io.github.rohithv16.aem.analyser.core.rules.impl.AemDup002Rule;
 import io.github.rohithv16.aem.analyser.core.rules.impl.AemDup003Rule;
@@ -61,6 +67,8 @@ public final class DefaultAemCodeAnalyser implements AemCodeAnalyser {
             new AemDead003ARule(),
             new AemDead003BRule(),
             new AemDead003CRule(),
+            new AemDead004Rule(),
+            new AemComp001Rule(),
             new AemDup001Rule(),
             new AemDup002Rule(),
             new AemDup003Rule(),
@@ -81,6 +89,16 @@ public final class DefaultAemCodeAnalyser implements AemCodeAnalyser {
             List<JavaSourceParseResult> javaResults = parseJavaSourcesParallel(context, discoveryResult.modules());
             List<OsgiConfigDefinition> configs = parseOsgiConfigs(context, discoveryResult.modules());
 
+            // ── Phase A2: HTL & Component scanning ──────────────────────────────
+            var htlScanner = new HtlScanner();
+            List<HtlUsage> htlUsages = new ArrayList<>();
+            var compScanner = new JcrComponentScanner();
+            List<CqComponentDefinition> cqComponents = new ArrayList<>();
+            for (ModuleDescriptor module : discoveryResult.modules()) {
+                htlUsages.addAll(htlScanner.scanDirectory(module.moduleDirectory()));
+                cqComponents.addAll(compScanner.scanDirectory(module.moduleDirectory()));
+            }
+
             // Dependency bytecode indexing
             DependencyBytecodeIndexer.DependencyIndex dependencyIndex = indexDependencies(context);
 
@@ -94,7 +112,8 @@ public final class DefaultAemCodeAnalyser implements AemCodeAnalyser {
 
             // ── Rule evaluation ───────────────────────────────────────────────────
             RuleContext ruleContext = new RuleContext(buildResult.graph(), buildResult,
-                    Set.copyOf(exportedPatterns), dependencyIndex, context.ignoredServices(), context.projectRoot());
+                    Set.copyOf(exportedPatterns), dependencyIndex, context.ignoredServices(), context.projectRoot(),
+                    htlUsages, cqComponents);
             List<Violation> violations = new ArrayList<>();
             for (RuleEvaluator rule : rules) {
                 violations.addAll(rule.evaluate(ruleContext));
@@ -117,7 +136,7 @@ public final class DefaultAemCodeAnalyser implements AemCodeAnalyser {
             var coverageReport = coverageEngine.discover(context.projectRoot(), discoveryResult.modules());
 
             long durationMillis = (System.nanoTime() - start) / 1_000_000;
-            return new AnalysisReport(context.projectRoot(), scanStatistics(discoveryResult, buildResult),
+            return new AnalysisReport(context.projectRoot(), scanStatistics(discoveryResult, buildResult, htlUsages.size(), cqComponents.size()),
                     violations, durationMillis, coverageReport, codeMetrics);
         } catch (IOException | RuntimeException e) {
             throw new AnalysisException("Analysis failed: " + e.getMessage(), e);
@@ -212,7 +231,9 @@ public final class DefaultAemCodeAnalyser implements AemCodeAnalyser {
     }
 
     private Map<String, Integer> scanStatistics(ProjectDiscoveryEngine.DiscoveryResult discoveryResult,
-                                                ReferenceGraphBuilder.GraphBuildResult buildResult) {
+                                                ReferenceGraphBuilder.GraphBuildResult buildResult,
+                                                int htlUsagesCount,
+                                                int cqComponentsCount) {
         Map<String, Integer> stats = new LinkedHashMap<>();
         List<ModuleDescriptor> modules = discoveryResult.modules();
         stats.put("modules", modules.size());
@@ -221,7 +242,9 @@ public final class DefaultAemCodeAnalyser implements AemCodeAnalyser {
         stats.put("cloudConfigs", discoveryResult.cloudConfigs().size());
         stats.put("osgiConfigs", buildResult.configNodes().size());
         stats.put("components", buildResult.componentsByFqn().size());
+        stats.put("cqComponents", cqComponentsCount);
         stats.put("slingModels", buildResult.modelNodes().size());
+        stats.put("htlUsages", htlUsagesCount);
         stats.put("codeBlocks", buildResult.codeBlocks().size());
         stats.put("edges", buildResult.resolvedEdges().size());
         return stats;
