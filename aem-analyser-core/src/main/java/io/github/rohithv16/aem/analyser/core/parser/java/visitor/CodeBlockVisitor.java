@@ -95,8 +95,8 @@ public final class CodeBlockVisitor {
         // Strip comments
         String stripped = code.replaceAll("//.*|/\\*(?:.|[\\n\\r])*?\\*/", "");
         // Normalize string and numeric literals
-        String noStrings = STRING_LITERAL_PATTERN.matcher(stripped).replaceAll("\"$STR\"");
-        String noNums = NUMBER_LITERAL_PATTERN.matcher(noStrings).replaceAll("$NUM");
+        String noStrings = STRING_LITERAL_PATTERN.matcher(stripped).replaceAll("\"_STR_\"");
+        String noNums = NUMBER_LITERAL_PATTERN.matcher(noStrings).replaceAll("_NUM_");
         // Normalize whitespace
         return WHITESPACE_PATTERN.matcher(noNums).replaceAll(" ").trim();
     }
