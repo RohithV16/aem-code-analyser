@@ -193,6 +193,7 @@ public final class ConsoleReportFormatter implements ReportExporter {
             case AEM_CLOUD_001 -> "Plaintext Secret in Configuration (AEMaaCS)";
             case AEM_CLOUD_002 -> "Deprecated JSP Script (AEMaaCS)";
             case AEM_SEC_001 -> "Unsafe HTL XSS Context Bypass";
+            case AEM_CLOUD_003 -> "Unmapped Subservice / Service User (AEMaaCS)";
         };
     }
 

@@ -13,6 +13,7 @@ import io.github.rohithv16.aem.analyser.core.model.report.Severity;
 import io.github.rohithv16.aem.analyser.core.model.report.Violation;
 import io.github.rohithv16.aem.analyser.core.rules.impl.AemCloud001Rule;
 import io.github.rohithv16.aem.analyser.core.rules.impl.AemCloud002Rule;
+import io.github.rohithv16.aem.analyser.core.rules.impl.AemCloud003Rule;
 import io.github.rohithv16.aem.analyser.core.rules.impl.AemSec001Rule;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -112,5 +113,70 @@ class AemCloudAndSecRulesTest {
         assertEquals(RuleId.AEM_SEC_001.id(), violations.get(0).ruleId());
         assertEquals(Severity.ERROR, violations.get(0).severity());
         assertTrue(violations.get(0).message().contains("context='unsafe'"));
+    }
+
+    @Test
+    void testAemCloud003_unmappedSubserviceDetected() {
+        Path javaPath = root.resolve("core/MyServiceImpl.java");
+        io.github.rohithv16.aem.analyser.core.model.serviceuser.SubserviceCall call =
+                new io.github.rohithv16.aem.analyser.core.model.serviceuser.SubserviceCall(
+                        "unmapped-subservice", "com.example.MyServiceImpl", javaPath, 25, 12);
+
+        Path cfgPath = root.resolve("ui.config/org.apache.sling.serviceusermapping.impl.ServiceUserMapperImpl.amended-other.cfg.json");
+        OSGiConfigNode config = new OSGiConfigNode(
+                cfgPath.toString(), cfgPath, null,
+                "org.apache.sling.serviceusermapping.impl.ServiceUserMapperImpl.amended~other",
+                null, false, Set.of(), ConfigFormat.CFG_JSON);
+
+        ConfigPropertyNode mappingProp = new ConfigPropertyNode(
+                config.getId(), cfgPath, new SourceLocation(cfgPath, 2, 4),
+                "user.mapping", "user.mapping", "String[]",
+                "[\"com.example.core:other-service=[data-service]\"]", DataType.STRING, false);
+        config.addProperty(mappingProp);
+
+        ReferenceGraphBuilder.GraphBuildResult buildResult = new ReferenceGraphBuilder.GraphBuildResult(
+                new ReferenceGraph(), Collections.emptySet(), Collections.emptySet(),
+                Collections.emptyMap(), Map.of(config.getId(), config),
+                Collections.emptyMap(), Collections.emptyMap(), List.of(), List.of(), List.of(), List.of(),
+                List.of(call), null);
+
+        RuleContext ctx = new RuleContext(new ReferenceGraph(), buildResult, Set.of(), null, Set.of(), root);
+        List<Violation> violations = new AemCloud003Rule().evaluate(ctx);
+
+        assertEquals(1, violations.size());
+        assertEquals(RuleId.AEM_CLOUD_003.id(), violations.get(0).ruleId());
+        assertEquals(Severity.ERROR, violations.get(0).severity());
+        assertTrue(violations.get(0).message().contains("unmapped-subservice"));
+    }
+
+    @Test
+    void testAemCloud003_mappedSubservicePasses() {
+        Path javaPath = root.resolve("core/MyServiceImpl.java");
+        io.github.rohithv16.aem.analyser.core.model.serviceuser.SubserviceCall call =
+                new io.github.rohithv16.aem.analyser.core.model.serviceuser.SubserviceCall(
+                        "my-subservice", "com.example.MyServiceImpl", javaPath, 25, 12);
+
+        Path cfgPath = root.resolve("ui.config/org.apache.sling.serviceusermapping.impl.ServiceUserMapperImpl.amended-my.cfg.json");
+        OSGiConfigNode config = new OSGiConfigNode(
+                cfgPath.toString(), cfgPath, null,
+                "org.apache.sling.serviceusermapping.impl.ServiceUserMapperImpl.amended~my",
+                null, false, Set.of(), ConfigFormat.CFG_JSON);
+
+        ConfigPropertyNode mappingProp = new ConfigPropertyNode(
+                config.getId(), cfgPath, new SourceLocation(cfgPath, 2, 4),
+                "user.mapping", "user.mapping", "String[]",
+                "[\"com.example.core:my-subservice=[data-service]\"]", DataType.STRING, false);
+        config.addProperty(mappingProp);
+
+        ReferenceGraphBuilder.GraphBuildResult buildResult = new ReferenceGraphBuilder.GraphBuildResult(
+                new ReferenceGraph(), Collections.emptySet(), Collections.emptySet(),
+                Collections.emptyMap(), Map.of(config.getId(), config),
+                Collections.emptyMap(), Collections.emptyMap(), List.of(), List.of(), List.of(), List.of(),
+                List.of(call), null);
+
+        RuleContext ctx = new RuleContext(new ReferenceGraph(), buildResult, Set.of(), null, Set.of(), root);
+        List<Violation> violations = new AemCloud003Rule().evaluate(ctx);
+
+        assertEquals(0, violations.size());
     }
 }

@@ -83,6 +83,18 @@ public class AnalyserCli implements Runnable {
             description = "Force re-execution of unit tests when using --collect-coverage even if coverage artifacts already exist.")
     private boolean force;
 
+    @Option(names = {"--min-coverage"},
+            description = "Quality Gate: minimum required test line coverage percentage (e.g. --min-coverage 80.0).")
+    private Double minCoverage;
+
+    @Option(names = {"--max-duplication"},
+            description = "Quality Gate: maximum tolerated code duplication percentage (e.g. --max-duplication 3.0).")
+    private Double maxDuplication;
+
+    @Option(names = {"--max-warnings"},
+            description = "Quality Gate: maximum tolerated warning count before failing the build.")
+    private Integer maxWarnings;
+
     private final PrintWriter stdout = new PrintWriter(System.out, true, StandardCharsets.UTF_8);
 
     @Override
@@ -404,7 +416,46 @@ public class AnalyserCli implements Runnable {
     int exitCode(AnalysisReport report) {
         long errors = report.countBySeverity(Severity.ERROR);
         long warnings = report.countBySeverity(Severity.WARNING);
-        if (errors > 0) {
+        boolean qualityGateFailed = false;
+
+        boolean hasQualityGate = minCoverage != null || maxDuplication != null || maxWarnings != null;
+        if (hasQualityGate) {
+            stdout.println("--------------------------------------------------------------------------------");
+            stdout.println(" QUALITY GATE VERIFICATION");
+            stdout.println("--------------------------------------------------------------------------------");
+
+            if (maxWarnings != null) {
+                boolean pass = warnings <= maxWarnings;
+                if (!pass) qualityGateFailed = true;
+                stdout.println(String.format("  - Max Warnings:   %,d (Threshold: <= %,d) [%s]",
+                        warnings, maxWarnings, pass ? "PASS" : "FAIL"));
+            }
+
+            if (maxDuplication != null) {
+                double dup = report.codeMetrics() != null ? report.codeMetrics().duplicationPercent() : 0.0;
+                boolean pass = dup <= maxDuplication;
+                if (!pass) qualityGateFailed = true;
+                stdout.println(String.format("  - Duplication:    %.1f%% (Threshold: <= %.1f%%) [%s]",
+                        dup, maxDuplication, pass ? "PASS" : "FAIL"));
+            }
+
+            if (minCoverage != null) {
+                var cov = report.coverageReport();
+                if (cov == null || !cov.present()) {
+                    qualityGateFailed = true;
+                    stdout.println(String.format("  - Line Coverage:  Not detected (Threshold: >= %.1f%%) [FAIL]",
+                            minCoverage));
+                } else {
+                    boolean pass = cov.lineCoveragePercent() >= minCoverage;
+                    if (!pass) qualityGateFailed = true;
+                    stdout.println(String.format("  - Line Coverage:  %.1f%% (Threshold: >= %.1f%%) [%s]",
+                            cov.lineCoveragePercent(), minCoverage, pass ? "PASS" : "FAIL"));
+                }
+            }
+            stdout.println("--------------------------------------------------------------------------------");
+        }
+
+        if (errors > 0 || qualityGateFailed) {
             return 1;
         }
         if (failOnWarning && warnings > 0) {

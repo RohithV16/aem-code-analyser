@@ -72,6 +72,9 @@ public enum RuleId {
             Severity.WARNING),
     AEM_SEC_001("AEM-SEC-001", "UnsafeHtlContextBypass",
             "HTL expression uses @ context='unsafe' bypassing XSS protection.",
+            Severity.ERROR),
+    AEM_CLOUD_003("AEM-CLOUD-003", "UnmappedSubserviceUser",
+            "Java call to getServiceResourceResolver() has no matching ServiceUserMapperImpl.amended mapping or system user definition.",
             Severity.ERROR);
 
     private final String id;

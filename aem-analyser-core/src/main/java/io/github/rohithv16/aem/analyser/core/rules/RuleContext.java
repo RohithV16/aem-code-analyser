@@ -79,6 +79,10 @@ public record RuleContext(ReferenceGraph graph,
         return buildResult.queryTraversals() == null ? List.of() : buildResult.queryTraversals();
     }
 
+    public List<io.github.rohithv16.aem.analyser.core.model.serviceuser.SubserviceCall> subserviceCalls() {
+        return buildResult.subserviceCalls() == null ? List.of() : buildResult.subserviceCalls();
+    }
+
     public ReferenceGraphIndex index() {
         return graph.getIndex();
     }

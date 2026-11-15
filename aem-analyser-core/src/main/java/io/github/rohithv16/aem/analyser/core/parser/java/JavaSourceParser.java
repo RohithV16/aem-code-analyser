@@ -161,12 +161,13 @@ public final class JavaSourceParser {
 
         List<CodeBlockSnapshot> codeBlocks = codeBlockVisitor.extract(cu, filePath, packageName);
         var leakResult = leakVisitor.analyze(cu, filePath);
+        var subserviceCalls = new io.github.rohithv16.aem.analyser.core.parser.java.visitor.SubserviceCallExtractor().extract(cu, packageName, filePath);
         int lineCount = cu.getRange().map(r -> r.end.line).orElse(0);
 
         return new JavaSourceParseResult(filePath.toAbsolutePath().normalize(), packageName,
                 javaClasses, components, ocds, slingModels, pendingConsumptions,
                 pendingServiceInjections, pendingAdaptTo, exportedPackages, codeBlocks, administrativeCalls,
-                leakResult.leakFindings(), leakResult.traversalFindings(), lineCount);
+                leakResult.leakFindings(), leakResult.traversalFindings(), subserviceCalls, lineCount);
     }
 
     private List<PendingConsumption> extractConsumptions(String fqn,

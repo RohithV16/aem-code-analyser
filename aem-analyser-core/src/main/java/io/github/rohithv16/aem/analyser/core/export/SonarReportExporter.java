@@ -139,6 +139,7 @@ public final class SonarReportExporter implements ReportExporter {
             case AEM_CLOUD_001 -> 15;
             case AEM_CLOUD_002 -> 30;
             case AEM_SEC_001 -> 20;
+            case AEM_CLOUD_003 -> 25;
         };
     }
 }

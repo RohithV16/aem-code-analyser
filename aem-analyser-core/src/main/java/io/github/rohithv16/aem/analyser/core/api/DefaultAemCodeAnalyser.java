@@ -21,6 +21,7 @@ import io.github.rohithv16.aem.analyser.core.rules.RuleContext;
 import io.github.rohithv16.aem.analyser.core.rules.RuleEvaluator;
 import io.github.rohithv16.aem.analyser.core.rules.impl.AemCloud001Rule;
 import io.github.rohithv16.aem.analyser.core.rules.impl.AemCloud002Rule;
+import io.github.rohithv16.aem.analyser.core.rules.impl.AemCloud003Rule;
 import io.github.rohithv16.aem.analyser.core.rules.impl.AemComp001Rule;
 import io.github.rohithv16.aem.analyser.core.rules.impl.AemDead001Rule;
 import io.github.rohithv16.aem.analyser.core.rules.impl.AemDead002ARule;
@@ -89,7 +90,8 @@ public final class DefaultAemCodeAnalyser implements AemCodeAnalyser {
             new AemPerf003Rule(),
             new AemCloud001Rule(),
             new AemCloud002Rule(),
-            new AemSec001Rule());
+            new AemSec001Rule(),
+            new AemCloud003Rule());
 
     @Override
     public AnalysisReport analyze(AnalysisContext context) throws AnalysisException {
