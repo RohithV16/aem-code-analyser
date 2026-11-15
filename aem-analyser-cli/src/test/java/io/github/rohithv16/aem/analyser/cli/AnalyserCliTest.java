@@ -68,4 +68,37 @@ class AnalyserCliTest {
         assertNotNull(found);
         assertEquals(execFile, found);
     }
+
+    @Test
+    void testIntelligentFreshnessDetection(@TempDir Path tempDir) throws java.io.IOException, InterruptedException {
+        AnalyserCli cli = new AnalyserCli();
+        Path core = tempDir.resolve("core");
+        Path src = core.resolve("src/main/java/com/example");
+        java.nio.file.Files.createDirectories(src);
+        Path javaFile = src.resolve("Foo.java");
+        java.nio.file.Files.writeString(javaFile, "public class Foo {}");
+        java.nio.file.Files.writeString(core.resolve("pom.xml"), "<project/>");
+
+        // 1. No coverage yet -> not fresh
+        var status1 = cli.checkCoverageStatus(tempDir, java.util.List.of("core"));
+        assertFalse(status1.isFresh());
+
+        // 2. Generate coverage after source file -> fresh
+        Thread.sleep(50);
+        Path target = core.resolve("target");
+        java.nio.file.Files.createDirectories(target);
+        Path execFile = target.resolve("jacoco.exec");
+        java.nio.file.Files.writeString(execFile, "mock-exec");
+
+        var status2 = cli.checkCoverageStatus(tempDir, java.util.List.of("core"));
+        assertTrue(status2.isFresh());
+
+        // 3. Edit source file after coverage -> not fresh
+        Thread.sleep(50);
+        java.nio.file.Files.setLastModifiedTime(javaFile, java.nio.file.attribute.FileTime.from(java.time.Instant.now()));
+
+        var status3 = cli.checkCoverageStatus(tempDir, java.util.List.of("core"));
+        assertFalse(status3.isFresh());
+        assertTrue(status3.reason().contains("Foo.java"));
+    }
 }

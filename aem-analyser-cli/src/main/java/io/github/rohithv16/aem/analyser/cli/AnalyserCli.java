@@ -20,6 +20,7 @@ import java.io.PrintWriter;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.attribute.FileTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -159,15 +160,24 @@ public class AnalyserCli implements Runnable {
     }
 
     private void runCoverageCollection(Path root) {
-        Path existing = findExistingCoverage(root);
-        if (existing != null && !force) {
-            String rel = root.relativize(existing).toString();
-            stdout.println("[INFO] Existing JaCoCo coverage found (" + rel + "); skipping test execution. Use --force to re-run.");
+        List<String> testModules = findJavaTestModules(root);
+        CoverageStatus status = checkCoverageStatus(root, testModules);
+
+        if (!force && status.isFresh()) {
+            String rel = root.relativize(status.coverageFile()).toString();
+            stdout.println("[INFO] Existing JaCoCo coverage is up to date (" + rel + "); skipping test execution (use --force to re-run).");
             return;
         }
 
-        stdout.println("[INFO] Dynamic JaCoCo enabled: executing unit tests to collect test code coverage...");
-        List<String> cmd = resolveMavenCommand(root);
+        if (force) {
+            stdout.println("[INFO] --force specified: executing unit tests to collect fresh test code coverage...");
+        } else if (status.coverageFile() != null) {
+            stdout.println("[INFO] " + status.reason() + "; re-executing unit tests for fresh coverage...");
+        } else {
+            stdout.println("[INFO] Dynamic JaCoCo enabled: executing unit tests to collect test code coverage...");
+        }
+
+        List<String> cmd = resolveMavenCommand(root, testModules);
         try {
             ProcessBuilder pb = new ProcessBuilder(cmd);
             pb.directory(root.toFile());
@@ -187,7 +197,84 @@ public class AnalyserCli implements Runnable {
         }
     }
 
+    record CoverageStatus(Path coverageFile, boolean isFresh, String reason) {}
+
+    CoverageStatus checkCoverageStatus(Path root, List<String> testModules) {
+        if (testModules.isEmpty()) {
+            Path existing = findExistingCoverage(root);
+            if (existing == null) {
+                return new CoverageStatus(null, false, "No JaCoCo coverage file found");
+            }
+            try {
+                FileTime covTime = Files.getLastModifiedTime(existing);
+                Path newer = findNewerSourceFileInDir(root.resolve("src"), covTime);
+                if (newer != null) {
+                    return new CoverageStatus(existing, false, "Source modified (" + root.relativize(newer) + ")");
+                }
+                return new CoverageStatus(existing, true, "Coverage is up to date");
+            } catch (IOException e) {
+                return new CoverageStatus(existing, false, "Timestamp error");
+            }
+        }
+
+        Path sampleCoverage = null;
+        for (String modRel : testModules) {
+            Path modDir = root.resolve(modRel);
+            Path cov = findExistingCoverage(modDir);
+            if (cov == null) {
+                return new CoverageStatus(null, false, "Missing coverage in module " + modRel);
+            }
+            sampleCoverage = cov;
+            try {
+                FileTime covTime = Files.getLastModifiedTime(cov);
+                Path modPom = modDir.resolve("pom.xml");
+                if (Files.isRegularFile(modPom) && Files.getLastModifiedTime(modPom).compareTo(covTime) > 0) {
+                    return new CoverageStatus(cov, false, "Module POM modified (" + root.relativize(modPom) + ")");
+                }
+                Path rootPom = root.resolve("pom.xml");
+                if (Files.isRegularFile(rootPom) && Files.getLastModifiedTime(rootPom).compareTo(covTime) > 0) {
+                    return new CoverageStatus(cov, false, "Root pom.xml modified");
+                }
+                Path newer = findNewerSourceFileInDir(modDir.resolve("src"), covTime);
+                if (newer != null) {
+                    return new CoverageStatus(cov, false, "Source modified (" + root.relativize(newer) + ")");
+                }
+            } catch (IOException e) {
+                return new CoverageStatus(cov, false, "Timestamp error in module " + modRel);
+            }
+        }
+        return new CoverageStatus(sampleCoverage, true, "All module coverage artifacts are up to date");
+    }
+
+    Path findNewerSourceFileInDir(Path dir, FileTime covTime) {
+        if (!Files.isDirectory(dir)) {
+            return null;
+        }
+        try (var stream = Files.walk(dir)) {
+            return stream.filter(Files::isRegularFile)
+                    .filter(p -> {
+                        String name = p.getFileName().toString();
+                        return name.endsWith(".java") || name.endsWith(".xml") || name.endsWith(".json");
+                    })
+                    .filter(p -> {
+                        try {
+                            return Files.getLastModifiedTime(p).compareTo(covTime) > 0;
+                        } catch (IOException e) {
+                            return false;
+                        }
+                    })
+                    .findFirst()
+                    .orElse(null);
+        } catch (IOException e) {
+            return null;
+        }
+    }
+
     private List<String> resolveMavenCommand(Path root) {
+        return resolveMavenCommand(root, findJavaTestModules(root));
+    }
+
+    private List<String> resolveMavenCommand(Path root, List<String> testModules) {
         boolean isWindows = System.getProperty("os.name", "").toLowerCase(Locale.ROOT).contains("win");
         Path mvnw = root.resolve(isWindows ? "mvnw.cmd" : "mvnw");
         String cmd;
@@ -214,8 +301,7 @@ public class AnalyserCli implements Runnable {
         }
 
         // Only build and test the Java modules that actually contain unit tests
-        List<String> testModules = findJavaTestModules(root);
-        if (!testModules.isEmpty()) {
+        if (testModules != null && !testModules.isEmpty()) {
             command.add("-pl");
             command.add(String.join(",", testModules));
         }
