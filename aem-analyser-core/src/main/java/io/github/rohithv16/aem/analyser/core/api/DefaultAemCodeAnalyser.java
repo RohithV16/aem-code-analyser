@@ -99,22 +99,53 @@ public final class DefaultAemCodeAnalyser implements AemCodeAnalyser {
             for (var block : buildResult.codeBlocks()) {
                 blocksByHash.computeIfAbsent(block.normalizedHash(), k -> new ArrayList<>()).add(block);
             }
+
+            Map<Path, Integer> fileLineCounts = new HashMap<>();
+            for (var res : javaResults) {
+                fileLineCounts.put(res.filePath(), res.lineCount());
+            }
+
+            Map<Path, Integer> fileDuplicatedLines = new HashMap<>();
+            Map<Path, String> fileClassNames = new HashMap<>();
             int duplicateBlocks = 0;
             int duplicatedLines = 0;
             for (var group : blocksByHash.values()) {
                 if (group.size() > 1) {
                     for (int i = 1; i < group.size(); i++) {
                         duplicateBlocks++;
-                        duplicatedLines += group.get(i).lineCount();
+                        var block = group.get(i);
+                        int lines = block.lineCount();
+                        duplicatedLines += lines;
+                        fileDuplicatedLines.merge(block.filePath(), lines, Integer::sum);
+                        fileClassNames.putIfAbsent(block.filePath(), block.classFqn());
                     }
                 }
             }
+
+            List<io.github.rohithv16.aem.analyser.core.model.report.CodeMetrics.ClassDuplication> duplicateClasses = new ArrayList<>();
+            for (var entry : fileDuplicatedLines.entrySet()) {
+                Path filePath = entry.getKey();
+                int dupLines = entry.getValue();
+                int totalLines = fileLineCounts.getOrDefault(filePath, 0);
+                double pct = totalLines > 0 ? (dupLines * 100.0) / totalLines : 0.0;
+                String className = fileClassNames.getOrDefault(filePath, filePath.getFileName().toString());
+                String relPath;
+                try {
+                    relPath = context.projectRoot().relativize(filePath).toString();
+                } catch (IllegalArgumentException e) {
+                    relPath = filePath.toString();
+                }
+                duplicateClasses.add(new io.github.rohithv16.aem.analyser.core.model.report.CodeMetrics.ClassDuplication(
+                        className, relPath, dupLines, totalLines, pct));
+            }
+            duplicateClasses.sort(Comparator.comparingInt(io.github.rohithv16.aem.analyser.core.model.report.CodeMetrics.ClassDuplication::duplicatedLines).reversed());
+
             int totalJavaFiles = javaResults.size();
             int totalJavaLines = javaResults.stream().mapToInt(JavaSourceParseResult::lineCount).sum();
             int totalMethodBlocks = buildResult.codeBlocks().size();
             double dupPct = totalJavaLines > 0 ? (duplicatedLines * 100.0) / totalJavaLines : 0.0;
             var codeMetrics = new io.github.rohithv16.aem.analyser.core.model.report.CodeMetrics(
-                    totalJavaFiles, totalJavaLines, totalMethodBlocks, duplicatedLines, duplicateBlocks, dupPct);
+                    totalJavaFiles, totalJavaLines, totalMethodBlocks, duplicatedLines, duplicateBlocks, dupPct, duplicateClasses);
 
             var coverageEngine = new io.github.rohithv16.aem.analyser.core.discovery.CoverageDiscoveryEngine();
             var coverageReport = coverageEngine.discover(context.projectRoot(), discoveryResult.modules());

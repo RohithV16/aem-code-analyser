@@ -57,6 +57,19 @@ public final class ConsoleReportFormatter implements ReportExporter {
                 metrics.totalJavaFiles(), metrics.totalJavaLines()));
         sb.append(String.format("  Duplicate Code:     %,d duplicate lines (%.1f%% duplication) across %,d blocks\n",
                 metrics.duplicatedLines(), metrics.duplicationPercent(), metrics.totalMethodBlocks()));
+        if (!metrics.duplicateClasses().isEmpty()) {
+            sb.append("                      Classes with duplicate code:\n");
+            int limit = 5;
+            for (int i = 0; i < Math.min(limit, metrics.duplicateClasses().size()); i++) {
+                var dupClass = metrics.duplicateClasses().get(i);
+                sb.append(String.format("                       - %s: %,d dup lines (%.1f%% of class)\n",
+                        dupClass.className(), dupClass.duplicatedLines(), dupClass.duplicationPercent()));
+            }
+            if (metrics.duplicateClasses().size() > limit) {
+                sb.append(String.format("                       ... and %,d more classes (see AEM-DUP-010 violations below)\n",
+                        metrics.duplicateClasses().size() - limit));
+            }
+        }
 
         var cov = report.coverageReport();
         if (cov != null && cov.present()) {
