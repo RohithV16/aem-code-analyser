@@ -205,6 +205,12 @@ public class AnalyserCli implements Runnable {
         try {
             ProcessBuilder pb = new ProcessBuilder(cmd);
             pb.directory(root.toFile());
+            String javaHome = System.getProperty("java.home");
+            if (javaHome != null && !javaHome.isBlank()) {
+                pb.environment().put("JAVA_HOME", javaHome);
+                String currentPath = pb.environment().getOrDefault("PATH", System.getenv("PATH"));
+                pb.environment().put("PATH", javaHome + "/bin" + (currentPath != null ? ":" + currentPath : ""));
+            }
             pb.inheritIO();
             Process process = pb.start();
             int exitCode = process.waitFor();
@@ -315,6 +321,9 @@ public class AnalyserCli implements Runnable {
             command.add(pomPath.toAbsolutePath().toString());
         }
 
+        if (force) {
+            command.add("clean");
+        }
         boolean hasJacoco = projectHasJacoco(root);
         if (hasJacoco) {
             command.add("test");
