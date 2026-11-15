@@ -1,0 +1,11 @@
+package io.github.aemtools.analyser.core.model.graph;
+
+/**
+ * Physical file format of an OSGi configuration.
+ */
+public enum ConfigFormat {
+    CFG_JSON,
+    FELIX_CONFIG,
+    PROPERTIES,
+    CONTENT_XML
+}
