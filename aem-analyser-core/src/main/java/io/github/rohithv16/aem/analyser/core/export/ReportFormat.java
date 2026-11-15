@@ -6,5 +6,6 @@ package io.github.rohithv16.aem.analyser.core.export;
 public enum ReportFormat {
     SARIF,
     SONAR,
-    CONSOLE
+    CONSOLE,
+    HTML
 }

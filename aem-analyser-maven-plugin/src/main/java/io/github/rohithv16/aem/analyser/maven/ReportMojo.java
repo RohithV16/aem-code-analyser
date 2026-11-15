@@ -92,6 +92,7 @@ public class ReportMojo extends AbstractMojo {
                 case SARIF -> "aem-analyser.sarif";
                 case SONAR -> "sonar-aem-analyser-report.json";
                 case CONSOLE -> "aem-analyser-report.txt";
+                case HTML -> "aem-analyser-report.html";
             });
             try (var writer = Files.newBufferedWriter(file)) {
                 switch (reportFormat) {
@@ -100,6 +101,8 @@ public class ReportMojo extends AbstractMojo {
                     case SONAR -> new io.github.rohithv16.aem.analyser.core.export.SonarReportExporter()
                             .export(report, writer);
                     case CONSOLE -> new io.github.rohithv16.aem.analyser.core.export.ConsoleReportFormatter()
+                            .export(report, writer);
+                    case HTML -> new io.github.rohithv16.aem.analyser.core.export.HtmlReportExporter()
                             .export(report, writer);
                 }
             } catch (io.github.rohithv16.aem.analyser.core.export.ExportException e) {

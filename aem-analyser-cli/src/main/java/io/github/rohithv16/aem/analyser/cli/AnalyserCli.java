@@ -6,6 +6,7 @@ import io.github.rohithv16.aem.analyser.core.api.AnalysisException;
 import io.github.rohithv16.aem.analyser.core.api.DefaultAemCodeAnalyser;
 import io.github.rohithv16.aem.analyser.core.export.ConsoleReportFormatter;
 import io.github.rohithv16.aem.analyser.core.export.ExportException;
+import io.github.rohithv16.aem.analyser.core.export.HtmlReportExporter;
 import io.github.rohithv16.aem.analyser.core.export.ReportFormat;
 import io.github.rohithv16.aem.analyser.core.export.SarifReportExporter;
 import io.github.rohithv16.aem.analyser.core.export.SonarReportExporter;
@@ -44,11 +45,15 @@ public class AnalyserCli implements Runnable {
     private Path projectRoot;
 
     @Option(names = {"-f", "--format"}, split = ",",
-            description = "Output formats (comma-separated): CONSOLE, SARIF, SONAR. Default: CONSOLE.")
+            description = "Output formats (comma-separated): CONSOLE, SARIF, SONAR, HTML. Default: CONSOLE.")
     private List<String> formats = List.of("CONSOLE");
 
+    @Option(names = {"--html", "--html-report"}, arity = "0..1", fallbackValue = "",
+            description = "Generate an interactive standalone HTML report dashboard.")
+    private String htmlReport;
+
     @Option(names = {"-o", "--output"},
-            description = "Output directory for SARIF/SONAR files. Default: ./target/aem-analyser")
+            description = "Output directory for SARIF/SONAR/HTML files. Default: ./target/aem-analyser")
     private Path outputDirectory;
 
     @Option(names = {"-t", "--threads"},
@@ -148,7 +153,26 @@ public class AnalyserCli implements Runnable {
                     }
                     stdout.println("SonarQube report written to " + target);
                 }
+                case HTML -> {
+                    Path target = outputTarget("aem-analyser-report.html");
+                    try (var writer = Files.newBufferedWriter(target, StandardCharsets.UTF_8)) {
+                        new HtmlReportExporter().export(report, writer);
+                    }
+                    stdout.println("HTML report written to " + target);
+                }
             }
+        }
+        if (htmlReport != null && !formats.contains("HTML")) {
+            Path target = htmlReport.isBlank()
+                    ? outputTarget("aem-analyser-report.html")
+                    : Path.of(htmlReport).toAbsolutePath().normalize();
+            if (target.getParent() != null) {
+                Files.createDirectories(target.getParent());
+            }
+            try (var writer = Files.newBufferedWriter(target, StandardCharsets.UTF_8)) {
+                new HtmlReportExporter().export(report, writer);
+            }
+            stdout.println("HTML report written to " + target);
         }
     }
 
