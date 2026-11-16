@@ -31,6 +31,10 @@ public record RuleContext(ReferenceGraph graph,
 
     public RuleContext {
         modules = List.copyOf(modules == null ? List.of() : modules);
+        // Rules relativize violation paths against this root. A rooted-but-driveless path such as
+        // "/mock/project" (or any relative root) makes Path.relativize throw
+        // "'other' is different type of Path" on Windows, so the root is always absolutised here.
+        projectRoot = projectRoot == null ? null : projectRoot.toAbsolutePath().normalize();
     }
 
     public RuleContext(ReferenceGraph graph,

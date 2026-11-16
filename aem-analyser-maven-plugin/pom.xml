@@ -83,13 +83,20 @@
                             <cloneProjectsTo>${project.build.directory}/it</cloneProjectsTo>
                             <streamLogs>true</streamLogs>
                             <showErrors>true</showErrors>
+                            <!-- The IT projects must reference THIS build's version; a hardcoded
+                                 -SNAPSHOT silently broke the moment a release bumped the reactor. -->
+                            <filterProperties>
+                                <itPluginVersion>${project.version}</itPluginVersion>
+                            </filterProperties>
                         </configuration>
                         <executions>
                             <execution>
                                 <id>integration-test</id>
                                 <phase>verify</phase>
                                 <goals>
-                                    <goal>install</goal>
+                                    <!-- No invoker:install: the ITs resolve the plugin and core
+                                         from the local repository populated by `mvn install`, so
+                                         both artifacts of this build are on the IT classpath. -->
                                     <goal>run</goal>
                                 </goals>
                             </execution>

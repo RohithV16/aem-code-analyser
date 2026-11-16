@@ -46,8 +46,11 @@ jobs:
           distribution: 'temurin'
           cache: maven
 
+      - name: Install this build into the local repository
+        run: mvn -B -ntp -DskipTests install
+
       - name: Run Invoker ITs
-        run: mvn -B -ntp -Prun-its verify
+        run: mvn -B -ntp -Prun-its -pl aem-analyser-maven-plugin verify
 
   quality:
     name: Quality report
