@@ -1,9 +1,11 @@
 package io.github.rohithv16.aem.analyser.core.export;
 
 import io.github.rohithv16.aem.analyser.core.model.graph.TextRegion;
+import io.github.rohithv16.aem.analyser.core.model.report.AnalysisDiagnostic;
 import io.github.rohithv16.aem.analyser.core.model.report.AnalysisReport;
 import io.github.rohithv16.aem.analyser.core.model.report.CodeMetrics;
 import io.github.rohithv16.aem.analyser.core.model.report.CoverageReport;
+import io.github.rohithv16.aem.analyser.core.model.report.DiagnosticKind;
 import io.github.rohithv16.aem.analyser.core.model.report.Severity;
 import io.github.rohithv16.aem.analyser.core.model.report.Violation;
 import org.junit.jupiter.api.Test;
@@ -14,6 +16,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class HtmlReportExporterTest {
@@ -144,5 +147,90 @@ class HtmlReportExporterTest {
     private Violation violation(String ruleId, String message, int line) {
         return new Violation(ruleId, Severity.WARNING, null, message, "core/A.java",
                 new TextRegion(line, 1, line, 10), null, null, List.of());
+    }
+
+    @Test
+    void diagnosticsAreRenderedInRunHealthAndEscaped() {
+        AnalysisDiagnostic diagnostic = new AnalysisDiagnostic(
+                DiagnosticKind.JAVA_PARSE_ERROR, "core/Bad.java", "<script>boom</script>", 7);
+        AnalysisReport report = new AnalysisReport(Path.of("/workspace/project"), Map.of(),
+                List.of(violation("AEM-DEAD-001", "message", 1)), 10,
+                CoverageReport.notFound(), new CodeMetrics(0, 0, 0, 0, 0, 0.0), List.of(diagnostic));
+
+        String html = new HtmlReportExporter().generateHtml(report);
+
+        assertTrue(html.contains("Run Diagnostics (1)"), html);
+        assertTrue(html.contains("JAVA_PARSE_ERROR"), html);
+        assertTrue(html.contains("core/Bad.java:7"), html);
+        assertTrue(html.contains("&lt;script&gt;boom&lt;/script&gt;"), html);
+        assertFalse(html.contains("<script>boom</script>"), "diagnostic text must be escaped");
+        assertTrue(html.contains("PASSED WITH 1 DIAGNOSTIC(S)"),
+                "diagnostics must not look like a clean pass");
+    }
+
+    @Test
+    void emptyDiagnosticsShowACleanState() {
+        AnalysisReport report = new AnalysisReport(Path.of("/workspace/project"), Map.of(),
+                List.of(violation("AEM-DEAD-001", "message", 1)), 10);
+
+        String html = new HtmlReportExporter().generateHtml(report);
+
+        assertTrue(html.contains("No parser or scan diagnostics"), html);
+        assertTrue(html.contains("No findings are suppressed by a baseline"), html);
+    }
+
+    @Test
+    void baselineAcceptedFindingsAreSeparatedFromActiveTotals() {
+        Violation accepted = new Violation("AEM-DEAD-001", Severity.INFO, "SUPPRESSED_BY_BASELINE",
+                "[baseline] accepted finding", "ui.config/accepted.cfg.json",
+                new TextRegion(1, 1, 1, 10), "com.example.Pid", "remove it", List.of());
+        Violation active = violation("AEM-CLOUD-001", "active finding", 2);
+        AnalysisReport report = new AnalysisReport(Path.of("/workspace/project"), Map.of(),
+                List.of(active, accepted), 10);
+
+        String html = new HtmlReportExporter().generateHtml(report);
+
+        assertTrue(html.contains("Violations Explorer (1)"), "active findings drive the explorer count");
+        assertTrue(html.contains("Run Health (1)"), "accepted findings are counted in Run Health");
+        assertTrue(html.contains("Accepted by Baseline"), html);
+        assertTrue(html.contains("[baseline] accepted finding"), html);
+        assertTrue(html.contains("ui.config/accepted.cfg.json:1"), html);
+    }
+
+    @Test
+    void dashboardExposesExplorerExportAndAccessibilityControls() {
+        AnalysisReport report = new AnalysisReport(Path.of("/workspace/project"), Map.of(),
+                List.of(violation("AEM-DEAD-001", "message", 1)), 10);
+
+        String html = new HtmlReportExporter().generateHtml(report);
+
+        assertTrue(html.contains("id=\"themeToggle\""), html);
+        assertTrue(html.contains("id=\"groupBy\""), html);
+        assertTrue(html.contains("id=\"exportCsv\""), html);
+        assertTrue(html.contains("id=\"exportJson\""), html);
+        assertTrue(html.contains("id=\"copyMarkdown\""), html);
+        assertTrue(html.contains("id=\"copyLink\""), html);
+        assertTrue(html.contains("id=\"resultCount\""), html);
+        assertTrue(html.contains("data-sort=\"rule\""), html);
+        assertTrue(html.contains("aria-live=\"polite\""), html);
+        assertTrue(html.contains("role=\"tablist\""), html);
+        assertTrue(html.contains("aria-selected=\"true\""), html);
+        assertTrue(html.contains("@media print"), html);
+        assertTrue(html.contains("prefers-color-scheme: dark"), html);
+        assertTrue(html.contains("<noscript>"), html);
+    }
+
+    @Test
+    void violationValuesAreEscapedIntoDataAttributes() {
+        Violation xss = new Violation("AEM-SEC-001", Severity.ERROR, null,
+                "quote \" and <tag>", "core/<bad>.java",
+                new TextRegion(1, 1, 1, 10), null, "fix \"it\"", List.of());
+        AnalysisReport report = new AnalysisReport(Path.of("/workspace/project"), Map.of(),
+                List.of(xss), 10);
+
+        String html = new HtmlReportExporter().generateHtml(report);
+
+        assertTrue(html.contains("data-message=\"quote &quot; and &lt;tag&gt;\""), html);
+        assertTrue(html.contains("data-remediation=\"fix &quot;it&quot;\""), html);
     }
 }

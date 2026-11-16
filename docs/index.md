@@ -97,6 +97,13 @@ The HTML dashboard includes active violations by severity, an architecture and q
 PMD CPD duplication breakdown with source previews, JaCoCo coverage status, a run-history trend and
 the safe remediation plan produced by `--fix`.
 
+The violations explorer supports search, severity and category filters, sortable columns,
+group-by-rule/file, deep links and per-finding permalinks. The current filtered view can be exported
+as CSV or JSON, or copied as a Markdown summary for a pull request. A **Run Health** tab surfaces
+parser/scan diagnostics and baseline-accepted findings, so a silently skipped file can never look
+like a clean result. The dashboard is self-contained, has a persistent dark mode, a print stylesheet
+and keyboard-accessible tabs.
+
 ---
 
 ## CLI options

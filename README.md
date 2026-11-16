@@ -117,6 +117,12 @@ Accepted findings can also be suppressed inline (Java, HTL or XML comments):
 
 Every run writes the HTML dashboard unless `--no-html` is passed.
 
+The dashboard is a single self-contained HTML file (no external assets) with a violations explorer
+that supports search, severity/category filters, sortable columns, group-by rule/file, deep links and
+per-finding permalinks. It exports the current filtered view as CSV or JSON, copies a PR-ready
+Markdown summary, includes a Run Health tab for parser diagnostics and baseline-accepted findings,
+and offers a persistent dark mode, print stylesheet and keyboard-accessible tabs.
+
 | Flag | Default | Description |
 |---|---|---|
 | `-p, --project-root <dir>` | current dir | Reactor root to analyse. |

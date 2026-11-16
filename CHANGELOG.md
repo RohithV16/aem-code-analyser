@@ -7,6 +7,10 @@ All notable changes to this project are documented here. The format follows
 
 ### Added
 
+- HTML dashboard upgrades: sortable finding columns, group-by rule/file, deep links and per-finding
+  permalinks, client-side CSV/JSON export, PR-ready Markdown summaries, a Run Health tab for parser
+  diagnostics and baseline-accepted findings, persistent dark mode, a print stylesheet, keyboard
+  navigation and a no-JavaScript fallback.
 - Rule-probe validation harness: `validation/probes` (one deliberate positive case for all 30
   rules), `scripts/run-rule-probes.sh`, `scripts/inject-rule-probes.sh` and
   `scripts/check_rule_probes.py`. The checker fails when a rule is missing, is only demonstrated by

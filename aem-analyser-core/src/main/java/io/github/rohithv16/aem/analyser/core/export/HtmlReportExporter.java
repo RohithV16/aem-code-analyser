@@ -68,15 +68,29 @@ public final class HtmlReportExporter implements ReportExporter {
     public String generateHtml(AnalysisReport report) {
         StringBuilder sb = new StringBuilder(32768);
 
-        long errors = report.countBySeverity(Severity.ERROR);
-        long warnings = report.countBySeverity(Severity.WARNING);
-        long infos = report.countBySeverity(Severity.INFO);
-        long totalViolations = report.violations().size();
+        // Baseline-accepted findings are rendered in the Run Health tab, not mixed into the active
+        // violation list, so totals and the quality-gate badge reflect what still needs fixing.
+        List<Violation> acceptedViolations = report.violations().stream()
+                .filter(v -> "SUPPRESSED_BY_BASELINE".equals(v.subtype()))
+                .toList();
+        List<Violation> activeViolations = report.violations().stream()
+                .filter(v -> !"SUPPRESSED_BY_BASELINE".equals(v.subtype()))
+                .toList();
 
-        String statusBadgeClass = errors > 0 ? "badge-danger" : (warnings > 0 ? "badge-warning" : "badge-success");
-        String statusText = errors > 0 ? "QUALITY GATE FAILED (" + errors + " Errors)" : (warnings > 0 ? "PASSED WITH WARNINGS" : "QUALITY GATE PASSED");
+        long errors = countBySeverity(activeViolations, Severity.ERROR);
+        long warnings = countBySeverity(activeViolations, Severity.WARNING);
+        long infos = countBySeverity(activeViolations, Severity.INFO);
+        long totalViolations = activeViolations.size();
+        int diagnosticsCount = report.diagnostics().size();
 
-        List<Violation> sortedViolations = report.violations().stream()
+        String statusBadgeClass = errors > 0 ? "badge-danger"
+                : (!report.diagnostics().isEmpty() || warnings > 0) ? "badge-warning" : "badge-success";
+        String statusText = errors > 0 ? "QUALITY GATE FAILED (" + errors + " Errors)"
+                : !report.diagnostics().isEmpty()
+                        ? "PASSED WITH " + diagnosticsCount + " DIAGNOSTIC(S)"
+                        : warnings > 0 ? "PASSED WITH WARNINGS" : "QUALITY GATE PASSED";
+
+        List<Violation> sortedViolations = activeViolations.stream()
                 .sorted(Comparator.comparingInt((Violation v) -> switch (v.severity()) {
                     case ERROR -> 1;
                     case WARNING -> 2;
@@ -85,7 +99,7 @@ public final class HtmlReportExporter implements ReportExporter {
                         .thenComparingInt(v -> v.region().startLine()))
                 .toList();
 
-        Map<String, Long> categoryCounts = report.violations().stream()
+        Map<String, Long> categoryCounts = activeViolations.stream()
                 .collect(Collectors.groupingBy(v -> getRuleCategory(v.ruleId()), Collectors.counting()));
 
         sb.append("<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n");
@@ -135,6 +149,7 @@ public final class HtmlReportExporter implements ReportExporter {
                 .kpi-card.info .value { color: var(--info); }
                 .kpi-card.cov .value { color: #0d9488; }
                 .kpi-card.dup .value { color: #7c3aed; }
+                .kpi-card.accepted .value { color: #0d9488; }
 
                 .nav-tabs { display: flex; gap: 0.5rem; margin-bottom: 1.5rem; border-bottom: 1px solid var(--border); padding-bottom: 0.5rem; }
                 .tab-btn { padding: 0.6rem 1.2rem; border-radius: 8px; font-weight: 600; font-size: 0.875rem; border: 1px solid transparent; background: transparent; cursor: pointer; color: var(--text-secondary); transition: all 0.2s ease; }
@@ -183,9 +198,88 @@ public final class HtmlReportExporter implements ReportExporter {
                 .chart-bar-warn { background: var(--warning); }
                 .chart-bar-info { background: var(--info); }
                 
+                .header-actions { display: flex; align-items: center; gap: 0.75rem; }
+                .btn { display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.45rem 0.8rem; border-radius: 6px; border: 1px solid var(--border); background: var(--bg-card); color: var(--text-primary); font-size: 0.8125rem; font-weight: 600; cursor: pointer; transition: background 0.15s ease, border-color 0.15s ease; }
+                .btn:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-light); }
+                .btn:focus-visible, .filter-btn:focus-visible, .tab-btn:focus-visible, select:focus-visible, input:focus-visible, th.sortable:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+                .btn-ghost { border-color: transparent; background: transparent; font-size: 1rem; padding: 0.35rem 0.5rem; }
+
+                .toolbar { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; padding: 1rem 1.5rem; border-bottom: 1px solid var(--border); background: #fafafa; }
+                .toolbar label { font-size: 0.8125rem; color: var(--text-secondary); display: flex; align-items: center; gap: 0.35rem; }
+                .toolbar select { padding: 0.4rem 0.5rem; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-card); color: var(--text-primary); font-size: 0.8125rem; }
+                .result-count { margin-left: auto; font-size: 0.8125rem; color: var(--text-secondary); font-weight: 600; }
+                th.sortable { cursor: pointer; user-select: none; white-space: nowrap; }
+                th.sortable:hover { color: var(--accent); }
+                th[aria-sort="ascending"] .sort-indicator::after { content: " ▲"; font-size: 0.65rem; }
+                th[aria-sort="descending"] .sort-indicator::after { content: " ▼"; font-size: 0.65rem; }
+                tr.group-row td { background: #eef2f7; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.03em; color: #334155; padding: 0.5rem 1rem; text-transform: uppercase; }
+                .group-count { display: inline-block; margin-left: 0.4rem; padding: 0 0.4rem; border-radius: 9999px; background: #cbd5e1; color: #0f172a; font-size: 0.6875rem; }
+                tr:target { outline: 2px solid var(--accent); outline-offset: -2px; }
+                .permalink { text-decoration: none; color: var(--text-secondary); margin-left: 0.35rem; opacity: 0.55; font-size: 0.75rem; }
+                .permalink:hover, .permalink:focus { opacity: 1; color: var(--accent); }
+                .noscript-note { background: var(--warning-bg); border: 1px solid var(--warning-border); color: var(--warning); padding: 0.75rem 1rem; border-radius: 8px; margin-bottom: 1rem; font-size: 0.875rem; }
+                .empty-state { padding: 1.5rem; text-align: center; color: var(--text-secondary); font-size: 0.875rem; }
+                .note { padding: 1rem 1.5rem; color: var(--text-secondary); font-size: 0.8125rem; border-bottom: 1px solid var(--border); background: #fafafa; }
+
+                #toast { position: fixed; right: 1.5rem; bottom: 1.5rem; background: #0f172a; color: #f8fafc; padding: 0.7rem 1rem; border-radius: 8px; font-size: 0.8125rem; font-weight: 600; opacity: 0; transform: translateY(0.5rem); transition: opacity 0.2s ease, transform 0.2s ease; pointer-events: none; z-index: 50; }
+                #toast.show { opacity: 1; transform: translateY(0); }
+
+                [data-theme="dark"] {
+                    --bg-primary: #0b1220;
+                    --bg-card: #111a2c;
+                    --text-primary: #e2e8f0;
+                    --text-secondary: #94a3b8;
+                    --border: #273449;
+                    --accent: #60a5fa;
+                    --accent-light: #17233a;
+                    --danger-bg: #2a1518;
+                    --danger-border: #7f1d1d;
+                    --warning-bg: #2a1f0d;
+                    --warning-border: #78350f;
+                    --info-bg: #0c2233;
+                    --info-border: #0c4a6e;
+                    --success-bg: #0d2417;
+                    --success-border: #14532d;
+                }
+                [data-theme="dark"] .section-header, [data-theme="dark"] .toolbar, [data-theme="dark"] .note { background: #0f1828; }
+                [data-theme="dark"] .stat-box, [data-theme="dark"] .remediation, [data-theme="dark"] .group-row td { background: #17233a; }
+                [data-theme="dark"] tr:hover { background: #16213a; }
+                [data-theme="dark"] .header-title h1, [data-theme="dark"] .rule-code,
+                [data-theme="dark"] .section-header h2 { color: #e2e8f0; }
+                [data-theme="dark"] th { background: #0f1828; color: #94a3b8; }
+                [data-theme="dark"] .search-box,
+                [data-theme="dark"] .filter-btn,
+                [data-theme="dark"] .toolbar select { background: #0f1828; color: var(--text-primary); border-color: var(--border); }
+                [data-theme="dark"] .filter-btn:hover { background: #17233a; }
+                [data-theme="dark"] .filter-btn.active { background: var(--accent); color: #06121f; border-color: var(--accent); }
+                [data-theme="dark"] .code-loc, [data-theme="dark"] details summary { color: #38bdf8; }
+                [data-theme="dark"] .chart-bar-container { background: #273449; }
+                [data-theme="dark"] .group-count { background: #334155; color: #e2e8f0; }
+                [data-theme="dark"] .snippet { background: #020617; }
+
+                @media (max-width: 720px) {
+                    body { padding: 1rem; }
+                    header { flex-direction: column; align-items: flex-start; gap: 1rem; }
+                    .toolbar { padding: 1rem; }
+                    .nav-tabs { flex-wrap: wrap; }
+                    .result-count { margin-left: 0; width: 100%; }
+                }
+                @media print {
+                    body { background: #fff; color: #000; padding: 0; }
+                    .container { max-width: none; }
+                    .nav-tabs, .toolbar, .controls, .header-actions, .permalink, #toast, .noscript-note { display: none !important; }
+                    .tab-content { display: block !important; }
+                    .section { box-shadow: none; border-color: #ccc; page-break-inside: avoid; }
+                    .kpi-grid { grid-template-columns: repeat(3, 1fr); }
+                    a { color: #000; text-decoration: none; }
+                    tr { page-break-inside: avoid; }
+                }
+
                 footer { text-align: center; color: var(--text-secondary); font-size: 0.8125rem; margin-top: 2rem; }
                 """);
         sb.append("</style>\n</head>\n<body>\n<div class=\"container\">\n");
+        sb.append("<noscript><style>.tab-content{display:block !important;} .nav-tabs{display:none !important;}</style>")
+                .append("<p class=\"noscript-note\">JavaScript is disabled: every section is shown expanded, but filtering, sorting and exports are unavailable.</p></noscript>\n");
 
         // Header
         sb.append("<header>\n");
@@ -193,9 +287,13 @@ public final class HtmlReportExporter implements ReportExporter {
         sb.append("    <h1>⚡ AEM Code Analyser</h1>\n");
         sb.append("    <p>Project Root: <code>").append(escape(report.projectRoot().toString())).append("</code> &bull; Generated: ")
                 .append(ISO_FORMATTER.format(Instant.now(clock))).append(" &bull; Duration: ")
-                .append(String.format("%.2fs", report.durationMillis() / 1000.0)).append("</p>\n");
+                .append(String.format("%.2fs", report.durationMillis() / 1000.0))
+                .append(" &bull; Tool: v").append(escape(VersionInfo.current())).append("</p>\n");
         sb.append("  </div>\n");
-        sb.append("  <div><span class=\"status-badge ").append(statusBadgeClass).append("\">").append(statusText).append("</span></div>\n");
+        sb.append("  <div class=\"header-actions\">\n");
+        sb.append("    <button id=\"themeToggle\" class=\"btn btn-ghost\" type=\"button\" aria-label=\"Toggle dark mode\" title=\"Toggle dark mode\">🌙</button>\n");
+        sb.append("    <span class=\"status-badge ").append(statusBadgeClass).append("\">").append(statusText).append("</span>\n");
+        sb.append("  </div>\n");
         sb.append("</header>\n");
 
         // KPI Grid
@@ -208,6 +306,11 @@ public final class HtmlReportExporter implements ReportExporter {
                 .append(warnings).append("</div>\n  </div>\n");
         sb.append("  <div class=\"kpi-card info\">\n    <div class=\"label\">Info</div>\n    <div class=\"value\">")
                 .append(infos).append("</div>\n  </div>\n");
+        if (!acceptedViolations.isEmpty()) {
+            sb.append("  <div class=\"kpi-card accepted\">\n    <div class=\"label\">Accepted by Baseline</div>\n    <div class=\"value\">")
+                    .append(acceptedViolations.size())
+                    .append("</div>\n    <div style=\"font-size:0.75rem;color:var(--text-secondary);margin-top:2px;\">not counted in totals</div>\n  </div>\n");
+        }
 
         var dupMetrics = report.codeMetrics();
         sb.append("  <div class=\"kpi-card dup\">\n    <div class=\"label\">Code Duplication</div>\n    <div class=\"value\">")
@@ -229,24 +332,25 @@ public final class HtmlReportExporter implements ReportExporter {
         sb.append("</div>\n");
 
         // Navigation Tabs
-        sb.append("<div class=\"nav-tabs\">\n");
-        sb.append("  <button class=\"tab-btn active\" data-tab=\"tab-violations\">Violations Explorer (").append(totalViolations).append(")</button>\n");
-        sb.append("  <button class=\"tab-btn\" data-tab=\"tab-overview\">Overview & Topology</button>\n");
-        sb.append("  <button class=\"tab-btn\" data-tab=\"tab-duplication\">Duplication Breakdown</button>\n");
-        sb.append("  <button class=\"tab-btn\" data-tab=\"tab-coverage\">Test Coverage</button>\n");
-        sb.append("  <button class=\"tab-btn\" data-tab=\"tab-autofix\">Auto-Fix (--fix)</button>\n");
+        sb.append("<div class=\"nav-tabs\" role=\"tablist\" aria-label=\"Report sections\">\n");
+        sb.append("  <button class=\"tab-btn active\" role=\"tab\" aria-selected=\"true\" aria-controls=\"tab-violations\" id=\"tabbtn-violations\" data-tab=\"tab-violations\">Violations Explorer (").append(totalViolations).append(")</button>\n");
+        sb.append("  <button class=\"tab-btn\" role=\"tab\" aria-selected=\"false\" aria-controls=\"tab-overview\" id=\"tabbtn-overview\" data-tab=\"tab-overview\">Overview & Topology</button>\n");
+        sb.append("  <button class=\"tab-btn\" role=\"tab\" aria-selected=\"false\" aria-controls=\"tab-health\" id=\"tabbtn-health\" data-tab=\"tab-health\">Run Health (").append(diagnosticsCount + acceptedViolations.size()).append(")</button>\n");
+        sb.append("  <button class=\"tab-btn\" role=\"tab\" aria-selected=\"false\" aria-controls=\"tab-duplication\" id=\"tabbtn-duplication\" data-tab=\"tab-duplication\">Duplication Breakdown</button>\n");
+        sb.append("  <button class=\"tab-btn\" role=\"tab\" aria-selected=\"false\" aria-controls=\"tab-coverage\" id=\"tabbtn-coverage\" data-tab=\"tab-coverage\">Test Coverage</button>\n");
+        sb.append("  <button class=\"tab-btn\" role=\"tab\" aria-selected=\"false\" aria-controls=\"tab-autofix\" id=\"tabbtn-autofix\" data-tab=\"tab-autofix\">Auto-Fix (--fix)</button>\n");
         sb.append("</div>\n");
 
         // TAB 1: VIOLATIONS
-        sb.append("<div id=\"tab-violations\" class=\"tab-content active\">\n");
+        sb.append("<div id=\"tab-violations\" class=\"tab-content active\" role=\"tabpanel\" aria-labelledby=\"tabbtn-violations\">\n");
         sb.append("<div class=\"section\">\n");
         sb.append("  <div class=\"section-header\">\n");
         sb.append("    <h2>Active Violations (").append(totalViolations).append(")</h2>\n");
         sb.append("  </div>\n");
 
         // Controls
-        sb.append("  <div class=\"controls\">\n");
-        sb.append("    <input type=\"text\" id=\"searchInput\" class=\"search-box\" placeholder=\"Search by file, rule, message, or keyword...\">\n");
+        sb.append("  <div class=\"toolbar\" role=\"toolbar\" aria-label=\"Finding filters\">\n");
+        sb.append("    <input type=\"text\" id=\"searchInput\" class=\"search-box\" placeholder=\"Search by file, rule, message, or keyword...\" aria-label=\"Search findings\">\n");
         sb.append("    <button class=\"filter-btn active\" data-filter=\"all\">All</button>\n");
         sb.append("    <button class=\"filter-btn\" data-filter=\"ERROR\">Errors Only</button>\n");
         sb.append("    <button class=\"filter-btn\" data-filter=\"WARNING\">Warnings Only</button>\n");
@@ -257,26 +361,35 @@ public final class HtmlReportExporter implements ReportExporter {
         sb.append("    <button class=\"filter-btn\" data-category=\"DEAD\">Dead Code (").append(categoryCounts.getOrDefault("DEAD", 0L)).append(")</button>\n");
         sb.append("    <button class=\"filter-btn\" data-category=\"DUP\">Duplicates (").append(categoryCounts.getOrDefault("DUP", 0L)).append(")</button>\n");
         sb.append("    <button class=\"filter-btn\" data-category=\"SONAR\">Sonar Java (").append(categoryCounts.getOrDefault("SONAR", 0L)).append(")</button>\n");
+        sb.append("    <label for=\"groupBy\">Group by\n");
+        sb.append("      <select id=\"groupBy\">\n        <option value=\"none\">None</option>\n        <option value=\"rule\">Rule</option>\n        <option value=\"file\">File</option>\n      </select>\n    </label>\n");
+        sb.append("    <button id=\"resetFilters\" class=\"btn\" type=\"button\">Reset</button>\n");
+        sb.append("    <button id=\"exportCsv\" class=\"btn\" type=\"button\">CSV</button>\n");
+        sb.append("    <button id=\"exportJson\" class=\"btn\" type=\"button\">JSON</button>\n");
+        sb.append("    <button id=\"copyMarkdown\" class=\"btn\" type=\"button\">Copy summary</button>\n");
+        sb.append("    <button id=\"copyLink\" class=\"btn\" type=\"button\">Copy link</button>\n");
+        sb.append("    <span id=\"resultCount\" class=\"result-count\" aria-live=\"polite\"></span>\n");
         sb.append("  </div>\n");
 
         // Table
         sb.append("  <div style=\"overflow-x:auto;\">\n");
         sb.append("    <table id=\"violationsTable\">\n");
         sb.append("      <thead>\n        <tr>\n");
-        sb.append("          <th style=\"width:100px;\">Severity</th>\n");
-        sb.append("          <th style=\"width:140px;\">Rule</th>\n");
-        sb.append("          <th>File Location</th>\n");
-        sb.append("          <th>Issue & Remediation</th>\n");
+        sb.append("          <th scope=\"col\" class=\"sortable\" data-sort=\"severity\" tabindex=\"0\" style=\"width:110px;\">Severity <span class=\"sort-indicator\"></span></th>\n");
+        sb.append("          <th scope=\"col\" class=\"sortable\" data-sort=\"rule\" tabindex=\"0\" style=\"width:160px;\">Rule <span class=\"sort-indicator\"></span></th>\n");
+        sb.append("          <th scope=\"col\" class=\"sortable\" data-sort=\"path\" tabindex=\"0\">File Location <span class=\"sort-indicator\"></span></th>\n");
+        sb.append("          <th scope=\"col\" data-sort=\"line\">Issue & Remediation</th>\n");
         sb.append("        </tr>\n      </thead>\n      <tbody>\n");
 
         if (sortedViolations.isEmpty()) {
             sb.append("        <tr><td colspan=\"4\" style=\"text-align:center;padding:2rem;color:var(--success);font-weight:600;\">🎉 Clean build! No architectural or quality violations detected.</td></tr>\n");
         } else {
-            int rendered = 0;
+            int index = 0;
             for (Violation v : sortedViolations) {
-                if (rendered++ >= maxViolations) {
+                if (index >= maxViolations) {
                     break;
                 }
+                index++;
                 String pillClass = switch (v.severity()) {
                     case ERROR -> "pill-error";
                     case WARNING -> "pill-warning";
@@ -284,10 +397,18 @@ public final class HtmlReportExporter implements ReportExporter {
                 };
                 String cat = getRuleCategory(v.ruleId());
 
-                sb.append("        <tr class=\"violation-row\" data-severity=\"").append(v.severity().name())
-                        .append("\" data-category=\"").append(cat).append("\">\n");
+                sb.append("        <tr class=\"violation-row\" id=\"f-").append(index).append("\"")
+                        .append(" data-severity=\"").append(v.severity().name()).append("\"")
+                        .append(" data-category=\"").append(cat).append("\"")
+                        .append(" data-rule=\"").append(escape(v.ruleId())).append("\"")
+                        .append(" data-path=\"").append(escape(v.filePath())).append("\"")
+                        .append(" data-line=\"").append(v.region().startLine()).append("\"")
+                        .append(" data-message=\"").append(escape(v.message())).append("\"")
+                        .append(" data-remediation=\"").append(escape(v.remediationOpt().orElse(""))).append("\">\n");
                 sb.append("          <td><span class=\"pill ").append(pillClass).append("\">").append(v.severity()).append("</span></td>\n");
-                sb.append("          <td><span class=\"rule-code\">").append(escape(v.ruleId())).append("</span></td>\n");
+                sb.append("          <td><span class=\"rule-code\">").append(escape(v.ruleId())).append("</span>")
+                        .append("<a class=\"permalink\" href=\"#f-").append(index)
+                        .append("\" title=\"Link to this finding\" aria-label=\"Link to this finding\">#</a></td>\n");
                 sb.append("          <td><span class=\"code-loc\">").append(escape(v.filePath())).append(":").append(v.region().startLine()).append("</span></td>\n");
                 sb.append("          <td>\n");
                 sb.append("            <div><strong>").append(escape(v.message())).append("</strong></div>\n");
@@ -303,7 +424,7 @@ public final class HtmlReportExporter implements ReportExporter {
                 sb.append("        </tr>\n");
             }
             if (sortedViolations.size() > maxViolations) {
-                sb.append("        <tr><td colspan=\"4\" style=\"text-align:center;padding:1rem;color:var(--text-secondary);\">")
+                sb.append("        <tr class=\"omitted-row\"><td colspan=\"4\" style=\"text-align:center;padding:1rem;color:var(--text-secondary);\">")
                         .append(sortedViolations.size() - maxViolations)
                         .append(" more violation(s) omitted from this dashboard; use --format SARIF or SONAR for the full set.")
                         .append("</td></tr>\n");
@@ -312,7 +433,7 @@ public final class HtmlReportExporter implements ReportExporter {
         sb.append("      </tbody>\n    </table>\n  </div>\n</div>\n</div>\n");
 
         // TAB 2: OVERVIEW & TOPOLOGY
-        sb.append("<div id=\"tab-overview\" class=\"tab-content\">\n");
+        sb.append("<div id=\"tab-overview\" class=\"tab-content\" role=\"tabpanel\" aria-labelledby=\"tabbtn-overview\">\n");
         sb.append("<div class=\"section\">\n");
         sb.append("  <div class=\"section-header\">\n    <h2>Architecture & Quality Overview</h2>\n  </div>\n");
         sb.append("  <div class=\"details-grid\">\n");
@@ -346,15 +467,15 @@ public final class HtmlReportExporter implements ReportExporter {
         sb.append("        <li><span>Duplicate Method Blocks</span><strong>").append(dupMetrics.totalMethodBlocks()).append("</strong></li>\n");
         sb.append("        <li><span>Total Duplicated Lines</span><strong>").append(dupMetrics.duplicatedLines()).append("</strong></li>\n");
         sb.append("      </ul>\n    </div>\n");
-        sb.append("  </div>\n</div>\n</div>\n");
+        sb.append("  </div>\n</div>\n");
 
         // Run history / trend
         if (!history.isEmpty()) {
             sb.append("<div class=\"section\">\n  <div class=\"section-header\">\n");
             sb.append("    <h2>Run History (last ").append(history.size()).append(")</h2>\n  </div>\n");
             sb.append("  <div style=\"overflow-x:auto;\">\n    <table>\n      <thead><tr>\n");
-            sb.append("        <th>Run</th><th>Total</th><th>Errors</th><th>Warnings</th>")
-                    .append("<th>Info</th><th>Duplication</th><th>Duration</th>\n");
+            sb.append("        <th scope=\"col\">Run</th><th scope=\"col\">Total</th><th scope=\"col\">Errors</th><th scope=\"col\">Warnings</th>")
+                    .append("<th scope=\"col\">Info</th><th scope=\"col\">Duplication</th><th scope=\"col\">Duration</th>\n");
             sb.append("      </tr></thead>\n      <tbody>\n");
             int run = 1;
             for (RunSummary summary : history) {
@@ -371,9 +492,55 @@ public final class HtmlReportExporter implements ReportExporter {
             }
             sb.append("      </tbody>\n    </table>\n  </div>\n</div>\n");
         }
+        sb.append("</div>\n");
+
+        // TAB: RUN HEALTH (diagnostics + baseline-accepted findings)
+        sb.append("<div id=\"tab-health\" class=\"tab-content\" role=\"tabpanel\" aria-labelledby=\"tabbtn-health\">\n");
+        sb.append("<div class=\"section\">\n");
+        sb.append("  <div class=\"section-header\">\n    <h2>Run Diagnostics (").append(diagnosticsCount).append(")</h2>\n  </div>\n");
+        if (report.diagnostics().isEmpty()) {
+            sb.append("  <div class=\"empty-state\">No parser or scan diagnostics: every discovered file was analysed.</div>\n");
+        } else {
+            sb.append("  <div class=\"note\">Diagnostics are non-fatal problems. A reported file was skipped or only partially analysed, so a clean result may still hide issues in it.</div>\n");
+            sb.append("  <div style=\"overflow-x:auto;\">\n    <table>\n      <thead><tr>\n");
+            sb.append("        <th scope=\"col\" style=\"width:190px;\">Kind</th><th scope=\"col\">Location</th><th scope=\"col\">Detail</th>\n");
+            sb.append("      </tr></thead>\n      <tbody>\n");
+            for (var diagnostic : report.diagnostics()) {
+                String location = diagnostic.line() > 0
+                        ? diagnostic.path() + ":" + diagnostic.line()
+                        : diagnostic.path();
+                sb.append("        <tr>\n");
+                sb.append("          <td><span class=\"pill pill-warning\">").append(escape(diagnostic.kind().name())).append("</span></td>\n");
+                sb.append("          <td><span class=\"code-loc\">").append(escape(location)).append("</span></td>\n");
+                sb.append("          <td>").append(escape(diagnostic.reason())).append("</td>\n");
+                sb.append("        </tr>\n");
+            }
+            sb.append("      </tbody>\n    </table>\n  </div>\n");
+        }
+        sb.append("</div>\n");
+
+        sb.append("<div class=\"section\">\n");
+        sb.append("  <div class=\"section-header\">\n    <h2>Accepted by Baseline (").append(acceptedViolations.size()).append(")</h2>\n  </div>\n");
+        if (acceptedViolations.isEmpty()) {
+            sb.append("  <div class=\"empty-state\">No findings are suppressed by a baseline.</div>\n");
+        } else {
+            sb.append("  <div class=\"note\">These findings are frozen in <code>.aem-analyser-baseline.json</code> and excluded from totals and exit codes. Run without <code>--baseline-report</code> to hide them entirely.</div>\n");
+            sb.append("  <div style=\"overflow-x:auto;\">\n    <table>\n      <thead><tr>\n");
+            sb.append("        <th scope=\"col\" style=\"width:160px;\">Rule</th><th scope=\"col\">Location</th><th scope=\"col\">Message</th>\n");
+            sb.append("      </tr></thead>\n      <tbody>\n");
+            for (Violation violation : acceptedViolations) {
+                sb.append("        <tr>\n");
+                sb.append("          <td><span class=\"rule-code\">").append(escape(violation.ruleId())).append("</span></td>\n");
+                sb.append("          <td><span class=\"code-loc\">").append(escape(violation.filePath())).append(":").append(violation.region().startLine()).append("</span></td>\n");
+                sb.append("          <td>").append(escape(violation.message())).append("</td>\n");
+                sb.append("        </tr>\n");
+            }
+            sb.append("      </tbody>\n    </table>\n  </div>\n");
+        }
+        sb.append("</div>\n</div>\n");
 
         // TAB 3: DUPLICATION
-        sb.append("<div id=\"tab-duplication\" class=\"tab-content\">\n");
+        sb.append("<div id=\"tab-duplication\" class=\"tab-content\" role=\"tabpanel\" aria-labelledby=\"tabbtn-duplication\">\n");
         sb.append("<div class=\"section\">\n");
         sb.append("  <div class=\"section-header\">\n");
         sb.append("    <h2>PMD CPD Duplication Breakdown (").append(dupMetrics.duplicateClasses().size()).append(" Classes)</h2>\n");
@@ -437,7 +604,7 @@ public final class HtmlReportExporter implements ReportExporter {
         sb.append("</div>\n");
 
         // TAB 4: COVERAGE
-        sb.append("<div id=\"tab-coverage\" class=\"tab-content\">\n");
+        sb.append("<div id=\"tab-coverage\" class=\"tab-content\" role=\"tabpanel\" aria-labelledby=\"tabbtn-coverage\">\n");
         sb.append("<div class=\"section\">\n");
         sb.append("  <div class=\"section-header\">\n    <h2>JaCoCo Test Coverage Status</h2>\n  </div>\n");
         sb.append("  <div class=\"details-grid\">\n");
@@ -459,7 +626,7 @@ public final class HtmlReportExporter implements ReportExporter {
         sb.append("  </div>\n</div>\n</div>\n");
 
         // TAB 5: AUTO-FIX
-        sb.append("<div id=\"tab-autofix\" class=\"tab-content\">\n");
+        sb.append("<div id=\"tab-autofix\" class=\"tab-content\" role=\"tabpanel\" aria-labelledby=\"tabbtn-autofix\">\n");
         sb.append("<div class=\"section\">\n");
         sb.append("  <div class=\"section-header\">\n    <h2>Safe Automated Remediation Engine (--fix)</h2>\n  </div>\n");
         sb.append("  <div style=\"padding:1.5rem;\">\n");
@@ -476,72 +643,454 @@ public final class HtmlReportExporter implements ReportExporter {
 
         // Footer
         sb.append("<footer>\n");
-        sb.append("  <p>Generated by AEM Code Analyser &bull; Zero-config Inner-loop Engine &bull; Strictly <code>io.github.rohithv16</code></p>\n");
+        sb.append("  <p>Generated by AEM Code Analyser v").append(escape(VersionInfo.current()))
+                .append(" &bull; Zero-config Inner-loop Engine &bull; Strictly <code>io.github.rohithv16</code></p>\n");
         sb.append("</footer>\n");
+        sb.append("<div id=\"toast\" role=\"status\" aria-live=\"polite\"></div>\n");
 
         // Interactive JavaScript
         sb.append("""
                 <script>
-                (function() {
-                    const searchInput = document.getElementById('searchInput');
-                    const filterButtons = document.querySelectorAll('.filter-btn');
-                    const rows = document.querySelectorAll('.violation-row');
-                    const tabButtons = document.querySelectorAll('.tab-btn');
-                    const tabContents = document.querySelectorAll('.tab-content');
-                    let activeFilter = 'all';
-                    let activeCategory = null;
+                (function () {
+                    'use strict';
 
-                    // Tab Switching
-                    tabButtons.forEach(btn => {
-                        btn.addEventListener('click', function() {
-                            tabButtons.forEach(b => b.classList.remove('active'));
-                            tabContents.forEach(c => c.classList.remove('active'));
-                            this.classList.add('active');
-                            const target = document.getElementById(this.dataset.tab);
-                            if (target) target.classList.add('active');
+                    var root = document.documentElement;
+                    var themeToggle = document.getElementById('themeToggle');
+                    var toast = document.getElementById('toast');
+                    var searchInput = document.getElementById('searchInput');
+                    var filterButtons = Array.prototype.slice.call(document.querySelectorAll('.filter-btn'));
+                    var tabButtons = Array.prototype.slice.call(document.querySelectorAll('.tab-btn'));
+                    var tabContents = Array.prototype.slice.call(document.querySelectorAll('.tab-content'));
+                    var groupBy = document.getElementById('groupBy');
+                    var resultCount = document.getElementById('resultCount');
+                    var table = document.getElementById('violationsTable');
+                    var tbody = table ? table.querySelector('tbody') : null;
+
+                    var activeFilter = 'all';
+                    var activeCategory = null;
+                    var groupMode = 'none';
+                    var sortKey = 'severity';
+                    var sortDir = 'asc';
+                    var activeTab = 'tab-violations';
+
+                    function showToast(message) {
+                        if (!toast) return;
+                        toast.textContent = message;
+                        toast.classList.add('show');
+                        window.setTimeout(function () { toast.classList.remove('show'); }, 1800);
+                    }
+
+                    // --- Theme -------------------------------------------------
+                    function readTheme() {
+                        try { return localStorage.getItem('aem-analyser-theme'); } catch (e) { return null; }
+                    }
+                    function storeTheme(value) {
+                        try { localStorage.setItem('aem-analyser-theme', value); } catch (e) { /* ignore */ }
+                    }
+                    function applyTheme(value) {
+                        root.setAttribute('data-theme', value);
+                        if (themeToggle) {
+                            themeToggle.textContent = value === 'dark' ? '\\u2600\\uFE0F' : '\\uD83C\\uDF19';
+                            themeToggle.setAttribute('aria-pressed', value === 'dark' ? 'true' : 'false');
+                        }
+                    }
+                    var initialTheme = readTheme();
+                    if (!initialTheme) {
+                        initialTheme = window.matchMedia
+                            && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+                    }
+                    applyTheme(initialTheme);
+                    if (themeToggle) {
+                        themeToggle.addEventListener('click', function () {
+                            var next = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+                            applyTheme(next);
+                            storeTheme(next);
+                        });
+                    }
+
+                    // --- Tabs --------------------------------------------------
+                    function activateTab(id, focus) {
+                        var found = false;
+                        tabButtons.forEach(function (btn) {
+                            var selected = btn.getAttribute('data-tab') === id;
+                            btn.classList.toggle('active', selected);
+                            btn.setAttribute('aria-selected', selected ? 'true' : 'false');
+                            btn.setAttribute('tabindex', selected ? '0' : '-1');
+                            if (selected && focus) btn.focus();
+                            found = found || selected;
+                        });
+                        if (!found) id = 'tab-violations';
+                        tabContents.forEach(function (content) {
+                            content.classList.toggle('active', content.id === id);
+                        });
+                        activeTab = id;
+                    }
+
+                    tabButtons.forEach(function (btn, index) {
+                        btn.addEventListener('click', function () {
+                            activateTab(btn.getAttribute('data-tab'), false);
+                            syncHash();
+                        });
+                        btn.addEventListener('keydown', function (event) {
+                            var next = null;
+                            if (event.key === 'ArrowRight') next = (index + 1) % tabButtons.length;
+                            if (event.key === 'ArrowLeft') next = (index - 1 + tabButtons.length) % tabButtons.length;
+                            if (event.key === 'Home') next = 0;
+                            if (event.key === 'End') next = tabButtons.length - 1;
+                            if (next !== null) {
+                                event.preventDefault();
+                                activateTab(tabButtons[next].getAttribute('data-tab'), true);
+                                syncHash();
+                            }
                         });
                     });
 
-                    // Search & Filtering
-                    function filterTable() {
-                        const query = searchInput.value.toLowerCase().trim();
-                        rows.forEach(row => {
-                            const sev = row.getAttribute('data-severity');
-                            const cat = row.getAttribute('data-category');
-                            const text = row.innerText.toLowerCase();
+                    // --- Rows, filtering and grouping ---------------------------
+                    function rows() {
+                        return Array.prototype.slice.call(tbody.querySelectorAll('tr.violation-row'));
+                    }
 
-                            let matchesFilter = true;
-                            if (activeFilter !== 'all') {
-                                matchesFilter = (sev === activeFilter);
-                            }
-                            if (activeCategory) {
-                                matchesFilter = matchesFilter && (cat === activeCategory);
-                            }
+                    function matches(row) {
+                        var severity = row.getAttribute('data-severity');
+                        var category = row.getAttribute('data-category');
+                        var query = searchInput ? searchInput.value.toLowerCase().trim() : '';
+                        if (activeFilter !== 'all' && severity !== activeFilter) return false;
+                        if (activeCategory && category !== activeCategory) return false;
+                        if (query && row.textContent.toLowerCase().indexOf(query) === -1) return false;
+                        return true;
+                    }
 
-                            const matchesSearch = !query || text.includes(query);
-                            row.style.display = (matchesFilter && matchesSearch) ? '' : 'none';
+                    function updateCount() {
+                        if (!resultCount) return;
+                        var list = rows();
+                        var visible = list.filter(function (row) { return !row.hidden; }).length;
+                        resultCount.textContent = visible + ' of ' + list.length + ' finding(s) shown';
+                    }
+
+                    function rebuildGroups() {
+                        if (!tbody) return;
+                        Array.prototype.slice.call(tbody.querySelectorAll('tr.group-row'))
+                            .forEach(function (row) { row.remove(); });
+                        if (groupMode === 'none') return;
+
+                        var currentKey = null;
+                        var header = null;
+                        var count = 0;
+
+                        rows().forEach(function (row) {
+                            var key = groupMode === 'rule'
+                                ? row.getAttribute('data-rule')
+                                : row.getAttribute('data-path');
+                            if (key !== currentKey) {
+                                if (header) header.querySelector('.group-count').textContent = count;
+                                header = document.createElement('tr');
+                                header.className = 'group-row';
+                                var cell = document.createElement('td');
+                                cell.colSpan = 4;
+                                var label = document.createElement('span');
+                                label.className = 'group-label';
+                                label.textContent = key;
+                                var badge = document.createElement('span');
+                                badge.className = 'group-count';
+                                badge.textContent = '0';
+                                cell.appendChild(label);
+                                cell.appendChild(badge);
+                                header.appendChild(cell);
+                                count = 0;
+                                currentKey = key;
+                                row.parentNode.insertBefore(header, row);
+                            }
+                            if (!row.hidden) count++;
+                        });
+                        if (header) header.querySelector('.group-count').textContent = count;
+                        Array.prototype.slice.call(tbody.querySelectorAll('tr.group-row'))
+                            .forEach(function (row) {
+                                if (row.querySelector('.group-count').textContent === '0') row.hidden = true;
+                            });
+                    }
+
+                    function applyFilters() {
+                        if (!tbody) return;
+                        rows().forEach(function (row) { row.hidden = !matches(row); });
+                        rebuildGroups();
+                        updateCount();
+                        syncHash();
+                    }
+
+                    // --- Sorting ------------------------------------------------
+                    function severityRank(value) {
+                        return value === 'ERROR' ? 0 : value === 'WARNING' ? 1 : 2;
+                    }
+
+                    function updateSortIndicators() {
+                        if (!table) return;
+                        Array.prototype.slice.call(table.querySelectorAll('th.sortable')).forEach(function (th) {
+                            var active = th.getAttribute('data-sort') === sortKey;
+                            th.setAttribute('aria-sort', active
+                                ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none');
                         });
                     }
 
-                    if (searchInput) {
-                        searchInput.addEventListener('input', filterTable);
+                    function sortRows(key, direction) {
+                        if (!tbody) return;
+                        sortKey = key;
+                        sortDir = direction;
+                        var list = rows();
+                        list.sort(function (a, b) {
+                            var left;
+                            var right;
+                            if (key === 'severity') {
+                                left = severityRank(a.getAttribute('data-severity'));
+                                right = severityRank(b.getAttribute('data-severity'));
+                            } else if (key === 'rule') {
+                                left = a.getAttribute('data-rule');
+                                right = b.getAttribute('data-rule');
+                            } else if (key === 'line') {
+                                left = Number(a.getAttribute('data-line'));
+                                right = Number(b.getAttribute('data-line'));
+                            } else {
+                                left = a.getAttribute('data-path').toLowerCase();
+                                right = b.getAttribute('data-path').toLowerCase();
+                            }
+                            if (left < right) return direction === 'asc' ? -1 : 1;
+                            if (left > right) return direction === 'asc' ? 1 : -1;
+                            var aTie = a.getAttribute('data-rule') + a.getAttribute('data-path')
+                                + a.getAttribute('data-line');
+                            var bTie = b.getAttribute('data-rule') + b.getAttribute('data-path')
+                                + b.getAttribute('data-line');
+                            return aTie < bTie ? -1 : (aTie > bTie ? 1 : 0);
+                        });
+                        var omitted = tbody.querySelector('tr.omitted-row');
+                        list.forEach(function (row) { tbody.insertBefore(row, omitted || null); });
+                        updateSortIndicators();
+                        rebuildGroups();
+                        syncHash();
                     }
 
-                    filterButtons.forEach(btn => {
-                        btn.addEventListener('click', function() {
-                            filterButtons.forEach(b => b.classList.remove('active'));
-                            this.classList.add('active');
+                    if (table) {
+                        Array.prototype.slice.call(table.querySelectorAll('th.sortable')).forEach(function (th) {
+                            function trigger() {
+                                var key = th.getAttribute('data-sort');
+                                sortRows(key, key === sortKey && sortDir === 'asc' ? 'desc' : 'asc');
+                            }
+                            th.addEventListener('click', trigger);
+                            th.addEventListener('keydown', function (event) {
+                                if (event.key === 'Enter' || event.key === ' ') {
+                                    event.preventDefault();
+                                    trigger();
+                                }
+                            });
+                        });
+                    }
 
-                            if (this.dataset.filter) {
-                                activeFilter = this.dataset.filter;
+                    filterButtons.forEach(function (btn) {
+                        btn.addEventListener('click', function () {
+                            filterButtons.forEach(function (other) { other.classList.remove('active'); });
+                            btn.classList.add('active');
+                            if (btn.getAttribute('data-filter')) {
+                                activeFilter = btn.getAttribute('data-filter');
                                 activeCategory = null;
-                            } else if (this.dataset.category) {
+                            } else if (btn.getAttribute('data-category')) {
                                 activeFilter = 'all';
-                                activeCategory = this.dataset.category;
+                                activeCategory = btn.getAttribute('data-category');
                             }
-                            filterTable();
+                            applyFilters();
                         });
                     });
+
+                    if (searchInput) searchInput.addEventListener('input', applyFilters);
+                    if (groupBy) {
+                        groupBy.addEventListener('change', function () {
+                            groupMode = groupBy.value;
+                            rebuildGroups();
+                            updateCount();
+                            syncHash();
+                        });
+                    }
+
+                    var reset = document.getElementById('resetFilters');
+                    if (reset) {
+                        reset.addEventListener('click', function () {
+                            if (searchInput) searchInput.value = '';
+                            activeFilter = 'all';
+                            activeCategory = null;
+                            groupMode = 'none';
+                            if (groupBy) groupBy.value = 'none';
+                            filterButtons.forEach(function (btn) {
+                                btn.classList.toggle('active',
+                                    btn.getAttribute('data-filter') === 'all');
+                            });
+                            sortRows('severity', 'asc');
+                            applyFilters();
+                        });
+                    }
+
+                    // --- Export and sharing -------------------------------------
+                    function visibleData() {
+                        return rows().filter(function (row) { return !row.hidden; }).map(function (row) {
+                            return {
+                                severity: row.getAttribute('data-severity'),
+                                rule: row.getAttribute('data-rule'),
+                                file: row.getAttribute('data-path'),
+                                line: Number(row.getAttribute('data-line')),
+                                message: row.getAttribute('data-message'),
+                                remediation: row.getAttribute('data-remediation')
+                            };
+                        });
+                    }
+
+                    function download(name, mime, text) {
+                        var blob = new Blob([text], { type: mime });
+                        var link = document.createElement('a');
+                        link.href = URL.createObjectURL(blob);
+                        link.download = name;
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
+                        window.setTimeout(function () { URL.revokeObjectURL(link.href); }, 1000);
+                    }
+
+                    function csvCell(value) {
+                        return '"' + String(value == null ? '' : value).replace(/"/g, '""') + '"';
+                    }
+
+                    function toCsv(data) {
+                        var lines = ['Severity,Rule,File,Line,Message,Remediation'];
+                        data.forEach(function (item) {
+                            lines.push([item.severity, item.rule, item.file, item.line,
+                                item.message, item.remediation].map(csvCell).join(','));
+                        });
+                        return lines.join('\\r\\n');
+                    }
+
+                    function markdownSummary(data) {
+                        var counts = { ERROR: 0, WARNING: 0, INFO: 0 };
+                        data.forEach(function (item) { counts[item.severity] = (counts[item.severity] || 0) + 1; });
+                        var out = ['## AEM Code Analyser summary', '',
+                            '- Findings shown: ' + data.length,
+                            '- Errors: ' + counts.ERROR,
+                            '- Warnings: ' + counts.WARNING,
+                            '- Info: ' + counts.INFO, '',
+                            '| Severity | Rule | Location | Issue |', '|---|---|---|---|'];
+                        data.slice(0, 50).forEach(function (item) {
+                            var issue = String(item.message).split('|').join(' / ');
+                            out.push('| ' + item.severity + ' | ' + item.rule + ' | ' + item.file + ':'
+                                + item.line + ' | ' + issue + ' |');
+                        });
+                        if (data.length > 50) {
+                            out.push('', '_' + (data.length - 50) + ' more finding(s) omitted._');
+                        }
+                        return out.join('\\n');
+                    }
+
+                    function fallbackCopy(text) {
+                        var area = document.createElement('textarea');
+                        area.value = text;
+                        area.setAttribute('readonly', '');
+                        area.style.position = 'fixed';
+                        area.style.opacity = '0';
+                        document.body.appendChild(area);
+                        area.select();
+                        try {
+                            document.execCommand('copy');
+                            showToast('Copied to clipboard');
+                        } catch (e) {
+                            showToast('Copy failed');
+                        }
+                        document.body.removeChild(area);
+                    }
+
+                    function copyText(text) {
+                        if (navigator.clipboard && navigator.clipboard.writeText) {
+                            navigator.clipboard.writeText(text).then(function () {
+                                showToast('Copied to clipboard');
+                            }, function () {
+                                fallbackCopy(text);
+                            });
+                        } else {
+                            fallbackCopy(text);
+                        }
+                    }
+
+                    var exportCsv = document.getElementById('exportCsv');
+                    if (exportCsv) {
+                        exportCsv.addEventListener('click', function () {
+                            download('aem-analyser-findings.csv', 'text/csv', toCsv(visibleData()));
+                        });
+                    }
+                    var exportJson = document.getElementById('exportJson');
+                    if (exportJson) {
+                        exportJson.addEventListener('click', function () {
+                            download('aem-analyser-findings.json', 'application/json',
+                                JSON.stringify(visibleData(), null, 2));
+                        });
+                    }
+                    var copyMarkdown = document.getElementById('copyMarkdown');
+                    if (copyMarkdown) {
+                        copyMarkdown.addEventListener('click', function () {
+                            copyText(markdownSummary(visibleData()));
+                        });
+                    }
+                    var copyLink = document.getElementById('copyLink');
+                    if (copyLink) {
+                        copyLink.addEventListener('click', function () {
+                            copyText(window.location.href);
+                        });
+                    }
+
+                    // --- URL state ----------------------------------------------
+                    function syncHash() {
+                        var params = new URLSearchParams();
+                        if (activeTab !== 'tab-violations') params.set('tab', activeTab);
+                        if (searchInput && searchInput.value.trim()) params.set('q', searchInput.value.trim());
+                        if (activeFilter !== 'all') params.set('severity', activeFilter);
+                        if (activeCategory) params.set('category', activeCategory);
+                        if (groupMode !== 'none') params.set('group', groupMode);
+                        if (sortKey !== 'severity' || sortDir !== 'asc') {
+                            params.set('sort', sortKey + ':' + sortDir);
+                        }
+                        var next = params.toString();
+                        if (window.history && window.history.replaceState) {
+                            window.history.replaceState(null, '',
+                                next ? '#' + next : window.location.pathname + window.location.search);
+                        }
+                    }
+
+                    function restoreFromHash() {
+                        var hash = window.location.hash || '';
+                        if (new RegExp('^#f-[0-9]+$').test(hash)) {
+                            activateTab('tab-violations', false);
+                            return;
+                        }
+                        var params = new URLSearchParams(hash.replace(/^#/, ''));
+                        var tab = params.get('tab');
+                        if (tab) activateTab(tab, false);
+                        if (searchInput && params.get('q')) searchInput.value = params.get('q');
+                        if (params.get('severity')) activeFilter = params.get('severity');
+                        if (params.get('category')) activeCategory = params.get('category');
+                        if (params.get('group')) {
+                            groupMode = params.get('group');
+                            if (groupBy) groupBy.value = groupMode;
+                        }
+                        var sort = params.get('sort');
+                        if (sort) {
+                            var parts = sort.split(':');
+                            sortKey = parts[0] || 'severity';
+                            sortDir = parts[1] === 'desc' ? 'desc' : 'asc';
+                        }
+                        filterButtons.forEach(function (btn) {
+                            var isAll = btn.getAttribute('data-filter') === activeFilter && !activeCategory;
+                            var isCategory = activeCategory
+                                && btn.getAttribute('data-category') === activeCategory;
+                            btn.classList.toggle('active', Boolean(isAll || isCategory));
+                        });
+                        sortRows(sortKey, sortDir);
+                        applyFilters();
+                    }
+
+                    updateSortIndicators();
+                    restoreFromHash();
+                    updateCount();
                 })();
                 </script>
                 """);
@@ -603,6 +1152,10 @@ public final class HtmlReportExporter implements ReportExporter {
         } catch (IOException | RuntimeException e) {
             return List.of();
         }
+    }
+
+    private long countBySeverity(List<Violation> violations, Severity severity) {
+        return violations.stream().filter(violation -> violation.severity() == severity).count();
     }
 
     private String getRuleCategory(String ruleId) {
