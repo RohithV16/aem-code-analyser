@@ -16,7 +16,7 @@ configurations, HTL, client libraries and content packages. It finds code that n
 caller, configuration that no longer has an owner, and patterns that break on AEM as a Cloud Service
 — then reports them in the format your CI already understands.
 
-- **Zero configuration** — point it at a reactor root and it discovers the module layout.
+- **Zero configuration** — run it inside the project and it discovers the module layout itself.
 - **Cross-boundary** — resolves references between Java, HTL, OSGi configs and dependency JARs.
 - **CI native** — console, HTML, SARIF, SonarQube, GitHub, GitLab and Azure reports.
 - **Safe by design** — read-only by default, with an explicit `--fix` mode for proven repairs.
@@ -25,45 +25,32 @@ caller, configuration that no longer has an owner, and patterns that break on AE
 
 ## Quick start
 
+Three ways in, easiest first. None of them needs configuration, flags or a project root argument.
+
+### 1 · Run it now, nothing to install
+
 ```bash
-# 1. Get the jar (self-contained, needs Java 21)
+git clone https://github.com/RohithV16/aem-code-analyser
+cd aem-code-analyser
+scripts/run-from-source.sh ~/my-aem-project
+```
+
+Builds once with Maven, then analyses the path you gave it — later runs reuse the build. Leave the
+path out to analyse the directory you are standing in.
+
+### 2 · Or download the jar
+
+```bash
 curl -LO https://github.com/RohithV16/aem-code-analyser/releases/latest/download/aem-analyser-cli.jar
-
-# 2. Run it in your project — no arguments, no flags
-cd /path/to/aem-project
-java -jar aem-analyser-cli.jar
+cd ~/my-aem-project && java -jar aem-analyser-cli.jar
 ```
 
-The project root is **optional**. With no arguments the analyser uses the current directory and, if
-you are standing inside a module, the reactor that owns it:
+Self-contained; all it needs is Java 21. Every run prints a console report and writes an HTML
+dashboard to `target/aem-analyser/` (`--no-html` skips it).
 
-| You run it in | Root that gets analysed |
-|---|---|
-| the reactor root | that directory |
-| a module directory (`core/`, `ui.apps/`, `ui.config/`) | the reactor that owns the module |
-| any subdirectory without a `pom.xml` | the nearest directory above that has one |
-| `--project-root X`, or positional `X` | exactly `X`, with no discovery |
-
-Discovery walks past module POMs, because a POM whose declared parent exists on disk is a module and
-a module-only scan cannot see cross-module findings. An empty `<relativePath/>` stops the walk, since
-that parent comes from a repository rather than the directory above.
-
-Every run writes a console report **and** an HTML dashboard to
-`target/aem-analyser/aem-analyser-report.html` unless `--no-html` is passed.
-
-### Running without downloading a jar
-
-```bash
-# Straight from a clone: rebuilds only when the sources changed, then analyses the target
-git clone https://github.com/RohithV16/aem-code-analyser && cd aem-code-analyser
-scripts/run-from-source.sh ../my-aem-project
-
-# As a Maven plugin goal, once the plugin is installed
-mvn io.github.rohithv16:aem-analyser-maven-plugin:<version>:check
-```
+### 3 · Or wire it into the build
 
 ```xml
-<!-- Or bound to the build, so every `mvn verify` audits the project -->
 <plugin>
   <groupId>io.github.rohithv16</groupId>
   <artifactId>aem-analyser-maven-plugin</artifactId>
@@ -77,54 +64,31 @@ mvn io.github.rohithv16:aem-analyser-maven-plugin:<version>:check
 </plugin>
 ```
 
-### Install
+`mvn verify` then fails on new findings. Install routes for the plugin — it is not on JitPack — are in
+the [publishing guide](MAVEN_CENTRAL_PUBLISHING_GUIDE.html#0-current-availability-read-this-first).
 
-| Artefact | Route |
+### No flags needed
+
+| You run it in | Root that gets analysed |
 |---|---|
-| CLI | `aem-analyser-cli.jar` from [Releases](https://github.com/RohithV16/aem-code-analyser/releases) |
-| `aem-analyser-core` (library) | [JitPack](https://jitpack.io/#RohithV16/aem-code-analyser), no token — `com.github.RohithV16.aem-code-analyser:aem-analyser-core:<tag>` |
-| `aem-analyser-maven-plugin` | GitHub Packages (needs a `read:packages` token) **or** offline install from the release assets |
+| the reactor root | that directory |
+| a module directory (`core/`, `ui.apps/`, `ui.config/`) | the reactor that owns the module |
+| any subdirectory without a `pom.xml` | the nearest directory above that has one |
+| `--project-root X`, or positional `X` | exactly `X`, with no discovery |
 
-{% raw %}
-The plugin is **not** available from JitPack: JitPack relocates the groupId, and Maven rejects a
-plugin whose descriptor declares a different group (`Invalid plugin descriptor ... wrong group ID`).
-Releases attach the plugin, the core library and their POMs, so an offline install needs no registry
-access at all:
-
-```bash
-VERSION=<version>   # from the release page
-mvn install:install-file -Dfile=aem-code-analyser-$VERSION.pom \
-    -DpomFile=aem-code-analyser-$VERSION.pom
-mvn install:install-file -Dfile=aem-analyser-core-$VERSION.jar \
-    -DpomFile=aem-analyser-core-$VERSION.pom
-mvn install:install-file -Dfile=aem-analyser-maven-plugin-$VERSION.jar \
-    -DpomFile=aem-analyser-maven-plugin-$VERSION.pom
-```
-{% endraw %}
+Discovery walks past module POMs — a POM whose declared parent exists on disk is a module, and a
+module-only scan cannot see cross-module findings. An empty `<relativePath/>` stops the walk, since
+that parent comes from a repository.
 
 ### Requirements
 
 | Component | Version |
 |---|---|
 | Java | 21 |
-| Maven | 3.9+ (plugin and source builds) |
+| Maven | 3.9+ (plugin and source builds only) |
 | AEM project layout | any multi-module reactor (`core`, `ui.apps`, `ui.config`, `all`, …) |
 
 ---
-
-## What it analyses
-
-| Area | Coverage |
-|---|---|
-| **Dead code** | Orphaned OSGi configs, ghost config properties, unconsumed OCD attributes, unused services, unused Sling Models, inactive delayed components, broken HTL references, orphaned client libraries |
-| **Duplication** | Duplicate servlet endpoints, conflicting OSGi configs, competing Sling Models, cloned method blocks (AST-based) |
-| **AEM Cloud readiness** | Hardcoded secrets, JSP usage, unmapped service users, deprecated APIs, invalid runmode folders, Classic UI dialogs |
-| **Correctness & quality** | Path-bound servlets (CQBP-75), `@ProviderType` implementations (CQBP-84), whiteboard schedulers, unsafe component state, administrative access, resolver state leaks |
-| **Performance** | Unclosed resolvers and sessions, Oak traversal queries, unbounded result sets |
-| **Security** | HTL `context='unsafe'`, open redirects and SSRF |
-
-Reference IDs map to Adobe Cloud Manager checks where one exists (e.g. `AEM-QUAL-001` ↔ CQBP-75),
-so existing waivers and documentation keep their meaning.
 
 ---
 
@@ -334,78 +298,24 @@ Exit codes: `0` clean, `1` findings at or above the configured threshold, `2` an
 
 ## Rule catalogue
 
-**30 rules** across seven families. Each rule page documents the detection logic, why it matters on
-AEM as a Cloud Service, and the remediation.
+**30 rules in seven families.** Every rule has its own page with the detection logic, the AEM as a
+Cloud Service impact and the remediation:
+
+**→ [Browse the full rule catalogue](rules/)** — or `aem-analyser --explain <RULE-ID>` for the same
+detail in the terminal.
 
 | Family | Rules | Focus |
 |---|---|---|
 | DEAD | 8 | Code, configuration and content with no remaining consumer |
 | DUP | 4 | Duplicate endpoints, configuration, bindings and code blocks |
-| QUAL | 6 | Cloud Manager quality checks and thread-safety |
+| QUAL | 6 | Cloud Manager quality checks and thread safety (`AEM-QUAL-006` retired, owned by `-004`) |
 | PERF | 4 | Resource lifecycles and repository query cost |
 | CLOUD | 5 | Cloud Service compatibility and secrets |
 | SEC | 2 | Output escaping and request-driven redirects |
 | COMP | 1 | Deprecated Classic UI dialogs |
 
-### Dead code
-
-| Rule | Severity | Summary |
-|---|---|---|
-| [AEM-DEAD-001](rules/AEM-DEAD-001.html) | ERROR | Orphaned OSGi configuration without a matching component or platform PID. |
-| [AEM-DEAD-002A](rules/AEM-DEAD-002A.html) | WARNING | Configuration property does not exist in the target `@ObjectClassDefinition`. |
-| [AEM-DEAD-002B](rules/AEM-DEAD-002B.html) | WARNING | OCD attribute method is never consumed by the designating component. |
-| [AEM-DEAD-003A](rules/AEM-DEAD-003A.html) | WARNING | OSGi service has zero injections and is not a system entry point. |
-| [AEM-DEAD-003B](rules/AEM-DEAD-003B.html) | INFO | Sling Model has no Java adaptation and no `resourceType` binding. |
-| [AEM-DEAD-003C](rules/AEM-DEAD-003C.html) | WARNING | Component provides no service interfaces and `immediate = false`. |
-| [AEM-DEAD-004](rules/AEM-DEAD-004.html) | ERROR | HTL references a non-existent Java class or Sling Model. |
-| [AEM-DEAD-005](rules/AEM-DEAD-005.html) | INFO | Client library category is never referenced by a template or another client library. |
-
-### Duplication
-
-| Rule | Severity | Summary |
-|---|---|---|
-| [AEM-DUP-001](rules/AEM-DUP-001.html) | ERROR | Multiple servlets claim identical paths or resource type selectors. |
-| [AEM-DUP-002](rules/AEM-DUP-002.html) | WARNING | Conflicting OSGi configuration for the same PID and runmode. |
-| [AEM-DUP-003](rules/AEM-DUP-003.html) | WARNING | Multiple Sling Models bind to the same resource type and adapter. |
-| [AEM-DUP-010](rules/AEM-DUP-010.html) | WARNING | Duplicate method or code block detected across classes (produced by the embedded PMD CPD scan). |
-
-### Quality
-
-| Rule | Severity | Summary |
-|---|---|---|
-| [AEM-QUAL-001](rules/AEM-QUAL-001.html) | WARNING | Servlet registered by path instead of resource type (CQBP-75). |
-| [AEM-QUAL-002](rules/AEM-QUAL-002.html) | ERROR | Custom code implements a product `@ProviderType` (CQBP-84). |
-| [AEM-QUAL-003](rules/AEM-QUAL-003.html) | WARNING | Whiteboard scheduler used instead of Sling Scheduled Jobs (AMSCORE-554). |
-| [AEM-QUAL-004](rules/AEM-QUAL-004.html) | ERROR | Non-thread-safe object stored in an OSGi component field. |
-| [AEM-QUAL-005](rules/AEM-QUAL-005.html) | ERROR | Deprecated administrative login or resolver API (AMSCORE-553). |
-| [AEM-QUAL-006](rules/AEM-QUAL-006.html) | WARNING | Request-scoped resolver or session stored in an instance field — *retired as a producer*; AEM-QUAL-004 owns the check. |
-
-### Performance
-
-| Rule | Severity | Summary |
-|---|---|---|
-| [AEM-PERF-001](rules/AEM-PERF-001.html) | ERROR | Resolver obtained from a factory is never closed. |
-| [AEM-PERF-002](rules/AEM-PERF-002.html) | ERROR | JCR session obtained from a repository is never closed. |
-| [AEM-PERF-003](rules/AEM-PERF-003.html) | WARNING | Query lacks a path or node type restriction (Oak traversal). |
-| [AEM-PERF-004](rules/AEM-PERF-004.html) | WARNING | Query has no limit and can scan an unbounded result set. |
-
-### Cloud Service
-
-| Rule | Severity | Summary |
-|---|---|---|
-| [AEM-CLOUD-001](rules/AEM-CLOUD-001.html) | ERROR | Plaintext secret or password in an OSGi configuration. |
-| [AEM-CLOUD-002](rules/AEM-CLOUD-002.html) | WARNING | Legacy JSP file; AEMaaCS requires HTL. |
-| [AEM-CLOUD-003](rules/AEM-CLOUD-003.html) | ERROR | Service resolver has no matching service-user mapping. |
-| [AEM-CLOUD-004](rules/AEM-CLOUD-004.html) | WARNING | API deprecated in AEM as a Cloud Service. |
-| [AEM-CLOUD-005](rules/AEM-CLOUD-005.html) | WARNING | Configuration in an unrecognised runmode folder. |
-
-### Security and components
-
-| Rule | Severity | Summary |
-|---|---|---|
-| [AEM-SEC-001](rules/AEM-SEC-001.html) | ERROR | HTL expression bypasses escaping with `context='unsafe'`. |
-| [AEM-SEC-002](rules/AEM-SEC-002.html) | WARNING | User-controlled input flows into a redirect or outbound request. |
-| [AEM-COMP-001](rules/AEM-COMP-001.html) | WARNING | Component defines a deprecated Classic UI `dialog.xml`. |
+Where Adobe Cloud Manager has an equivalent check, the rule id says so (`AEM-QUAL-001` ↔ CQBP-75,
+`-002` ↔ CQBP-84, `-003` ↔ AMSCORE-554, `-005` ↔ AMSCORE-553), so existing waivers keep their meaning.
 
 ---
 

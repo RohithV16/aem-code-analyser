@@ -3,103 +3,39 @@
 [![Java](https://img.shields.io/badge/Java-21-orange.svg)](https://openjdk.org/)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 
-A static code analysis engine specifically designed for **Adobe Experience Manager (AEM)** projects to detect **cross-boundary dead code, orphaned OSGi configurations, and unreferenced architectural symbols**.
+Static analysis for **Adobe Experience Manager** projects: dead code, orphaned OSGi configuration,
+duplication and AEM as a Cloud Service problems — across the Java, HTL, OSGi and content boundaries
+that single-language tools cannot see.
 
-Traditional static analyzers (SonarQube, SpotBugs, PMD) operate in single-language silos and cannot trace connections between Java Declarative Services, OSGi `.cfg.json` configurations, HTL templates, and JCR nodes. AEM Code Analyser builds a unified **Cross-Boundary Reference Graph** to identify dead code across polyglot boundaries.
+## Quick start
 
----
+Pick whichever is easiest — all three need no configuration and no flags.
 
-## Features
-
-**30 rule ids across seven families.** Every rule page documents detection logic, AEM Cloud Service
-impact and remediation — see [docs/rules](docs/rules) or `--explain <RULE>`.
-
-| Family | Rules | What it finds |
-|---|---|---|
-| **DEAD** | 8 | Orphaned OSGi configs (`-001`), ghost config properties (`-002A`), unconsumed OCD attributes (`-002B`), unused services and Sling Models and inactive delayed components (`-003A/B/C`), HTL references to missing classes (`-004`), orphaned client libraries (`-005`) |
-| **DUP** | 4 | Duplicate servlet endpoints (`-001`), conflicting OSGi configs (`-002`), competing Sling Models (`-003`), cloned code blocks via PMD CPD (`-010`) |
-| **QUAL** | 6 | Cloud Manager parity: path-bound servlets CQBP-75 (`-001`), `@ProviderType` implementations CQBP-84 (`-002`), whiteboard schedulers AMSCORE-554 (`-003`), non-thread-safe component fields (`-004`), administrative logins AMSCORE-553 (`-005`); `-006` retired, owned by `-004` |
-| **PERF** | 4 | Unclosed resolvers (`-001`), unclosed sessions (`-002`), unbounded Oak traversal (`-003`), queries without a limit (`-004`) |
-| **CLOUD** | 5 | Plaintext secrets (`-001`), JSP usage (`-002`), service users without a mapping (`-003`), APIs deprecated in AEMaaCS (`-004`), invalid runmode folders (`-005`) |
-| **SEC** | 2 | `context='unsafe'` in HTL (`-001`), request-driven redirects and SSRF (`-002`) |
-| **COMP** | 1 | Deprecated Classic UI `dialog.xml` (`-001`) |
-
-Reports: **CONSOLE**, **HTML** dashboard (history trend, duplication and coverage panels),
-**SARIF 2.1.0**, **SonarQube** generic issues, and **GitHub**, **GitLab** and **Azure** annotations.
-
----
-
-## Install
-
-| Requirement | Version |
-|---|---|
-| Java | 21 |
-| Maven (plugin and source builds only) | 3.9+ |
-
-| Artefact | Route |
-|---|---|
-| CLI | `aem-analyser-cli.jar` from [Releases](https://github.com/RohithV16/aem-code-analyser/releases) — self-contained, needs only Java 21 |
-| `aem-analyser-core` (library) | [JitPack](https://jitpack.io/#RohithV16/aem-code-analyser), no token: `com.github.RohithV16.aem-code-analyser:aem-analyser-core:<tag>` |
-| `aem-analyser-maven-plugin` | GitHub Packages (needs a `read:packages` token) **or** offline install from the release assets |
-
-The plugin is deliberately **not** documented for JitPack: JitPack relocates the groupId, and Maven
-rejects a plugin whose descriptor declares a different group (`Invalid plugin descriptor ... wrong
-group ID`). Install the attached jars instead — no token, no registry access:
-
-```bash
-VERSION=<version>   # from the release page
-mvn install:install-file -Dfile=aem-code-analyser-$VERSION.pom \
-    -DpomFile=aem-code-analyser-$VERSION.pom
-mvn install:install-file -Dfile=aem-analyser-core-$VERSION.jar \
-    -DpomFile=aem-analyser-core-$VERSION.pom
-mvn install:install-file -Dfile=aem-analyser-maven-plugin-$VERSION.jar \
-    -DpomFile=aem-analyser-maven-plugin-$VERSION.pom
-```
-
-Building from source instead:
+### 1 · Run it now, nothing to install
 
 ```bash
 git clone https://github.com/RohithV16/aem-code-analyser
-cd aem-code-analyser && mvn clean install
+cd aem-code-analyser
+scripts/run-from-source.sh ~/my-aem-project
 ```
 
----
+The script builds once (Maven, Java 21) and then analyses the path you gave it. Later runs reuse the
+build and start instantly. Leave the path out to analyse the directory you are standing in.
 
-## Usage Option 1: Standalone CLI
-
-Run audits directly on any AEM repository. **The project root is optional** — with no arguments the
-analyser looks at where you are:
+### 2 · Or download the jar
 
 ```bash
-java -jar aem-analyser-cli.jar                      # current directory, or the reactor that owns it
-java -jar aem-analyser-cli.jar .                    # explicit, same thing
-java -jar aem-analyser-cli.jar --project-root ../aem-project
+curl -LO https://github.com/RohithV16/aem-code-analyser/releases/latest/download/aem-analyser-cli.jar
+cd ~/my-aem-project && java -jar aem-analyser-cli.jar
 ```
 
-| You run it in | Root that gets analysed |
-|---|---|
-| the reactor root | that directory |
-| a module directory (`bundle/`, `ui.apps/`) | the reactor that owns the module |
-| any subdirectory without a `pom.xml` | the nearest directory above that has one |
-| `--project-root X` / positional `X` | exactly `X`, no discovery |
+Self-contained; all it needs is Java 21. Run it inside the project and it finds everything by itself.
+Every run prints a console report and writes an HTML dashboard to `target/aem-analyser/`
+(`--no-html` skips the dashboard).
 
-Discovery walks past module POMs — a POM whose declared parent exists on disk is a module, and a
-module-only scan cannot see cross-module findings. An empty `<relativePath/>` stops the walk, because
-that parent is resolved from a repository rather than from the directory above.
-
-### Running without downloading a jar
-
-```bash
-# 1. Straight from a clone: builds only when the sources changed, then analyses the target
-git clone https://github.com/RohithV16/aem-code-analyser && cd aem-code-analyser
-scripts/run-from-source.sh ../my-aem-project
-
-# 2. As a Maven plugin, once it is installed (see "Install" below)
-mvn io.github.rohithv16:aem-analyser-maven-plugin:<version>:check
-```
+### 3 · Or wire it into the build
 
 ```xml
-<!-- 3. Bound to the build, so every `mvn verify` audits the project -->
 <plugin>
     <groupId>io.github.rohithv16</groupId>
     <artifactId>aem-analyser-maven-plugin</artifactId>
@@ -114,71 +50,50 @@ mvn io.github.rohithv16:aem-analyser-maven-plugin:<version>:check
 </plugin>
 ```
 
-### Common runs
+`mvn verify` now fails on new findings. The plugin is not on JitPack, so install it from
+GitHub Packages or from the release assets — see
+[install routes](docs/MAVEN_CENTRAL_PUBLISHING_GUIDE.md#0-current-availability-read-this-first).
+
+### No flags needed
+
+| You run it in | Root that gets analysed |
+|---|---|
+| the reactor root | that directory |
+| a module directory (`bundle/`, `ui.apps/`) | the reactor that owns the module |
+| any subdirectory without a `pom.xml` | the nearest directory above that has one |
+| `java -jar aem-analyser-cli.jar /path` | exactly that path |
+
+Discovery walks past module POMs — a module-only scan cannot see cross-module findings — and stops at
+an empty `<relativePath/>`, because that parent comes from a repository.
+
+## What it checks
+
+**30 rules in seven families:** dead code (8), duplication (4), Cloud Manager parity (6),
+performance (4), AEM as a Cloud Service (5), security (2), component compatibility (1). Findings are
+reported as console output, an HTML dashboard, SARIF 2.1.0, SonarQube issues, or GitHub/GitLab/Azure
+annotations.
+
+**→ [Rule catalogue — every rule, what it detects, how to fix it](docs/rules/index.md)** ·
+`aem-analyser --explain AEM-DEAD-001` for the same detail in the terminal.
+
+## Common runs
 
 ```bash
-# Basic run with colored console output (also writes the HTML dashboard)
-java -jar aem-analyser-cli/target/aem-analyser-cli.jar --project-root /path/to/aem-project
-
-# Skip the HTML dashboard for a console-only run
-java -jar aem-analyser-cli/target/aem-analyser-cli.jar --project-root /path/to/aem-project --no-html
-
-# Collect fresh JaCoCo test code coverage dynamically (zero POM changes required)
-java -jar aem-analyser-cli/target/aem-analyser-cli.jar --project-root /path/to/aem-project --collect-coverage
-
-# Break build on warnings as well as errors
-java -jar aem-analyser-cli/target/aem-analyser-cli.jar --project-root /path/to/aem-project --fail-on-warning
-
-# Export to SonarQube Generic Issue JSON for CI/CD
-java -jar aem-analyser-cli/target/aem-analyser-cli.jar --project-root /path/to/aem-project --format SONAR --output target/sonar-reports
-
-# Export to SARIF 2.1.0 for GitHub Code Scanning / Azure DevOps
-java -jar aem-analyser-cli/target/aem-analyser-cli.jar --project-root /path/to/aem-project --format SARIF --output target/sarif
-
-# Exclude specific OSGi configuration files (reactor-relative globs)
-java -jar aem-analyser-cli/target/aem-analyser-cli.jar --project-root /path/to/aem-project --ignore-config "ui.config/**/config.publish/**"
-
-# Freeze existing findings, then gate only new ones
-java -jar aem-analyser-cli/target/aem-analyser-cli.jar --project-root /path/to/aem-project --update-baseline
-java -jar aem-analyser-cli/target/aem-analyser-cli.jar --project-root /path/to/aem-project --baseline .aem-analyser-baseline.json
-
-# CI-native annotations
-java -jar aem-analyser-cli/target/aem-analyser-cli.jar --project-root /path/to/aem-project --format GITHUB,GITLAB,AZURE
-
-# Project configuration, history trend and baseline reporting
-java -jar aem-analyser-cli/target/aem-analyser-cli.jar --project-root /path/to/aem-project --config .aem-analyser.yml
-java -jar aem-analyser-cli/target/aem-analyser-cli.jar --project-root /path/to/aem-project --format HTML --history target/aem-history
-java -jar aem-analyser-cli/target/aem-analyser-cli.jar --project-root /path/to/aem-project --baseline .aem-analyser-baseline.json --baseline-report
-
-# Limits
-java -jar aem-analyser-cli/target/aem-analyser-cli.jar --project-root /path/to/aem-project --max-file-size 10485760 --timeout 300
-
-# Generate rule documentation
-java -jar aem-analyser-cli/target/aem-analyser-cli.jar --generate-rule-docs docs/rules
-
-# Discover the rule catalogue
-java -jar aem-analyser-cli/target/aem-analyser-cli.jar --list-rules
-java -jar aem-analyser-cli/target/aem-analyser-cli.jar --explain AEM-DEAD-002A
+java -jar aem-analyser-cli.jar                            # console report + HTML dashboard
+java -jar aem-analyser-cli.jar --no-html                  # console only
+java -jar aem-analyser-cli.jar --format SARIF --output target/sarif
+java -jar aem-analyser-cli.jar --format GITHUB,GITLAB,AZURE   # CI annotations
+java -jar aem-analyser-cli.jar --format SONAR             # SonarQube external issues
+java -jar aem-analyser-cli.jar --fail-on ERROR            # exit 1 on errors (what the plugin does)
+java -jar aem-analyser-cli.jar --collect-coverage         # run tests with fresh JaCoCo data
+java -jar aem-analyser-cli.jar --since origin/main        # only files changed in Git
+java -jar aem-analyser-cli.jar --ignore-config "ui.config/**/config.publish/**"
+java -jar aem-analyser-cli.jar --update-baseline          # accept current findings
+java -jar aem-analyser-cli.jar --baseline .aem-analyser-baseline.json
+java -jar aem-analyser-cli.jar --explain AEM-DEAD-001     # one rule's rationale
 ```
 
-Accepted findings can also be suppressed inline (Java, HTL or XML comments):
-
-```java
-// aem-analyser-disable-next-line AEM-DEAD-001
-```
-```html
-<!-- aem-analyser-disable-next-line AEM-SEC-001 -->
-```
-```java
-// aem-analyser-disable-file AEM-DUP-010
-```
-
-> **Tip:** You can create a shell alias in your `~/.zshrc` or `~/.bashrc`:
-> ```bash
-> alias aem-analyser="java -jar /path/to/aem-code-analyser/aem-analyser-cli/target/aem-analyser-cli.jar"
-> ```
-
----
+A shell alias keeps it short: `alias aem-analyser="java -jar /path/to/aem-analyser-cli.jar"`.
 
 ## CLI options reference
 
@@ -317,7 +232,7 @@ java -jar <cli.jar> --generate-rule-docs docs/rules   # regenerate
 
 ---
 
-## Usage Option 2: Maven Plugin in AEM Projects
+## Maven plugin in detail
 
 To automatically enforce dead-code quality checks in any AEM project during `mvn clean verify`, add the plugin to the root `pom.xml` of your target AEM project:
 

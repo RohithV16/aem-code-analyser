@@ -5,7 +5,12 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
-Nothing yet.
+### Changed
+
+- README and the published site now lead with the easiest route — run it from a clone with nothing to
+  install, then download the jar, then the Maven plugin — and the per-rule detail lives only in the
+  generated rule catalogue (`docs/rules/`), which the site links to instead of repeating 30 rows on
+  the landing page.
 
 ## [1.0.8] — 2026-11-16
 
