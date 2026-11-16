@@ -307,16 +307,15 @@ mvn clean deploy -DskipTests
 
 ### Publishing to Maven Central (Sonatype Central)
 
-**Not published to Central yet.** Central requires GPG signatures plus sources and javadoc jars,
-which the current release workflow does not produce, so no step of that plan has been executed.
-Today's availability:
+The build is ready: `mvn -Prelease-central deploy` produces signed jars, sources, javadoc and POMs for
+`aem-analyser-core` and `aem-analyser-maven-plugin` and uploads them to the Portal for validation.
+The CLI is intentionally excluded — its shaded jar bundles every dependency, and it ships as a release
+asset instead.
 
-| Artefact | From | Token |
-|---|---|---|
-| CLI jar | GitHub Releases | no |
-| `aem-analyser-core` | JitPack | no |
-| `aem-analyser-maven-plugin` | GitHub Packages | `read:packages` |
-| `aem-analyser-maven-plugin` | release assets via `install:install-file` | no |
+Publishing starts working as soon as the maintainer completes four one-time steps (namespace, user
+token, GPG key, four repository secrets) — see
+[the publishing guide](docs/MAVEN_CENTRAL_PUBLISHING_GUIDE.md#01-what-the-maintainer-has-to-do-once).
+Until then the release workflow skips Central and prints a notice. Today the plugin is available from
+GitHub Packages or from the release assets (`install:install-file`), and `aem-analyser-core` from
+JitPack.
 
-The full procedure, once that gap is closed, is in the
-[Maven Central Publishing Guide](docs/MAVEN_CENTRAL_PUBLISHING_GUIDE.md).

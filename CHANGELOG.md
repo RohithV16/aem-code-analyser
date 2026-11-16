@@ -5,6 +5,13 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- `-Prelease-central` actually works now: signed jars, sources and javadoc for the core library and
+  the Maven plugin, published through the Sonatype Portal. Javadoc never built under the old profile
+  (doclint rejects record components without `@param`), and the shaded CLI jar is excluded from the
+  Central bundle because it bundles its own dependencies.
+
 ### Changed
 
 - README and the published site now lead with the easiest route — run it from a clone with nothing to

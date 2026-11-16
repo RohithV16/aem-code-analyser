@@ -59,7 +59,7 @@
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <project.build.outputTimestamp>2026-11-16T09:14:45Z</project.build.outputTimestamp>
+        <project.build.outputTimestamp>2026-11-16T10:02:14Z</project.build.outputTimestamp>
         <japicmp.oldVersion>1.0.0</japicmp.oldVersion>
         <maven.compiler.release>21</maven.compiler.release>
         <junit.version>5.10.2</junit.version>
@@ -392,7 +392,7 @@
                                 <!-- The CLI is an application: its shaded jar bundles every
                                      dependency, so publishing it would ship a 34 MB artefact with
                                      duplicate classes. It ships as a release asset instead. -->
-                                <artifact>io.github.rohithv16:aem-analyser-cli:*</artifact>
+                                <artifact>aem-analyser-cli</artifact>
                             </excludeArtifacts>
                         </configuration>
                     </plugin>
