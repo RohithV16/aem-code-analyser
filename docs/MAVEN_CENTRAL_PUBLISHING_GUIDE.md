@@ -31,14 +31,20 @@ never also pushes to GitHub Packages.
 
 ### 0.1 What the maintainer has to do once
 
-1. **Register the namespace.** Sign in at <https://central.sonatype.com> **with the `RohithV16` GitHub
-   account** — signing in with GitHub auto-provisions and verifies `io.github.rohithv16`, which is the
-   `groupId` this project already uses. Signing in with email instead leaves it unverified. If the
-   namespace is not auto-created, add it under *View Namespaces*, create a public repository named
-   after the verification key it shows, press *Verify*, then delete the repository. Only the GitHub
-   **username** is auto-provisioned — an organisation namespace would have to be re-verified.
-2. **Create the user token.** Portal → account menu → *Generate User Token*. This is the
-   username/password pair Maven authenticates with; store them, not your Portal password.
+1. **Register the namespace** — <https://central.sonatype.com/publishing/namespaces> (also reachable
+   from the top-right account menu → *View Namespaces*). Sign in **with the `RohithV16` GitHub account**:
+   Sonatype then provisions `io.github.<github username>` automatically, and that is the `groupId` this
+   project already uses. Only the GitHub **username** is auto-provisioned — an organisation namespace
+   would need manual verification. Check the exact spelling shown on that page against the `groupId` in
+   `pom.xml` (`io.github.rohithv16`); if it differs in case, either the Portal or the POM has to change,
+   because Central compares the strings literally.
+   If it is not auto-created, use *Add Namespace*, then create a temporary public repository named
+   after the verification key it shows, press *Verify*, and delete the repository afterwards.
+2. **Create the user token** — there is a dedicated page: <https://central.sonatype.com/usertoken>
+   (not the account menu). Press **Generate User Token**, give it a display name and an expiry
+   (e.g. 1 year), and copy both values immediately — the modal shows them once and they cannot be
+   retrieved later. These two strings are `MAVEN_CENTRAL_USERNAME` and `MAVEN_CENTRAL_PASSWORD`; they
+   are not your Portal login.
 3. **Create and publish a signing key.**
    ```bash
    gpg --quick-generate-key "Rohith V <you@example.com>" rsa4096 sign 0
@@ -122,7 +128,7 @@ Maven Central is the default artifact repository for Apache Maven, Gradle, and J
 
 1. Navigate to [https://central.sonatype.com/](https://central.sonatype.com/).
 2. Click **Sign In** and authenticate using your GitHub account (`RohithV16`).
-3. Click your profile avatar (top right) -> **View Account** -> **Namespaces**.
+3. Open <https://central.sonatype.com/publishing/namespaces> (or profile avatar → *View Namespaces*).
 4. Click **Add Namespace** and enter:
    ```text
    io.github.rohithv16
@@ -130,7 +136,8 @@ Maven Central is the default artifact repository for Apache Maven, Gradle, and J
 5. **Namespace Verification:**
    - Because you signed in with the GitHub account matching `rohithv16`, Sonatype will automatically authorize or ask you to create a temporary empty public repository (e.g., `RohithV16/<verification-code>`) to confirm ownership.
    - Click **Verify Namespace**.
-6. Once verified, go to **Account** -> **Generate User Token**.
+6. Once verified, open <https://central.sonatype.com/usertoken> and press **Generate User Token**
+   (display name + expiry). The credentials are shown once.
 7. Securely save the generated:
    - `User Name` (Token Username)
    - `Token / Password` (Token Password)
@@ -142,12 +149,13 @@ Maven Central is the default artifact repository for Apache Maven, Gradle, and J
 Maven Central strictly rejects any artifact lacking cryptographic signatures.
 
 #### 1. Generate GPG Key:
+
 ```bash
-gpg --gen-key
+gpg --quick-generate-key "Rohith V <your-github-email>" rsa4096 sign 0
 ```
-- Enter your Real Name: `Rohith`
-- Enter your Email: your GitHub-associated email
-- Provide a secure passphrase (keep this passphrase safe!).
+- The passphrase is what goes into `GPG_PASSPHRASE`; the key id/fingerprint goes into `GPG_KEY_ID`
+  if you keep the plugin's `keyname` configured (omitted by default so the only secret key is used).
+- `--pinentry-mode loopback` is already configured in the profile, so CI can sign unattended.
 
 #### 2. Retrieve the Key ID:
 ```bash
