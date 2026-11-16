@@ -45,7 +45,7 @@ Every run writes a console report **and** an HTML dashboard to
 <plugin>
   <groupId>io.github.rohithv16</groupId>
   <artifactId>aem-analyser-maven-plugin</artifactId>
-  <version>1.0.3</version>
+  <version>1.0.4</version>
   <executions>
     <execution>
       <phase>verify</phase>
