@@ -7,6 +7,8 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -23,6 +25,49 @@ public final class RuleDocsGenerator {
         for (RuleDescriptor rule : RuleRegistry.all()) {
             Files.writeString(outputDirectory.resolve(rule.id() + ".md"), render(rule), StandardCharsets.UTF_8);
         }
+        Files.writeString(outputDirectory.resolve("index.md"), renderIndex(RuleRegistry.all()),
+                StandardCharsets.UTF_8);
+    }
+
+    /** Family order used on the catalogue page, so the site reads like the README. */
+    private static final List<String> FAMILIES = List.of("DEAD", "DUP", "QUAL", "PERF", "CLOUD", "SEC", "COMP");
+
+    private static final Map<String, String> FAMILY_TITLES = new LinkedHashMap<>(Map.of(
+            "DEAD", "Dead code", "DUP", "Duplication", "QUAL", "Quality (Cloud Manager parity)",
+            "PERF", "Performance", "CLOUD", "AEM as a Cloud Service", "SEC", "Security",
+            "COMP", "Component compatibility"));
+
+    private static String familyOf(String ruleId) {
+        // AEM-DEAD-002A -> DEAD
+        String[] parts = ruleId.split("-");
+        return parts.length >= 2 ? parts[1] : "OTHER";
+    }
+
+    static String renderIndex(List<RuleDescriptor> rules) {
+        StringBuilder doc = new StringBuilder();
+        doc.append("---\nlayout: default\ntitle: Rule catalogue\n---\n\n");
+        doc.append("# Rule catalogue\n\n");
+        doc.append(rules.size()).append(" rule ids. Every page documents detection logic, the AEM as a ")
+                .append("Cloud Service impact and the remediation.\n\n");
+        doc.append("Run `aem-analyser --explain <RULE-ID>` for the same metadata in the terminal.\n\n");
+        for (String family : FAMILIES) {
+            List<RuleDescriptor> inFamily = rules.stream()
+                    .filter(rule -> family.equals(familyOf(rule.id())))
+                    .toList();
+            if (inFamily.isEmpty()) {
+                continue;
+            }
+            doc.append("## ").append(FAMILY_TITLES.getOrDefault(family, family)).append("\n\n");
+            doc.append("| Rule | Severity | Summary |\n|---|---|---|\n");
+            for (RuleDescriptor rule : inFamily) {
+                doc.append("| [").append(rule.id()).append("](").append(rule.id()).append(".html) | ")
+                        .append(rule.defaultSeverity()).append(" | ")
+                        .append(rule.shortDescription() == null ? "" : rule.shortDescription().replace("|", "\\|"))
+                        .append(" |\n");
+            }
+            doc.append("\n");
+        }
+        return doc.toString();
     }
 
     /**
