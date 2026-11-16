@@ -56,8 +56,10 @@ jobs:
             echo "tag v${NEW_VERSION} already exists; re-run with force=true to overwrite it" >&2
             exit 1
           fi
+          LAST_RELEASED=$(git describe --tags --abbrev=0 --match 'v*' 2>/dev/null | sed 's/^v//' || true)
           mvn versions:set -DnewVersion="${NEW_VERSION}" -DgenerateBackupPoms=false
           echo "previous=${OLD_VERSION}" >> "$GITHUB_OUTPUT"
+          echo "lastReleased=${LAST_RELEASED}" >> "$GITHUB_OUTPUT"
           echo "version=${NEW_VERSION}" >> "$GITHUB_OUTPUT"
           echo "tag=v${NEW_VERSION}" >> "$GITHUB_OUTPUT"
 
@@ -73,13 +75,20 @@ jobs:
       - name: Sync documented versions
         shell: bash
         env:
-          OLD_VERSION: ${{ steps.bump.outputs.previous }}
+          # The snippets advertise the newest published release, which is the newest tag - not the
+          # development version the POM carried into this run.
+          OLD_VERSION: ${{ steps.bump.outputs.lastReleased }}
           NEW_VERSION: ${{ steps.bump.outputs.version }}
         run: |
           python3 - <<'PY'
           import os, pathlib, re
           old = os.environ["OLD_VERSION"].removesuffix("-SNAPSHOT")
           new = os.environ["NEW_VERSION"]
+          if not old:
+              # No tag to anchor on (first release): leave the snippets untouched rather than
+              # matching an empty pattern.
+              print("no previous release tag found; skipping documented-version sync")
+              raise SystemExit(0)
           targets = ["README.md", "docs/index.md", "docs/MAVEN_CENTRAL_PUBLISHING_GUIDE.md"]
           pattern = re.compile(r"(?<![\d.])" + re.escape(old) + r"(?:-SNAPSHOT)?(?![\d.])")
           for name in targets:
