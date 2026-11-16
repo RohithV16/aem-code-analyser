@@ -70,13 +70,19 @@ class ConfigFilePidResolverTest {
         assertTrue(resolved.ambiguousHyphen());
     }
 
+    /**
+     * Regression: a numeric suffix used to be treated as an unambiguous factory instance, so a
+     * component whose real PID is "com.example.Service-1" got an AEM-DEAD-001 false positive and
+     * graph-time disambiguation never ran.
+     */
     @Test
-    void numericLegacyFactorySuffixIsNotAmbiguous() {
+    void numericLegacyFactorySuffixIsAmbiguous() {
         ConfigFilePidResolver.ResolvedPid resolved =
                 ConfigFilePidResolver.resolve("com.example.Service-1", false);
         assertEquals("com.example.Service", resolved.pid());
         assertEquals("1", resolved.factorySubname());
-        assertFalse(resolved.ambiguousHyphen());
+        assertTrue(resolved.ambiguousHyphen(),
+                "a numeric suffix may belong to a hyphenated PID and must be disambiguated at graph time");
     }
 
     @Test

@@ -72,6 +72,53 @@ class GitDiffResolverTest {
         assertTrue(result.matches("new dir/File One.java", 1));
     }
 
+    /**
+     * Regression: a failing diff (typo in --since, or a shallow CI clone whose base ref was never
+     * fetched) used to return an empty changed-file set that looked exactly like "nothing changed",
+     * filtering out every finding and producing a green build.
+     */
+    @Test
+    void unknownSinceRefIsReportedAsFailureNotAsEmptyDiff(@TempDir Path repo) throws Exception {
+        git(repo, "init");
+        git(repo, "config", "user.email", "test@example.com");
+        git(repo, "config", "user.name", "Test");
+        Files.writeString(repo.resolve("Tracked.java"), "class Tracked { }\n");
+        git(repo, "add", ".");
+        git(repo, "commit", "-m", "init");
+
+        GitDiffResolver.GitDiffResult result =
+                new GitDiffResolver().resolveChanged(repo, "refs/heads/does-not-exist");
+
+        assertTrue(result.failed(), "an unknown --since ref must be reported as a failure");
+        assertTrue(result.failureReason().contains("does-not-exist"), result.failureReason());
+    }
+
+    @Test
+    void validSinceRefResolvesWithoutFailure(@TempDir Path repo) throws Exception {
+        git(repo, "init");
+        git(repo, "config", "user.email", "test@example.com");
+        git(repo, "config", "user.name", "Test");
+        Files.writeString(repo.resolve("Tracked.java"), "class Tracked { }\n");
+        git(repo, "add", ".");
+        git(repo, "commit", "-m", "init");
+        String head = gitOutput(repo, "rev-parse", "HEAD").strip();
+
+        GitDiffResolver.GitDiffResult result = new GitDiffResolver().resolveChanged(repo, head);
+
+        assertFalse(result.failed(), String.valueOf(result.failureReason()));
+        assertTrue(result.changedFiles().isEmpty(), result.changedFiles()::toString);
+    }
+
+    private String gitOutput(Path repo, String... arguments) throws Exception {
+        List<String> command = new ArrayList<>();
+        command.add("git");
+        command.addAll(List.of(arguments));
+        Process process = new ProcessBuilder(command).directory(repo.toFile()).start();
+        String out = new String(process.getInputStream().readAllBytes());
+        assertEquals(0, process.waitFor(), "git " + String.join(" ", arguments) + " failed");
+        return out;
+    }
+
     private void git(Path repo, String... arguments) throws Exception {
         List<String> command = new ArrayList<>();
         command.add("git");

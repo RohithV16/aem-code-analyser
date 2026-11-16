@@ -37,6 +37,49 @@ class InlineSuppressionsTest {
         assertFalse(InlineSuppressions.isSuppressed(root, violation("AEM-DUP-010", "Service.java", 3)));
     }
 
+    /**
+     * Regression: the rule-id tokenizer used to split on ':', so a directive could never name a
+     * SonarJava rule and silently did nothing for the majority of real findings.
+     */
+    @Test
+    void sonarRuleIdsCanBeSuppressed() throws Exception {
+        Path file = root.resolve("Sonar.java");
+        Files.writeString(file, """
+                class Sonar {
+                    // aem-analyser-disable-next-line java:S1166
+                    void body() { }
+                }
+                """);
+
+        assertTrue(InlineSuppressions.isSuppressed(root, violation("java:S1166", "Sonar.java", 3)));
+        assertFalse(InlineSuppressions.isSuppressed(root, violation("java:S1192", "Sonar.java", 3)));
+    }
+
+    @Test
+    void directiveQuotedInsideAStringLiteralDoesNotSuppress() throws Exception {
+        Path file = root.resolve("Prose.java");
+        Files.writeString(file, """
+                class Prose {
+                    static final String HELP = "// aem-analyser-disable-next-line AEM-DEAD-001";
+                    void body() { }
+                }
+                """);
+
+        assertFalse(InlineSuppressions.isSuppressed(root, violation("AEM-DEAD-001", "Prose.java", 3)));
+    }
+
+    @Test
+    void directiveOnTheFindingLineDoesNotSuppressIt() throws Exception {
+        Path file = root.resolve("SameLine.java");
+        Files.writeString(file, """
+                class SameLine {
+                    void body() { } // aem-analyser-disable-next-line AEM-DEAD-001
+                }
+                """);
+
+        assertFalse(InlineSuppressions.isSuppressed(root, violation("AEM-DEAD-001", "SameLine.java", 2)));
+    }
+
     @Test
     void directiveWithoutRuleIdsSuppressesEveryRule() throws Exception {
         Path file = root.resolve("Template.html");

@@ -4,6 +4,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import picocli.CommandLine;
 
+import io.github.rohithv16.aem.analyser.core.export.ReportFormat;
+
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.nio.file.Path;
@@ -117,6 +119,42 @@ class AnalyserCliTest {
 
         cmd.parseArgs("--no-sonar");
         assertTrue(cli.isNoSonar(), "noSonar flag should be true when --no-sonar passed");
+        assertFalse(cli.isSonar(), "--no-sonar must disable SonarJava");
+    }
+
+    /**
+     * Regression: {@code --sonar} used to set the flag to false (picocli assigns the opposite of
+     * defaultValue for zero-arity booleans), silently dropping every SonarJava finding.
+     */
+    @Test
+    void testExplicitSonarFlagKeepsSonarEnabled() {
+        AnalyserCli cli = new AnalyserCli();
+        new CommandLine(cli).parseArgs("--sonar");
+        assertTrue(cli.isSonar(), "--sonar must keep SonarJava enabled");
+        assertFalse(cli.isNoSonar(), "--sonar must not look like --no-sonar");
+    }
+
+    @Test
+    void testSonarEnabledByDefault() {
+        AnalyserCli cli = new AnalyserCli();
+        new CommandLine(cli).parseArgs("--no-html");
+        assertTrue(cli.isSonar(), "SonarJava is on by default");
+    }
+
+    /** Regression: duplicate format entries must not double-write or double-print. */
+    @Test
+    void testDuplicateFormatsAreCollapsed() {
+        AnalyserCli cli = new AnalyserCli();
+        new CommandLine(cli).parseArgs("-f", "CONSOLE,console,SARIF");
+        assertEquals(2, cli.parseFormats().size(), "duplicate formats must be collapsed");
+    }
+
+    /** Regression: --no-html must win even when HTML is requested via -f HTML. */
+    @Test
+    void testNoHtmlOverridesExplicitHtmlFormat() {
+        AnalyserCli cli = new AnalyserCli();
+        new CommandLine(cli).parseArgs("-f", "HTML", "--no-html");
+        assertFalse(cli.parseFormats().contains(ReportFormat.HTML), "--no-html must remove HTML");
     }
 
     @Test

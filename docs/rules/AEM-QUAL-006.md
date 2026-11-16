@@ -5,6 +5,12 @@ title: AEM-QUAL-006
 
 # AEM-QUAL-006 — ResolverStoredInComponentField
 
+> **Retired as a producer.** This check is a strict subset of AEM-QUAL-004 and reported every
+> resolver/session field twice with a different severity, so no rule evaluator is registered for
+> this id any more. The ID is kept in `RuleId`/`RuleRegistry` so existing baselines and SARIF
+> consumers keep working; AEM-QUAL-004 (ERROR) is now the single owner of the check.
+
+
 | Property | Value |
 |---|---|
 | Severity | WARNING |

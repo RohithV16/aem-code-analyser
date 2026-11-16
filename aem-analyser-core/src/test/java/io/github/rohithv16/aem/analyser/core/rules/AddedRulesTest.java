@@ -35,13 +35,20 @@ class AddedRulesTest {
     private RuleContext context(Map<String, OSGiComponentNode> components,
                                 Map<String, OSGiConfigNode> configs,
                                 Map<String, JavaClassNode> classes) {
+        return context(components, configs, classes, List.of());
+    }
+
+    private RuleContext context(Map<String, OSGiComponentNode> components,
+                                Map<String, OSGiConfigNode> configs,
+                                Map<String, JavaClassNode> classes,
+                                List<io.github.rohithv16.aem.analyser.core.model.perf.QueryTraversalFinding> traversals) {
         ReferenceGraph graph = new ReferenceGraph();
         components.values().forEach(graph::addVertex);
         configs.values().forEach(graph::addVertex);
         classes.values().forEach(graph::addVertex);
         ReferenceGraphBuilder.GraphBuildResult result = new ReferenceGraphBuilder.GraphBuildResult(
                 graph, Collections.emptySet(), Collections.emptySet(), components, configs, classes,
-                Collections.emptyMap(), List.of(), List.of(), List.of(), List.of(), null);
+                Collections.emptyMap(), List.of(), List.of(), List.of(), traversals, null);
         return new RuleContext(graph, result, Collections.emptySet(), null, Collections.emptySet(), root);
     }
 
@@ -111,7 +118,9 @@ class AddedRulesTest {
                 """);
         JavaClassNode node = new JavaClassNode("com.example.Servlet", JavaClassNode.Kind.CLASS,
                 Collections.emptySet(), null, Collections.emptySet(), file, new SourceLocation(file, 1, 1));
-        RuleContext context = context(Map.of(), Map.of(), Map.of(node.getFqn(), node));
+        RuleContext context = context(Map.of(), Map.of(), Map.of(node.getFqn(), node),
+                List.of(new io.github.rohithv16.aem.analyser.core.model.perf.QueryTraversalFinding(
+                        file, 5, 21, "select * from nt:base", "JCR-SQL2")));
 
         assertEquals(1, new AemSec002Rule().evaluate(context).size());
         assertEquals(1, new AemPerf004Rule().evaluate(context).size());
