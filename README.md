@@ -50,9 +50,8 @@ Every run prints a console report and writes an HTML dashboard to `target/aem-an
 </plugin>
 ```
 
-`mvn verify` now fails on new findings. The plugin is not on JitPack, so install it from
-GitHub Packages or from the release assets — see
-[install routes](docs/MAVEN_CENTRAL_PUBLISHING_GUIDE.md#0-current-availability-read-this-first).
+`mvn verify` now fails on new findings. It resolves straight from **Maven Central** — no
+`<pluginRepositories>`, no token, nothing to configure.
 
 ### No flags needed
 
@@ -305,21 +304,25 @@ Deploy using Maven:
 mvn clean deploy -DskipTests
 ```
 
-### Publishing to Maven Central (Sonatype Central)
+### Publishing to Maven Central
 
-The build is ready: `mvn -Prelease-central deploy` produces signed jars, sources, javadoc and POMs for
-`aem-analyser-core` and `aem-analyser-maven-plugin`. The CLI is intentionally excluded — its shaded jar
-bundles every dependency, and it ships as a release asset instead.
+Published since **1.0.10** — `io.github.rohithv16:aem-code-analyser`,
+`io.github.rohithv16:aem-analyser-core` and `io.github.rohithv16:aem-analyser-maven-plugin`, with
+sources, javadoc and GPG signatures. Consumers need no repository entry and no credentials.
+
+The CLI is not published there: its shaded jar bundles every dependency, so it ships as a release
+asset instead.
 
 Publishing is **manual and separate from a release**, because Central has a publishing quota and an
-irreversible public record: run the *Publish to Maven Central* workflow with a release tag, then press
-*Publish* on the Portal deployment. A release on its own only tags, publishes to GitHub Packages and
-attaches assets.
+irreversible public record:
 
-Publishing starts working as soon as the maintainer completes four one-time steps (namespace, user
-token, GPG key, four repository secrets) — see
-[the publishing guide](docs/MAVEN_CENTRAL_PUBLISHING_GUIDE.md#01-what-the-maintainer-has-to-do-once).
-Until then the release workflow skips Central and prints a notice. Today the plugin is available from
-GitHub Packages or from the release assets (`install:install-file`), and `aem-analyser-core` from
-JitPack.
+1. `Actions → Publish to Maven Central → Run workflow` with a release tag (there is a `dry_run`
+   switch that only builds and signs).
+2. The workflow checks out the tag, refuses a `-SNAPSHOT`, signs and uploads.
+3. The Portal validates the bundle and waits — press *Publish* at
+   [central.sonatype.com/publishing/deployments](https://central.sonatype.com/publishing/deployments).
+
+A release on its own only tags, publishes to GitHub Packages and attaches release assets. Signing key,
+namespace and secrets are documented in the
+[publishing guide](docs/MAVEN_CENTRAL_PUBLISHING_GUIDE.md).
 

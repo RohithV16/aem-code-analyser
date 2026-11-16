@@ -7,6 +7,13 @@ All notable changes to this project are documented here. The format follows
 
 ### Added
 
+- **First Maven Central release (1.0.10).** `io.github.rohithv16:aem-code-analyser`,
+  `aem-analyser-core` and `aem-analyser-maven-plugin` are published with sources, javadoc and GPG
+  signatures, so the plugin needs no repository entry and no token. Verified by resolving both the
+  plugin goal and the library from an empty local repository. The shaded CLI stays a release asset.
+
+### Added
+
 - `-Prelease-central` actually works now: signed jars, sources and javadoc for the core library and
   the Maven plugin, published through the Sonatype Portal. Javadoc never built under the old profile
   (doclint rejects record components without `@param`), and the shaded CLI jar is excluded from the

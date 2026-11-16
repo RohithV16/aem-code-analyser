@@ -11,8 +11,15 @@ This guide documents the complete procedure for publishing releases of `io.githu
 
 ## 0. Current state
 
-**The build side is done; the account side needs the maintainer.** Everything Central validates is
-produced by the `release-central` profile:
+**Live since 1.0.10.** `io.github.rohithv16:aem-code-analyser`, `aem-analyser-core` and
+`aem-analyser-maven-plugin` are on Maven Central with sources, javadoc and signatures; consumers need
+no repository entry and no credentials.
+
+```
+https://repo1.maven.org/maven2/io/github/rohithv16/
+```
+
+Everything Central validates is produced by the `release-central` profile:
 
 | Requirement | Where it is handled |
 |---|---|
@@ -30,7 +37,7 @@ publishing that to Central would hand duplicate classes to anyone who depends on
 GitHub release asset instead. `maven-deploy-plugin` is skipped inside the profile so a Central run
 never also pushes to GitHub Packages.
 
-### 0.1 What the maintainer has to do once
+### 0.1 One-time account setup (done — kept for the next maintainer)
 
 1. **Register the namespace** — <https://central.sonatype.com/publishing/namespaces> (also reachable
    from the top-right account menu → *View Namespaces*). Sign in **with the `RohithV16` GitHub account**:
@@ -80,7 +87,7 @@ never also pushes to GitHub Packages.
    | `GPG_PRIVATE_KEY` | ASCII-armoured secret key from step 3 |
    | `GPG_PASSPHRASE` | passphrase of that key |
 
-Until they exist the release workflow skips Central and stays green, printing a notice.
+These are already configured for this repository; a release does not use them (see 0.1b).
 
 ### 0.1b Publishing is manual, in two steps
 
@@ -108,28 +115,47 @@ After a release run the bundle waits for approval at
 <https://central.sonatype.com/publishing/deployments> — press *Publish* there (`autoPublish=false` is
 deliberate: two accidental clicks on a workflow must not be able to publish).
 
-### 0.3 What is available today
+### 0.3 How to consume it
 
-| Artefact | From | Token needed |
-|---|---|---|
-| `aem-analyser-cli` | GitHub release asset (`aem-analyser-cli.jar`) | no |
-| `aem-analyser-core` | JitPack, `com.github.RohithV16.aem-code-analyser:aem-analyser-core:<tag>` | no |
-| `aem-analyser-maven-plugin` | GitHub Packages | `read:packages` |
-| `aem-analyser-maven-plugin` | release assets via `install:install-file` | no |
-| both libraries/plugins | Maven Central | — as soon as 0.1 is done |
+**Maven Central is the primary route from 1.0.10** — no repository declaration, no token:
 
-JitPack cannot serve the plugin: it relocates the groupId and Maven rejects a plugin whose descriptor
-disagrees (`Invalid plugin descriptor ... wrong group ID`). Central is the fix for that, not JitPack.
-
-To install the plugin without any registry while Central is not live:
+```xml
+<plugin>
+  <groupId>io.github.rohithv16</groupId>
+  <artifactId>aem-analyser-maven-plugin</artifactId>
+  <version>1.0.10</version>
+</plugin>
+```
 
 ```bash
-VERSION=<version>
-mvn install:install-file -Dfile=aem-code-analyser-$VERSION.pom -DpomFile=aem-code-analyser-$VERSION.pom
-mvn install:install-file -Dfile=aem-analyser-core-$VERSION.jar -DpomFile=aem-analyser-core-$VERSION.pom
-mvn install:install-file -Dfile=aem-analyser-maven-plugin-$VERSION.jar -DpomFile=aem-analyser-maven-plugin-$VERSION.pom
-mvn io.github.rohithv16:aem-analyser-maven-plugin:$VERSION:check
+# or run the goal without touching the POM
+mvn io.github.rohithv16:aem-analyser-maven-plugin:1.0.10:check
 ```
+
+```xml
+<dependency>
+  <groupId>io.github.rohithv16</groupId>
+  <artifactId>aem-analyser-core</artifactId>
+  <version>1.0.10</version>
+</dependency>
+```
+
+Both were verified against an empty local repository (`-Dmaven.repo.local=/tmp/proof`): the goal ran
+and reported the project's real findings, and the library compiled and printed
+`VersionInfo.current() = 1.0.10`.
+
+Alternatives that still work:
+
+| Artefact | Route | Token | Note |
+|---|---|---|---|
+| `aem-analyser-cli` | GitHub release asset | no | shaded, self-contained |
+| `aem-analyser-core` | JitPack (`com.github.RohithV16.aem-code-analyser:…:<tag>`) | no | fine for libraries |
+| plugin + core | GitHub Packages | `read:packages` | legacy route |
+| plugin + core | release assets + `install:install-file` | no | air-gapped |
+
+JitPack still cannot serve the **plugin**: it relocates the groupId and Maven rejects a plugin whose
+descriptor disagrees (`Invalid plugin descriptor ... wrong group ID`). That is no longer a limitation
+for users — Central covers it.
 
 ## 1. Overview & Architecture
 

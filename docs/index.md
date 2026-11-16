@@ -64,8 +64,9 @@ dashboard to `target/aem-analyser/` (`--no-html` skips it).
 </plugin>
 ```
 
-`mvn verify` then fails on new findings. Install routes for the plugin — it is not on JitPack — are in
-the [publishing guide](MAVEN_CENTRAL_PUBLISHING_GUIDE.html#0-current-availability-read-this-first).
+`mvn verify` then fails on new findings. The plugin resolves straight from **Maven Central** — no
+`<pluginRepositories>`, no token, no install step. `aem-analyser-core` is there too, if you want the
+engine as a library.
 
 ### No flags needed
 
@@ -87,6 +88,11 @@ that parent comes from a repository.
 | Java | 21 |
 | Maven | 3.9+ (plugin and source builds only) |
 | AEM project layout | any multi-module reactor (`core`, `ui.apps`, `ui.config`, `all`, …) |
+
+The Maven plugin and the core library are published to **Maven Central** from version 1.0.10 onward;
+the CLI is a release asset. See the
+[publishing guide](MAVEN_CENTRAL_PUBLISHING_GUIDE.html) for signing, namespaces and how a release is
+promoted.
 
 ---
 
