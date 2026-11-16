@@ -17,7 +17,7 @@ import java.util.List;
  * Runs the cross-boundary analysis and writes the configured export formats
  * (SARIF, SonarQube Generic Issue JSON, ANSI console text, HTML) without failing the build.
  */
-@Mojo(name = "report", aggregator = true, defaultPhase = LifecyclePhase.VERIFY)
+@Mojo(name = "report", aggregator = true, defaultPhase = LifecyclePhase.VERIFY, threadSafe = true)
 public class ReportMojo extends AbstractAnalyserMojo {
 
     @Override

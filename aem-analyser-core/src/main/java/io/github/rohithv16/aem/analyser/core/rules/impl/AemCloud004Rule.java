@@ -34,8 +34,7 @@ public final class AemCloud004Rule implements RuleEvaluator {
     @Override
     public List<Violation> evaluate(RuleContext context) {
         List<Violation> violations = new ArrayList<>();
-        for (var classNode : context.buildResult().classNodes().values()) {
-            var file = classNode.getFilePath();
+        for (java.nio.file.Path file : context.javaTypeFiles()) {
             if (file == null || !Files.isRegularFile(file)) {
                 continue;
             }

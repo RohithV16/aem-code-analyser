@@ -114,7 +114,21 @@ public final class PlatformPidCatalog {
         if (EXACT_PIDS.contains(pid)) {
             return true;
         }
-        return WILDCARD_PREFIXES.stream().anyMatch(prefix -> matchesPrefix(pid, prefix));
+        if (WILDCARD_PREFIXES.stream().anyMatch(prefix -> matchesPrefix(pid, prefix))) {
+            return true;
+        }
+        // Factory-instance naming. Adobe ships factory configurations as
+        // "<factoryPid>-<instance>" (e.g. ServiceUserMapperImpl.amended-<project>) as well as the
+        // RFC 724 "<factoryPid>~<instance>" form. The project never declares a platform component, so
+        // a suffixed platform PID can never be validated by component matching and must not be
+        // reported as orphaned project code. A genuine duplicate would use the exact PID, which is
+        // still matched above.
+        int dash = pid.lastIndexOf('-');
+        if (dash > 0 && EXACT_PIDS.contains(pid.substring(0, dash))) {
+            return true;
+        }
+        int tilde = pid.lastIndexOf('~');
+        return tilde > 0 && EXACT_PIDS.contains(pid.substring(0, tilde));
     }
 
     /**

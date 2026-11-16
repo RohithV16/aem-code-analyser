@@ -54,8 +54,20 @@ public final class JavaSourceParser {
     private final io.github.rohithv16.aem.analyser.core.parser.java.visitor.ResourceLeakVisitor leakVisitor =
             new io.github.rohithv16.aem.analyser.core.parser.java.visitor.ResourceLeakVisitor();
 
+    /** Project-wide {@code static final String} constants used to fold annotation values. */
+    private Map<String, String> projectConstants = Map.of();
+
+    public void setProjectConstants(Map<String, String> constants) {
+        this.projectConstants = constants == null ? Map.of() : Map.copyOf(constants);
+    }
+
     public JavaSourceParseResult parse(Path filePath) {
-        return parseInternal(filePath, false);
+        AnnotationUtils.setProjectConstants(projectConstants);
+        try {
+            return parseInternal(filePath, false);
+        } finally {
+            AnnotationUtils.clearProjectConstants();
+        }
     }
 
     /**
@@ -63,7 +75,12 @@ public final class JavaSourceParser {
      * diagnostic instead of silently losing every symbol in the file.
      */
     public JavaSourceParseResult parseStrict(Path filePath) {
-        return parseInternal(filePath, true);
+        AnnotationUtils.setProjectConstants(projectConstants);
+        try {
+            return parseInternal(filePath, true);
+        } finally {
+            AnnotationUtils.clearProjectConstants();
+        }
     }
 
     private JavaSourceParseResult parseInternal(Path filePath, boolean strict) {
@@ -146,6 +163,12 @@ public final class JavaSourceParser {
             JavaClassNode classNode = plainClassNode(type, packageName, imports, localTypes, filePath);
             javaClasses.add(classNode);
             pendingConsumptions.addAll(extractConsumptions(classNode.getFqn(), type, packageName, imports, localTypes, filePath));
+            // A plain class can hold @Reference fields that the inheriting @Component actually
+            // consumes (abstract servlet base classes). Emit them so the graph can attribute the
+            // injection to the subclass instead of reporting the service as unused.
+            componentVisitor.extractReferences(type, packageName, imports, localTypes)
+                    .forEach((field, target) -> pendingServiceInjections.add(
+                            new PendingServiceInjection(classNode.getFqn(), target, false, filePath)));
         }
 
         List<AdministrativeCall> administrativeCalls = new ArrayList<>();

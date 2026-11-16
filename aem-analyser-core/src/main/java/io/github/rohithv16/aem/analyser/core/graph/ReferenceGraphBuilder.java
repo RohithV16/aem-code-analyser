@@ -233,7 +233,7 @@ public final class ReferenceGraphBuilder {
         // INJECTS_SERVICE
         for (JavaSourceParseResult java : input.javaResults()) {
             for (PendingServiceInjection pending : java.pendingServiceInjections()) {
-                resolveInjection(pending, componentsByFqn, modelNodes, edges);
+                resolveInjection(pending, componentsByFqn, modelNodes, classNodes, edges);
             }
         }
 
@@ -252,6 +252,23 @@ public final class ReferenceGraphBuilder {
                     SlingModelNode direct = modelNodes.get(pending.targetTypeName());
                     if (direct != null) {
                         models = List.of(direct);
+                    }
+                }
+                if (models.isEmpty()) {
+                    // Unresolved adapter FQN (wildcard import): fall back to a unique simple-name match.
+                    String simpleName = pending.targetTypeName()
+                            .substring(pending.targetTypeName().lastIndexOf('.') + 1);
+                    List<SlingModelNode> bySimpleName = new ArrayList<>();
+                    for (SlingModelNode model : modelNodes.values()) {
+                        boolean matches = model.getAdapters().stream()
+                                .anyMatch(adapter -> adapter.substring(adapter.lastIndexOf('.') + 1)
+                                        .equals(simpleName));
+                        if (matches) {
+                            bySimpleName.add(model);
+                        }
+                    }
+                    if (bySimpleName.size() == 1) {
+                        models = bySimpleName;
                     }
                 }
                 for (SlingModelNode model : models) {
@@ -330,14 +347,15 @@ public final class ReferenceGraphBuilder {
     private void resolveInjection(PendingServiceInjection pending,
                                   Map<String, OSGiComponentNode> componentsByFqn,
                                   Map<String, SlingModelNode> modelNodes,
+                                  Map<String, JavaClassNode> classNodes,
                                   List<PolyglotEdge> edges) {
         String targetType = cleanTargetType(pending.serviceTypeName());
         if (targetType == null || targetType.isBlank() || targetType.startsWith("java.")) {
             return;
         }
-        OSGiComponentNode consumerComponent = componentsByFqn.get(pending.consumerFqn());
-        SlingModelNode consumerModel = modelNodes.get(pending.consumerFqn());
-        if (consumerComponent == null && consumerModel == null) {
+        List<PolyglotNode> consumers = injectionConsumers(pending.consumerFqn(), componentsByFqn,
+                modelNodes, classNodes);
+        if (consumers.isEmpty()) {
             return;
         }
         List<OSGiComponentNode> targets = new ArrayList<>();
@@ -348,14 +366,93 @@ public final class ReferenceGraphBuilder {
         }
         // service interface reference
         targets.addAll(graph.getIndex().findComponentsByServiceInterface(targetType));
-        for (OSGiComponentNode target : targets) {
-            PolyglotNode source = consumerComponent != null ? consumerComponent : consumerModel;
-            if (source.getId().equals(target.getId()) && source.getNodeType() == target.getNodeType()) {
-                continue; // self-reference does not count as external consumption
-            }
-            edges.add(new SimpleEdge(source, target, EdgeType.INJECTS_SERVICE,
-                    source.getId() + " injects service " + target.getId()));
+        if (targets.isEmpty()) {
+            // The FQN could not be resolved: wildcard imports and types living in the consumer's own
+            // package both degrade to "<package>.<SimpleName>". Fall back to a UNIQUE simple-name
+            // match so a genuine injection is not lost, without inventing edges on ambiguity.
+            targets.addAll(findComponentsByUniqueServiceName(targetType, componentsByFqn));
         }
+        for (OSGiComponentNode target : targets) {
+            for (PolyglotNode source : consumers) {
+                if (source.getId().equals(target.getId()) && source.getNodeType() == target.getNodeType()) {
+                    continue; // self-reference does not count as external consumption
+                }
+                edges.add(new SimpleEdge(source, target, EdgeType.INJECTS_SERVICE,
+                        source.getId() + " injects service " + target.getId()));
+            }
+        }
+    }
+
+    /**
+     * Resolves the types that consume an injection. A {@code @Reference} declared in a plain base
+     * class (the usual abstract-servlet layout) is attributed to every component that extends it.
+     */
+    private List<PolyglotNode> injectionConsumers(String consumerFqn,
+                                                  Map<String, OSGiComponentNode> componentsByFqn,
+                                                  Map<String, SlingModelNode> modelNodes,
+                                                  Map<String, JavaClassNode> classNodes) {
+        List<PolyglotNode> consumers = new ArrayList<>();
+        OSGiComponentNode component = componentsByFqn.get(consumerFqn);
+        if (component != null) {
+            consumers.add(component);
+        }
+        SlingModelNode model = modelNodes.get(consumerFqn);
+        if (model != null) {
+            consumers.add(model);
+        }
+        if (!consumers.isEmpty()) {
+            return consumers;
+        }
+        for (OSGiComponentNode candidate : componentsByFqn.values()) {
+            if (extendsType(candidate.getFqn(), consumerFqn, componentsByFqn, classNodes)) {
+                consumers.add(candidate);
+            }
+        }
+        return consumers;
+    }
+
+    /** Walks the superclass chain (components + plain classes) looking for {@code ancestorFqn}. */
+    private boolean extendsType(String fqn, String ancestorFqn,
+                                Map<String, OSGiComponentNode> componentsByFqn,
+                                Map<String, JavaClassNode> classNodes) {
+        Set<String> seen = new HashSet<>();
+        String current = fqn;
+        for (int depth = 0; depth < 32 && current != null && seen.add(current); depth++) {
+            String superClass = null;
+            JavaClassNode classNode = classNodes.get(current);
+            if (classNode != null) {
+                superClass = classNode.getSuperClass().orElse(null);
+            }
+            if (superClass == null) {
+                OSGiComponentNode component = componentsByFqn.get(current);
+                if (component != null) {
+                    superClass = component.getSuperClass().orElse(null);
+                }
+            }
+            if (superClass == null) {
+                return false;
+            }
+            if (superClass.equals(ancestorFqn)) {
+                return true;
+            }
+            current = superClass;
+        }
+        return false;
+    }
+
+    /** Components exposing a service interface whose simple name matches, only when unique. */
+    private List<OSGiComponentNode> findComponentsByUniqueServiceName(
+            String typeName, Map<String, OSGiComponentNode> componentsByFqn) {
+        String simpleName = typeName.substring(typeName.lastIndexOf('.') + 1);
+        List<OSGiComponentNode> matches = new ArrayList<>();
+        for (OSGiComponentNode component : componentsByFqn.values()) {
+            boolean exposes = component.getServiceInterfaces().stream()
+                    .anyMatch(iface -> iface.substring(iface.lastIndexOf('.') + 1).equals(simpleName));
+            if (exposes) {
+                matches.add(component);
+            }
+        }
+        return matches.size() == 1 ? matches : List.of();
     }
 
     private String cleanTargetType(String raw) {

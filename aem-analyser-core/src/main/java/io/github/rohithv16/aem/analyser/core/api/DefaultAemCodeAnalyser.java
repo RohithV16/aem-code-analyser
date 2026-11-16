@@ -54,6 +54,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -89,8 +90,12 @@ public final class DefaultAemCodeAnalyser implements AemCodeAnalyser {
             new AemQual002Rule(),
             new AemQual003Rule(),
             new AemQual004Rule(),
+            // AEM-QUAL-006 is deliberately NOT registered: its field check (ResourceResolver /
+            // Session in a non-static field) is a strict subset of AEM-QUAL-004, so registering both
+            // reported every field twice with different severities. QUAL-006 stays in RuleId /
+            // RuleRegistry for metadata and baseline compatibility, like AEM-DUP-010.
+
             new AemQual005Rule(),
-            new AemQual006Rule(),
             new AemPerf001Rule(),
             new AemPerf002Rule(),
             new AemPerf003Rule(),
@@ -237,6 +242,7 @@ public final class DefaultAemCodeAnalyser implements AemCodeAnalyser {
         javaFiles.sort(Comparator.naturalOrder());
 
         JavaSourceParser parser = new JavaSourceParser();
+        parser.setProjectConstants(scanStringConstants(javaFiles, context.maxFileSizeBytes()));
         List<JavaSourceParseResult> results = new ArrayList<>(javaFiles.size());
         long deadlineNanos = context.timeoutMillis() > 0
                 ? System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(context.timeoutMillis())
@@ -327,6 +333,69 @@ public final class DefaultAemCodeAnalyser implements AemCodeAnalyser {
             }
         }
         return configs;
+    }
+
+    /**
+     * Cheap pre-scan for {@code static final String NAME = "literal";} so annotation values that
+     * reference a constant from another compilation unit can be folded (e.g. {@code configurationPid
+     * = Consts.PID}).
+     *
+     * <p>Constants are indexed by simple name, {@code Type.NAME} and {@code package.Type.NAME}. A
+     * simple name declared twice with different values is dropped so it can never resolve to the
+     * wrong class; the qualified keys keep working.
+     */
+    private static Map<String, String> scanStringConstants(List<Path> javaFiles, long maxFileSizeBytes) {
+        java.util.regex.Pattern constantPattern = java.util.regex.Pattern.compile(
+                "static\\s+final\\s+String\\s+([A-Za-z_$][\\w$]*)\\s*=\\s*\"((?:[^\"\\\\]|\\\\.)*)\"\\s*;");
+        java.util.regex.Pattern packagePattern = java.util.regex.Pattern.compile(
+                "^\\s*package\\s+([\\w.]+)\\s*;");
+        java.util.regex.Pattern typePattern = java.util.regex.Pattern.compile(
+                "\\b(?:class|interface|enum|record)\\s+([A-Za-z_$][\\w$]*)");
+
+        Map<String, String> constants = new LinkedHashMap<>();
+        Set<String> ambiguousSimpleNames = new HashSet<>();
+
+        for (Path file : javaFiles) {
+            try {
+                if (Files.size(file) > maxFileSizeBytes) {
+                    continue;
+                }
+                String source = Files.readString(file);
+                String packageName = "";
+                String typeName = "";
+                for (String line : source.split("\r?\n")) {
+                    java.util.regex.Matcher packageMatcher = packagePattern.matcher(line);
+                    if (packageMatcher.find()) {
+                        packageName = packageMatcher.group(1);
+                    }
+                    java.util.regex.Matcher typeMatcher = typePattern.matcher(line);
+                    if (typeMatcher.find()) {
+                        typeName = typeMatcher.group(1);
+                    }
+                    java.util.regex.Matcher constantMatcher = constantPattern.matcher(line);
+                    while (constantMatcher.find()) {
+                        String name = constantMatcher.group(1);
+                        String value = constantMatcher.group(2);
+                        String existing = constants.get(name);
+                        if (existing != null && !existing.equals(value)) {
+                            ambiguousSimpleNames.add(name);
+                        } else {
+                            constants.putIfAbsent(name, value);
+                        }
+                        if (!typeName.isEmpty()) {
+                            constants.putIfAbsent(typeName + "." + name, value);
+                        }
+                        if (!packageName.isEmpty() && !typeName.isEmpty()) {
+                            constants.putIfAbsent(packageName + "." + typeName + "." + name, value);
+                        }
+                    }
+                }
+            } catch (IOException e) {
+                // unreadable file: reported by the parse phase
+            }
+        }
+        ambiguousSimpleNames.forEach(constants::remove);
+        return constants;
     }
 
     private DependencyBytecodeIndexer.DependencyIndex indexDependencies(AnalysisContext context,

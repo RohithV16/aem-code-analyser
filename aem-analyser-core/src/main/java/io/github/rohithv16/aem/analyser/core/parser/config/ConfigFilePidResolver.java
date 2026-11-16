@@ -64,10 +64,10 @@ public final class ConfigFilePidResolver {
                 String pid = baseName.substring(0, hyphen);
                 String subname = baseName.substring(hyphen + 1);
                 if (isValidPid(pid) && isValidFactorySubname(subname)) {
-                    // A numeric suffix (…-1, …-2) is unambiguously a factory instance. Anything
-                    // else could also be a hyphenated PID segment, so flag it for disambiguation.
-                    boolean ambiguous = !subname.chars().allMatch(Character::isDigit);
-                    return new ResolvedPid(pid, subname, true, ambiguous);
+                    // A hyphen split is ALWAYS ambiguous for legacy .config files: the suffix may be
+                    // a factory instance OR part of a hyphenated PID ("com.example.foo-1").
+                    // Graph-time disambiguation re-checks the whole name against component PIDs.
+                    return new ResolvedPid(pid, subname, true, true);
                 }
             }
         }

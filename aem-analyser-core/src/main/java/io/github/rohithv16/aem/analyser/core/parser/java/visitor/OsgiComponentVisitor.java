@@ -167,8 +167,13 @@ public final class OsgiComponentVisitor {
                 .anyMatch(name -> name.contains("ServiceTracker") || name.contains("BundleContext"));
     }
 
-    private Map<String, String> extractReferences(TypeDeclaration<?> type, String packageName,
-                                                  Map<String, String> imports, Map<String, String> localTypes) {
+    /**
+     * Extracts {@code @Reference} field/method/parameter targets. Public because references declared
+     * in a plain (non-component) base class must still reach the graph: they are attributed to the
+     * inheriting component at graph-build time.
+     */
+    public Map<String, String> extractReferences(TypeDeclaration<?> type, String packageName,
+                                                 Map<String, String> imports, Map<String, String> localTypes) {
         Map<String, String> references = new LinkedHashMap<>();
         List<BodyDeclaration<?>> members = new ArrayList<>();
         members.addAll(type.getFields());

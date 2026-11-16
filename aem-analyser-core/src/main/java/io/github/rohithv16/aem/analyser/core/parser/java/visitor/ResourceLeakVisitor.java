@@ -108,18 +108,18 @@ public final class ResourceLeakVisitor {
                 }
             }
 
-            // 4. Query Traversal Risks: findResources(query, lang) or createQuery(query, lang)
+            // 4. Query risks: record EVERY literal findResources(query, lang) / createQuery(query, lang)
+            //    call site. AEM-PERF-003 (unbounded traversal) and AEM-PERF-004 (no result limit) each
+            //    apply their own predicate; filtering here made PERF-004 blind to bounded-risk queries
+            //    and forced it into a raw line scan that matched comments and log strings.
             if (name.equals("findResources") || name.equals("createQuery")) {
                 if (!call.getArguments().isEmpty() && call.getArgument(0) instanceof StringLiteralExpr strExpr) {
                     String query = strExpr.getValue();
-                    String queryLower = query.toLowerCase(Locale.ROOT);
-                    if (queryLower.contains("nt:base") && !queryLower.contains("where")) {
-                        int line = call.getRange().map(r -> r.begin.line).orElse(1);
-                        int col = call.getRange().map(r -> r.begin.column).orElse(1);
-                        String lang = call.getArguments().size() > 1 && call.getArgument(1) instanceof StringLiteralExpr l
-                                ? l.getValue() : "JCR-SQL2";
-                        traversals.add(new QueryTraversalFinding(filePath, line, col, query, lang));
-                    }
+                    int line = call.getRange().map(r -> r.begin.line).orElse(1);
+                    int col = call.getRange().map(r -> r.begin.column).orElse(1);
+                    String lang = call.getArguments().size() > 1 && call.getArgument(1) instanceof StringLiteralExpr l
+                            ? l.getValue() : "JCR-SQL2";
+                    traversals.add(new QueryTraversalFinding(filePath, line, col, query, lang));
                 }
             }
         }

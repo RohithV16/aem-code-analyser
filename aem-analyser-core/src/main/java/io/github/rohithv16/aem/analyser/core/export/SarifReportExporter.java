@@ -62,6 +62,9 @@ public final class SarifReportExporter implements ReportExporter {
             properties.put("subtype", violation.subtype());
             violation.targetPidOpt().ifPresent(pid -> properties.put("targetPid", pid));
             result.put("properties", properties);
+            // Stable identity so GitHub code scanning tracks the same alert across unrelated edits.
+            result.put("partialFingerprints", Map.of("aemAnalyserFingerprint/v1",
+                    io.github.rohithv16.aem.analyser.core.baseline.Fingerprint.of(violation)));
             result.put("locations", List.of(location(violation.filePath(), violation.region())));
             if (!violation.relatedLocations().isEmpty()) {
                 List<Map<String, Object>> related = new ArrayList<>();
@@ -88,6 +91,7 @@ public final class SarifReportExporter implements ReportExporter {
         Map<String, Object> run = new LinkedHashMap<>();
         run.put("tool", Map.of("driver", driver));
         run.put("originalUriBaseIds", Map.of("%SRCROOT%", Map.of(
+                "uri", "file:///",
                 "description", Map.of("text", "Repository source root directory."))));
         if (!report.diagnostics().isEmpty()) {
             List<Map<String, Object>> notifications = new ArrayList<>();
@@ -139,6 +143,39 @@ public final class SarifReportExporter implements ReportExporter {
         return definition;
     }
 
+    /** Percent-encodes a project-relative path for {@code artifactLocation.uri}, keeping '/'. */
+    static String toUri(String path) {
+        if (path == null) {
+            return "";
+        }
+        StringBuilder encoded = new StringBuilder(path.length() + 16);
+        String[] segments = path.replace('\\', '/').split("/", -1);
+        for (int i = 0; i < segments.length; i++) {
+            if (i > 0) {
+                encoded.append('/');
+            }
+            encoded.append(encodeSegment(segments[i]));
+        }
+        return encoded.toString();
+    }
+
+    private static String encodeSegment(String segment) {
+        StringBuilder encoded = new StringBuilder(segment.length() + 8);
+        for (byte b : segment.getBytes(java.nio.charset.StandardCharsets.UTF_8)) {
+            int value = b & 0xFF;
+            boolean unreserved = (value >= 'A' && value <= 'Z')
+                    || (value >= 'a' && value <= 'z')
+                    || (value >= '0' && value <= '9')
+                    || value == '-' || value == '.' || value == '_' || value == '~';
+            if (unreserved) {
+                encoded.append((char) value);
+            } else {
+                encoded.append('%').append(String.format("%02X", value));
+            }
+        }
+        return encoded.toString();
+    }
+
     private Map<String, Object> location(String filePath, TextRegion region) {
         return Map.of("physicalLocation", physicalLocation(filePath, region));
     }
@@ -150,7 +187,9 @@ public final class SarifReportExporter implements ReportExporter {
      */
     private Map<String, Object> physicalLocation(String filePath, TextRegion region) {
         Map<String, Object> artifactLocation = new LinkedHashMap<>();
-        artifactLocation.put("uri", filePath);
+        // SARIF types uri as an RFC 3986 uri-reference: spaces and non-ASCII characters are illegal
+        // raw and make GitHub/Azure reject or skip the result.
+        artifactLocation.put("uri", toUri(filePath));
         artifactLocation.put("uriBaseId", "%SRCROOT%");
         int startLine = region.startLine();
         int endLine = Math.max(startLine, region.endLine());

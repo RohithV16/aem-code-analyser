@@ -118,6 +118,10 @@ public final class ReferenceGraphIndex {
 
     /**
      * OSGi DS 1.4 §112.8.2 ActivePids(K) with default PID suppression and "$" expansion.
+     *
+     * <p>A factory component's configurations are named {@code <factoryPid>~<instance>}, so the
+     * factory id itself is an active PID too - omitting it reported every factory configuration as
+     * orphaned.
      */
     public static List<String> computeActivePids(OSGiComponentNode component) {
         if (component.getConfigurationPolicy() == OSGiComponentNode.ConfigurationPolicy.IGNORE) {
@@ -126,14 +130,20 @@ public final class ReferenceGraphIndex {
         String defaultPid = component.getName()
                 .filter(n -> !n.isBlank())
                 .orElse(component.getComponentClassFqn());
+        java.util.LinkedHashSet<String> active = new java.util.LinkedHashSet<>();
         List<String> configPids = component.getConfigurationPids();
         if (configPids != null && !configPids.isEmpty()) {
-            return configPids.stream()
+            configPids.stream()
                     .map(pid -> pid.replace("$", defaultPid))
-                    .distinct()
-                    .toList();
+                    .forEach(active::add);
+        } else {
+            active.add(defaultPid);
         }
-        return List.of(defaultPid);
+        component.getFactoryId()
+                .filter(factory -> !factory.isBlank())
+                .map(factory -> factory.replace("$", defaultPid))
+                .ifPresent(active::add);
+        return List.copyOf(active);
     }
 
     public static Function<OSGiComponentNode, List<String>> activePidExtractor() {

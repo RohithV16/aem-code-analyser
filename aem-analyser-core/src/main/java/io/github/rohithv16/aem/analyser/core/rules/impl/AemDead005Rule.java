@@ -47,17 +47,18 @@ public final class AemDead005Rule implements RuleEvaluator {
         }
 
         // Pass 1: collect clientlibs and their declared categories (small).
-        Map<Path, List<String>> categoriesByClientlib = new LinkedHashMap<>();
+        // Categories are aggregated to their FIRST defining file so an orphaned category is reported
+        // once, not once per clientlib that happens to declare it.
+        Map<String, Path> firstFileByCategory = new LinkedHashMap<>();
         Set<String> allCategories = new LinkedHashSet<>();
         Set<String> referenced = new LinkedHashSet<>();
         try (Stream<Path> stream = Files.walk(root)) {
             stream.filter(Files::isRegularFile)
                     .filter(path -> isClientlibDefinition(path))
                     .forEach(path -> {
-                        List<String> categories = categories(path, CATEGORY_ATTR);
-                        if (!categories.isEmpty()) {
-                            categoriesByClientlib.put(path, categories);
-                            allCategories.addAll(categories);
+                        for (String category : categories(path, CATEGORY_ATTR)) {
+                            firstFileByCategory.putIfAbsent(category, path);
+                            allCategories.add(category);
                         }
                         referenced.addAll(categories(path, DEPENDENCY_ATTR));
                     });
@@ -78,24 +79,23 @@ public final class AemDead005Rule implements RuleEvaluator {
         }
 
         List<Violation> violations = new ArrayList<>();
-        for (Map.Entry<Path, List<String>> entry : categoriesByClientlib.entrySet()) {
-            for (String category : entry.getValue()) {
-                if (isPlatformCategory(category) || referenced.contains(category)) {
-                    continue;
-                }
-                violations.add(new Violation(
-                        RuleId.AEM_DEAD_005.id(),
-                        Severity.INFO,
-                        "ORPHANED_CLIENTLIB_CATEGORY",
-                        "Client library category '" + category + "' is never referenced by a template"
-                                + " or another client library.",
-                        root.relativize(entry.getKey()).toString().replace('\\', '/'),
-                        TextRegion.forWholeFile(),
-                        category,
-                        "Reference the category from an HTL/JSP template (clientlib call)"
-                                + " or delete the client library.",
-                        List.of()));
+        for (Map.Entry<String, Path> entry : firstFileByCategory.entrySet()) {
+            String category = entry.getKey();
+            if (isPlatformCategory(category) || referenced.contains(category)) {
+                continue;
             }
+            violations.add(new Violation(
+                    RuleId.AEM_DEAD_005.id(),
+                    Severity.INFO,
+                    "ORPHANED_CLIENTLIB_CATEGORY",
+                    "Client library category '" + category + "' is never referenced by a template"
+                            + " or another client library.",
+                    root.relativize(entry.getValue()).toString().replace('\\', '/'),
+                    TextRegion.forWholeFile(),
+                    category,
+                    "Reference the category from an HTL/JSP template (clientlib call)"
+                            + " or delete the client library.",
+                    List.of()));
         }
         return violations;
     }
@@ -103,7 +103,15 @@ public final class AemDead005Rule implements RuleEvaluator {
     private static boolean isClientlibDefinition(Path path) {
         String normalized = path.toString().replace('\\', '/');
         return path.getFileName().toString().equals(".content.xml")
-                && (normalized.contains("/clientlib") || normalized.contains("/clientLib"));
+                && (normalized.contains("/clientlib") || normalized.contains("/clientLib"))
+                && !isIgnored(normalized);
+    }
+
+    /** Build output, frontend dependencies and VCS metadata are never AEM content. */
+    private static boolean isIgnored(String normalizedPath) {
+        return normalizedPath.contains("/target/") || normalizedPath.contains("/node_modules/")
+                || normalizedPath.contains("/.git/") || normalizedPath.contains("/dist/")
+                || normalizedPath.contains("/.idea/") || normalizedPath.contains("/.vscode/");
     }
 
     private static boolean isTemplate(Path path) {
@@ -112,8 +120,7 @@ public final class AemDead005Rule implements RuleEvaluator {
         }
         String name = path.getFileName().toString();
         String normalized = path.toString().replace('\\', '/');
-        if (normalized.contains("/target/") || normalized.contains("/node_modules/")
-                || normalized.contains("/.git/") || normalized.contains("/dist/")) {
+        if (isIgnored(normalized)) {
             return false;
         }
         return name.endsWith(".html") || name.endsWith(".jsp") || name.endsWith(".js")
@@ -125,7 +132,9 @@ public final class AemDead005Rule implements RuleEvaluator {
             if (Files.size(file) > MAX_SCAN_BYTES) {
                 return;
             }
-            String content = Files.readString(file);
+            // Categories are normalised to lower case, so the haystack must be lower-cased too -
+            // otherwise any camelCase category could never be matched and was always "orphaned".
+            String content = Files.readString(file).toLowerCase(Locale.ROOT);
             for (String category : categories) {
                 if (!referenced.contains(category) && content.contains(category)) {
                     referenced.add(category);

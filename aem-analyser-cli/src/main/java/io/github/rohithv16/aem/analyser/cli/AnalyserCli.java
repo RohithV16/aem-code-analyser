@@ -124,13 +124,11 @@ public class AnalyserCli implements Runnable {
             description = "Quality Gate: maximum tolerated warning count before failing the build.")
     private Integer maxWarnings;
 
-    @Option(names = {"--sonar"}, defaultValue = "true",
-            description = "Enable embedded SonarJava analysis (default: true).")
+    // fallbackValue is required: without it picocli treats a default-true flag as a *toggle*, so
+    // "--sonar" would set the field to false and silently drop every SonarJava finding.
+    @Option(names = {"--sonar"}, negatable = true, defaultValue = "true", fallbackValue = "true",
+            description = "Enable embedded SonarJava analysis. Use --no-sonar to disable it (default: enabled).")
     private boolean sonar = true;
-
-    @Option(names = {"--no-sonar"},
-            description = "Disable embedded SonarJava analysis.")
-    private boolean noSonar;
 
     @Option(names = {"--sonar-rules"},
             description = "SonarJava ruleset filter (default: 'default', or comma-separated rule IDs e.g. S106,S1147).")
@@ -197,7 +195,7 @@ public class AnalyserCli implements Runnable {
     }
 
     boolean isNoSonar() {
-        return noSonar;
+        return !sonar;
     }
 
     private final PrintWriter stdout = new PrintWriter(System.out, true, StandardCharsets.UTF_8);
@@ -271,7 +269,7 @@ public class AnalyserCli implements Runnable {
             if (dependencyJarRoots != null && !dependencyJarRoots.isEmpty()) {
                 builder = builder.dependencyJarRoots(dependencyJarRoots);
             }
-            boolean enableSonar = sonar && !noSonar;
+            boolean enableSonar = sonar;
             builder = builder.enableSonar(enableSonar);
             if (sonarRules != null && !sonarRules.isBlank()) {
                 builder = builder.sonarRules(sonarRules);
@@ -280,7 +278,12 @@ public class AnalyserCli implements Runnable {
             AnalysisContext context = builder.build();
             if (changedOnly || (since != null && !since.isBlank())) {
                 var diff = new GitDiffResolver().resolveChanged(root, since);
-                if (diff.isGitRepo()) {
+                if (diff.failed()) {
+                    // Never shrink the parsed file set from a failed diff: a typo in --since (or an
+                    // unfetched CI base ref) would otherwise report a clean build.
+                    stdout.println("[WARN] " + diff.failureReason());
+                    stdout.println("[WARN] Falling back to a FULL scan so findings cannot be dropped.");
+                } else if (diff.isGitRepo()) {
                     context = context.toBuilder().changedFiles(diff.changedFiles()).build();
                 }
             }
@@ -304,6 +307,11 @@ public class AnalyserCli implements Runnable {
                     }
                 } else {
                     stdout.println("[INFO] No auto-fixable code smells detected in target files.");
+                }
+                if (!fixSummary.writeFailures().isEmpty()) {
+                    for (String failure : fixSummary.writeFailures()) {
+                        stdout.println("[WARNING] Could not auto-fix " + failure);
+                    }
                 }
             }
 
@@ -405,12 +413,16 @@ public class AnalyserCli implements Runnable {
         return 0;
     }
 
-    private List<ReportFormat> parseFormats() {
+    List<ReportFormat> parseFormats() {
         List<ReportFormat> parsed = new ArrayList<>();
         for (String format : formats) {
             String candidate = format == null ? "" : format.strip().toUpperCase(Locale.ROOT);
             try {
-                parsed.add(ReportFormat.valueOf(candidate));
+                ReportFormat parsedFormat = ReportFormat.valueOf(candidate);
+                // Duplicate entries (e.g. -f CONSOLE,console) must not double-write or double-print.
+                if (!parsed.contains(parsedFormat)) {
+                    parsed.add(parsedFormat);
+                }
             } catch (IllegalArgumentException e) {
                 throw new IllegalArgumentException("Unknown report format '" + format
                         + "'. Supported formats: CONSOLE, SARIF, SONAR, HTML, GITHUB, GITLAB, AZURE.");
@@ -419,6 +431,10 @@ public class AnalyserCli implements Runnable {
         if (parsed.isEmpty()) {
             throw new IllegalArgumentException("No report format configured. "
                     + "Supported formats: CONSOLE, SARIF, SONAR, HTML, GITHUB, GITLAB, AZURE.");
+        }
+        // --no-html is an explicit escalation: it wins even when HTML was requested via -f HTML.
+        if (noHtml) {
+            parsed.remove(ReportFormat.HTML);
         }
         return parsed;
     }
@@ -449,9 +465,10 @@ public class AnalyserCli implements Runnable {
             return;
         }
         String candidate = failOn.trim().toUpperCase(Locale.ROOT);
-        if (!candidate.equals("ERROR") && !candidate.equals("WARNING") && !candidate.equals("INFO")) {
+        if (!candidate.equals("ERROR") && !candidate.equals("WARNING") && !candidate.equals("INFO")
+                && !candidate.equals("NONE")) {
             throw new IllegalArgumentException("Unknown --fail-on severity '" + failOn
-                    + "'. Supported values: ERROR, WARNING, INFO.");
+                    + "'. Supported values: NONE, ERROR, WARNING, INFO.");
         }
     }
 
@@ -460,7 +477,16 @@ public class AnalyserCli implements Runnable {
         if (changedOnly || (since != null && !since.isBlank())) {
             GitDiffResolver gitDiffResolver = new GitDiffResolver();
             var diffResult = gitDiffResolver.resolveChanged(root, since);
-            if (diffResult.isGitRepo()) {
+            if (diffResult.failed()) {
+                stdout.println("[WARN] " + diffResult.failureReason());
+                stdout.println("[WARN] Git-diff filtering disabled for this run: reporting every finding"
+                        + " from a full scan.");
+            } else if (diffResult.isGitRepo()) {
+                if (diffResult.changedFiles().isEmpty()) {
+                    stdout.println("[WARN] Git-diff filtering is active but NO changed files were detected."
+                            + " Every finding is filtered out and this run cannot fail on content."
+                            + " Drop --changed-only/--since for a full scan.");
+                }
                 stdout.println(String.format("[INFO] Git-diff filtering active (%d changed file(s) found); scoping violations to changed files and lines.",
                         diffResult.changedFiles().size()));
                 List<Violation> filtered = report.violations().stream()
@@ -523,14 +549,7 @@ public class AnalyserCli implements Runnable {
                     }
                     stdout.println("SonarQube report written to " + target);
                 }
-                case HTML -> {
-                    Path target = outputTarget("aem-analyser-report.html");
-                    try (var writer = Files.newBufferedWriter(target, StandardCharsets.UTF_8)) {
-                        new HtmlReportExporter(java.time.Clock.systemDefaultZone(), 5000, history)
-                                .export(report, writer);
-                    }
-                    stdout.println("HTML report written to " + target);
-                }
+                case HTML -> writeHtmlReport(report, history, htmlTarget());
                 case GITHUB -> {
                     Path target = outputTarget("github-annotations.txt");
                     try (var writer = Files.newBufferedWriter(target, StandardCharsets.UTF_8)) {
@@ -557,27 +576,33 @@ public class AnalyserCli implements Runnable {
                 }
             }
         }
-        if (htmlReport != null && !reportFormats.contains(ReportFormat.HTML)) {
-            Path target = htmlReport.isBlank()
-                    ? outputTarget("aem-analyser-report.html")
-                    : Path.of(htmlReport).toAbsolutePath().normalize();
-            if (target.getParent() != null) {
-                Files.createDirectories(target.getParent());
-            }
-            try (var writer = Files.newBufferedWriter(target, StandardCharsets.UTF_8)) {
-                new HtmlReportExporter(java.time.Clock.systemDefaultZone(), 5000, history)
-                        .export(report, writer);
-            }
-            stdout.println("HTML report written to " + target);
-        } else if (htmlReport == null && !noHtml && !reportFormats.contains(ReportFormat.HTML)) {
-            // HTML dashboard is generated on every run unless explicitly disabled.
-            Path target = outputTarget("aem-analyser-report.html");
-            try (var writer = Files.newBufferedWriter(target, StandardCharsets.UTF_8)) {
-                new HtmlReportExporter(java.time.Clock.systemDefaultZone(), 5000, history)
-                        .export(report, writer);
-            }
-            stdout.println("HTML report written to " + target);
+        if (!noHtml && !reportFormats.contains(ReportFormat.HTML)) {
+            // --html <path> wins over the default location; otherwise the dashboard is generated on
+            // every run unless explicitly disabled.
+            writeHtmlReport(report, history, htmlTarget());
         }
+    }
+
+    /** Destination for the HTML dashboard: an explicit --html path, else the output directory. */
+    private Path htmlTarget() throws IOException {
+        if (htmlReport != null && !htmlReport.isBlank()) {
+            return Path.of(htmlReport).toAbsolutePath().normalize();
+        }
+        return outputTarget("aem-analyser-report.html");
+    }
+
+    private void writeHtmlReport(AnalysisReport report,
+                                 List<io.github.rohithv16.aem.analyser.core.history.RunSummary> history,
+                                 Path target) throws IOException,
+            io.github.rohithv16.aem.analyser.core.export.ExportException {
+        if (target.getParent() != null) {
+            Files.createDirectories(target.getParent());
+        }
+        try (var writer = Files.newBufferedWriter(target, StandardCharsets.UTF_8)) {
+            new HtmlReportExporter(java.time.Clock.systemDefaultZone(), 5000, history)
+                    .export(report, writer);
+        }
+        stdout.println("HTML report written to " + target);
     }
 
     private Path outputTarget(String fileName) throws IOException {
@@ -834,9 +859,14 @@ public class AnalyserCli implements Runnable {
             if (minCoverage != null) {
                 var cov = report.coverageReport();
                 if (cov == null || !cov.present()) {
-                    qualityGateFailed = true;
-                    stdout.println(String.format("  - Line Coverage:  Not detected (Threshold: >= %.1f%%) [FAIL]",
-                            minCoverage));
+                    // A threshold of 0 means "measure but do not gate": absence of coverage data is
+                    // not a failure in that case.
+                    boolean pass = minCoverage <= 0;
+                    if (!pass) {
+                        qualityGateFailed = true;
+                    }
+                    stdout.println(String.format("  - Line Coverage:  Not detected (Threshold: >= %.1f%%) [%s]",
+                            minCoverage, pass ? "PASS" : "FAIL"));
                 } else {
                     boolean pass = cov.lineCoveragePercent() >= minCoverage;
                     if (!pass) qualityGateFailed = true;
@@ -847,7 +877,17 @@ public class AnalyserCli implements Runnable {
             stdout.println("--------------------------------------------------------------------------------");
         }
 
-        if (errors > 0 || qualityGateFailed) {
+        boolean reportOnly = failOn != null && "NONE".equalsIgnoreCase(failOn.trim());
+        if (qualityGateFailed) {
+            return 1;
+        }
+        if (reportOnly) {
+            // Explicit report-only mode: thresholds above still gate, the implicit ERROR gate does not.
+            stdout.println("[INFO] --fail-on NONE: report-only run; exiting 0 despite "
+                    + errors + " error-severity finding(s).");
+            return 0;
+        }
+        if (errors > 0) {
             return 1;
         }
         if (failOn != null && !failOn.isBlank()) {

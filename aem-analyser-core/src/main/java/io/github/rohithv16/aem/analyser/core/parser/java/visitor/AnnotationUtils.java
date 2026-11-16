@@ -4,8 +4,11 @@ import com.github.javaparser.ast.ImportDeclaration;
 import com.github.javaparser.ast.NodeList;
 import com.github.javaparser.ast.expr.AnnotationExpr;
 import com.github.javaparser.ast.expr.ArrayInitializerExpr;
+import com.github.javaparser.ast.expr.BinaryExpr;
 import com.github.javaparser.ast.expr.ClassExpr;
 import com.github.javaparser.ast.expr.Expression;
+import com.github.javaparser.ast.expr.FieldAccessExpr;
+import com.github.javaparser.ast.expr.NameExpr;
 import com.github.javaparser.ast.expr.NormalAnnotationExpr;
 import com.github.javaparser.ast.expr.SingleMemberAnnotationExpr;
 import com.github.javaparser.ast.expr.StringLiteralExpr;
@@ -86,7 +89,95 @@ public final class AnnotationUtils {
             array.getValues().forEach(v -> values.add(expressionToString(v)));
             return String.join(",", values);
         }
+        // "sling.servlet.paths=" + Consts.PATH  /  Consts.PID
+        String folded = foldConstant(expression);
+        if (folded != null) {
+            return folded;
+        }
         return expression.toString();
+    }
+
+    /**
+     * Project-wide {@code static final String} constants, published for the duration of one file
+     * parse so that annotation values referencing a constant declared in ANOTHER compilation unit
+     * ({@code configurationPid = Consts.PID}) still fold. Thread-scoped because parsing is parallel
+     * and each worker parses one file at a time.
+     */
+    private static final ThreadLocal<Map<String, String>> PROJECT_CONSTANTS = new ThreadLocal<>();
+
+    public static void setProjectConstants(Map<String, String> constants) {
+        if (constants == null || constants.isEmpty()) {
+            PROJECT_CONSTANTS.remove();
+        } else {
+            PROJECT_CONSTANTS.set(constants);
+        }
+    }
+
+    public static void clearProjectConstants() {
+        PROJECT_CONSTANTS.remove();
+    }
+
+    private static String foldConstant(Expression expression) {
+        if (expression instanceof StringLiteralExpr literal) {
+            return literal.getValue();
+        }
+        if (expression instanceof BinaryExpr binary && binary.getOperator() == BinaryExpr.Operator.PLUS) {
+            String left = foldConstant(binary.getLeft());
+            String right = foldConstant(binary.getRight());
+            return left != null && right != null ? left + right : null;
+        }
+        String name = null;
+        String qualified = null;
+        if (expression instanceof NameExpr nameExpr) {
+            name = nameExpr.getNameAsString();
+        } else if (expression instanceof FieldAccessExpr fieldAccess) {
+            name = fieldAccess.getNameAsString();
+            qualified = fieldAccess.toString();
+        }
+        if (name == null) {
+            return null;
+        }
+        final String constantName = name;
+        String local = expression.findCompilationUnit()
+                .flatMap(cu -> cu.findAll(com.github.javaparser.ast.body.FieldDeclaration.class).stream()
+                        .filter(field -> field.isStatic() && field.isFinal())
+                        .flatMap(field -> field.getVariables().stream())
+                        .filter(variable -> variable.getNameAsString().equals(constantName))
+                        .filter(variable -> variable.getInitializer().isPresent())
+                        .map(variable -> foldConstant(variable.getInitializer().get()))
+                        .filter(java.util.Objects::nonNull)
+                        .findFirst())
+                .orElse(null);
+        if (local != null) {
+            return local;
+        }
+        Map<String, String> projectConstants = PROJECT_CONSTANTS.get();
+        if (projectConstants == null) {
+            return null;
+        }
+        // Constant declared in another compilation unit. Qualified references (Type.NAME) are
+        // resolved through this file's imports first so same-named constants in different classes
+        // cannot collide; the bare simple name is only a last resort.
+        if (qualified != null) {
+            String byType = projectConstants.get(qualified);
+            if (byType != null) {
+                return byType;
+            }
+            String importName = qualified.substring(0, qualified.lastIndexOf('.'));
+            Optional<com.github.javaparser.ast.ImportDeclaration> imported = expression
+                    .findCompilationUnit()
+                    .flatMap(cu -> cu.getImports().stream()
+                            .filter(imp -> !imp.isAsterisk() && !imp.isStatic()
+                                    && imp.getNameAsString().endsWith("." + importName))
+                            .findFirst());
+            if (imported.isPresent()) {
+                String byFqn = projectConstants.get(imported.get().getNameAsString() + "." + name);
+                if (byFqn != null) {
+                    return byFqn;
+                }
+            }
+        }
+        return projectConstants.get(name);
     }
 
     public static List<String> expressionToList(Expression expression) {

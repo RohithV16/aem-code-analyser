@@ -133,13 +133,14 @@ public final class AemDup001Rule implements RuleEvaluator {
     }
 
     private boolean hasRankingConflict(List<ServletRegistration> list) {
-        int firstRanking = list.get(0).ranking;
-        for (int i = 1; i < list.size(); i++) {
-            if (list.get(i).ranking == firstRanking) {
-                return true;
-            }
+        // Group by ranking and report a conflict when ANY ranking is shared. Comparing only against
+        // list.get(0) missed the common "ranked override + two accidental duplicates" shape and made
+        // the result depend on discovery order.
+        java.util.Map<Integer, Integer> counts = new java.util.HashMap<>();
+        for (ServletRegistration registration : list) {
+            counts.merge(registration.ranking, 1, Integer::sum);
         }
-        return false;
+        return counts.values().stream().anyMatch(count -> count > 1);
     }
 
     private ServletRegistration parseServletRegistration(OSGiComponentNode component) {

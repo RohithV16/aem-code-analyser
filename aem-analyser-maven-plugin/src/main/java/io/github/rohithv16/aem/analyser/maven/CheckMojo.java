@@ -22,7 +22,7 @@ import java.util.List;
 @Mojo(name = "check",
         aggregator = true,
         defaultPhase = LifecyclePhase.VERIFY,
-        threadSafe = false,
+        threadSafe = true,
         requiresDependencyResolution = org.apache.maven.plugins.annotations.ResolutionScope.NONE)
 public class CheckMojo extends AbstractAnalyserMojo {
 

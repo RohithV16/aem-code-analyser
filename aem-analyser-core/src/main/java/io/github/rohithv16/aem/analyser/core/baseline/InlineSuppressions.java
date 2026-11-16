@@ -74,11 +74,11 @@ public final class InlineSuppressions {
             }
         }
         int lineNumber = violation.region() == null ? 0 : violation.region().startLine();
-        for (int index : new int[]{lineNumber - 2, lineNumber - 1}) {
-            if (index >= 0 && index < lines.size()
-                    && directiveApplies(lines.get(index), NEXT_LINE, ruleId)) {
-                return true;
-            }
+        // Only the line immediately PRECEDING the finding (1-based N-1 == 0-based N-2). The finding's
+        // own line used to match too, so a directive documented on the affected line suppressed it.
+        int index = lineNumber - 2;
+        if (index >= 0 && index < lines.size() && directiveApplies(lines.get(index), NEXT_LINE, ruleId)) {
+            return true;
         }
         return false;
     }
@@ -88,6 +88,11 @@ public final class InlineSuppressions {
         if (position < 0) {
             return false;
         }
+        // A directive only counts inside a comment: occurrences inside string literals or plain
+        // prose used to suppress findings silently.
+        if (!isCommentPrefix(line.substring(0, position))) {
+            return false;
+        }
         String remainder = line.substring(position + directive.length()).trim();
         if (remainder.startsWith("-->")) {
             remainder = remainder.substring(3).trim();
@@ -95,11 +100,36 @@ public final class InlineSuppressions {
         if (remainder.isEmpty()) {
             return true; // no rule ids: applies to every rule
         }
-        for (String token : remainder.split("[^A-Za-z0-9_*.-]+")) {
+        // ':' must survive tokenisation so SonarJava ids such as java:S1166 can be suppressed.
+        for (String token : remainder.split("[^A-Za-z0-9_*.:-]+")) {
             if (token.equals("*") || token.equalsIgnoreCase(ruleId)) {
                 return true;
             }
         }
         return false;
+    }
+
+    private static boolean isCommentPrefix(String prefix) {
+        // An odd number of unescaped double quotes before the directive means it sits inside a string
+        // literal, not a comment ("// aem-analyser-..." in a message must not suppress anything).
+        int quotes = 0;
+        for (int i = 0; i < prefix.length(); i++) {
+            if (prefix.charAt(i) == '"' && (i == 0 || prefix.charAt(i - 1) != '\\')) {
+                quotes++;
+            }
+        }
+        if (quotes % 2 == 1) {
+            return false;
+        }
+        String trimmed = prefix.strip();
+        return trimmed.isEmpty()
+                || trimmed.endsWith("//")
+                || trimmed.endsWith("/*")
+                || trimmed.endsWith("*")
+                || trimmed.endsWith("<!--")
+                || trimmed.endsWith("#")
+                || trimmed.contains("//")
+                || trimmed.contains("<!--")
+                || trimmed.contains("/*");
     }
 }

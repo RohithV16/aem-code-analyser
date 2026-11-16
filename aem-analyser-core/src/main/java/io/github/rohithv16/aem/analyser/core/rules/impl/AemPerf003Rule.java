@@ -9,6 +9,7 @@ import io.github.rohithv16.aem.analyser.core.rules.RuleEvaluator;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 /**
  * Rule AEM-PERF-003: Oak Query Traversal Risk.
@@ -29,6 +30,12 @@ public final class AemPerf003Rule implements RuleEvaluator {
         }
 
         for (QueryTraversalFinding finding : context.queryTraversals()) {
+            String queryText = finding.queryString() == null ? "" : finding.queryString().toLowerCase(Locale.ROOT);
+            // The parser records every literal query call site; this rule only owns the unbounded
+            // traversal shape (nt:base without a WHERE clause).
+            if (!queryText.contains("nt:base") || queryText.contains("where")) {
+                continue;
+            }
             TextRegion region = new TextRegion(finding.line(), finding.column(), finding.line(), finding.column() + 30);
             violations.add(new Violation(
                     RuleId.AEM_PERF_003.id(),

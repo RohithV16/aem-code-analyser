@@ -184,8 +184,10 @@ public abstract class AbstractAnalyserMojo extends AbstractMojo {
         }
         if (project != null && session != null
                 && !session.getExecutionRootDirectory().equals(project.getBasedir().getAbsolutePath())) {
-            getLog().debug("aem-analyser:" + goalName() + " runs only at the reactor root; skipping module "
-                    + project.getArtifactId());
+            // Never silent: a scoped build (-pl) used to produce an empty, green run with no hint
+            // that nothing had been analysed.
+            getLog().info("aem-analyser:" + goalName() + " runs only at the reactor root; skipping module '"
+                    + project.getArtifactId() + "'. Run the goal at the reactor root (or pass -Daem-analyser.projectRoot) for a full analysis.");
             return true;
         }
         return false;
@@ -358,11 +360,23 @@ public abstract class AbstractAnalyserMojo extends AbstractMojo {
 
     protected void writeReports(AnalysisReport report, Path root, List<ReportFormat> formats)
             throws MojoExecutionException {
-        Path target = outputFile != null
-                ? outputFile.toPath().toAbsolutePath().normalize()
-                : defaultOutputDirectory(root);
-        Path singleFile = formats.size() == 1 ? target : null;
-        Path directory = singleFile != null ? singleFile.getParent() : target;
+        Path directory;
+        Path singleFile = null;
+        if (outputFile != null) {
+            Path output = outputFile.toPath().toAbsolutePath().normalize();
+            if (formats.size() == 1) {
+                // An explicit file parameter with exactly one format: the file IS the report.
+                singleFile = output;
+                directory = output.getParent();
+            } else {
+                directory = output;
+            }
+        } else {
+            // No outputFile: the default target directory is always a DIRECTORY. Treating it as the
+            // report file wrote a plain file named "target" over the build directory and broke every
+            // later Maven goal in that module.
+            directory = defaultOutputDirectory(root);
+        }
 
         try {
             Files.createDirectories(directory);

@@ -12,6 +12,7 @@ import io.github.rohithv16.aem.analyser.core.parser.bytecode.DependencyBytecodeI
 
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -96,6 +97,36 @@ public record RuleContext(ReferenceGraph graph,
 
     public List<io.github.rohithv16.aem.analyser.core.model.graph.node.JavaClassNode> javaClasses() {
         return buildResult.classNodes() == null ? List.of() : List.copyOf(buildResult.classNodes().values());
+    }
+
+    /**
+     * Every Java source file that declares a type, regardless of the annotation bucket it landed in.
+     *
+     * <p>{@link #javaClasses()} only contains types that are neither an OCD, a DS component nor a
+     * Sling Model, because the parser files each type into exactly one bucket. File-scanning rules
+     * (AEM-SEC-002, AEM-PERF-004, AEM-CLOUD-004) must use this method instead - iterating
+     * {@code classNodes()} made them blind to every {@code @Component}, servlet and {@code @Model}.
+     */
+    public List<Path> javaTypeFiles() {
+        java.util.Set<Path> files = new java.util.LinkedHashSet<>();
+        addFile(files, buildResult.componentsByFqn());
+        addFile(files, buildResult.modelNodes());
+        addFile(files, buildResult.classNodes());
+        // Metatype interfaces carry default methods and constants too.
+        addFile(files, graph.getIndex().getOcdLookup());
+        return List.copyOf(files);
+    }
+
+    private static <T extends io.github.rohithv16.aem.analyser.core.model.graph.node.JavaClassNode> void addFile(
+            java.util.Set<Path> files, Map<String, T> nodes) {
+        if (nodes == null) {
+            return;
+        }
+        for (T node : nodes.values()) {
+            if (node.getFilePath() != null) {
+                files.add(node.getFilePath().toAbsolutePath().normalize());
+            }
+        }
     }
 
     public List<io.github.rohithv16.aem.analyser.core.parser.java.AdministrativeCall> administrativeCalls() {
