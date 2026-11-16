@@ -31,6 +31,10 @@ public record RuleContext(ReferenceGraph graph,
 
     public RuleContext {
         modules = List.copyOf(modules == null ? List.of() : modules);
+        // Rules relativize violation paths against this root. A rooted-but-driveless path such as
+        // "/mock/project" (or any relative root) makes Path.relativize throw
+        // "'other' is different type of Path" on Windows, so the root is always absolutised here.
+        projectRoot = projectRoot == null ? null : projectRoot.toAbsolutePath().normalize();
     }
 
     public RuleContext(ReferenceGraph graph,
@@ -147,6 +151,26 @@ public record RuleContext(ReferenceGraph graph,
 
     public ReferenceGraphIndex index() {
         return graph.getIndex();
+    }
+
+    /**
+     * Renders a violation path relative to the project root with forward slashes, so every rule and
+     * every exporter agree on the same string on every platform.
+     */
+    public String relativePath(java.nio.file.Path file) {
+        if (file == null) {
+            return "";
+        }
+        java.nio.file.Path absolute = file.toAbsolutePath().normalize();
+        java.nio.file.Path root = projectRoot;
+        if (root != null) {
+            try {
+                return root.relativize(absolute).toString().replace('\\', '/');
+            } catch (IllegalArgumentException ignored) {
+                // different filesystem provider (or a path outside the root): fall through
+            }
+        }
+        return absolute.toString().replace('\\', '/');
     }
 
     public boolean isExternalPid(String pid) {

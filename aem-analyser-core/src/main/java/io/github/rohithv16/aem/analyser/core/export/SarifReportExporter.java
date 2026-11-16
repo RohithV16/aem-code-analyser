@@ -5,6 +5,7 @@ import io.github.rohithv16.aem.analyser.core.model.report.AnalysisDiagnostic;
 import io.github.rohithv16.aem.analyser.core.model.report.AnalysisReport;
 import io.github.rohithv16.aem.analyser.core.model.report.RelatedLocation;
 import io.github.rohithv16.aem.analyser.core.model.report.Violation;
+import io.github.rohithv16.aem.analyser.core.rules.RuleCatalog;
 import io.github.rohithv16.aem.analyser.core.rules.metadata.RuleDescriptor;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
@@ -139,7 +140,15 @@ public final class SarifReportExporter implements ReportExporter {
         if (!properties.isEmpty()) {
             definition.put("properties", properties);
         }
-        definition.put("defaultConfiguration", Map.of("level", sarifLevel(rule.defaultSeverity())));
+        // SARIF's own way of saying "this descriptor exists but the rule can never fire". Only
+        // retired ids are disabled: an id produced by another engine (AEM-DUP-010 via PMD CPD) is
+        // still active.
+        Map<String, Object> configuration = new LinkedHashMap<>();
+        configuration.put("level", sarifLevel(rule.defaultSeverity()));
+        if (RuleCatalog.RETIRED.contains(rule.id())) {
+            configuration.put("enabled", false);
+        }
+        definition.put("defaultConfiguration", configuration);
         return definition;
     }
 

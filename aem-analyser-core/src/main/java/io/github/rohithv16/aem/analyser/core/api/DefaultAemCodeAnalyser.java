@@ -18,36 +18,8 @@ import io.github.rohithv16.aem.analyser.core.parser.config.OsgiConfigParser;
 import io.github.rohithv16.aem.analyser.core.parser.java.JavaSourceParseResult;
 import io.github.rohithv16.aem.analyser.core.parser.java.JavaSourceParser;
 import io.github.rohithv16.aem.analyser.core.rules.RuleContext;
+import io.github.rohithv16.aem.analyser.core.rules.RuleCatalog;
 import io.github.rohithv16.aem.analyser.core.rules.RuleEvaluator;
-import io.github.rohithv16.aem.analyser.core.rules.impl.AemCloud001Rule;
-import io.github.rohithv16.aem.analyser.core.rules.impl.AemCloud002Rule;
-import io.github.rohithv16.aem.analyser.core.rules.impl.AemCloud003Rule;
-import io.github.rohithv16.aem.analyser.core.rules.impl.AemCloud004Rule;
-import io.github.rohithv16.aem.analyser.core.rules.impl.AemCloud005Rule;
-import io.github.rohithv16.aem.analyser.core.rules.impl.AemComp001Rule;
-import io.github.rohithv16.aem.analyser.core.rules.impl.AemDead001Rule;
-import io.github.rohithv16.aem.analyser.core.rules.impl.AemDead002ARule;
-import io.github.rohithv16.aem.analyser.core.rules.impl.AemDead002BRule;
-import io.github.rohithv16.aem.analyser.core.rules.impl.AemDead003ARule;
-import io.github.rohithv16.aem.analyser.core.rules.impl.AemDead003BRule;
-import io.github.rohithv16.aem.analyser.core.rules.impl.AemDead003CRule;
-import io.github.rohithv16.aem.analyser.core.rules.impl.AemDead004Rule;
-import io.github.rohithv16.aem.analyser.core.rules.impl.AemDead005Rule;
-import io.github.rohithv16.aem.analyser.core.rules.impl.AemDup001Rule;
-import io.github.rohithv16.aem.analyser.core.rules.impl.AemDup002Rule;
-import io.github.rohithv16.aem.analyser.core.rules.impl.AemDup003Rule;
-import io.github.rohithv16.aem.analyser.core.rules.impl.AemPerf001Rule;
-import io.github.rohithv16.aem.analyser.core.rules.impl.AemPerf002Rule;
-import io.github.rohithv16.aem.analyser.core.rules.impl.AemPerf003Rule;
-import io.github.rohithv16.aem.analyser.core.rules.impl.AemPerf004Rule;
-import io.github.rohithv16.aem.analyser.core.rules.impl.AemQual001Rule;
-import io.github.rohithv16.aem.analyser.core.rules.impl.AemQual002Rule;
-import io.github.rohithv16.aem.analyser.core.rules.impl.AemQual003Rule;
-import io.github.rohithv16.aem.analyser.core.rules.impl.AemQual004Rule;
-import io.github.rohithv16.aem.analyser.core.rules.impl.AemQual005Rule;
-import io.github.rohithv16.aem.analyser.core.rules.impl.AemQual006Rule;
-import io.github.rohithv16.aem.analyser.core.rules.impl.AemSec001Rule;
-import io.github.rohithv16.aem.analyser.core.rules.impl.AemSec002Rule;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -73,40 +45,7 @@ import java.util.stream.Stream;
 public final class DefaultAemCodeAnalyser implements AemCodeAnalyser {
 
 
-    private final List<RuleEvaluator> rules = List.of(
-            new AemDead001Rule(),
-            new AemDead002ARule(),
-            new AemDead002BRule(),
-            new AemDead003ARule(),
-            new AemDead003BRule(),
-            new AemDead003CRule(),
-            new AemDead004Rule(),
-            new AemDead005Rule(),
-            new AemComp001Rule(),
-            new AemDup001Rule(),
-            new AemDup002Rule(),
-            new AemDup003Rule(),
-            new AemQual001Rule(),
-            new AemQual002Rule(),
-            new AemQual003Rule(),
-            new AemQual004Rule(),
-            // AEM-QUAL-006 is deliberately NOT registered: its field check (ResourceResolver /
-            // Session in a non-static field) is a strict subset of AEM-QUAL-004, so registering both
-            // reported every field twice with different severities. QUAL-006 stays in RuleId /
-            // RuleRegistry for metadata and baseline compatibility, like AEM-DUP-010.
-
-            new AemQual005Rule(),
-            new AemPerf001Rule(),
-            new AemPerf002Rule(),
-            new AemPerf003Rule(),
-            new AemPerf004Rule(),
-            new AemCloud001Rule(),
-            new AemCloud002Rule(),
-            new AemSec001Rule(),
-            new AemSec002Rule(),
-            new AemCloud003Rule(),
-            new AemCloud004Rule(),
-            new AemCloud005Rule());
+    private final List<RuleEvaluator> rules = RuleCatalog.ordered();
 
     @Override
     public AnalysisReport analyze(AnalysisContext context) throws AnalysisException {

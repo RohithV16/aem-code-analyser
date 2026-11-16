@@ -6,7 +6,8 @@ Checks, in order:
   2. every expected rule has at least one finding located in a probe fixture
      (so a rule firing only on real repo code cannot mask a broken probe);
   3. no rule outside the expected list is reported;
-  4. the SARIF rule catalogue has no entry missing from the expected list;
+  4. the SARIF rule catalogue has no enabled entry missing from the expected list
+     (disabled descriptors are retired rules or ones produced by another engine);
   5. (unless --allow-parse-errors) no file was silently skipped by the parser.
 
 Exit codes: 0 = all checks pass, 1 = validation failure, 2 = usage/IO error.
@@ -79,7 +80,13 @@ def main() -> int:
 
     # The SARIF driver declares the complete rule catalogue. Comparing it with the expected list
     # keeps the probe matrix honest when a new rule is added without a probe.
-    declared = [rule.get("id", "") for rule in run.get("tool", {}).get("driver", {}).get("rules", [])]
+    # A descriptor with defaultConfiguration.enabled == false has no evaluator: it is retired or
+    # produced by another engine (PMD CPD), so it can never fire and needs no probe.
+    declared = [
+        rule.get("id", "")
+        for rule in run.get("tool", {}).get("driver", {}).get("rules", [])
+        if (rule.get("defaultConfiguration") or {}).get("enabled", True)
+    ]
     catalogue_gaps = sorted(rule for rule in declared if rule and rule not in expected)
     orphaned = sorted(rule for rule in expected if rule not in declared)
 

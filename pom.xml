@@ -6,7 +6,7 @@
 
     <groupId>io.github.rohithv16</groupId>
     <artifactId>aem-code-analyser</artifactId>
-    <version>1.0.1</version>
+    <version>1.0.8-SNAPSHOT</version>
     <packaging>pom</packaging>
 
     <name>AEM Code Analyser</name>
@@ -58,7 +58,7 @@
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <project.build.outputTimestamp>2026-11-16T04:23:39Z</project.build.outputTimestamp>
+        <project.build.outputTimestamp>2026-11-16T08:55:41Z</project.build.outputTimestamp>
         <japicmp.oldVersion>1.0.0</japicmp.oldVersion>
         <maven.compiler.release>21</maven.compiler.release>
         <junit.version>5.10.2</junit.version>
@@ -159,13 +159,15 @@
                 <groupId>org.apache.maven</groupId>
                 <artifactId>maven-model</artifactId>
                 <version>${maven.version}</version>
-                <scope>provided</scope>
+                <!-- No scope here on purpose: aem-analyser-core needs Maven's model classes at
+                     runtime, and a managed "provided" scope made them non-transitive, so embedding
+                     the analyser as a library failed with NoClassDefFoundError: ModelReader. The
+                     Maven plugin declares "provided" for itself, where Maven supplies them. -->
             </dependency>
             <dependency>
                 <groupId>org.apache.maven</groupId>
                 <artifactId>maven-model-builder</artifactId>
                 <version>${maven.version}</version>
-                <scope>provided</scope>
             </dependency>
             <dependency>
                 <groupId>org.apache.maven</groupId>

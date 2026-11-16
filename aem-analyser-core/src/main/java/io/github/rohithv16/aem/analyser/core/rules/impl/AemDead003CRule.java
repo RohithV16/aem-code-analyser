@@ -72,10 +72,6 @@ public final class AemDead003CRule implements RuleEvaluator {
     }
 
     private String relativePath(RuleContext context, java.nio.file.Path path) {
-        if (path == null) {
-            return "";
-        }
-        return context.projectRoot().relativize(path.toAbsolutePath().normalize())
-                .toString().replace('\\', '/');
+        return context.relativePath(path);
     }
 }

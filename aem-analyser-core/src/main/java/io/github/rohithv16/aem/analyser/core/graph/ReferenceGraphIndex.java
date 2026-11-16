@@ -80,10 +80,7 @@ public final class ReferenceGraphIndex {
                 .forEach(runmode -> runmodeIndex.computeIfAbsent(runmode, k -> new ArrayList<>()).add(config));
     }
 
-    public List<OSGiComponentNode> findComponentsByPid(String pid) {
-        return List.copyOf(pidToComponents.getOrDefault(pid, List.of()));
-    }
-
+    
     public OSGiOcdNode findOcdByFqn(String fqn) {
         return ocdLookup.get(fqn);
     }
@@ -146,7 +143,4 @@ public final class ReferenceGraphIndex {
         return List.copyOf(active);
     }
 
-    public static Function<OSGiComponentNode, List<String>> activePidExtractor() {
-        return ReferenceGraphIndex::computeActivePids;
     }
-}

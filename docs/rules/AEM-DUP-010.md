@@ -5,6 +5,9 @@ title: AEM-DUP-010
 
 # AEM-DUP-010 — DuplicateCodeBlock
 
+> **Produced by the duplication engine.** Findings for this id come from the PMD CPD scan
+(`--max-duplication`), not from a `RuleEvaluator`, so it has no inline-suppression hook.
+
 | Property | Value |
 |---|---|
 | Severity | WARNING |

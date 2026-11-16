@@ -266,7 +266,7 @@ public final class PmdCpdDuplicationEngine {
 
     private String relativize(Path projectRoot, Path path) {
         try {
-            return projectRoot.relativize(path).toString();
+            return projectRoot.relativize(path).toString().replace('\\', '/');
         } catch (IllegalArgumentException e) {
             return path.toString();
         }

@@ -55,6 +55,37 @@ class SarifReportExporterTest {
                 "SARIF single-line regions must not be empty");
     }
 
+    /**
+     * SARIF is how consumers know a rule exists but cannot fire. Only retired ids are disabled: an id
+     * produced by another engine (AEM-DUP-010 via PMD CPD) must stay enabled, otherwise tooling
+     * stops displaying its findings.
+     */
+    @Test
+    void disablesOnlyRetiredRuleDescriptors() throws Exception {
+        AnalysisReport report = new AnalysisReport(Path.of("/mock/project"), Map.of("modules", 1),
+                List.of(), 10);
+        StringWriter out = new StringWriter();
+        new SarifReportExporter().export(report, out);
+        JsonNode rules = new ObjectMapper().readTree(out.toString())
+                .path("runs").get(0).path("tool").path("driver").path("rules");
+
+        JsonNode retired = null;
+        JsonNode producedElsewhere = null;
+        for (JsonNode rule : rules) {
+            if (RuleId.AEM_QUAL_006.id().equals(rule.path("id").asText())) {
+                retired = rule;
+            } else if (RuleId.AEM_DUP_010.id().equals(rule.path("id").asText())) {
+                producedElsewhere = rule;
+            }
+        }
+        assertTrue(retired != null, "AEM-QUAL-006 descriptor must still be advertised");
+        assertFalse(retired.path("defaultConfiguration").path("enabled").asBoolean(true),
+                "a retired rule must be disabled");
+        assertTrue(producedElsewhere != null, "AEM-DUP-010 descriptor must be advertised");
+        assertTrue(producedElsewhere.path("defaultConfiguration").path("enabled").asBoolean(true),
+                "a rule produced by another engine must stay enabled");
+    }
+
     @Test
     void emitsToolExecutionNotificationsForDiagnostics() throws Exception {
         AnalysisDiagnostic diagnostic = AnalysisDiagnostic.of(

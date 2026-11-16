@@ -1,0 +1,12 @@
+# Golden findings for this reactor: <RULE-ID> then the path relative to
+# validation/reactor. Regenerate deliberately: scripts/run-reactor-validation.sh <jar> --update
+AEM-CLOUD-003	ui.config/src/main/content/jcr_root/apps/acme/osgiconfig/config.author/org.apache.sling.serviceusermapping.impl.ServiceUserMapperImpl.amended-acme.cfg.json
+AEM-DEAD-001	ui.config/src/main/content/jcr_root/apps/acme/osgiconfig/config.author/com.acme.config.Ghost.cfg.json
+AEM-DEAD-001	ui.config/src/main/content/jcr_root/apps/acme/osgiconfig/config.author/com.acme.config.My-Service.cfg.json
+AEM-DEAD-005	ui.apps/src/main/content/jcr_root/apps/acme/components/widget/clientlibs/orphan/.content.xml
+AEM-DUP-001	bundle/src/main/java/com/acme/servlet/ThreeServlet.java
+AEM-DUP-001	bundle/src/main/java/com/acme/servlet/TwoServlet.java
+AEM-QUAL-001	bundle/src/main/java/com/acme/servlet/OneServlet.java
+AEM-QUAL-001	bundle/src/main/java/com/acme/servlet/ThreeServlet.java
+AEM-QUAL-001	bundle/src/main/java/com/acme/servlet/TwoServlet.java
+AEM-SEC-002	bundle/src/main/java/com/acme/servlet/Redirects.java

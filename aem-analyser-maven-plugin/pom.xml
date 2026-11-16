@@ -7,7 +7,7 @@
     <parent>
         <groupId>io.github.rohithv16</groupId>
         <artifactId>aem-code-analyser</artifactId>
-        <version>1.0.1</version>
+        <version>1.0.8-SNAPSHOT</version>
     </parent>
 
     <artifactId>aem-analyser-maven-plugin</artifactId>
@@ -29,6 +29,11 @@
         <dependency>
             <groupId>org.apache.maven</groupId>
             <artifactId>maven-model</artifactId>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.maven</groupId>
+            <artifactId>maven-model-builder</artifactId>
             <scope>provided</scope>
         </dependency>
         <dependency>
@@ -78,13 +83,20 @@
                             <cloneProjectsTo>${project.build.directory}/it</cloneProjectsTo>
                             <streamLogs>true</streamLogs>
                             <showErrors>true</showErrors>
+                            <!-- The IT projects must reference THIS build's version; a hardcoded
+                                 -SNAPSHOT silently broke the moment a release bumped the reactor. -->
+                            <filterProperties>
+                                <itPluginVersion>${project.version}</itPluginVersion>
+                            </filterProperties>
                         </configuration>
                         <executions>
                             <execution>
                                 <id>integration-test</id>
                                 <phase>verify</phase>
                                 <goals>
-                                    <goal>install</goal>
+                                    <!-- No invoker:install: the ITs resolve the plugin and core
+                                         from the local repository populated by `mvn install`, so
+                                         both artifacts of this build are on the IT classpath. -->
                                     <goal>run</goal>
                                 </goals>
                             </execution>
