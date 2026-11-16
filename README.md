@@ -226,6 +226,28 @@ genuinely unparseable sources; those diagnostics are still printed. See
 [`validation/probes/README.md`](validation/probes/README.md) for the full probe matrix and how to add
 a case.
 
+### Validation reactor (cross-module behaviour)
+
+`validation/reactor` is a small three-module project (`bundle`, `ui.apps`, `ui.config`) whose findings
+are pinned in `validation/reactor/expected-findings.txt`. It covers what a single-file probe cannot:
+a `@Reference` injected through a wildcard import, a reference inherited from a shared base class, an
+OSGi PID composed from a constant declared in another class, a factory PID with an amendment, and a
+clientlib referenced from a sibling module.
+
+```bash
+scripts/run-reactor-validation.sh                 # compare against the pinned findings
+scripts/run-reactor-validation.sh <jar> --update  # deliberately re-pin after an intended change
+```
+
+### Rule documentation
+
+`docs/rules/*.md` are generated from `RuleRegistry`, so they cannot drift from the code:
+
+```bash
+scripts/check-rule-docs.sh          # fails when a page no longer matches the code
+java -jar <cli.jar> --generate-rule-docs docs/rules   # regenerate
+```
+
 ---
 
 ## Usage Option 2: Maven Plugin in AEM Projects
