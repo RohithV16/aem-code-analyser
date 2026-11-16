@@ -25,6 +25,9 @@ permissions:
 jobs:
   release:
     runs-on: ubuntu-latest
+    env:
+      # `secrets` is not allowed in a step `if:` condition, so it is resolved once here.
+      CENTRAL_ENABLED: ${{ secrets.MAVEN_CENTRAL_USERNAME != '' && secrets.GPG_PRIVATE_KEY != '' }}
 
     steps:
       - name: Checkout repository
@@ -102,7 +105,7 @@ jobs:
       # The three steps below activate themselves once MAVEN_CENTRAL_USERNAME and GPG_PRIVATE_KEY
       # exist as repository secrets; until then a release stays green and says so.
       - name: Import the signing key
-        if: ${{ secrets.MAVEN_CENTRAL_USERNAME != '' && secrets.GPG_PRIVATE_KEY != '' }}
+        if: env.CENTRAL_ENABLED == 'true'
         env:
           GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
         run: |
@@ -110,7 +113,7 @@ jobs:
           gpg --list-secret-keys --with-colons | grep -c '^sec' | xargs echo "imported signing keys:"
 
       - name: Publish to Maven Central
-        if: ${{ secrets.MAVEN_CENTRAL_USERNAME != '' && secrets.GPG_PRIVATE_KEY != '' }}
+        if: env.CENTRAL_ENABLED == 'true'
         env:
           MAVEN_CENTRAL_USERNAME: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
           MAVEN_CENTRAL_PASSWORD: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
@@ -135,7 +138,7 @@ jobs:
           echo "Uploaded. Publish it at https://central.sonatype.com/publishing/deployments"
 
       - name: Maven Central not configured
-        if: ${{ secrets.MAVEN_CENTRAL_USERNAME == '' || secrets.GPG_PRIVATE_KEY == '' }}
+        if: env.CENTRAL_ENABLED != 'true'
         run: |
           echo "::notice::Maven Central skipped - set MAVEN_CENTRAL_USERNAME, MAVEN_CENTRAL_PASSWORD, GPG_PRIVATE_KEY and GPG_PASSPHRASE to enable publishing."
 
