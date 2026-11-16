@@ -784,7 +784,7 @@ public class AnalyserCli implements Runnable {
     Path findExistingCoverage(Path root) {
         try (var stream = Files.walk(root, 4)) {
             return stream.filter(p -> {
-                String s = p.toString();
+                String s = p.toString().replace('\\', '/');
                 return (s.endsWith("target/jacoco.exec") || s.endsWith("target/site/jacoco/jacoco.csv"))
                         && Files.isRegularFile(p);
             }).findFirst().orElse(null);

@@ -116,7 +116,7 @@ public final class JcrComponentScanner {
     }
 
     private boolean isNotIgnored(Path path) {
-        String s = path.toString();
+        String s = path.toString().replace('\\', '/');
         return !s.contains("/target/") && !s.contains("/node_modules/") && !s.contains("/.git/");
     }
 }
