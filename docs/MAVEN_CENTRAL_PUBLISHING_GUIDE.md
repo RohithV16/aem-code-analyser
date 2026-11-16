@@ -256,6 +256,7 @@ When activating Maven Central publishing, update [`.github/workflows/release.yml
    <plugin>
        <groupId>io.github.rohithv16</groupId>
        <artifactId>aem-analyser-maven-plugin</artifactId>
-       <version>1.0.7</version>
+       <!-- latest: https://github.com/RohithV16/aem-code-analyser/releases -->
+       <version>${aem-analyser.version}</version>
    </plugin>
    ```

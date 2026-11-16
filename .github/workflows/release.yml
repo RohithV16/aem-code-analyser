@@ -75,39 +75,12 @@ jobs:
           cp "aem-analyser-cli/target/aem-analyser-cli.jar" target/release-assets/
           cp "aem-analyser-core/target/aem-analyser-core-${VERSION}.jar" target/release-assets/
           cp "aem-analyser-maven-plugin/target/aem-analyser-maven-plugin-${VERSION}.jar" target/release-assets/
+          cp "pom.xml" "target/release-assets/aem-code-analyser-${VERSION}.pom"
+          cp "aem-analyser-core/pom.xml" "target/release-assets/aem-analyser-core-${VERSION}.pom"
+          cp "aem-analyser-maven-plugin/pom.xml" "target/release-assets/aem-analyser-maven-plugin-${VERSION}.pom"
           cd target/release-assets
           sha256sum *.jar > SHA256SUMS.txt
           cat SHA256SUMS.txt
-
-      - name: Sync documented versions
-        shell: bash
-        env:
-          # The snippets advertise the newest published release, which is the newest tag - not the
-          # development version the POM carried into this run.
-          OLD_VERSION: ${{ steps.bump.outputs.lastReleased }}
-          NEW_VERSION: ${{ steps.bump.outputs.version }}
-        run: |
-          python3 - <<'PY'
-          import os, pathlib, re
-          old = os.environ["OLD_VERSION"].removesuffix("-SNAPSHOT")
-          new = os.environ["NEW_VERSION"]
-          if not old:
-              # No tag to anchor on (first release): leave the snippets untouched rather than
-              # matching an empty pattern.
-              print("no previous release tag found; skipping documented-version sync")
-              raise SystemExit(0)
-          targets = ["README.md", "docs/index.md", "docs/MAVEN_CENTRAL_PUBLISHING_GUIDE.md"]
-          pattern = re.compile(r"(?<![\d.])" + re.escape(old) + r"(?:-SNAPSHOT)?(?![\d.])")
-          for name in targets:
-              path = pathlib.Path(name)
-              if not path.exists():
-                  continue
-              text = path.read_text()
-              updated, count = pattern.subn(new, text)
-              if count:
-                  path.write_text(updated)
-                  print(f"{name}: {count} version reference(s) -> {new}")
-          PY
 
       - name: Commit version bump and push tag
         shell: bash
@@ -141,6 +114,7 @@ jobs:
             target/release-assets/aem-analyser-cli.jar
             target/release-assets/aem-analyser-maven-plugin-*.jar
             target/release-assets/aem-analyser-core-*.jar
+            target/release-assets/*.pom
             target/release-assets/SHA256SUMS.txt
           body: |
             ### AEM Code Analyser ${{ steps.bump.outputs.tag }}
@@ -158,26 +132,45 @@ jobs:
             sha256sum -c SHA256SUMS.txt
             ```
 
-            #### 🧰 Maven artefacts (no token required)
-            This release also attaches `aem-analyser-core` and `aem-analyser-maven-plugin` for air-gapped
-            installs (`mvn install:install-file -Dfile=... -DgroupId=io.github.rohithv16 ...`). Normal Maven
-            builds should resolve them from JitPack, which needs no credentials:
+            #### 🧰 Install the plugin without any registry access
+            The Maven plugin cannot be consumed from JitPack: JitPack relocates the groupId, and Maven
+            rejects a plugin whose descriptor declares a different group. Attached here are the plugin,
+            the core library and their POMs, so an air-gapped or offline install is three commands
+            (also works when you just do not want to configure a token):
+
+            ```bash
+            mvn install:install-file -Dfile=aem-code-analyser-${{ steps.bump.outputs.version }}.pom \
+                -DpomFile=aem-code-analyser-${{ steps.bump.outputs.version }}.pom
+            mvn install:install-file -Dfile=aem-analyser-core-${{ steps.bump.outputs.version }}.jar \
+                -DpomFile=aem-analyser-core-${{ steps.bump.outputs.version }}.pom
+            mvn install:install-file -Dfile=aem-analyser-maven-plugin-${{ steps.bump.outputs.version }}.jar \
+                -DpomFile=aem-analyser-maven-plugin-${{ steps.bump.outputs.version }}.pom
+            ```
+
+            Then run it in any project, with no further downloads:
+
+            ```bash
+            mvn io.github.rohithv16:aem-analyser-maven-plugin:${{ steps.bump.outputs.version }}:check
+            ```
+
+            #### 📚 Library from JitPack (no token required)
+            `aem-analyser-core` has no plugin descriptor, so JitPack serves it fine:
 
             ```xml
-            <pluginRepositories>
-                <pluginRepository>
+            <repositories>
+                <repository>
                     <id>jitpack.io</id>
                     <url>https://jitpack.io</url>
-                </pluginRepository>
-            </pluginRepositories>
+                </repository>
+            </repositories>
             ```
 
             ```xml
-            <plugin>
+            <dependency>
                 <groupId>com.github.RohithV16.aem-code-analyser</groupId>
-                <artifactId>aem-analyser-maven-plugin</artifactId>
+                <artifactId>aem-analyser-core</artifactId>
                 <version>${{ steps.bump.outputs.tag }}</version>
-            </plugin>
+            </dependency>
             ```
 
             #### 🧩 Maven Plugin via GitHub Packages

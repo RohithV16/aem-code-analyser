@@ -35,6 +35,70 @@ class AnalyserCliTest {
         assertEquals(tempDir.toAbsolutePath().normalize(), cli.resolveProjectRoot());
     }
 
+    /**
+     * Running inside a module directory must analyse the whole reactor: a module-only scan hides
+     * every cross-module finding (unused references, duplicated servlets, orphaned configs).
+     */
+    @Test
+    void testResolveProjectRootClimbsFromModuleToReactor(@TempDir Path tempDir) throws java.io.IOException {
+        java.nio.file.Files.writeString(tempDir.resolve("pom.xml"),
+                "<project><modules><module>bundle</module></modules></project>");
+        Path module = tempDir.resolve("bundle");
+        java.nio.file.Files.createDirectories(module);
+        java.nio.file.Files.writeString(module.resolve("pom.xml"),
+                "<project><parent><groupId>com.acme</groupId><artifactId>acme.aem</artifactId>"
+                        + "<version>1.0.0</version></parent><artifactId>acme.bundle</artifactId></project>");
+
+        AnalyserCli cli = new AnalyserCli();
+        new CommandLine(cli).parseArgs("--project-root", module.toString());
+
+        assertEquals(tempDir.toAbsolutePath().normalize(), cli.resolveProjectRoot(),
+                "a module directory must resolve to its reactor root");
+    }
+
+    @Test
+    void testResolveProjectRootStopsAtStandaloneProject(@TempDir Path tempDir) throws java.io.IOException {
+        java.nio.file.Files.writeString(tempDir.resolve("pom.xml"),
+                "<project><artifactId>standalone</artifactId></project>");
+
+        AnalyserCli cli = new AnalyserCli();
+        new CommandLine(cli).parseArgs("--project-root", tempDir.toString());
+
+        assertEquals(tempDir.toAbsolutePath().normalize(), cli.resolveProjectRoot());
+    }
+
+    /**
+     * An empty {@code <relativePath/>} means the parent is resolved from a repository, so the
+     * directory is not a module of the POM sitting above it and the walk must stop.
+     */
+    @Test
+    void testResolveProjectRootDoesNotClimbPastExternalParent(@TempDir Path tempDir) throws java.io.IOException {
+        java.nio.file.Files.writeString(tempDir.resolve("pom.xml"), "<project><artifactId>host</artifactId></project>");
+        Path module = tempDir.resolve("external-parent-child");
+        java.nio.file.Files.createDirectories(module);
+        java.nio.file.Files.writeString(module.resolve("pom.xml"),
+                "<project><parent><groupId>org.example</groupId><artifactId>corp-parent</artifactId>"
+                        + "<version>9</version><relativePath/></parent><artifactId>child</artifactId></project>");
+
+        AnalyserCli cli = new AnalyserCli();
+        new CommandLine(cli).parseArgs("--project-root", module.toString());
+
+        assertEquals(module.toAbsolutePath().normalize(), cli.resolveProjectRoot(),
+                "an externally-parented POM is its own root");
+    }
+
+    @Test
+    void testPositionalArgumentSetsProjectRoot(@TempDir Path tempDir) throws java.io.IOException {
+        java.nio.file.Files.writeString(tempDir.resolve("pom.xml"),
+                "<project><artifactId>positional</artifactId></project>");
+
+        AnalyserCli cli = new AnalyserCli();
+        new CommandLine(cli).parseArgs(tempDir.toString());
+
+        assertEquals(tempDir.toAbsolutePath().normalize(), cli.resolveProjectRoot(),
+                "the positional PROJECT_ROOT must behave like --project-root");
+    }
+
     @Test
     void testFindJavaTestModulesIdentifiesOnlyJavaTestModules(@TempDir Path tempDir) throws java.io.IOException {
         // Create root pom

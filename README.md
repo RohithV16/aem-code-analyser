@@ -49,6 +49,63 @@ This builds and installs `aem-analyser-core`, `aem-analyser-maven-plugin`, and `
 Run audits directly from the command line on any AEM repository:
 
 ```bash
+# No arguments needed: the project root defaults to the current directory and,
+# when you are inside a module, to the reactor that owns it.
+java -jar aem-analyser-cli.jar
+
+# The root can also be given positionally, or with the explicit flag
+java -jar aem-analyser-cli.jar .
+java -jar aem-analyser-cli.jar --project-root /path/to/aem-project
+```
+
+The root is never required:
+
+| Invocation | Analysed root |
+|---|---|
+| `aem-analyser` in the reactor root | the current directory |
+| `aem-analyser` in `bundle/` | the reactor that owns `bundle/` |
+| `aem-analyser /path/to/project` | that path |
+| `aem-analyser --project-root …` | that path |
+
+Auto-discovery walks past a module POM (one whose declared parent exists on disk) because a
+module-only scan cannot see cross-module findings. An empty `<relativePath/>` in the POM stops the
+walk, since that parent is resolved from a repository rather than the directory above.
+
+### Running without downloading a jar
+
+Three ways, in order of convenience:
+
+```bash
+# 1. Straight from a clone: builds only when the sources changed, then analyses the cwd
+git clone https://github.com/RohithV16/aem-code-analyser && cd aem-code-analyser
+scripts/run-from-source.sh ../my-aem-project
+
+# 2. As a Maven plugin, once installed (see the release notes for the offline install)
+mvn io.github.rohithv16:aem-analyser-maven-plugin:<version>:check
+
+# 3. Bound to the build so every `mvn verify` audits the project
+```
+
+```xml
+<plugin>
+    <groupId>io.github.rohithv16</groupId>
+    <artifactId>aem-analyser-maven-plugin</artifactId>
+    <!-- latest version: https://github.com/RohithV16/aem-code-analyser/releases -->
+    <version>${aem-analyser.version}</version>
+    <executions>
+        <execution>
+            <phase>verify</phase>
+            <goals><goal>check</goal></goals>
+        </execution>
+    </executions>
+</plugin>
+```
+
+The plugin is not on JitPack: JitPack relocates the groupId, and Maven rejects a plugin whose
+descriptor declares a different group. Publish/consume it through GitHub Packages (needs a
+`read:packages` token) or install the release jars with `install:install-file`.
+
+```bash
 # Basic run with colored console output (also writes the HTML dashboard)
 java -jar aem-analyser-cli/target/aem-analyser-cli.jar --project-root /path/to/aem-project
 
@@ -260,7 +317,8 @@ To automatically enforce dead-code quality checks in any AEM project during `mvn
         <plugin>
             <groupId>io.github.rohithv16</groupId>
             <artifactId>aem-analyser-maven-plugin</artifactId>
-            <version>1.0.7</version>
+            <!-- latest version: https://github.com/RohithV16/aem-code-analyser/releases -->
+            <version>${aem-analyser.version}</version>
             <executions>
                 <execution>
                     <id>aem-dead-code-check</id>

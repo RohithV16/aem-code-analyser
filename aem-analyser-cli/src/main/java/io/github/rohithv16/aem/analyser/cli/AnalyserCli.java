@@ -18,6 +18,7 @@ import io.github.rohithv16.aem.analyser.core.model.report.Violation;
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
+import picocli.CommandLine.Parameters;
 
 import java.io.IOException;
 import java.io.PrintWriter;
@@ -44,8 +45,13 @@ public class AnalyserCli implements Runnable {
 
     @Option(names = {"-p", "--project-root"},
             description = "Project (reactor) root directory. Defaults to the current directory, "
-                    + "auto-discovering the enclosing repository root.")
+                    + "auto-discovering the enclosing reactor root.")
     private Path projectRoot;
+
+    @Parameters(index = "0", arity = "0..1", paramLabel = "PROJECT_ROOT",
+            description = "Project root, as a shorthand for --project-root "
+                    + "(e.g. 'aem-analyser .' inside the project).")
+    private Path positionalProjectRoot;
 
     @Option(names = {"-f", "--format"}, split = ",",
             description = "Output formats (comma-separated): CONSOLE, SARIF, SONAR, HTML, GITHUB, GITLAB, AZURE. "
@@ -501,23 +507,82 @@ public class AnalyserCli implements Runnable {
     }
 
     /**
-     * Auto-discovers the enclosing Maven reactor root when invoked from a subfolder.
+     * Auto-discovers the reactor root when invoked from inside a project.
+     *
+     * <p>Starting from {@code --project-root} (or the positional argument, or the working directory)
+     * this walks up past module POMs: a POM that declares a parent which exists on disk is a module,
+     * and analysing just that module would miss every cross-module finding. It stops at the topmost
+     * local POM, so running inside {@code bundle/} analyses the whole reactor.
      */
     Path resolveProjectRoot() {
-        Path root = projectRoot != null ? projectRoot.toAbsolutePath().normalize()
+        Path explicit = projectRoot != null ? projectRoot : positionalProjectRoot;
+        Path start = explicit != null ? explicit.toAbsolutePath().normalize()
                 : Path.of("").toAbsolutePath().normalize();
-        if (Files.isRegularFile(root.resolve("pom.xml"))) {
-            return root;
+        Path candidate = Files.isRegularFile(start.resolve("pom.xml")) ? start : enclosingPomRoot(start);
+        for (int depth = 0; depth < MAX_REACTOR_DEPTH && isLocalModulePom(candidate); depth++) {
+            candidate = candidate.getParent();
         }
-        Path parent = root;
-        for (int i = 0; i < 6 && parent.getParent() != null; i++) {
-            parent = parent.getParent();
-            if (Files.isRegularFile(parent.resolve("pom.xml"))) {
-                return parent;
+        return candidate;
+    }
+
+    private static final int MAX_REACTOR_DEPTH = 8;
+
+    /** The nearest ancestor (or the start itself) that contains a POM. */
+    private static Path enclosingPomRoot(Path from) {
+        Path current = from;
+        for (int i = 0; i < 6 && current.getParent() != null; i++) {
+            current = current.getParent();
+            if (Files.isRegularFile(current.resolve("pom.xml"))) {
+                return current;
             }
         }
-        return root;
+        return from;
     }
+
+    /**
+     * True when {@code dir/pom.xml} is a module of a parent POM that is checked out next to it, i.e.
+     * the directory is part of a local reactor rather than a standalone project.
+     */
+    static boolean isLocalModulePom(Path dir) {
+        if (dir == null) {
+            return false;
+        }
+        Path pom = dir.resolve("pom.xml");
+        if (!Files.isRegularFile(pom)) {
+            return false;
+        }
+        try {
+            javax.xml.parsers.DocumentBuilderFactory factory =
+                    javax.xml.parsers.DocumentBuilderFactory.newInstance();
+            factory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
+            factory.setFeature("http://xml.org/sax/features/external-general-entities", false);
+            factory.setFeature("http://xml.org/sax/features/external-parameter-entities", false);
+            factory.setXIncludeAware(false);
+            factory.setExpandEntityReferences(false);
+            org.w3c.dom.Document document = factory.newDocumentBuilder().parse(pom.toFile());
+            org.w3c.dom.NodeList parents = document.getElementsByTagName("parent");
+            if (parents.getLength() == 0) {
+                return false;
+            }
+            org.w3c.dom.Element parent = (org.w3c.dom.Element) parents.item(0);
+            // Maven's default for a missing <relativePath> is ../pom.xml; an empty one disables the
+            // local lookup (parent comes from a repository), so the directory is not part of this
+            // reactor.
+            String relativePath = "../pom.xml";
+            org.w3c.dom.NodeList explicit = parent.getElementsByTagName("relativePath");
+            if (explicit.getLength() > 0) {
+                relativePath = explicit.item(0).getTextContent().trim();
+            }
+            if (relativePath.isEmpty()) {
+                return false;
+            }
+            return Files.isRegularFile(dir.resolve(relativePath).normalize());
+        } catch (Exception unreadable) {
+            // A POM we cannot parse is treated as standalone: never guess a wider root.
+            return false;
+        }
+    }
+
 
     private List<io.github.rohithv16.aem.analyser.core.history.RunSummary> applyHistory(AnalysisReport report)
             throws IOException {
