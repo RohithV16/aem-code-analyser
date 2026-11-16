@@ -34,90 +34,94 @@ public final class AemDup001Rule implements RuleEvaluator {
     @Override
     public List<Violation> evaluate(RuleContext context) {
         List<Violation> violations = new ArrayList<>();
-
         Map<String, List<ServletRegistration>> pathMap = new HashMap<>();
         Map<String, List<ServletRegistration>> resourceTypeMap = new HashMap<>();
 
         for (OSGiComponentNode component : context.components()) {
-            if (!isServlet(component)) {
+            if (isServlet(component)) {
+                registerServlet(component, pathMap, resourceTypeMap);
+            }
+        }
+
+        collectConflicts(context, pathMap, "DUPLICATE_SERVLET_PATH",
+                "Differentiate servlet paths or assign explicit service.ranking to define precedence.",
+                (key, first, other) -> String.format(
+                        "Servlet '%s' conflicts with '%s': both claim sling.servlet.paths = '%s'"
+                                + " with identical service.ranking (%d).",
+                        other.component.getComponentClassFqn(),
+                        first.component.getComponentClassFqn(), key, other.ranking),
+                violations);
+        collectConflicts(context, resourceTypeMap, "DUPLICATE_RESOURCE_TYPE_SERVLET",
+                "Differentiate selectors/methods or define explicit service.ranking.",
+                (key, first, other) -> String.format(
+                        "Servlet '%s' conflicts with '%s': both claim identical resourceType mapping"
+                                + " with identical service.ranking (%d).",
+                        other.component.getComponentClassFqn(),
+                        first.component.getComponentClassFqn(), other.ranking),
+                violations);
+        return violations;
+    }
+
+    /** Indexes one servlet by every registered path and by its resourceType/selector key. */
+    private void registerServlet(OSGiComponentNode component,
+                                 Map<String, List<ServletRegistration>> pathMap,
+                                 Map<String, List<ServletRegistration>> resourceTypeMap) {
+        ServletRegistration reg = parseServletRegistration(component);
+        for (String path : reg.paths) {
+            pathMap.computeIfAbsent(path, k -> new ArrayList<>()).add(reg);
+        }
+        if (reg.resourceTypes.isEmpty()) {
+            return;
+        }
+        for (String resourceType : reg.resourceTypes) {
+            String key = resourceType + "|" + String.join(",", reg.selectors) + "|"
+                    + String.join(",", reg.extensions) + "|" + String.join(",", reg.methods);
+            resourceTypeMap.computeIfAbsent(key, k -> new ArrayList<>()).add(reg);
+        }
+    }
+
+    /**
+     * Reports every servlet that contends for the same registration key at an identical
+     * {@code service.ranking}.
+     */
+    private void collectConflicts(RuleContext context,
+                                  Map<String, List<ServletRegistration>> registrations,
+                                  String subtype,
+                                  String remediation,
+                                  ConflictMessage messageFormat,
+                                  List<Violation> violations) {
+        for (Map.Entry<String, List<ServletRegistration>> entry : registrations.entrySet()) {
+            List<ServletRegistration> list = entry.getValue();
+            if (list.size() <= 1 || !hasRankingConflict(list)) {
                 continue;
             }
-
-            ServletRegistration reg = parseServletRegistration(component);
-            for (String path : reg.paths) {
-                pathMap.computeIfAbsent(path, k -> new ArrayList<>()).add(reg);
-            }
-            if (!reg.resourceTypes.isEmpty()) {
-                for (String rt : reg.resourceTypes) {
-                    String key = rt + "|" + String.join(",", reg.selectors) + "|" +
-                            String.join(",", reg.extensions) + "|" + String.join(",", reg.methods);
-                    resourceTypeMap.computeIfAbsent(key, k -> new ArrayList<>()).add(reg);
-                }
-            }
-        }
-
-        // Check path conflicts
-        for (Map.Entry<String, List<ServletRegistration>> entry : pathMap.entrySet()) {
-            String path = entry.getKey();
-            List<ServletRegistration> list = entry.getValue();
-            if (list.size() > 1 && hasRankingConflict(list)) {
-                ServletRegistration first = list.get(0);
-                for (int i = 1; i < list.size(); i++) {
-                    ServletRegistration other = list.get(i);
-                    List<RelatedLocation> related = List.of(new RelatedLocation(
-                            "Conflicting servlet: " + first.component.getComponentClassFqn(),
-                            relativePath(context, first.component.getFilePath()),
-                            new TextRegion(first.component.getSourceLocation().line(), 1,
-                                    first.component.getSourceLocation().line(), 1)));
-
-                    violations.add(new Violation(
-                            RuleId.AEM_DUP_001.id(),
-                            RuleId.AEM_DUP_001.defaultLevel(),
-                            "DUPLICATE_SERVLET_PATH",
-                            String.format("Servlet '%s' conflicts with '%s': both claim sling.servlet.paths = '%s' with identical service.ranking (%d).",
-                                    other.component.getComponentClassFqn(), first.component.getComponentClassFqn(), path, other.ranking),
-                            relativePath(context, other.component.getFilePath()),
-                            new TextRegion(other.component.getSourceLocation().line(), 1,
-                                    other.component.getSourceLocation().line(), 1),
-                            path,
-                            "Differentiate servlet paths or assign explicit service.ranking to define precedence.",
-                            related
-                    ));
-                }
+            ServletRegistration first = list.get(0);
+            for (int i = 1; i < list.size(); i++) {
+                ServletRegistration other = list.get(i);
+                List<RelatedLocation> related = List.of(new RelatedLocation(
+                        "Conflicting servlet: " + first.component.getComponentClassFqn(),
+                        relativePath(context, first.component.getFilePath()),
+                        new TextRegion(first.component.getSourceLocation().line(), 1,
+                                first.component.getSourceLocation().line(), 1)));
+                violations.add(new Violation(
+                        RuleId.AEM_DUP_001.id(),
+                        RuleId.AEM_DUP_001.defaultLevel(),
+                        subtype,
+                        messageFormat.format(entry.getKey(), first, other),
+                        relativePath(context, other.component.getFilePath()),
+                        new TextRegion(other.component.getSourceLocation().line(), 1,
+                                other.component.getSourceLocation().line(), 1),
+                        entry.getKey(),
+                        remediation,
+                        related));
             }
         }
+    }
 
-        // Check resourceType conflicts
-        for (Map.Entry<String, List<ServletRegistration>> entry : resourceTypeMap.entrySet()) {
-            List<ServletRegistration> list = entry.getValue();
-            if (list.size() > 1 && hasRankingConflict(list)) {
-                ServletRegistration first = list.get(0);
-                for (int i = 1; i < list.size(); i++) {
-                    ServletRegistration other = list.get(i);
-                    List<RelatedLocation> related = List.of(new RelatedLocation(
-                            "Conflicting servlet: " + first.component.getComponentClassFqn(),
-                            relativePath(context, first.component.getFilePath()),
-                            new TextRegion(first.component.getSourceLocation().line(), 1,
-                                    first.component.getSourceLocation().line(), 1)));
-
-                    violations.add(new Violation(
-                            RuleId.AEM_DUP_001.id(),
-                            RuleId.AEM_DUP_001.defaultLevel(),
-                            "DUPLICATE_RESOURCE_TYPE_SERVLET",
-                            String.format("Servlet '%s' conflicts with '%s': both claim identical resourceType mapping with identical service.ranking (%d).",
-                                    other.component.getComponentClassFqn(), first.component.getComponentClassFqn(), other.ranking),
-                            relativePath(context, other.component.getFilePath()),
-                            new TextRegion(other.component.getSourceLocation().line(), 1,
-                                    other.component.getSourceLocation().line(), 1),
-                            entry.getKey(),
-                            "Differentiate selectors/methods or define explicit service.ranking.",
-                            related
-                    ));
-                }
-            }
-        }
-
-        return violations;
+    /** Builds the violation message for one conflicting servlet pair. */
+    @FunctionalInterface
+    private interface ConflictMessage {
+        String format(String key, ServletRegistration first, ServletRegistration other);
     }
 
     private boolean isServlet(OSGiComponentNode component) {

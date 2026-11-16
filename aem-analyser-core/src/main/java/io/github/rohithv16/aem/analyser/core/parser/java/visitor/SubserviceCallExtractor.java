@@ -31,8 +31,20 @@ public final class SubserviceCallExtractor {
         if (cu == null) {
             return results;
         }
+        Map<String, String> localConstants = collectLocalConstants(cu);
+        Set<String> factoryReceivers = collectFactoryReceivers(cu);
+        for (MethodCallExpr call : cu.findAll(MethodCallExpr.class)) {
+            SubserviceCall subserviceCall = toSubserviceCall(call, classFqn, filePath,
+                    localConstants, factoryReceivers);
+            if (subserviceCall != null) {
+                results.add(subserviceCall);
+            }
+        }
+        return results;
+    }
 
-        // Collect class-level constant string values
+    /** Class-level constant string values, so {@code SUB_SERVICE} resolves to its literal. */
+    private static Map<String, String> collectLocalConstants(CompilationUnit cu) {
         Map<String, String> localConstants = new HashMap<>();
         for (FieldDeclaration field : cu.findAll(FieldDeclaration.class)) {
             for (VariableDeclarator declarator : field.getVariables()) {
@@ -44,79 +56,86 @@ public final class SubserviceCallExtractor {
                 });
             }
         }
-        Set<String> factoryReceivers = collectFactoryReceivers(cu);
-
-        for (MethodCallExpr call : cu.findAll(MethodCallExpr.class)) {
-            String name = call.getNameAsString();
-            if (!isAcquisitionCall(call, factoryReceivers) || call.getArguments().isEmpty()) {
-                continue;
-            }
-
-            String subservice = null;
-            SubserviceCall.Resolution resolution;
-            if (name.equals("loginService") || name.equals("loginAdministrative")) {
-                Expression argument = call.getArgument(0);
-                if (argument.isNullLiteralExpr()) {
-                    resolution = SubserviceCall.Resolution.NULL;
-                } else {
-                    subservice = resolveSubserviceString(argument, localConstants);
-                    resolution = subservice != null
-                            ? SubserviceCall.Resolution.LITERAL
-                            : SubserviceCall.Resolution.UNRESOLVED;
-                }
-            } else {
-                Expression argument = call.getArgument(0);
-                if (argument.isNullLiteralExpr()) {
-                    resolution = SubserviceCall.Resolution.NULL;
-                } else {
-                    subservice = resolveFromMapExpression(argument, call, localConstants);
-                    resolution = subservice != null
-                            ? SubserviceCall.Resolution.LITERAL
-                            : SubserviceCall.Resolution.UNRESOLVED;
-                }
-            }
-
-            var nameRange = call.getName().getRange();
-            int line = nameRange.map(r -> r.begin.line).orElse(1);
-            int col = nameRange.map(r -> r.begin.column).orElse(1);
-            results.add(new SubserviceCall(subservice, classFqn, filePath, line, col, resolution));
-        }
-
-        return results;
+        return localConstants;
     }
 
-    private String resolveFromMapExpression(Expression mapExpr, MethodCallExpr call, Map<String, String> localConstants) {
-        // Direct Map.of(...) or Collections.singletonMap(...)
-        String direct = extractStringFromMapCall(mapExpr, localConstants);
-        if (direct != null) {
-            return direct;
+    /** @return the acquisition call as a finding, or {@code null} when it is not one */
+    private SubserviceCall toSubserviceCall(MethodCallExpr call, String classFqn, Path filePath,
+                                            Map<String, String> localConstants,
+                                            Set<String> factoryReceivers) {
+        if (!isAcquisitionCall(call, factoryReceivers) || call.getArguments().isEmpty()) {
+            return null;
+        }
+        String name = call.getNameAsString();
+        Expression argument = call.getArgument(0);
+        boolean loginVariant = name.equals("loginService") || name.equals("loginAdministrative");
+        String subservice = null;
+        SubserviceCall.Resolution resolution;
+        if (argument.isNullLiteralExpr()) {
+            resolution = SubserviceCall.Resolution.NULL;
+        } else if (loginVariant) {
+            subservice = resolveSubserviceString(argument, localConstants);
+            resolution = resolutionOf(subservice);
+        } else {
+            subservice = resolveFromMapExpression(argument, call, localConstants);
+            resolution = resolutionOf(subservice);
         }
 
+        var nameRange = call.getName().getRange();
+        int line = nameRange.map(r -> r.begin.line).orElse(1);
+        int column = nameRange.map(r -> r.begin.column).orElse(1);
+        return new SubserviceCall(subservice, classFqn, filePath, line, column, resolution);
+    }
+
+    private static SubserviceCall.Resolution resolutionOf(String subservice) {
+        return subservice != null
+                ? SubserviceCall.Resolution.LITERAL
+                : SubserviceCall.Resolution.UNRESOLVED;
+    }
+
+    private String resolveFromMapExpression(Expression mapExpr, MethodCallExpr call,
+                                            Map<String, String> localConstants) {
+        // Direct Map.of(...) or Collections.singletonMap(...)
+        String direct = extractStringFromMapCall(mapExpr, localConstants);
+        if (direct != null || !mapExpr.isNameExpr()) {
+            return direct;
+        }
         // Variable reference (e.g. param, authInfo)
-        if (mapExpr.isNameExpr()) {
-            String varName = mapExpr.asNameExpr().getNameAsString();
-            // Look in enclosing method for assignments/initializations of varName
-            MethodDeclaration enclosingMethod = findEnclosingMethod(call);
-            if (enclosingMethod != null) {
-                for (VariableDeclarator vd : enclosingMethod.findAll(VariableDeclarator.class)) {
-                    if (vd.getNameAsString().equals(varName) && vd.getInitializer().isPresent()) {
-                        String val = extractStringFromMapCall(vd.getInitializer().get(), localConstants);
-                        if (val != null) {
-                            return val;
-                        }
-                    }
-                }
-                for (MethodCallExpr methodCall : enclosingMethod.findAll(MethodCallExpr.class)) {
-                    if (methodCall.getNameAsString().equals("put") && methodCall.getArguments().size() >= 2) {
-                        String key = methodCall.getArgument(0).toString().toLowerCase(java.util.Locale.ROOT);
-                        if (key.contains("subservice")) {
-                            return resolveSubserviceString(methodCall.getArgument(1), localConstants);
-                        }
-                    }
+        return resolveFromEnclosingMethod(mapExpr.asNameExpr().getNameAsString(), call, localConstants);
+    }
+
+    /** Looks for the map variable's initializer, then for {@code put("subservice", ...)} calls. */
+    private String resolveFromEnclosingMethod(String varName, MethodCallExpr call,
+                                              Map<String, String> localConstants) {
+        MethodDeclaration enclosingMethod = findEnclosingMethod(call);
+        if (enclosingMethod == null) {
+            return null;
+        }
+        String declared = resolveFromDeclaration(varName, enclosingMethod, localConstants);
+        return declared != null ? declared : resolveFromPutCalls(enclosingMethod, localConstants);
+    }
+
+    private String resolveFromDeclaration(String varName, MethodDeclaration enclosingMethod,
+                                          Map<String, String> localConstants) {
+        for (VariableDeclarator declarator : enclosingMethod.findAll(VariableDeclarator.class)) {
+            if (declarator.getNameAsString().equals(varName) && declarator.getInitializer().isPresent()) {
+                String value = extractStringFromMapCall(declarator.getInitializer().get(), localConstants);
+                if (value != null) {
+                    return value;
                 }
             }
         }
+        return null;
+    }
 
+    private String resolveFromPutCalls(MethodDeclaration enclosingMethod,
+                                       Map<String, String> localConstants) {
+        for (MethodCallExpr methodCall : enclosingMethod.findAll(MethodCallExpr.class)) {
+            if (methodCall.getNameAsString().equals("put") && methodCall.getArguments().size() >= 2
+                    && isSubserviceKey(methodCall.getArgument(0))) {
+                return resolveSubserviceString(methodCall.getArgument(1), localConstants);
+            }
+        }
         return null;
     }
 
@@ -127,29 +146,39 @@ public final class SubserviceCallExtractor {
         // Find the subservice entry in any map construction (Map.of, singletonMap, ofEntries/entry,
         // put, ImmutableMap.of, unmodifiableMap(...), ...), not just one API shape.
         for (MethodCallExpr mce : expr.findAll(MethodCallExpr.class)) {
-            String name = mce.getNameAsString();
-            var args = mce.getArguments();
-            if ((name.equals("entry") || name.equals("put")) && args.size() >= 2
-                    && isSubserviceKey(args.get(0))) {
-                String value = resolveSubserviceString(args.get(1), localConstants);
+            String value = extractFromMapCall(mce, localConstants);
+            if (value != null) {
+                return value;
+            }
+        }
+        return null;
+    }
+
+    private String extractFromMapCall(MethodCallExpr mce, Map<String, String> localConstants) {
+        String name = mce.getNameAsString();
+        var args = mce.getArguments();
+        if ((name.equals("entry") || name.equals("put")) && args.size() >= 2
+                && isSubserviceKey(args.get(0))) {
+            return resolveSubserviceString(args.get(1), localConstants);
+        }
+        if (!name.equals("of") && !name.equals("singletonMap")) {
+            return null;
+        }
+        String paired = extractFromKeyValuePairs(args, localConstants);
+        if (paired != null || args.size() != 2) {
+            return paired;
+        }
+        return resolveSubserviceString(args.get(1), localConstants);
+    }
+
+    /** Scans {@code key, value, key, value, ...} arguments of a map factory. */
+    private String extractFromKeyValuePairs(List<Expression> args,
+                                            Map<String, String> localConstants) {
+        for (int i = 0; i + 1 < args.size(); i += 2) {
+            if (isSubserviceKey(args.get(i))) {
+                String value = resolveSubserviceString(args.get(i + 1), localConstants);
                 if (value != null) {
                     return value;
-                }
-            }
-            if ((name.equals("of") || name.equals("singletonMap")) && args.size() >= 2) {
-                for (int i = 0; i + 1 < args.size(); i += 2) {
-                    if (isSubserviceKey(args.get(i))) {
-                        String value = resolveSubserviceString(args.get(i + 1), localConstants);
-                        if (value != null) {
-                            return value;
-                        }
-                    }
-                }
-                if (args.size() == 2) {
-                    String value = resolveSubserviceString(args.get(1), localConstants);
-                    if (value != null) {
-                        return value;
-                    }
                 }
             }
         }

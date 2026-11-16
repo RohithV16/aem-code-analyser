@@ -36,90 +36,124 @@ public final class AemDead001Rule implements RuleEvaluator {
 
     @Override
     public List<Violation> evaluate(RuleContext context) {
-        // P_Comp: complete set of active application component PIDs
+        Set<String> activePids = activeComponentPids(context);
+        List<Violation> violations = new ArrayList<>();
+        for (OSGiConfigNode config : context.configs()) {
+            Violation violation = evaluateConfig(context, config, activePids);
+            if (violation != null) {
+                violations.add(violation);
+            }
+        }
+        return violations;
+    }
+
+    /** P_Comp: the complete set of active application component PIDs. */
+    private static Set<String> activeComponentPids(RuleContext context) {
         Set<String> activePids = new HashSet<>();
         for (OSGiComponentNode component : context.components()) {
             activePids.addAll(ReferenceGraphIndex.computeActivePids(component));
         }
+        return activePids;
+    }
 
-        List<Violation> violations = new ArrayList<>();
-        for (OSGiConfigNode config : context.configs()) {
-            String pid = config.getPid();
-            if (pid == null) {
-                continue;
-            }
-            if (activePids.contains(pid)
-                    || PlatformPidCatalog.isPlatformPid(pid)
-                    || context.isExternalPid(pid)) {
-                continue;
-            }
-
-            String violationSubtype;
-            String message;
-            String remediation;
-            List<RelatedLocation> related = new ArrayList<>();
-
-            OSGiOcdNode namedOcd = context.index().findOcd(pid);
-            OSGiComponentNode matchingComponent = findComponentNamed(context, pid);
-
-            if (namedOcd != null) {
-                violationSubtype = "ORPHANED_OCD_NAMED_CONFIG";
-                List<String> designators = designatingComponents(context, namedOcd);
-                message = "Orphaned OSGi Configuration: the PID '" + pid
-                        + "' names an @ObjectClassDefinition interface, but no active @Component declares"
-                        + " configurationPid = \"" + pid + "\". OSGi ConfigurationAdmin never binds this file.";
-                if (designators.isEmpty()) {
-                    remediation = "Rename the configuration file to target the consuming component's PID, or add"
-                            + " @Component(configurationPid = \"" + pid + "\") to the designating component.";
-                } else {
-                    remediation = "Rename the configuration file to '"
-                            + String.join(".cfg.json' or '", designators)
-                            + ".cfg.json', or add configurationPid = \"" + pid + "\" to @Component on: "
-                            + String.join(", ", designators);
-                }
-                if (namedOcd.getFilePath() != null) {
-                    related.add(new RelatedLocation(
-                            "Target @ObjectClassDefinition interface definition.",
-                            relativePath(context, namedOcd.getFilePath()),
-                            regionOf(namedOcd)));
-                }
-            } else if (matchingComponent != null) {
-                violationSubtype = "IGNORED_CONFIGURATION_POLICY";
-                message = "Orphaned OSGi Configuration: component '" + matchingComponent.getId()
-                        + "' declares configurationPolicy = ConfigurationPolicy.IGNORE;"
-                        + " ConfigurationAdmin will never supply this configuration.";
-                remediation = "Change configurationPolicy to OPTIONAL/REQUIRE on component '"
-                        + matchingComponent.getId() + "', or delete the orphaned configuration file.";
-                if (matchingComponent.getFilePath() != null) {
-                    related.add(new RelatedLocation(
-                            "Component declaring ConfigurationPolicy.IGNORE.",
-                            relativePath(context, matchingComponent.getFilePath()),
-                            regionOf(matchingComponent)));
-                }
-            } else {
-                violationSubtype = "ORPHANED_CONFIGURATION";
-                message = "Orphaned OSGi Configuration: No matching component, OCD-named binding,"
-                        + " platform service or external dependency found for PID '" + pid + "'.";
-                remediation = "Delete the configuration file, or rename it to the PID of the component"
-                        + " that must consume these properties.";
-            }
-
-            Path configPath = config.getFilePath();
-            if (configPath == null) {
-                continue;
-            }
-            violations.add(new Violation(
-                    RuleId.AEM_DEAD_001.id(),
-                    RuleId.AEM_DEAD_001.defaultLevel(),
-                    violationSubtype,
-                    message,
-                    relativePath(context, configPath),
-                    TextRegion.forWholeFile(),
-                    pid,
-                    remediation,
-                    related));
+    /** @return the orphan violation for one config, or {@code null} when the PID is bound/not a file */
+    private Violation evaluateConfig(RuleContext context, OSGiConfigNode config,
+                                     Set<String> activePids) {
+        String pid = config.getPid();
+        if (pid == null || isBoundPid(context, pid, activePids)) {
+            return null;
         }
-        return violations;
+        Path configPath = config.getFilePath();
+        if (configPath == null) {
+            return null;
+        }
+        Finding finding = classifyOrphan(context, pid);
+        return new Violation(
+                RuleId.AEM_DEAD_001.id(),
+                RuleId.AEM_DEAD_001.defaultLevel(),
+                finding.subtype(),
+                finding.message(),
+                relativePath(context, configPath),
+                TextRegion.forWholeFile(),
+                pid,
+                finding.remediation(),
+                finding.related());
+    }
+
+    /** A PID is not dead when a component consumes it, the platform owns it, or a dependency ships it. */
+    private static boolean isBoundPid(RuleContext context, String pid, Set<String> activePids) {
+        return activePids.contains(pid)
+                || PlatformPidCatalog.isPlatformPid(pid)
+                || context.isExternalPid(pid);
+    }
+
+    /** The three orphan subtypes, decided by what the PID names. */
+    private Finding classifyOrphan(RuleContext context, String pid) {
+        OSGiOcdNode namedOcd = context.index().findOcd(pid);
+        if (namedOcd != null) {
+            return orphanedOcdNamedConfig(context, pid, namedOcd);
+        }
+        OSGiComponentNode matchingComponent = findComponentNamed(context, pid);
+        if (matchingComponent != null) {
+            return ignoredConfigurationPolicy(context, matchingComponent);
+        }
+        return orphanedConfiguration(pid);
+    }
+
+    private Finding orphanedOcdNamedConfig(RuleContext context, String pid, OSGiOcdNode namedOcd) {
+        List<String> designators = designatingComponents(context, namedOcd);
+        String message = "Orphaned OSGi Configuration: the PID '" + pid
+                + "' names an @ObjectClassDefinition interface, but no active @Component declares"
+                + " configurationPid = \"" + pid + "\". OSGi ConfigurationAdmin never binds this file.";
+        String remediation;
+        if (designators.isEmpty()) {
+            remediation = "Rename the configuration file to target the consuming component's PID, or add"
+                    + " @Component(configurationPid = \"" + pid + "\") to the designating component.";
+        } else {
+            remediation = "Rename the configuration file to '"
+                    + String.join(".cfg.json' or '", designators)
+                    + ".cfg.json', or add configurationPid = \"" + pid + "\" to @Component on: "
+                    + String.join(", ", designators);
+        }
+        List<RelatedLocation> related = new ArrayList<>();
+        if (namedOcd.getFilePath() != null) {
+            related.add(new RelatedLocation(
+                    "Target @ObjectClassDefinition interface definition.",
+                    relativePath(context, namedOcd.getFilePath()),
+                    regionOf(namedOcd)));
+        }
+        return new Finding("ORPHANED_OCD_NAMED_CONFIG", message, remediation, related);
+    }
+
+    private Finding ignoredConfigurationPolicy(RuleContext context,
+                                               OSGiComponentNode matchingComponent) {
+        String message = "Orphaned OSGi Configuration: component '" + matchingComponent.getId()
+                + "' declares configurationPolicy = ConfigurationPolicy.IGNORE;"
+                + " ConfigurationAdmin will never supply this configuration.";
+        String remediation = "Change configurationPolicy to OPTIONAL/REQUIRE on component '"
+                + matchingComponent.getId() + "', or delete the orphaned configuration file.";
+        List<RelatedLocation> related = new ArrayList<>();
+        if (matchingComponent.getFilePath() != null) {
+            related.add(new RelatedLocation(
+                    "Component declaring ConfigurationPolicy.IGNORE.",
+                    relativePath(context, matchingComponent.getFilePath()),
+                    regionOf(matchingComponent)));
+        }
+        return new Finding("IGNORED_CONFIGURATION_POLICY", message, remediation, related);
+    }
+
+    private static Finding orphanedConfiguration(String pid) {
+        String message = "Orphaned OSGi Configuration: No matching component, OCD-named binding,"
+                + " platform service or external dependency found for PID '" + pid + "'.";
+        return new Finding("ORPHANED_CONFIGURATION", message,
+                "Delete the configuration file, or rename it to the PID of the component"
+                        + " that must consume these properties.",
+                new ArrayList<>());
+    }
+
+    /** The subtype, message, remediation and related locations of one orphan finding. */
+    private record Finding(String subtype, String message, String remediation,
+                           List<RelatedLocation> related) {
     }
 
     private OSGiComponentNode findComponentNamed(RuleContext context, String pid) {

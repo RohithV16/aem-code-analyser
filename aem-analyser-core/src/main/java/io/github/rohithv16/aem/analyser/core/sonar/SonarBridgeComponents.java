@@ -24,6 +24,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * Standalone harness extending SonarSource's SonarComponents to intercept
@@ -68,121 +69,124 @@ public class SonarBridgeComponents extends SonarComponents {
         return (NewIssue) Proxy.newProxyInstance(
                 NewIssue.class.getClassLoader(),
                 new Class<?>[]{NewIssue.class},
-                new InvocationHandler() {
-                    private RuleKey ruleKey;
-                    private InputComponent inputComponent;
-                    private org.sonar.api.batch.fs.TextRange textRange;
-                    private String message;
-
-                    @Override
-                    public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
-                        String name = method.getName();
-                        if ("forRule".equals(name) && args != null && args.length > 0) {
-                            this.ruleKey = (RuleKey) args[0];
-                            return proxy;
-                        }
-                        if ("newLocation".equals(name)) {
-                            return createNewIssueLocationProxy();
-                        }
-                        if ("newQuickFix".equals(name)) {
-                            return createDummyProxy(org.sonar.api.batch.sensor.issue.fix.NewQuickFix.class);
-                        }
-                        if ("addQuickFix".equals(name) || "addLocation".equals(name) || "addFlow".equals(name)
-                                || "gap".equals(name) || "overrideSeverity".equals(name) || "overrideImpact".equals(name)
-                                || "setQuickFixAvailable".equals(name) || "setRuleDescriptionContextKey".equals(name)
-                                || "setCodeVariants".equals(name) || "at".equals(name)) {
-                            return proxy;
-                        }
-                        if ("save".equals(name)) {
-                            if (ruleKey != null) {
-                                String rKey = ruleKey.rule();
-                                String ruleId = SONAR_RULE_PREFIX + rKey;
-                                String pathStr = "";
-                                if (inputComponent instanceof InputFile ifile) {
-                                    pathStr = ifile.path() != null ? ifile.path().toString().replace('\\', '/') : ifile.filename();
-                                    if (projectRoot != null && ifile.path() != null) {
-                                        try {
-                                            pathStr = projectRoot.toAbsolutePath().normalize().relativize(ifile.path().toAbsolutePath().normalize())
-                                                    .toString().replace('\\', '/');
-                                        } catch (Exception notRelativizable) {
-                                            // A file outside the analysed root keeps its absolute
-                                            // path: the finding is still reported, only not relative.
-                                        }
-                                    }
-                                }
-                                int startLine = (textRange != null && textRange.start() != null) ? textRange.start().line() : 1;
-                                int startCol = (textRange != null && textRange.start() != null) ? textRange.start().lineOffset() : 0;
-                                int endLine = (textRange != null && textRange.end() != null) ? textRange.end().line() : startLine;
-                                int endCol = (textRange != null && textRange.end() != null) ? textRange.end().lineOffset() : 0;
-                                TextRegion region = (startLine > 0)
-                                        ? new TextRegion(startLine, startCol, endLine, endCol)
-                                        : TextRegion.forWholeFile();
-
-                                String sig = ruleId + ":" + pathStr + ":" + startLine;
-                                if (reportedSignatures.add(sig)) {
-                                    Severity severity = determineSeverity(rKey);
-                                    violations.add(new Violation(
-                                            ruleId,
-                                            severity,
-                                            rKey,
-                                            message != null ? message : "Rule violation " + rKey,
-                                            pathStr,
-                                            region,
-                                            null,
-                                            "Follow SonarJava rule " + rKey + " standards.",
-                                            List.of()
-                                    ));
-                                }
-                            }
-                            return null;
-                        }
-                        return defaultValue(method.getReturnType(), proxy);
-                    }
-
-                    private NewIssueLocation createNewIssueLocationProxy() {
-                        return (NewIssueLocation) Proxy.newProxyInstance(
-                                NewIssueLocation.class.getClassLoader(),
-                                new Class<?>[]{NewIssueLocation.class},
-                                (locProxy, locMethod, locArgs) -> {
-                                    String locName = locMethod.getName();
-                                    if ("on".equals(locName) && locArgs != null && locArgs.length > 0) {
-                                        inputComponent = (InputComponent) locArgs[0];
-                                        return locProxy;
-                                    }
-                                    if ("at".equals(locName) && locArgs != null && locArgs.length > 0) {
-                                        textRange = (org.sonar.api.batch.fs.TextRange) locArgs[0];
-                                        return locProxy;
-                                    }
-                                    if ("message".equals(locName) && locArgs != null && locArgs.length > 0) {
-                                        message = String.valueOf(locArgs[0]);
-                                        return locProxy;
-                                    }
-                                    return defaultValue(locMethod.getReturnType(), locProxy);
-                                }
-                        );
-                    }
-                }
-        );
+                new NewIssueHandler());
     }
 
-    @SuppressWarnings("unchecked")
-    private <T> T createDummyProxy(Class<T> clazz) {
-        return (T) Proxy.newProxyInstance(
-                clazz.getClassLoader(),
-                new Class<?>[]{clazz},
-                (proxy, method, args) -> defaultValue(method.getReturnType(), proxy)
-        );
-    }
+    /**
+     * Buffers the {@link NewIssue} builder chain SonarJava drives ({@code forRule} →
+     * {@code newLocation().on().at().message()} → {@code save()}) and turns the finished issue into
+     * a {@link Violation}, because no SonarQube server is present to receive it.
+     */
+    private final class NewIssueHandler implements InvocationHandler {
 
-    private Object defaultValue(Class<?> returnType, Object proxy) {
-        if (returnType.isAssignableFrom(proxy.getClass())) {
-            return proxy;
+        /** Builder calls that only have to keep the chain alive for the later {@code save()}. */
+        private static final Set<String> CHAIN_CALLS = Set.of(
+                "addQuickFix", "addLocation", "addFlow", "gap", "overrideSeverity", "overrideImpact",
+                "setQuickFixAvailable", "setRuleDescriptionContextKey", "setCodeVariants", "at");
+
+        private RuleKey ruleKey;
+        private InputComponent inputComponent;
+        private org.sonar.api.batch.fs.TextRange textRange;
+        private String message;
+
+        @Override
+        public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
+            String name = method.getName();
+            if ("forRule".equals(name) && args != null && args.length > 0) {
+                ruleKey = (RuleKey) args[0];
+                return proxy;
+            }
+            if ("newLocation".equals(name)) {
+                return newLocationProxy();
+            }
+            if ("newQuickFix".equals(name)) {
+                return createDummyProxy(org.sonar.api.batch.sensor.issue.fix.NewQuickFix.class);
+            }
+            if (CHAIN_CALLS.contains(name)) {
+                return proxy;
+            }
+            if ("save".equals(name)) {
+                saveIssue();
+                return null;
+            }
+            return defaultValue(method.getReturnType(), proxy);
         }
-        if (returnType == boolean.class) return false;
-        if (returnType == int.class) return 0;
-        if (returnType == long.class) return 0L;
-        if (returnType == double.class) return 0.0;
-        return null;
+
+        /** Emits the buffered issue; a builder that never received {@code forRule} saves nothing. */
+        private void saveIssue() {
+            if (ruleKey == null) {
+                return;
+            }
+            String key = ruleKey.rule();
+            org.sonar.api.batch.fs.TextRange range = textRange;
+            int startLine = range != null && range.start() != null ? range.start().line() : 1;
+            int startColumn = range != null && range.start() != null ? range.start().lineOffset() : 0;
+            int endLine = range != null && range.end() != null ? range.end().line() : startLine;
+            int endColumn = range != null && range.end() != null ? range.end().lineOffset() : 0;
+            TextRegion region = startLine > 0
+                    ? new TextRegion(startLine, startColumn, endLine, endColumn)
+                    : TextRegion.forWholeFile();
+            recordViolation(key, message != null ? message : "Rule violation " + key,
+                    projectRelativePath(inputComponent), region, startLine,
+                    "Follow SonarJava rule " + key + " standards.");
+        }
+
+        private NewIssueLocation newLocationProxy() {
+            return (NewIssueLocation) Proxy.newProxyInstance(
+                    NewIssueLocation.class.getClassLoader(),
+                    new Class<?>[]{NewIssueLocation.class},
+                    this::onLocationCall);
+        }
+
+        /** Applies {@code on()/at()/message()} to the issue being built. */
+        private Object onLocationCall(Object locProxy, Method locMethod, Object[] locArgs) {
+            String name = locMethod.getName();
+            if (locArgs != null && locArgs.length > 0) {
+                if ("on".equals(name)) {
+                    inputComponent = (InputComponent) locArgs[0];
+                    return locProxy;
+                }
+                if ("at".equals(name)) {
+                    textRange = (org.sonar.api.batch.fs.TextRange) locArgs[0];
+                    return locProxy;
+                }
+                if ("message".equals(name)) {
+                    message = String.valueOf(locArgs[0]);
+                    return locProxy;
+                }
+            }
+            return defaultValue(locMethod.getReturnType(), locProxy);
+        }
+
+        /** Proxy return value for a method this bridge does not implement. */
+        private Object defaultValue(Class<?> returnType, Object proxy) {
+            if (returnType.isAssignableFrom(proxy.getClass())) {
+                return proxy;
+            }
+            if (returnType == boolean.class) {
+                return false;
+            }
+            if (returnType == int.class) {
+                return 0;
+            }
+            if (returnType == long.class) {
+                return 0L;
+            }
+            if (returnType == double.class) {
+                return 0.0;
+            }
+            return null;
+        }
+
+        /** A proxy that keeps the builder chain working without recording anything. */
+        @SuppressWarnings("unchecked")
+        private <T> T createDummyProxy(Class<T> clazz) {
+            return (T) Proxy.newProxyInstance(
+                    clazz.getClassLoader(),
+                    new Class<?>[]{clazz},
+                    (dummyProxy, dummyMethod, dummyArgs) ->
+                            defaultValue(dummyMethod.getReturnType(), dummyProxy));
+        }
     }
 
     @Override
@@ -190,9 +194,7 @@ public class SonarBridgeComponents extends SonarComponents {
         if (check == null) {
             return Optional.empty();
         }
-        Rule rule = check.getClass().getAnnotation(Rule.class);
-        String key = (rule != null && rule.key() != null) ? rule.key() : check.getClass().getSimpleName();
-        return Optional.of(RuleKey.of("java", key));
+        return Optional.of(RuleKey.of("java", ruleKeyOf(check)));
     }
 
     @Override
@@ -215,46 +217,11 @@ public class SonarBridgeComponents extends SonarComponents {
         if (message == null || message.getCheck() == null) {
             return;
         }
-        JavaCheck check = message.getCheck();
-        Rule rule = check.getClass().getAnnotation(Rule.class);
-        String ruleKey = (rule != null && rule.key() != null) ? rule.key() : check.getClass().getSimpleName();
-        String ruleId = SONAR_RULE_PREFIX + ruleKey;
-
+        String ruleKey = ruleKeyOf(message.getCheck());
         TextRegion region = primaryRegion(message);
-
-        InputComponent comp = message.getInputComponent();
-        String pathStr = "";
-        if (comp instanceof InputFile ifile) {
-            pathStr = ifile.path() != null ? ifile.path().toString().replace('\\', '/') : ifile.filename();
-            if (projectRoot != null && ifile.path() != null) {
-                try {
-                    pathStr = projectRoot.toAbsolutePath().normalize().relativize(ifile.path().toAbsolutePath().normalize())
-                            .toString().replace('\\', '/');
-                } catch (Exception notRelativizable) {
-                    // A file outside the analysed root keeps its absolute path: the finding is still
-                    // reported, only not project-relative.
-                }
-            }
-        }
-
-        String sig = ruleId + ":" + pathStr + ":" + region.startLine();
-        if (!reportedSignatures.add(sig)) {
-            return;
-        }
-
-        Severity severity = determineSeverity(ruleKey);
-
-        violations.add(new Violation(
-                ruleId,
-                severity,
-                ruleKey,
-                message.getMessage(),
-                pathStr,
-                region,
-                null,
-                "Follow SonarJava best practice for rule " + ruleKey + ".",
-                List.of()
-        ));
+        recordViolation(ruleKey, message.getMessage(),
+                projectRelativePath(message.getInputComponent()), region, region.startLine(),
+                "Follow SonarJava best practice for rule " + ruleKey + ".");
     }
 
     /** Prefers the analyzer's character-accurate span, then the line, then the whole file. */
@@ -274,42 +241,53 @@ public class SonarBridgeComponents extends SonarComponents {
         if (check == null) {
             return;
         }
+        String ruleKey = ruleKeyOf(check);
+        TextRegion region = line > 0 ? TextRegion.forLine(line) : TextRegion.forWholeFile();
+        recordViolation(ruleKey, message, projectRelativePath(component), region, line,
+                "Follow SonarJava best practice for rule " + ruleKey + ".");
+    }
+
+    /** The Sonar rule key from the check's {@code @Rule} annotation, else its simple class name. */
+    private static String ruleKeyOf(JavaCheck check) {
         Rule rule = check.getClass().getAnnotation(Rule.class);
-        String ruleKey = (rule != null && rule.key() != null) ? rule.key() : check.getClass().getSimpleName();
-        String ruleId = SONAR_RULE_PREFIX + ruleKey;
+        return rule != null && rule.key() != null ? rule.key() : check.getClass().getSimpleName();
+    }
 
-        String pathStr = "";
-        if (component instanceof InputFile ifile) {
-            pathStr = ifile.path() != null ? ifile.path().toString().replace('\\', '/') : ifile.filename();
-            if (projectRoot != null && ifile.path() != null) {
-                try {
-                    pathStr = projectRoot.toAbsolutePath().normalize().relativize(ifile.path().toAbsolutePath().normalize())
-                            .toString().replace('\\', '/');
-                } catch (Exception notRelativizable) {
-                    // A file outside the analysed root keeps its absolute path: the finding is still
-                    // reported, only not project-relative.
-                }
-            }
+    /** Project-relative path with forward slashes; absolute when the file sits outside the root. */
+    private String projectRelativePath(InputComponent component) {
+        if (!(component instanceof InputFile inputFile)) {
+            return "";
         }
+        if (inputFile.path() == null) {
+            return inputFile.filename();
+        }
+        String absolutePath = inputFile.path().toString().replace('\\', '/');
+        if (projectRoot == null) {
+            return absolutePath;
+        }
+        try {
+            return projectRoot.toAbsolutePath().normalize()
+                    .relativize(inputFile.path().toAbsolutePath().normalize())
+                    .toString().replace('\\', '/');
+        } catch (Exception notRelativizable) {
+            // A file outside the analysed root keeps its absolute path: the finding is still
+            // reported, only not project-relative.
+            return absolutePath;
+        }
+    }
 
-        String sig = ruleId + ":" + pathStr + ":" + line;
-        if (!reportedSignatures.add(sig)) {
+    /**
+     * Adds one finding unless the same rule already fired at the same file and line, so a rule that
+     * reports twice for one location does not double-count.
+     */
+    private void recordViolation(String ruleKey, String message, String pathStr, TextRegion region,
+                                 int signatureLine, String remediation) {
+        String ruleId = SONAR_RULE_PREFIX + ruleKey;
+        if (!reportedSignatures.add(ruleId + ":" + pathStr + ":" + signatureLine)) {
             return;
         }
-
-        Severity severity = determineSeverity(ruleKey);
-
-        violations.add(new Violation(
-                ruleId,
-                severity,
-                ruleKey,
-                message,
-                pathStr,
-                line > 0 ? TextRegion.forLine(line) : TextRegion.forWholeFile(),
-                null,
-                "Follow SonarJava best practice for rule " + ruleKey + ".",
-                List.of()
-        ));
+        violations.add(new Violation(ruleId, determineSeverity(ruleKey), ruleKey, message, pathStr,
+                region, null, remediation, List.of()));
     }
 
     private Severity determineSeverity(String ruleKey) {

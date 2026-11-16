@@ -30,76 +30,119 @@ public final class DependencyBytecodeIndexer {
                                  io.github.rohithv16.aem.analyser.core.util.DiagnosticSink diagnostics) {
         DependencyIndex index = new DependencyIndex();
         for (Path jar : jarFiles) {
-            if (!Files.isRegularFile(jar) || !jar.getFileName().toString().toLowerCase(Locale.ROOT).endsWith(".jar")) {
-                continue;
-            }
-            try (JarFile jarFile = new JarFile(jar.toFile())) {
-                var entries = jarFile.entries();
-                while (entries.hasMoreElements()) {
-                    JarEntry entry = entries.nextElement();
-                    if (entry.isDirectory() || !entry.getName().endsWith(".class")) {
-                        continue;
-                    }
-                    try (InputStream in = jarFile.getInputStream(entry)) {
-                        visitClass(in, index);
-                    } catch (Exception e) {
-                        if (diagnostics != null) {
-                            diagnostics.add(io.github.rohithv16.aem.analyser.core.model.report.DiagnosticKind.MALFORMED_CLASS,
-                                    jar, entry.getName() + ": "
-                                            + io.github.rohithv16.aem.analyser.core.util.DiagnosticSink.reasonOf(e));
-                        }
-                    }
-                }
-            } catch (IOException e) {
-                if (diagnostics != null) {
-                    diagnostics.add(io.github.rohithv16.aem.analyser.core.model.report.DiagnosticKind.DEPENDENCY_INDEX,
-                            jar, io.github.rohithv16.aem.analyser.core.util.DiagnosticSink.reasonOf(e));
-                }
+            if (isJarArchive(jar)) {
+                indexJar(jar, index, diagnostics);
             }
         }
         return index;
     }
 
-    private void visitClass(InputStream in, DependencyIndex index) throws IOException {
-        new ClassReader(in).accept(new ClassVisitor(Opcodes.ASM9) {
-            private String className;
+    private static boolean isJarArchive(Path jar) {
+        return Files.isRegularFile(jar)
+                && jar.getFileName().toString().toLowerCase(Locale.ROOT).endsWith(".jar");
+    }
 
-            @Override
-            public void visit(int version, int access, String name, String signature,
-                              String superName, String[] interfaces) {
-                this.className = name.replace('/', '.');
-                for (String iface : interfaces) {
-                    index.registerServiceInterface(iface.replace('/', '.'));
+    /** Indexes every class entry of one archive; an unreadable archive is reported, never fatal. */
+    private void indexJar(Path jar, DependencyIndex index,
+                          io.github.rohithv16.aem.analyser.core.util.DiagnosticSink diagnostics) {
+        try (JarFile jarFile = new JarFile(jar.toFile())) {
+            var entries = jarFile.entries();
+            while (entries.hasMoreElements()) {
+                JarEntry entry = entries.nextElement();
+                if (!entry.isDirectory() && entry.getName().endsWith(".class")) {
+                    indexEntry(jarFile, jar, entry, index, diagnostics);
                 }
             }
+        } catch (IOException e) {
+            report(diagnostics, io.github.rohithv16.aem.analyser.core.model.report.DiagnosticKind.DEPENDENCY_INDEX,
+                    jar, io.github.rohithv16.aem.analyser.core.util.DiagnosticSink.reasonOf(e));
+        }
+    }
 
-            @Override
-            public org.objectweb.asm.AnnotationVisitor visitAnnotation(String descriptor, boolean visible) {
-                if (COMPONENT_ANNOTATION.equals(descriptor) && className != null) {
-                    return new org.objectweb.asm.AnnotationVisitor(Opcodes.ASM9) {
-                        private String explicitPid;
+    private void indexEntry(JarFile jarFile, Path jar, JarEntry entry, DependencyIndex index,
+                            io.github.rohithv16.aem.analyser.core.util.DiagnosticSink diagnostics) {
+        try (InputStream in = jarFile.getInputStream(entry)) {
+            visitClass(in, index);
+        } catch (Exception e) {
+            report(diagnostics,
+                    io.github.rohithv16.aem.analyser.core.model.report.DiagnosticKind.MALFORMED_CLASS,
+                    jar, entry.getName() + ": "
+                            + io.github.rohithv16.aem.analyser.core.util.DiagnosticSink.reasonOf(e));
+        }
+    }
 
-                        @Override
-                        public void visit(String name, Object value) {
-                            if ("configurationPid".equals(name) && value instanceof String pid) {
-                                explicitPid = pid;
-                            }
-                            if ("configurationPolicy".equals(name)
-                                    && value instanceof org.objectweb.asm.Type type
-                                    && type.getClassName().endsWith("IGNORE")) {
-                                index.registerIgnoredPolicy(className);
-                            }
-                        }
+    private static void report(io.github.rohithv16.aem.analyser.core.util.DiagnosticSink diagnostics,
+                               io.github.rohithv16.aem.analyser.core.model.report.DiagnosticKind kind,
+                               Path jar, String detail) {
+        if (diagnostics != null) {
+            diagnostics.add(kind, jar, detail);
+        }
+    }
 
-                        @Override
-                        public void visitEnd() {
-                            index.registerComponentPid(explicitPid != null ? explicitPid : className);
-                        }
-                    };
-                }
+    private void visitClass(InputStream in, DependencyIndex index) throws IOException {
+        new ClassReader(in).accept(new ComponentClassVisitor(index),
+                ClassReader.SKIP_CODE | ClassReader.SKIP_DEBUG | ClassReader.SKIP_FRAMES);
+    }
+
+    /** Collects a class's interfaces and its Declarative Services component PID. */
+    private static final class ComponentClassVisitor extends ClassVisitor {
+
+        private final DependencyIndex index;
+        private String className;
+
+        ComponentClassVisitor(DependencyIndex index) {
+            super(Opcodes.ASM9);
+            this.index = index;
+        }
+
+        @Override
+        public void visit(int version, int access, String name, String signature,
+                          String superName, String[] interfaces) {
+            className = name.replace('/', '.');
+            for (String iface : interfaces) {
+                index.registerServiceInterface(iface.replace('/', '.'));
+            }
+        }
+
+        @Override
+        public org.objectweb.asm.AnnotationVisitor visitAnnotation(String descriptor, boolean visible) {
+            if (!COMPONENT_ANNOTATION.equals(descriptor) || className == null) {
                 return null;
             }
-        }, ClassReader.SKIP_CODE | ClassReader.SKIP_DEBUG | ClassReader.SKIP_FRAMES);
+            return new ComponentAnnotationVisitor(index, className);
+        }
+    }
+
+    /** Reads {@code configurationPid} / {@code configurationPolicy} from one {@code @Component}. */
+    private static final class ComponentAnnotationVisitor
+            extends org.objectweb.asm.AnnotationVisitor {
+
+        private final DependencyIndex index;
+        private final String className;
+        private String explicitPid;
+
+        ComponentAnnotationVisitor(DependencyIndex index, String className) {
+            super(Opcodes.ASM9);
+            this.index = index;
+            this.className = className;
+        }
+
+        @Override
+        public void visit(String name, Object value) {
+            if ("configurationPid".equals(name) && value instanceof String pid) {
+                explicitPid = pid;
+            }
+            if ("configurationPolicy".equals(name)
+                    && value instanceof org.objectweb.asm.Type type
+                    && type.getClassName().endsWith("IGNORE")) {
+                index.registerIgnoredPolicy(className);
+            }
+        }
+
+        @Override
+        public void visitEnd() {
+            index.registerComponentPid(explicitPid != null ? explicitPid : className);
+        }
     }
 
     /**

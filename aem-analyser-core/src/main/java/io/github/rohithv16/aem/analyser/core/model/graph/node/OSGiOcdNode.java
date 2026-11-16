@@ -11,7 +11,13 @@ import java.util.Set;
 
 /**
  * An OSGi Metatype {@code @ObjectClassDefinition} interface.
+ *
+ * <p>{@link #equals}/{@link #hashCode} are deliberately inherited from {@code AbstractPolyglotNode},
+ * which keys node identity on {@code (id, nodeType)}. Graph vertices are hashed at insertion time and
+ * {@code propertyMethods} is populated afterwards, so adding the metatype fields to equality would
+ * break every hash-based index lookup that already holds this node.
  */
+@SuppressWarnings("java:S2160")
 public final class OSGiOcdNode extends JavaClassNode {
 
     private final String pid;

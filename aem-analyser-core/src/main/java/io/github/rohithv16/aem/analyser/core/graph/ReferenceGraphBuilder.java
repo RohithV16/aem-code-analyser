@@ -55,7 +55,79 @@ public final class ReferenceGraphBuilder {
     }
 
     public GraphBuildResult build(GraphInput input) {
-        // ── Phase B: vertex ingestion (thread-confined, no locks) ──────────────
+        Vertices vertices = ingestVertices(input);
+        Set<String> exportedPatterns = collectExportedPatterns(input.modules());
+
+        // ── Phase C: edge resolution via O(1) index lookups ────────────────────
+        List<PolyglotEdge> edges = new ArrayList<>();
+        edges.addAll(containsPropertyEdges(vertices.configNodes()));
+        Map<OSGiConfigNode, OSGiComponentNode> configuringComponent = new HashMap<>();
+        edges.addAll(configuresEdges(vertices.configNodes(), vertices.componentsByFqn(),
+                configuringComponent));
+        edges.addAll(designatesOcdEdges(vertices.componentsByFqn()));
+        edges.addAll(definesPropertyEdges());
+        edges.addAll(bindsPropertyEdges(configuringComponent));
+        edges.addAll(consumesPropertyEdges(input.javaResults(), vertices.componentsByFqn()));
+        edges.addAll(injectsServiceEdges(input.javaResults(), vertices));
+        edges.addAll(adaptsToEdges(input.javaResults(), vertices));
+        edges.addAll(referencesClassEdges(input.javaResults(), vertices));
+
+        // ── Phase D: batch commit + seal ───────────────────────────────────────
+        Set<PolyglotEdge> unique = new LinkedHashSet<>(edges);
+        for (PolyglotEdge edge : unique) {
+            graph.addEdge(edge);
+        }
+        var sealed = graph.seal();
+
+        ParsedArtifacts artifacts = parsedArtifacts(input.javaResults());
+        return new GraphBuildResult(graph, unique, exportedPatterns, vertices.componentsByFqn(),
+                vertices.configNodes(), vertices.classNodes(), vertices.modelNodes(),
+                artifacts.codeBlocks(), artifacts.adminCalls(), artifacts.leaks(),
+                artifacts.traversals(), artifacts.subserviceCalls(), sealed);
+    }
+
+    /**
+     * Sources parsed by the upstream phase, carried through for clone analysis, administrative API
+     * calls, resource leaks, query traversals and subservice calls.
+     */
+    private static ParsedArtifacts parsedArtifacts(List<JavaSourceParseResult> javaResults) {
+        List<io.github.rohithv16.aem.analyser.core.parser.java.CodeBlockSnapshot> codeBlocks =
+                new ArrayList<>();
+        List<io.github.rohithv16.aem.analyser.core.parser.java.AdministrativeCall> adminCalls =
+                new ArrayList<>();
+        List<io.github.rohithv16.aem.analyser.core.model.perf.ResourceLeakFinding> leaks =
+                new ArrayList<>();
+        List<io.github.rohithv16.aem.analyser.core.model.perf.QueryTraversalFinding> traversals =
+                new ArrayList<>();
+        List<io.github.rohithv16.aem.analyser.core.model.serviceuser.SubserviceCall> subserviceCalls =
+                new ArrayList<>();
+        for (JavaSourceParseResult java : javaResults) {
+            codeBlocks.addAll(java.codeBlocks());
+            adminCalls.addAll(java.administrativeCalls());
+            leaks.addAll(java.resourceLeaks());
+            traversals.addAll(java.queryTraversals());
+            subserviceCalls.addAll(java.subserviceCalls());
+        }
+        return new ParsedArtifacts(codeBlocks, adminCalls, leaks, traversals, subserviceCalls);
+    }
+
+    private record ParsedArtifacts(
+            List<io.github.rohithv16.aem.analyser.core.parser.java.CodeBlockSnapshot> codeBlocks,
+            List<io.github.rohithv16.aem.analyser.core.parser.java.AdministrativeCall> adminCalls,
+            List<io.github.rohithv16.aem.analyser.core.model.perf.ResourceLeakFinding> leaks,
+            List<io.github.rohithv16.aem.analyser.core.model.perf.QueryTraversalFinding> traversals,
+            List<io.github.rohithv16.aem.analyser.core.model.serviceuser.SubserviceCall> subserviceCalls) {
+    }
+
+    /** Vertex maps built by Phase B, shared by the edge resolvers below. */
+    private record Vertices(Map<String, OSGiComponentNode> componentsByFqn,
+                            Map<String, OSGiConfigNode> configNodes,
+                            Map<String, JavaClassNode> classNodes,
+                            Map<String, SlingModelNode> modelNodes) {
+    }
+
+    /** ── Phase B: vertex ingestion (thread-confined, no locks) ────────────── */
+    private Vertices ingestVertices(GraphInput input) {
         Map<String, OSGiComponentNode> componentsByFqn = new LinkedHashMap<>();
         Map<String, ConfigPropertyNode> configPropertyNodes = new LinkedHashMap<>();
         Map<String, OSGiConfigNode> configNodes = new LinkedHashMap<>();
@@ -63,91 +135,115 @@ public final class ReferenceGraphBuilder {
         Map<String, SlingModelNode> modelNodes = new LinkedHashMap<>();
 
         for (JavaSourceParseResult java : input.javaResults()) {
-            for (OSGiComponentNode component : java.components()) {
-                if (!componentsByFqn.containsKey(component.getFqn())) {
-                    componentsByFqn.put(component.getFqn(), component);
-                    graph.addVertex(component);
-                    graph.getIndex().registerComponent(component);
-                }
-            }
-            for (OSGiOcdNode ocd : java.ocds()) {
-                if (graph.getIndex().findOcdByFqn(ocd.getOcdFqn()) == null) {
-                    graph.addVertex(ocd);
-                    graph.getIndex().registerOcd(ocd);
-                    for (OcdPropertyMethodNode method : ocd.getPropertyMethods().values()) {
-                        graph.addVertex(method);
-                    }
-                }
-            }
-            for (SlingModelNode model : java.slingModels()) {
-                if (!modelNodes.containsKey(model.getFqn())) {
-                    modelNodes.put(model.getFqn(), model);
-                    graph.addVertex(model);
-                    graph.getIndex().registerSlingModel(model);
-                }
-            }
-            for (JavaClassNode javaClass : java.javaClasses()) {
-                if (!classNodes.containsKey(javaClass.getFqn())) {
-                    classNodes.put(javaClass.getFqn(), javaClass);
-                    graph.addVertex(javaClass);
-                    graph.getIndex().registerJavaClass(javaClass);
-                }
-            }
+            ingestParseResult(java, componentsByFqn, modelNodes, classNodes);
         }
-
         for (OsgiConfigDefinition config : input.configs()) {
-            OSGiConfigNode configNode = toConfigNode(config, componentsByFqn);
-            if (!configNodes.containsKey(configNode.getId())) {
-                configNodes.put(configNode.getId(), configNode);
-                graph.addVertex(configNode);
-                graph.getIndex().registerConfig(configNode);
-                for (ConfigPropertyNode property : configNode.getProperties().values()) {
-                    configPropertyNodes.put(property.getId(), property);
-                    graph.addVertex(property);
+            ingestConfig(config, configNodes, configPropertyNodes, componentsByFqn);
+        }
+        return new Vertices(componentsByFqn, configNodes, classNodes, modelNodes);
+    }
+
+    private void ingestParseResult(JavaSourceParseResult java,
+                                   Map<String, OSGiComponentNode> componentsByFqn,
+                                   Map<String, SlingModelNode> modelNodes,
+                                   Map<String, JavaClassNode> classNodes) {
+        for (OSGiComponentNode component : java.components()) {
+            if (!componentsByFqn.containsKey(component.getFqn())) {
+                componentsByFqn.put(component.getFqn(), component);
+                graph.addVertex(component);
+                graph.getIndex().registerComponent(component);
+            }
+        }
+        for (OSGiOcdNode ocd : java.ocds()) {
+            if (graph.getIndex().findOcdByFqn(ocd.getOcdFqn()) == null) {
+                graph.addVertex(ocd);
+                graph.getIndex().registerOcd(ocd);
+                for (OcdPropertyMethodNode method : ocd.getPropertyMethods().values()) {
+                    graph.addVertex(method);
                 }
             }
         }
+        for (SlingModelNode model : java.slingModels()) {
+            if (!modelNodes.containsKey(model.getFqn())) {
+                modelNodes.put(model.getFqn(), model);
+                graph.addVertex(model);
+                graph.getIndex().registerSlingModel(model);
+            }
+        }
+        for (JavaClassNode javaClass : java.javaClasses()) {
+            if (!classNodes.containsKey(javaClass.getFqn())) {
+                classNodes.put(javaClass.getFqn(), javaClass);
+                graph.addVertex(javaClass);
+                graph.getIndex().registerJavaClass(javaClass);
+            }
+        }
+    }
 
-        // Exported package marking (bundle Export-Package / @Export annotations)
+    private void ingestConfig(OsgiConfigDefinition config,
+                              Map<String, OSGiConfigNode> configNodes,
+                              Map<String, ConfigPropertyNode> configPropertyNodes,
+                              Map<String, OSGiComponentNode> componentsByFqn) {
+        OSGiConfigNode configNode = toConfigNode(config, componentsByFqn);
+        if (configNodes.containsKey(configNode.getId())) {
+            return;
+        }
+        configNodes.put(configNode.getId(), configNode);
+        graph.addVertex(configNode);
+        graph.getIndex().registerConfig(configNode);
+        for (ConfigPropertyNode property : configNode.getProperties().values()) {
+            configPropertyNodes.put(property.getId(), property);
+            graph.addVertex(property);
+        }
+    }
+
+    /** Bundle {@code Export-Package} / {@code @Export} annotations collected from the modules. */
+    private static Set<String> collectExportedPatterns(List<ModuleDescriptor> modules) {
         Set<String> exportedPatterns = new LinkedHashSet<>();
-        for (ModuleDescriptor module : input.modules()) {
+        for (ModuleDescriptor module : modules) {
             exportedPatterns.addAll(module.exportedPackages());
         }
+        return exportedPatterns;
+    }
 
-        // ── Phase C: edge resolution via O(1) index lookups ────────────────────
+    /** CONTAINS_PROPERTY: every configuration owns the property nodes it declares. */
+    private List<PolyglotEdge> containsPropertyEdges(Map<String, OSGiConfigNode> configNodes) {
         List<PolyglotEdge> edges = new ArrayList<>();
-
-        // CONTAINS_PROPERTY
         for (OSGiConfigNode configNode : configNodes.values()) {
             for (ConfigPropertyNode property : configNode.getProperties().values()) {
                 edges.add(new SimpleEdge(configNode, property, EdgeType.CONTAINS_PROPERTY,
-                        CONFIGURATION_PREFIX + configNode.getPid() + " contains property " + property.getKey()));
+                        CONFIGURATION_PREFIX + configNode.getPid() + " contains property "
+                                + property.getKey()));
             }
         }
+        return edges;
+    }
 
-        // CONFIGURES: config PID -> component active PIDs
-        Map<OSGiConfigNode, OSGiComponentNode> configuringComponent = new HashMap<>();
+    /** CONFIGURES: config PID to the components that declare it among their active PIDs. */
+    private List<PolyglotEdge> configuresEdges(Map<String, OSGiConfigNode> configNodes,
+                                               Map<String, OSGiComponentNode> componentsByFqn,
+                                               Map<OSGiConfigNode, OSGiComponentNode> configuringComponent) {
+        List<PolyglotEdge> edges = new ArrayList<>();
         for (OSGiConfigNode configNode : configNodes.values()) {
             if (configNode.getPid() == null) {
                 continue;
             }
-            List<OSGiComponentNode> candidates = resolveComponentForPid(configNode.getPid(), componentsByFqn);
-            if (candidates.size() == 1) {
-                OSGiComponentNode component = candidates.get(0);
-                configuringComponent.put(configNode, component);
-                edges.add(new SimpleEdge(configNode, component, EdgeType.CONFIGURES,
-                        CONFIGURATION_PREFIX + configNode.getPid() + " configures component " + component.getId()));
-            } else if (candidates.size() > 1) {
-                OSGiComponentNode component = candidates.get(0);
-                configuringComponent.put(configNode, component);
+            List<OSGiComponentNode> candidates =
+                    resolveComponentForPid(configNode.getPid(), componentsByFqn);
+            if (!candidates.isEmpty()) {
+                configuringComponent.put(configNode, candidates.get(0));
                 for (OSGiComponentNode candidate : candidates) {
                     edges.add(new SimpleEdge(configNode, candidate, EdgeType.CONFIGURES,
-                            CONFIGURATION_PREFIX + configNode.getPid() + " configures component " + candidate.getId()));
+                            CONFIGURATION_PREFIX + configNode.getPid() + " configures component "
+                                    + candidate.getId()));
                 }
             }
         }
+        return edges;
+    }
 
-        // DESIGNATES_OCD
+    /** DESIGNATES_OCD: component to the metatype interface it designates. */
+    private List<PolyglotEdge> designatesOcdEdges(Map<String, OSGiComponentNode> componentsByFqn) {
+        List<PolyglotEdge> edges = new ArrayList<>();
         for (OSGiComponentNode component : componentsByFqn.values()) {
             component.getDesignatedOcdFqn().ifPresent(ocdFqn -> {
                 OSGiOcdNode ocd = graph.getIndex().findOcdByFqn(ocdFqn);
@@ -157,16 +253,25 @@ public final class ReferenceGraphBuilder {
                 }
             });
         }
+        return edges;
+    }
 
-        // DEFINES_PROPERTY
+    /** DEFINES_PROPERTY: every OCD defines the attribute methods it declares. */
+    private List<PolyglotEdge> definesPropertyEdges() {
+        List<PolyglotEdge> edges = new ArrayList<>();
         for (OSGiOcdNode ocd : graph.getIndex().getOcdLookup().values()) {
             for (OcdPropertyMethodNode method : ocd.getPropertyMethods().values()) {
                 edges.add(new SimpleEdge(ocd, method, EdgeType.DEFINES_PROPERTY,
                         ocd.getId() + " defines attribute " + method.getNormalizedOsgiPropName()));
             }
         }
+        return edges;
+    }
 
-        // BINDS_PROPERTY: config property -> matching OCD attribute method
+    /** BINDS_PROPERTY: a config property to the matching OCD attribute method. */
+    private List<PolyglotEdge> bindsPropertyEdges(
+            Map<OSGiConfigNode, OSGiComponentNode> configuringComponent) {
+        List<PolyglotEdge> edges = new ArrayList<>();
         for (Map.Entry<OSGiConfigNode, OSGiComponentNode> entry : configuringComponent.entrySet()) {
             OSGiComponentNode component = entry.getValue();
             component.getDesignatedOcdFqn()
@@ -182,103 +287,152 @@ public final class ReferenceGraphBuilder {
                         }
                     });
         }
+        return edges;
+    }
 
-        // CONSUMES_PROPERTY (pending edges from parallel parse phase)
-        for (JavaSourceParseResult java : input.javaResults()) {
+    /** CONSUMES_PROPERTY: pending edges recorded by the parallel parse phase. */
+    private List<PolyglotEdge> consumesPropertyEdges(List<JavaSourceParseResult> javaResults,
+                                                     Map<String, OSGiComponentNode> componentsByFqn) {
+        List<PolyglotEdge> edges = new ArrayList<>();
+        for (JavaSourceParseResult java : javaResults) {
             for (PendingConsumption pending : java.pendingConsumptions()) {
-                OSGiOcdNode ocd = graph.getIndex().findOcdByFqn(pending.ocdTypeName());
-                if (ocd == null) {
-                    continue;
-                }
-                OcdPropertyMethodNode method = ocd.getPropertyMethods().get(pending.methodName());
-                if (method == null) {
-                    // explicit @AttributeDefinition(id) remap: method called by normalized name
-                    method = ocd.getPropertyMethods().values().stream()
-                            .filter(m -> m.getNormalizedOsgiPropName()
-                                    .equalsIgnoreCase(pending.methodName()))
-                            .findFirst()
-                            .orElse(null);
-                }
-                if (method == null) {
-                    continue;
-                }
-                PendingConsumption.InvocationType pendingType = pending.invocationTypeName()
-                        .flatMap(PendingConsumption.InvocationType::from)
-                        .orElse(PendingConsumption.InvocationType.DIRECT_METHOD_CALL);
-                ConsumesPropertyEdge.InvocationType invocationType =
-                        ConsumesPropertyEdge.InvocationType.valueOf(pendingType.name());
-
-                OSGiComponentNode component = componentsByFqn.get(pending.componentFqn());
-                List<OSGiComponentNode> consumers = new ArrayList<>();
-                if (component != null) {
-                    consumers.add(component);
-                } else {
-                    for (OSGiComponentNode c : componentsByFqn.values()) {
-                        if (c.getDesignatedOcdFqn().map(pending.ocdTypeName()::equals).orElse(false)) {
-                            consumers.add(c);
-                        }
-                    }
-                }
-                for (OSGiComponentNode consumer : consumers) {
-                    edges.add(new ConsumesPropertyEdge(consumer, method, pending.callSite(),
-                            invocationType, pending.enclosingMethodName()));
-                }
+                edges.addAll(consumptionEdges(pending, componentsByFqn));
             }
         }
+        return edges;
+    }
 
-        // INJECTS_SERVICE
-        for (JavaSourceParseResult java : input.javaResults()) {
+    private List<PolyglotEdge> consumptionEdges(PendingConsumption pending,
+                                                Map<String, OSGiComponentNode> componentsByFqn) {
+        OSGiOcdNode ocd = graph.getIndex().findOcdByFqn(pending.ocdTypeName());
+        if (ocd == null) {
+            return List.of();
+        }
+        OcdPropertyMethodNode method = findConsumedMethod(ocd, pending.methodName());
+        if (method == null) {
+            return List.of();
+        }
+        ConsumesPropertyEdge.InvocationType invocationType = invocationType(pending);
+        List<PolyglotEdge> edges = new ArrayList<>();
+        for (OSGiComponentNode consumer : consumptionConsumers(pending, componentsByFqn)) {
+            edges.add(new ConsumesPropertyEdge(consumer, method, pending.callSite(),
+                    invocationType, pending.enclosingMethodName()));
+        }
+        return edges;
+    }
+
+    /** Resolves the consumed attribute, honouring an explicit {@code @AttributeDefinition(id)} remap. */
+    private OcdPropertyMethodNode findConsumedMethod(OSGiOcdNode ocd, String methodName) {
+        OcdPropertyMethodNode method = ocd.getPropertyMethods().get(methodName);
+        if (method != null) {
+            return method;
+        }
+        return ocd.getPropertyMethods().values().stream()
+                .filter(candidate -> candidate.getNormalizedOsgiPropName().equalsIgnoreCase(methodName))
+                .findFirst()
+                .orElse(null);
+    }
+
+    private ConsumesPropertyEdge.InvocationType invocationType(PendingConsumption pending) {
+        PendingConsumption.InvocationType pendingType = pending.invocationTypeName()
+                .flatMap(PendingConsumption.InvocationType::from)
+                .orElse(PendingConsumption.InvocationType.DIRECT_METHOD_CALL);
+        return ConsumesPropertyEdge.InvocationType.valueOf(pendingType.name());
+    }
+
+    /** The declaring component, else every component designating the consumed OCD. */
+    private List<OSGiComponentNode> consumptionConsumers(PendingConsumption pending,
+                                                         Map<String, OSGiComponentNode> componentsByFqn) {
+        OSGiComponentNode component = componentsByFqn.get(pending.componentFqn());
+        if (component != null) {
+            return List.of(component);
+        }
+        List<OSGiComponentNode> consumers = new ArrayList<>();
+        for (OSGiComponentNode candidate : componentsByFqn.values()) {
+            if (candidate.getDesignatedOcdFqn().map(pending.ocdTypeName()::equals).orElse(false)) {
+                consumers.add(candidate);
+            }
+        }
+        return consumers;
+    }
+
+    /** INJECTS_SERVICE: pending {@code @Reference} edges from the parallel parse phase. */
+    private List<PolyglotEdge> injectsServiceEdges(List<JavaSourceParseResult> javaResults,
+                                                   Vertices vertices) {
+        List<PolyglotEdge> edges = new ArrayList<>();
+        for (JavaSourceParseResult java : javaResults) {
             for (PendingServiceInjection pending : java.pendingServiceInjections()) {
-                resolveInjection(pending, componentsByFqn, modelNodes, classNodes, edges);
+                resolveInjection(pending, vertices.componentsByFqn(), vertices.modelNodes(),
+                        vertices.classNodes(), edges);
             }
         }
+        return edges;
+    }
 
-        // ADAPTS_TO
-        for (JavaSourceParseResult java : input.javaResults()) {
+    /** ADAPTS_TO: {@code adaptable.adaptTo(...)} targets resolved to Sling models. */
+    private List<PolyglotEdge> adaptsToEdges(List<JavaSourceParseResult> javaResults,
+                                             Vertices vertices) {
+        List<PolyglotEdge> edges = new ArrayList<>();
+        for (JavaSourceParseResult java : javaResults) {
             for (PendingAdaptTo pending : java.pendingAdaptTo()) {
-                JavaClassNode source = classNodes.get(pending.sourceClassFqn());
-                if (source == null) {
-                    source = graph.getIndex().findClassByFqn(pending.sourceClassFqn());
-                }
-                if (source == null) {
-                    continue;
-                }
-                List<SlingModelNode> models = graph.getIndex().findModelsByAdapter(pending.targetTypeName());
-                if (models.isEmpty()) {
-                    SlingModelNode direct = modelNodes.get(pending.targetTypeName());
-                    if (direct != null) {
-                        models = List.of(direct);
-                    }
-                }
-                if (models.isEmpty()) {
-                    // Unresolved adapter FQN (wildcard import): fall back to a unique simple-name match.
-                    String simpleName = pending.targetTypeName()
-                            .substring(pending.targetTypeName().lastIndexOf('.') + 1);
-                    List<SlingModelNode> bySimpleName = new ArrayList<>();
-                    for (SlingModelNode model : modelNodes.values()) {
-                        boolean matches = model.getAdapters().stream()
-                                .anyMatch(adapter -> adapter.substring(adapter.lastIndexOf('.') + 1)
-                                        .equals(simpleName));
-                        if (matches) {
-                            bySimpleName.add(model);
-                        }
-                    }
-                    if (bySimpleName.size() == 1) {
-                        models = bySimpleName;
-                    }
-                }
-                for (SlingModelNode model : models) {
-                    edges.add(new SimpleEdge(source, model, EdgeType.ADAPTS_TO,
-                            source.getId() + " adapts to " + model.getId()));
-                }
+                edges.addAll(adaptToEdges(pending, vertices));
             }
         }
+        return edges;
+    }
 
-        // REFERENCES_CLASS (direct java-to-java syntactic references)
-        for (JavaSourceParseResult java : input.javaResults()) {
+    private List<PolyglotEdge> adaptToEdges(PendingAdaptTo pending, Vertices vertices) {
+        JavaClassNode source = vertices.classNodes().get(pending.sourceClassFqn());
+        if (source == null) {
+            source = graph.getIndex().findClassByFqn(pending.sourceClassFqn());
+        }
+        if (source == null) {
+            return List.of();
+        }
+        List<SlingModelNode> models = resolveAdapters(pending.targetTypeName(), vertices.modelNodes());
+        List<PolyglotEdge> edges = new ArrayList<>();
+        for (SlingModelNode model : models) {
+            edges.add(new SimpleEdge(source, model, EdgeType.ADAPTS_TO,
+                    source.getId() + " adapts to " + model.getId()));
+        }
+        return edges;
+    }
+
+    private List<SlingModelNode> resolveAdapters(String targetTypeName,
+                                                 Map<String, SlingModelNode> modelNodes) {
+        List<SlingModelNode> models = graph.getIndex().findModelsByAdapter(targetTypeName);
+        if (!models.isEmpty()) {
+            return models;
+        }
+        SlingModelNode direct = modelNodes.get(targetTypeName);
+        if (direct != null) {
+            return List.of(direct);
+        }
+        // Unresolved adapter FQN (wildcard import): fall back to a unique simple-name match.
+        String simpleName = simpleName(targetTypeName);
+        List<SlingModelNode> bySimpleName = new ArrayList<>();
+        for (SlingModelNode model : modelNodes.values()) {
+            boolean matches = model.getAdapters().stream()
+                    .anyMatch(adapter -> simpleName(adapter).equals(simpleName));
+            if (matches) {
+                bySimpleName.add(model);
+            }
+        }
+        return bySimpleName.size() == 1 ? bySimpleName : List.of();
+    }
+
+    private static String simpleName(String typeName) {
+        return typeName.substring(typeName.lastIndexOf('.') + 1);
+    }
+
+    /** REFERENCES_CLASS: direct java-to-java syntactic references (implemented interfaces). */
+    private List<PolyglotEdge> referencesClassEdges(List<JavaSourceParseResult> javaResults,
+                                                    Vertices vertices) {
+        List<PolyglotEdge> edges = new ArrayList<>();
+        for (JavaSourceParseResult java : javaResults) {
             for (JavaClassNode node : java.javaClasses()) {
                 for (String iface : node.getInterfaces()) {
-                    JavaClassNode target = classNodes.get(iface);
+                    JavaClassNode target = vertices.classNodes().get(iface);
                     if (target == null) {
                         target = graph.getIndex().findClassByFqn(iface);
                     }
@@ -289,30 +443,7 @@ public final class ReferenceGraphBuilder {
                 }
             }
         }
-
-        // ── Phase D: batch commit + seal ───────────────────────────────────────
-        Set<PolyglotEdge> unique = new LinkedHashSet<>(edges);
-        for (PolyglotEdge edge : unique) {
-            graph.addEdge(edge);
-        }
-        var sealed = graph.seal();
-
-        // Collect code blocks for clone analysis, administrative API calls, resource leaks, and subservice calls
-        List<io.github.rohithv16.aem.analyser.core.parser.java.CodeBlockSnapshot> allCodeBlocks = new ArrayList<>();
-        List<io.github.rohithv16.aem.analyser.core.parser.java.AdministrativeCall> allAdminCalls = new ArrayList<>();
-        List<io.github.rohithv16.aem.analyser.core.model.perf.ResourceLeakFinding> allLeaks = new ArrayList<>();
-        List<io.github.rohithv16.aem.analyser.core.model.perf.QueryTraversalFinding> allTraversals = new ArrayList<>();
-        List<io.github.rohithv16.aem.analyser.core.model.serviceuser.SubserviceCall> allSubserviceCalls = new ArrayList<>();
-        for (JavaSourceParseResult java : input.javaResults()) {
-            allCodeBlocks.addAll(java.codeBlocks());
-            allAdminCalls.addAll(java.administrativeCalls());
-            allLeaks.addAll(java.resourceLeaks());
-            allTraversals.addAll(java.queryTraversals());
-            allSubserviceCalls.addAll(java.subserviceCalls());
-        }
-
-        return new GraphBuildResult(graph, unique, exportedPatterns, componentsByFqn,
-                configNodes, classNodes, modelNodes, allCodeBlocks, allAdminCalls, allLeaks, allTraversals, allSubserviceCalls, sealed);
+        return edges;
     }
 
     private List<OSGiComponentNode> resolveComponentForPid(String pid,

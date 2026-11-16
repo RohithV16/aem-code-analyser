@@ -187,35 +187,48 @@ public final class ProjectDiscoveryEngine implements AutoCloseable {
      * Best-effort Bundle-SymbolicName from {@code bnd.bnd} or the maven-bundle-plugin instructions.
      */
     private String detectBundleSymbolicName(Model model, Path moduleDirectory) {
+        String fromBndFile = bundleSymbolicNameFromBndFile(moduleDirectory);
+        return fromBndFile != null ? fromBndFile : bundleSymbolicNameFromPlugin(model);
+    }
+
+    /** The {@code bnd.bnd} declaration, or {@code null} when the file is absent or does not declare one. */
+    private String bundleSymbolicNameFromBndFile(Path moduleDirectory) {
         Path bnd = moduleDirectory.resolve("bnd.bnd");
-        if (Files.isRegularFile(bnd)) {
-            try {
-                for (String line : Files.readAllLines(bnd)) {
-                    String trimmed = line.strip();
-                    if (trimmed.startsWith("Bundle-SymbolicName:")) {
-                        String value = trimmed.substring("Bundle-SymbolicName:".length()).strip();
-                        int directive = value.indexOf(';');
-                        if (directive > 0) {
-                            value = value.substring(0, directive);
-                        }
-                        if (!value.isBlank()) {
-                            return value;
-                        }
+        if (!Files.isRegularFile(bnd)) {
+            return null;
+        }
+        try {
+            for (String line : Files.readAllLines(bnd)) {
+                String trimmed = line.strip();
+                if (trimmed.startsWith("Bundle-SymbolicName:")) {
+                    String value = trimmed.substring("Bundle-SymbolicName:".length()).strip();
+                    int directive = value.indexOf(';');
+                    if (directive > 0) {
+                        value = value.substring(0, directive);
+                    }
+                    if (!value.isBlank()) {
+                        return value;
                     }
                 }
-            } catch (IOException ignored) {
-                // fall through to the POM
             }
+        } catch (IOException unreadableBnd) {
+            // An unreadable bnd.bnd falls through to the POM instructions below.
         }
-        for (Plugin plugin : model.getBuild() == null ? java.util.List.<Plugin>of() : model.getBuild().getPlugins()) {
+        return null;
+    }
+
+    /** The bundle-plugin {@code <instructions>} declaration, or {@code null} when absent. */
+    private String bundleSymbolicNameFromPlugin(Model model) {
+        List<Plugin> plugins = model.getBuild() == null ? List.of() : model.getBuild().getPlugins();
+        for (Plugin plugin : plugins) {
             if (plugin.getConfiguration() instanceof Xpp3Dom configuration) {
                 Xpp3Dom instructions = configuration.getChild("instructions");
-                if (instructions != null) {
-                    Xpp3Dom symbolicName = instructions.getChild("Bundle-SymbolicName");
-                    if (symbolicName != null && symbolicName.getValue() != null
-                            && !symbolicName.getValue().isBlank()) {
-                        return symbolicName.getValue().strip();
-                    }
+                Xpp3Dom symbolicName = instructions == null
+                        ? null
+                        : instructions.getChild("Bundle-SymbolicName");
+                if (symbolicName != null && symbolicName.getValue() != null
+                        && !symbolicName.getValue().isBlank()) {
+                    return symbolicName.getValue().strip();
                 }
             }
         }

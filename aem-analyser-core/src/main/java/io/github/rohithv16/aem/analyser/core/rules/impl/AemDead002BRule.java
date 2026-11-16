@@ -30,48 +30,77 @@ public final class AemDead002BRule implements RuleEvaluator {
     public List<Violation> evaluate(RuleContext context) {
         List<Violation> violations = new ArrayList<>();
         for (OSGiOcdNode ocd : context.index().getOcdLookup().values()) {
-            List<OSGiComponentNode> designatingComponents = context.components().stream()
-                    .filter(c -> c.getDesignatedOcdFqn().map(ocd.getOcdFqn()::equals).orElse(false))
-                    .toList();
-            if (designatingComponents.isEmpty()) {
-                continue; // no consumer possible; ghost OCDs belong to AEM-DEAD-002A
-            }
-            for (OcdPropertyMethodNode method : ocd.getPropertyMethods().values()) {
-                if (io.github.rohithv16.aem.analyser.core.rules.catalogs.FrameworkPropertyWhitelist.isWhitelisted(method.getNormalizedOsgiPropName())
-                        || io.github.rohithv16.aem.analyser.core.rules.catalogs.FrameworkPropertyWhitelist.isWhitelisted(method.getMethodName())) {
-                    continue;
-                }
-                if (context.graph().inDegree(method, EdgeType.CONSUMES_PROPERTY) == 0) {
-                    List<RelatedLocation> related = new ArrayList<>();
-                    var location = method.getSourceLocation();
-                    TextRegion region = location == null ? TextRegion.forWholeFile()
-                            : new TextRegion(location.line(), location.column(),
-                            location.line(), location.column() + method.getMethodName().length());
-                    designatingComponents.stream()
-                            .filter(c -> c.getFilePath() != null)
-                            .findFirst()
-                            .ifPresent(c -> related.add(new RelatedLocation(
-                                    "Designating component '" + c.getComponentClassFqn() + "'.",
-                                    relativePath(context, c.getFilePath()),
-                                    TextRegion.forWholeFile())));
-                    violations.add(new Violation(
-                            RuleId.AEM_DEAD_002B.id(),
-                            RuleId.AEM_DEAD_002B.defaultLevel(),
-                            "UNCONSUMED_OCD_PROPERTY",
-                            "Unconsumed OCD property: @AttributeDefinition method '"
-                                    + method.getMethodName() + "' on '" + ocd.getOcdFqn()
-                                    + "' is never invoked by any of the "
-                                    + designatingComponents.size() + " designating component(s).",
-                            relativePath(context, method.getFilePath()),
-                            region,
-                            ocd.getPid(),
-                            "Delete the unused attribute definition, or consume it from the designating"
-                                    + " component (config." + method.getMethodName() + "()).",
-                            related));
-                }
+            violations.addAll(unconsumedPropertyViolations(context, ocd));
+        }
+        return violations;
+    }
+
+    private List<Violation> unconsumedPropertyViolations(RuleContext context, OSGiOcdNode ocd) {
+        List<OSGiComponentNode> designatingComponents = designatingComponents(context, ocd);
+        if (designatingComponents.isEmpty()) {
+            // no consumer possible; ghost OCDs belong to AEM-DEAD-002A
+            return List.of();
+        }
+        List<Violation> violations = new ArrayList<>();
+        for (OcdPropertyMethodNode method : ocd.getPropertyMethods().values()) {
+            Violation violation = unconsumedPropertyViolation(context, ocd, method,
+                    designatingComponents);
+            if (violation != null) {
+                violations.add(violation);
             }
         }
         return violations;
+    }
+
+    private static List<OSGiComponentNode> designatingComponents(RuleContext context,
+                                                                 OSGiOcdNode ocd) {
+        return context.components().stream()
+                .filter(c -> c.getDesignatedOcdFqn().map(ocd.getOcdFqn()::equals).orElse(false))
+                .toList();
+    }
+
+    /**
+     * @return the violation for one attribute method, or {@code null} when it is whitelisted or
+     *         consumed by at least one designating component
+     */
+    private Violation unconsumedPropertyViolation(RuleContext context, OSGiOcdNode ocd,
+                                                  OcdPropertyMethodNode method,
+                                                  List<OSGiComponentNode> designatingComponents) {
+        if (io.github.rohithv16.aem.analyser.core.rules.catalogs.FrameworkPropertyWhitelist
+                .isWhitelisted(method.getNormalizedOsgiPropName())
+                || io.github.rohithv16.aem.analyser.core.rules.catalogs.FrameworkPropertyWhitelist
+                .isWhitelisted(method.getMethodName())) {
+            return null;
+        }
+        if (context.graph().inDegree(method, EdgeType.CONSUMES_PROPERTY) != 0) {
+            return null;
+        }
+        List<RelatedLocation> related = new ArrayList<>();
+        var location = method.getSourceLocation();
+        TextRegion region = location == null ? TextRegion.forWholeFile()
+                : new TextRegion(location.line(), location.column(),
+                location.line(), location.column() + method.getMethodName().length());
+        designatingComponents.stream()
+                .filter(c -> c.getFilePath() != null)
+                .findFirst()
+                .ifPresent(c -> related.add(new RelatedLocation(
+                        "Designating component '" + c.getComponentClassFqn() + "'.",
+                        relativePath(context, c.getFilePath()),
+                        TextRegion.forWholeFile())));
+        return new Violation(
+                RuleId.AEM_DEAD_002B.id(),
+                RuleId.AEM_DEAD_002B.defaultLevel(),
+                "UNCONSUMED_OCD_PROPERTY",
+                "Unconsumed OCD property: @AttributeDefinition method '"
+                        + method.getMethodName() + "' on '" + ocd.getOcdFqn()
+                        + "' is never invoked by any of the "
+                        + designatingComponents.size() + " designating component(s).",
+                relativePath(context, method.getFilePath()),
+                region,
+                ocd.getPid(),
+                "Delete the unused attribute definition, or consume it from the designating"
+                        + " component (config." + method.getMethodName() + "()).",
+                related);
     }
 
     private String relativePath(RuleContext context, java.nio.file.Path path) {

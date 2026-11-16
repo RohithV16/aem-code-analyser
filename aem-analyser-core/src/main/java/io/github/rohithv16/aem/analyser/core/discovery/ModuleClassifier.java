@@ -12,66 +12,100 @@ import java.util.Locale;
 public final class ModuleClassifier {
 
     public ModuleClassification classify(ClassificationInput input) {
-        String packaging = input.packaging() == null ? "jar" : input.packaging().toLowerCase(Locale.ROOT);
-        String artifactId = input.artifactId() == null ? "" : input.artifactId().toLowerCase(Locale.ROOT);
-        String pathText = input.moduleDirectory() == null ? "" : input.moduleDirectory().toString().toLowerCase(Locale.ROOT);
-        boolean idOrPathMentionsDispatcher = artifactId.contains("dispatcher") || pathText.contains("dispatcher");
-        boolean idOrPathMentionsPipeline = artifactId.contains("pipeline") || pathText.contains("pipeline");
+        String packaging = input.packaging() == null
+                ? "jar"
+                : input.packaging().toLowerCase(Locale.ROOT);
+        String artifactId = input.artifactId() == null
+                ? ""
+                : input.artifactId().toLowerCase(Locale.ROOT);
+        String pathText = input.moduleDirectory() == null
+                ? ""
+                : input.moduleDirectory().toString().toLowerCase(Locale.ROOT);
+        boolean mentionsDispatcher = artifactId.contains("dispatcher") || pathText.contains("dispatcher");
+        boolean mentionsPipeline = artifactId.contains("pipeline") || pathText.contains("pipeline");
 
-        switch (packaging) {
-            case "pom" -> {
-                if (input.hasModules()) {
-                    return ModuleClassification.AGGREGATOR_MODULE;
-                }
-                if (hasFrontendBuild(input.moduleDirectory())) {
-                    return ModuleClassification.FRONTEND_MODULE;
-                }
-                if (idOrPathMentionsDispatcher) {
-                    return ModuleClassification.DISPATCHER_MODULE;
-                }
-                if (idOrPathMentionsPipeline) {
-                    return ModuleClassification.PIPELINE_MODULE;
-                }
-                if (isTestModule(artifactId) && !input.hasBndPlugin()) {
-                    return ModuleClassification.TEST_MODULE;
-                }
-                if (artifactId.endsWith("-parent") || artifactId.endsWith(".parent")) {
-                    return ModuleClassification.AGGREGATOR_MODULE;
-                }
-                return ModuleClassification.PIPELINE_MODULE;
-            }
-            case "content-package" -> {
-                return classifyContentPackage(input, artifactId);
-            }
-            case "jar", "bundle" -> {
-                if (hasFrontendBuild(input.moduleDirectory())) {
-                    return ModuleClassification.FRONTEND_MODULE;
-                }
-                if (isTestModule(artifactId) && !input.hasBndPlugin()) {
-                    return ModuleClassification.TEST_MODULE;
-                }
-                if (packaging.equals("bundle") || input.hasBndPlugin() || input.dependsOnAemSdk()) {
-                    return ModuleClassification.BUNDLE_MODULE;
-                }
-                // A plain jar without bnd/AEM SDK is not an OSGi bundle. Do not pretend it is.
-                return ModuleClassification.UNCLASSIFIED;
-            }
-            default -> {
-                if (idOrPathMentionsDispatcher) {
-                    return ModuleClassification.DISPATCHER_MODULE;
-                }
-                if (idOrPathMentionsPipeline) {
-                    return ModuleClassification.PIPELINE_MODULE;
-                }
-                if (isTestModule(artifactId)) {
-                    return ModuleClassification.TEST_MODULE;
-                }
-                return ModuleClassification.UNCLASSIFIED;
-            }
+        return switch (packaging) {
+            case "pom" -> classifyPom(input, artifactId, mentionsDispatcher, mentionsPipeline);
+            case "content-package" -> classifyContentPackage(input, artifactId);
+            case "jar", "bundle" -> classifyJarOrBundle(input, artifactId, packaging);
+            default -> classifyByNaming(artifactId, mentionsDispatcher, mentionsPipeline);
+        };
+    }
+
+    /** {@code pom} packaging: aggregators, frontends, dispatcher/pipeline carriers, parent POMs. */
+    private ModuleClassification classifyPom(ClassificationInput input, String artifactId,
+            boolean mentionsDispatcher, boolean mentionsPipeline) {
+        if (input.hasModules()) {
+            return ModuleClassification.AGGREGATOR_MODULE;
         }
+        if (hasFrontendBuild(input.moduleDirectory())) {
+            return ModuleClassification.FRONTEND_MODULE;
+        }
+        if (mentionsDispatcher) {
+            return ModuleClassification.DISPATCHER_MODULE;
+        }
+        if (mentionsPipeline) {
+            return ModuleClassification.PIPELINE_MODULE;
+        }
+        if (isTestModule(artifactId) && !input.hasBndPlugin()) {
+            return ModuleClassification.TEST_MODULE;
+        }
+        if (artifactId.endsWith("-parent") || artifactId.endsWith(".parent")) {
+            return ModuleClassification.AGGREGATOR_MODULE;
+        }
+        return ModuleClassification.PIPELINE_MODULE;
+    }
+
+    /** {@code jar}/{@code bundle} packaging: frontend, test, or a real OSGi bundle. */
+    private ModuleClassification classifyJarOrBundle(ClassificationInput input, String artifactId,
+            String packaging) {
+        if (hasFrontendBuild(input.moduleDirectory())) {
+            return ModuleClassification.FRONTEND_MODULE;
+        }
+        if (isTestModule(artifactId) && !input.hasBndPlugin()) {
+            return ModuleClassification.TEST_MODULE;
+        }
+        if (packaging.equals("bundle") || input.hasBndPlugin() || input.dependsOnAemSdk()) {
+            return ModuleClassification.BUNDLE_MODULE;
+        }
+        // A plain jar without bnd/AEM SDK is not an OSGi bundle. Do not pretend it is.
+        return ModuleClassification.UNCLASSIFIED;
+    }
+
+    /** Any other packaging: decided purely by artifact name and module path. */
+    private ModuleClassification classifyByNaming(String artifactId, boolean mentionsDispatcher,
+            boolean mentionsPipeline) {
+        if (mentionsDispatcher) {
+            return ModuleClassification.DISPATCHER_MODULE;
+        }
+        if (mentionsPipeline) {
+            return ModuleClassification.PIPELINE_MODULE;
+        }
+        if (isTestModule(artifactId)) {
+            return ModuleClassification.TEST_MODULE;
+        }
+        return ModuleClassification.UNCLASSIFIED;
     }
 
     private ModuleClassification classifyContentPackage(ClassificationInput input, String artifactId) {
+        ModuleClassification structural = classifyContentStructure(input);
+        if (structural != null) {
+            return structural;
+        }
+        ModuleClassification named = classifyContentNaming(artifactId);
+        if (named != null) {
+            return named;
+        }
+        ModuleClassification declared = classifyByPackageType(input.fileVaultConfig());
+        if (declared != null) {
+            return declared;
+        }
+        ModuleClassification physical = classifyContentTree(input);
+        return physical != null ? physical : ModuleClassification.UNCLASSIFIED;
+    }
+
+    /** File evidence from the package itself; {@code null} when it does not decide the category. */
+    private ModuleClassification classifyContentStructure(ClassificationInput input) {
         // Condition 1: embeddeds are the definitive signature of the 'all' container
         if (input.fileVaultConfig() != null && input.fileVaultConfig().hasEmbeddeds()) {
             return ModuleClassification.CONTAINER_MODULE;
@@ -85,7 +119,11 @@ public final class ModuleClassifier {
         if (input.hasValidOsgiConfigs()) {
             return ModuleClassification.CONFIG_MODULE;
         }
-        // Condition 3: naming conventions when the project has not been built
+        return null;
+    }
+
+    /** Condition 3: naming conventions when the project has not been built. */
+    private ModuleClassification classifyContentNaming(String artifactId) {
         if (artifactId.equals("all") || artifactId.endsWith(".all")) {
             return ModuleClassification.CONTAINER_MODULE;
         }
@@ -104,17 +142,26 @@ public final class ModuleClassifier {
         if (artifactId.contains("ui.apps") || artifactId.endsWith(".apps")) {
             return ModuleClassification.APPS_MODULE;
         }
-        String packageType = input.fileVaultConfig() == null ? null : input.fileVaultConfig().packageType();
-        if (packageType != null) {
-            return switch (packageType.toLowerCase(Locale.ROOT)) {
-                case "application" -> ModuleClassification.APPS_MODULE;
-                case "mixed" -> ModuleClassification.ACL_MODULE;
-                case "content" -> ModuleClassification.CONTENT_MODULE;
-                case "container" -> ModuleClassification.CONTAINER_MODULE;
-                default -> ModuleClassification.UNCLASSIFIED;
-            };
+        return null;
+    }
+
+    /** The {@code packageType} the FileVault plugin declares; an unknown type stays unclassified. */
+    private ModuleClassification classifyByPackageType(FileVaultPluginConfig fileVaultConfig) {
+        String packageType = fileVaultConfig == null ? null : fileVaultConfig.packageType();
+        if (packageType == null) {
+            return null;
         }
-        // Fallback: physical jcr_root content types
+        return switch (packageType.toLowerCase(Locale.ROOT)) {
+            case "application" -> ModuleClassification.APPS_MODULE;
+            case "mixed" -> ModuleClassification.ACL_MODULE;
+            case "content" -> ModuleClassification.CONTENT_MODULE;
+            case "container" -> ModuleClassification.CONTAINER_MODULE;
+            default -> ModuleClassification.UNCLASSIFIED;
+        };
+    }
+
+    /** Fallback: physical jcr_root content types. */
+    private ModuleClassification classifyContentTree(ClassificationInput input) {
         if (hasJcrSubdirectory(input.moduleDirectory(), "components")
                 || hasJcrSubdirectory(input.moduleDirectory(), "dialog")) {
             return ModuleClassification.APPS_MODULE;
@@ -126,7 +173,7 @@ public final class ModuleClassifier {
         if (hasFiltersWithoutJcrRoot(input)) {
             return ModuleClassification.STRUCTURE_MODULE;
         }
-        return ModuleClassification.UNCLASSIFIED;
+        return null;
     }
 
     private boolean isTestModule(String artifactId) {

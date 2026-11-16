@@ -28,6 +28,7 @@ import java.nio.file.attribute.FileTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.OptionalInt;
 import java.util.Set;
 
 /**
@@ -202,6 +203,12 @@ public class AnalyserCli implements Runnable {
         return !sonar;
     }
 
+    /**
+     * Console channel of the tool. A CLI writes its report to standard output by design, so this is
+     * deliberately not a logging framework: {@code --no-color}, report formats and CI annotations need
+     * the raw stream, and levels or timestamps would corrupt machine-readable output.
+     */
+    @SuppressWarnings("java:S106")
     private final PrintWriter stdout = new PrintWriter(System.out, true, StandardCharsets.UTF_8);
 
     @Override
@@ -359,9 +366,9 @@ public class AnalyserCli implements Runnable {
             stdout.printf("[INFO] %s %d issue(s) across %d file(s):%n",
                     fixDryRun ? "Auto-fix dry-run: would repair" : "Auto-fix successfully repaired",
                     fixSummary.fixesApplied(), fixSummary.filesModified());
-            for (var record : fixSummary.records()) {
-                stdout.println("  - [" + record.ruleId() + "] " + record.filePath() + ": "
-                        + record.description());
+            for (var repair : fixSummary.records()) {
+                stdout.println("  - [" + repair.ruleId() + "] " + repair.filePath() + ": "
+                        + repair.description());
             }
             if (!fixDryRun) {
                 stdout.println("[INFO] Re-analysing after auto-fix...");
@@ -530,8 +537,9 @@ public class AnalyserCli implements Runnable {
                             + " Every finding is filtered out and this run cannot fail on content."
                             + " Drop --changed-only/--since for a full scan.");
                 }
-                stdout.println(String.format("[INFO] Git-diff filtering active (%d changed file(s) found); scoping violations to changed files and lines.",
-                        diffResult.changedFiles().size()));
+                stdout.printf("[INFO] Git-diff filtering active (%d changed file(s) found);"
+                        + " scoping violations to changed files and lines.%n",
+                        diffResult.changedFiles().size());
                 List<Violation> filtered = report.violations().stream()
                         .filter(v -> diffResult.matches(v.filePath(), v.region() != null ? v.region().startLine() : 0))
                         .toList();
@@ -555,12 +563,18 @@ public class AnalyserCli implements Runnable {
         Path explicit = projectRoot != null ? projectRoot : positionalProjectRoot;
         Path start = explicit != null ? explicit.toAbsolutePath().normalize()
                 : Path.of("").toAbsolutePath().normalize();
-        Path candidate = Files.isRegularFile(start.resolve("pom.xml")) ? start : enclosingPomRoot(start);
+        Path candidate = Files.isRegularFile(start.resolve(POM_FILE)) ? start : enclosingPomRoot(start);
         for (int depth = 0; depth < MAX_REACTOR_DEPTH && isLocalModulePom(candidate); depth++) {
             candidate = candidate.getParent();
         }
         return candidate;
     }
+
+    /** The Maven POM file name. */
+    static final String POM_FILE = "pom.xml";
+
+    /** Rule-of-80 separator used around the quality-gate block. */
+    private static final String SEPARATOR = "-".repeat(80);
 
     private static final int MAX_REACTOR_DEPTH = 8;
 
@@ -569,7 +583,7 @@ public class AnalyserCli implements Runnable {
         Path current = from;
         for (int i = 0; i < 6 && current.getParent() != null; i++) {
             current = current.getParent();
-            if (Files.isRegularFile(current.resolve("pom.xml"))) {
+            if (Files.isRegularFile(current.resolve(POM_FILE))) {
                 return current;
             }
         }
@@ -584,7 +598,7 @@ public class AnalyserCli implements Runnable {
         if (dir == null) {
             return false;
         }
-        Path pom = dir.resolve("pom.xml");
+        Path pom = dir.resolve(POM_FILE);
         if (!Files.isRegularFile(pom)) {
             return false;
         }
@@ -762,22 +776,8 @@ public class AnalyserCli implements Runnable {
 
     CoverageStatus checkCoverageStatus(Path root, List<String> testModules) {
         if (testModules.isEmpty()) {
-            Path existing = findExistingCoverage(root);
-            if (existing == null) {
-                return new CoverageStatus(null, false, "No JaCoCo coverage file found");
-            }
-            try {
-                FileTime covTime = Files.getLastModifiedTime(existing);
-                Path newer = findNewerSourceFileInDir(root.resolve("src"), covTime);
-                if (newer != null) {
-                    return new CoverageStatus(existing, false, "Source modified (" + root.relativize(newer) + ")");
-                }
-                return new CoverageStatus(existing, true, "Coverage is up to date");
-            } catch (IOException e) {
-                return new CoverageStatus(existing, false, "Timestamp error");
-            }
+            return checkSingleModuleCoverage(root);
         }
-
         Path sampleCoverage = null;
         for (String modRel : testModules) {
             Path modDir = root.resolve(modRel);
@@ -786,25 +786,57 @@ public class AnalyserCli implements Runnable {
                 return new CoverageStatus(null, false, "Missing coverage in module " + modRel);
             }
             sampleCoverage = cov;
-            try {
-                FileTime covTime = Files.getLastModifiedTime(cov);
-                Path modPom = modDir.resolve("pom.xml");
-                if (Files.isRegularFile(modPom) && Files.getLastModifiedTime(modPom).compareTo(covTime) > 0) {
-                    return new CoverageStatus(cov, false, "Module POM modified (" + root.relativize(modPom) + ")");
-                }
-                Path rootPom = root.resolve("pom.xml");
-                if (Files.isRegularFile(rootPom) && Files.getLastModifiedTime(rootPom).compareTo(covTime) > 0) {
-                    return new CoverageStatus(cov, false, "Root pom.xml modified");
-                }
-                Path newer = findNewerSourceFileInDir(modDir.resolve("src"), covTime);
-                if (newer != null) {
-                    return new CoverageStatus(cov, false, "Source modified (" + root.relativize(newer) + ")");
-                }
-            } catch (IOException e) {
-                return new CoverageStatus(cov, false, "Timestamp error in module " + modRel);
+            CoverageStatus stale = staleModuleCoverage(root, modRel, modDir, cov);
+            if (stale != null) {
+                return stale;
             }
         }
         return new CoverageStatus(sampleCoverage, true, "All module coverage artifacts are up to date");
+    }
+
+    /** Coverage freshness for a project without test-bearing modules. */
+    private CoverageStatus checkSingleModuleCoverage(Path root) {
+        Path existing = findExistingCoverage(root);
+        if (existing == null) {
+            return new CoverageStatus(null, false, "No JaCoCo coverage file found");
+        }
+        try {
+            FileTime covTime = Files.getLastModifiedTime(existing);
+            Path newer = findNewerSourceFileInDir(root.resolve("src"), covTime);
+            if (newer != null) {
+                return new CoverageStatus(existing, false, "Source modified ("
+                        + root.relativize(newer) + ")");
+            }
+            return new CoverageStatus(existing, true, "Coverage is up to date");
+        } catch (IOException e) {
+            return new CoverageStatus(existing, false, "Timestamp error");
+        }
+    }
+
+    /** @return why a module's coverage is stale, or {@code null} when it is still up to date. */
+    private CoverageStatus staleModuleCoverage(Path root, String modRel, Path modDir, Path cov) {
+        try {
+            FileTime covTime = Files.getLastModifiedTime(cov);
+            Path modPom = modDir.resolve(POM_FILE);
+            if (Files.isRegularFile(modPom)
+                    && Files.getLastModifiedTime(modPom).compareTo(covTime) > 0) {
+                return new CoverageStatus(cov, false, "Module POM modified ("
+                        + root.relativize(modPom) + ")");
+            }
+            Path rootPom = root.resolve(POM_FILE);
+            if (Files.isRegularFile(rootPom)
+                    && Files.getLastModifiedTime(rootPom).compareTo(covTime) > 0) {
+                return new CoverageStatus(cov, false, "Root pom.xml modified");
+            }
+            Path newer = findNewerSourceFileInDir(modDir.resolve("src"), covTime);
+            if (newer != null) {
+                return new CoverageStatus(cov, false, "Source modified ("
+                        + root.relativize(newer) + ")");
+            }
+            return null;
+        } catch (IOException e) {
+            return new CoverageStatus(cov, false, "Timestamp error in module " + modRel);
+        }
     }
 
     Path findNewerSourceFileInDir(Path dir, FileTime covTime) {
@@ -842,7 +874,7 @@ public class AnalyserCli implements Runnable {
         }
         List<String> command = new ArrayList<>();
         command.add(cmd);
-        Path pomPath = root.resolve("pom.xml");
+        Path pomPath = root.resolve(POM_FILE);
         if (Files.isRegularFile(pomPath)) {
             command.add("-f");
             command.add(pomPath.toAbsolutePath().toString());
@@ -893,7 +925,7 @@ public class AnalyserCli implements Runnable {
 
     boolean projectHasJacoco(Path root) {
         try (var stream = Files.walk(root, 4)) {
-            return stream.filter(p -> p.getFileName().toString().equals("pom.xml"))
+            return stream.filter(p -> p.getFileName().toString().equals(POM_FILE))
                     .anyMatch(pom -> {
                         try {
                             String content = Files.readString(pom);
@@ -910,7 +942,7 @@ public class AnalyserCli implements Runnable {
     List<String> findJavaTestModules(Path root) {
         List<String> modules = new ArrayList<>();
         try (var stream = Files.walk(root, 3)) {
-            stream.filter(p -> p.getFileName().toString().equals("pom.xml") && !p.equals(root.resolve("pom.xml")))
+            stream.filter(p -> p.getFileName().toString().equals(POM_FILE) && !p.equals(root.resolve(POM_FILE)))
                     .forEach(pom -> {
                         Path moduleDir = pom.getParent();
                         if (Files.isDirectory(moduleDir.resolve("src/test/java"))) {
@@ -919,11 +951,15 @@ public class AnalyserCli implements Runnable {
                                 if (!rel.isEmpty() && !modules.contains(rel)) {
                                     modules.add(rel);
                                 }
-                            } catch (IllegalArgumentException ignored) {
+                            } catch (IllegalArgumentException notRelativizable) {
+                                // A module outside the analysed root cannot be named as a -pl argument,
+                                // so it is skipped: coverage collection stays best-effort.
                             }
                         }
                     });
-        } catch (IOException ignored) {
+        } catch (IOException unreadableTree) {
+            // An unreadable tree yields no test modules; coverage collection is best-effort and the
+            // analysis itself must still run against whatever was parsed.
         }
         return modules;
     }
@@ -931,55 +967,12 @@ public class AnalyserCli implements Runnable {
     int exitCode(AnalysisReport report) {
         long errors = report.countBySeverity(Severity.ERROR);
         long warnings = report.countBySeverity(Severity.WARNING);
-        boolean qualityGateFailed = false;
+        boolean qualityGateFailed = !printQualityGate(report, warnings);
 
-        boolean hasQualityGate = minCoverage != null || maxDuplication != null || maxWarnings != null;
-        if (hasQualityGate) {
-            stdout.println("--------------------------------------------------------------------------------");
-            stdout.println(" QUALITY GATE VERIFICATION");
-            stdout.println("--------------------------------------------------------------------------------");
-
-            if (maxWarnings != null) {
-                boolean pass = warnings <= maxWarnings;
-                if (!pass) qualityGateFailed = true;
-                stdout.println(String.format("  - Max Warnings:   %,d (Threshold: <= %,d) [%s]",
-                        warnings, maxWarnings, pass ? "PASS" : "FAIL"));
-            }
-
-            if (maxDuplication != null) {
-                double dup = report.codeMetrics() != null ? report.codeMetrics().duplicationPercent() : 0.0;
-                boolean pass = dup <= maxDuplication;
-                if (!pass) qualityGateFailed = true;
-                stdout.println(String.format("  - Duplication:    %.1f%% (Threshold: <= %.1f%%) [%s]",
-                        dup, maxDuplication, pass ? "PASS" : "FAIL"));
-            }
-
-            if (minCoverage != null) {
-                var cov = report.coverageReport();
-                if (cov == null || !cov.present()) {
-                    // A threshold of 0 means "measure but do not gate": absence of coverage data is
-                    // not a failure in that case.
-                    boolean pass = minCoverage <= 0;
-                    if (!pass) {
-                        qualityGateFailed = true;
-                    }
-                    stdout.println(String.format("  - Line Coverage:  Not detected (Threshold: >= %.1f%%) [%s]",
-                            minCoverage, pass ? "PASS" : "FAIL"));
-                } else {
-                    boolean pass = cov.lineCoveragePercent() >= minCoverage;
-                    if (!pass) qualityGateFailed = true;
-                    stdout.println(String.format("  - Line Coverage:  %.1f%% (Threshold: >= %.1f%%) [%s]",
-                            cov.lineCoveragePercent(), minCoverage, pass ? "PASS" : "FAIL"));
-                }
-            }
-            stdout.println("--------------------------------------------------------------------------------");
-        }
-
-        boolean reportOnly = failOn != null && "NONE".equalsIgnoreCase(failOn.trim());
         if (qualityGateFailed) {
             return 1;
         }
-        if (reportOnly) {
+        if (failOn != null && "NONE".equalsIgnoreCase(failOn.trim())) {
             // Explicit report-only mode: thresholds above still gate, the implicit ERROR gate does not.
             stdout.println("[INFO] --fail-on NONE: report-only run; exiting 0 despite "
                     + errors + " error-severity finding(s).");
@@ -988,18 +981,87 @@ public class AnalyserCli implements Runnable {
         if (errors > 0) {
             return 1;
         }
-        if (failOn != null && !failOn.isBlank()) {
-            String target = failOn.trim().toUpperCase(Locale.ROOT);
-            if ("WARNING".equals(target) && warnings > 0) {
-                return 1;
-            } else if ("INFO".equals(target) && (warnings > 0 || report.countBySeverity(Severity.INFO) > 0)) {
-                return 1;
-            }
+        if (failOnExceeded(report, warnings)) {
+            return 1;
         }
         if (failOnWarning && warnings > 0) {
             return 1;
         }
         return 0;
+    }
+
+    /**
+     * Prints the quality-gate block when at least one threshold is configured.
+     *
+     * @return {@code true} when every configured threshold passed
+     */
+    private boolean printQualityGate(AnalysisReport report, long warnings) {
+        if (minCoverage == null && maxDuplication == null && maxWarnings == null) {
+            return true;
+        }
+        stdout.println(SEPARATOR);
+        stdout.println(" QUALITY GATE VERIFICATION");
+        stdout.println(SEPARATOR);
+        boolean passed = checkMaxWarnings(warnings);
+        passed &= checkDuplication(report);
+        passed &= checkLineCoverage(report);
+        stdout.println(SEPARATOR);
+        return passed;
+    }
+
+    private boolean checkMaxWarnings(long warnings) {
+        if (maxWarnings == null) {
+            return true;
+        }
+        boolean pass = warnings <= maxWarnings;
+        stdout.printf("  - Max Warnings:   %,d (Threshold: <= %,d) [%s]%n",
+                warnings, maxWarnings, pass ? "PASS" : "FAIL");
+        return pass;
+    }
+
+    private boolean checkDuplication(AnalysisReport report) {
+        if (maxDuplication == null) {
+            return true;
+        }
+        double duplication = report.codeMetrics() != null
+                ? report.codeMetrics().duplicationPercent()
+                : 0.0;
+        boolean pass = duplication <= maxDuplication;
+        stdout.printf("  - Duplication:    %.1f%% (Threshold: <= %.1f%%) [%s]%n",
+                duplication, maxDuplication, pass ? "PASS" : "FAIL");
+        return pass;
+    }
+
+    private boolean checkLineCoverage(AnalysisReport report) {
+        if (minCoverage == null) {
+            return true;
+        }
+        var coverage = report.coverageReport();
+        if (coverage == null || !coverage.present()) {
+            // A threshold of 0 means "measure but do not gate": absence of coverage data is
+            // not a failure in that case.
+            boolean pass = minCoverage <= 0;
+            stdout.printf("  - Line Coverage:  Not detected (Threshold: >= %.1f%%) [%s]%n",
+                    minCoverage, pass ? "PASS" : "FAIL");
+            return pass;
+        }
+        boolean pass = coverage.lineCoveragePercent() >= minCoverage;
+        stdout.printf("  - Line Coverage:  %.1f%% (Threshold: >= %.1f%%) [%s]%n",
+                coverage.lineCoveragePercent(), minCoverage, pass ? "PASS" : "FAIL");
+        return pass;
+    }
+
+    /** True when the {@code --fail-on} severity threshold is exceeded by this report. */
+    private boolean failOnExceeded(AnalysisReport report, long warnings) {
+        if (failOn == null || failOn.isBlank()) {
+            return false;
+        }
+        String target = failOn.trim().toUpperCase(Locale.ROOT);
+        // WARNING and INFO both fail the build; they differ only in the severities considered.
+        if ("WARNING".equals(target) && warnings > 0) {
+            return true;
+        }
+        return "INFO".equals(target) && (warnings > 0 || report.countBySeverity(Severity.INFO) > 0);
     }
 
     public static void main(String[] args) {

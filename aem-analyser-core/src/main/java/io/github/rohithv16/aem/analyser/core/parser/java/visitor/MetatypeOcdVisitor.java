@@ -6,7 +6,6 @@ import io.github.rohithv16.aem.analyser.core.model.graph.node.JavaClassNode;
 import io.github.rohithv16.aem.analyser.core.model.graph.node.OSGiOcdNode;
 import io.github.rohithv16.aem.analyser.core.model.graph.node.OcdPropertyMethodNode;
 import com.github.javaparser.Position;
-import com.github.javaparser.ast.body.MethodDeclaration;
 import com.github.javaparser.ast.body.TypeDeclaration;
 import com.github.javaparser.ast.expr.AnnotationExpr;
 
@@ -51,16 +50,19 @@ public final class MetatypeOcdVisitor {
 
         for (var member : type.getMembers()) {
             if (member instanceof com.github.javaparser.ast.body.AnnotationMemberDeclaration memberDeclaration) {
-                extractAttributeDefinition(memberDeclaration.getAnnotations(), memberDeclaration.getNameAsString(),
-                        memberDeclaration.getType().asString(),
-                        memberDeclaration.getDefaultValue(),
-                        0,
+                extractAttributeDefinition(new MemberAttribute(memberDeclaration.getAnnotations(),
+                                memberDeclaration.getNameAsString(),
+                                memberDeclaration.getType().asString(),
+                                memberDeclaration.getDefaultValue(),
+                                0),
                         ocdFqn, kind, filePath)
                         .ifPresent(ocdNode::addPropertyMethod);
             } else if (member instanceof com.github.javaparser.ast.body.MethodDeclaration method) {
-                extractAttributeDefinition(method.getAnnotations(), method.getNameAsString(),
-                        method.getType().asString(), Optional.empty(),
-                        method.getParameters().size(),
+                extractAttributeDefinition(new MemberAttribute(method.getAnnotations(),
+                                method.getNameAsString(),
+                                method.getType().asString(),
+                                Optional.empty(),
+                                method.getParameters().size()),
                         ocdFqn, kind, filePath)
                         .ifPresent(ocdNode::addPropertyMethod);
             }
@@ -68,24 +70,32 @@ public final class MetatypeOcdVisitor {
         return Optional.of(ocdNode);
     }
 
-    private Optional<OcdPropertyMethodNode> extractAttributeDefinition(
+    /**
+     * One OCD member as seen by {@link #extractAttributeDefinition}: its annotations plus the
+     * declared signature facts that decide whether it is an attribute definition.
+     */
+    private record MemberAttribute(
             com.github.javaparser.ast.NodeList<AnnotationExpr> annotations,
-            String memberName,
-            String memberType,
+            String name,
+            String type,
             Optional<com.github.javaparser.ast.expr.Expression> defaultValue,
-            int parameterCount,
+            int parameterCount) {
+    }
+
+    private Optional<OcdPropertyMethodNode> extractAttributeDefinition(
+            MemberAttribute member,
             String ocdFqn,
             JavaClassNode.Kind ocdKind,
             Path filePath) {
         Optional<AnnotationExpr> attributeAnnotation = AnnotationUtils.findAnnotation(
-                annotations, "AttributeDefinition");
+                member.annotations(), "AttributeDefinition");
 
         boolean annotationOcd = ocdKind == JavaClassNode.Kind.ANNOTATION;
         if (attributeAnnotation.isEmpty() && !annotationOcd) {
             return Optional.empty();
         }
         // Parameterless members of annotation-based OCDs are attribute definitions (OSGi R7 §112.11)
-        if (attributeAnnotation.isEmpty() && parameterCount > 0) {
+        if (attributeAnnotation.isEmpty() && member.parameterCount() > 0) {
             return Optional.empty();
         }
 
@@ -98,7 +108,7 @@ public final class MetatypeOcdVisitor {
                         .filter(s -> !s.isBlank())
                         .toList()));
         if (defaults.isEmpty()) {
-            defaultValue.ifPresent(expr -> defaults.add(
+            member.defaultValue().ifPresent(expr -> defaults.add(
                     AnnotationUtils.expressionToString(expr)));
         }
         boolean required = attributeAnnotation
@@ -106,13 +116,13 @@ public final class MetatypeOcdVisitor {
                 .map(Boolean::parseBoolean)
                 .orElse(true);
 
-        String methodName = memberName;
-        String returnType = memberType;
+        String methodName = member.name();
+        String returnType = member.type();
         String normalized = MetatypeNameNormalizer.normalizeMethodName(methodName, explicitId);
         return Optional.of(new OcdPropertyMethodNode(
                 ocdFqn, methodName, explicitId, normalized,
                 returnType, defaults, required,
-                filePath, sourceLocationOfMember(annotations, filePath)));
+                filePath, sourceLocationOfMember(member.annotations(), filePath)));
     }
 
     private SourceLocation sourceLocationOfMember(com.github.javaparser.ast.NodeList<AnnotationExpr> annotations,
