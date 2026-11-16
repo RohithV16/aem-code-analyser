@@ -119,7 +119,7 @@ jobs:
           body: |
             ### AEM Code Analyser ${{ steps.bump.outputs.tag }}
 
-            Dead code detection engine for Adobe Experience Manager (Phase 1: Java & OSGi Configurations).
+            Cross-boundary dead code, duplication and AEM as a Cloud Service analysis for Adobe Experience Manager projects.
 
             #### 📦 CLI Standalone Binary
             Download `aem-analyser-cli.jar` attached below and run:

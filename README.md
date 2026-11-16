@@ -9,84 +9,97 @@ Traditional static analyzers (SonarQube, SpotBugs, PMD) operate in single-langua
 
 ---
 
-## Features (Phase 1: Java & OSGi Configurations)
+## Features
 
-* **Orphaned OSGi Configuration Detection (`AEM-DEAD-001`):** Flags configurations in `ui.config` (`.cfg.json`, `.config`) whose PIDs do not match any active `@Component` service, platform PID, or third-party dependency.
-* **Dead Configuration Properties (`AEM-DEAD-002A`):** Flags properties declared in `.cfg.json` that are not declared in the bound `@ObjectClassDefinition` interface.
-* **Unconsumed OCD Properties (`AEM-DEAD-002B`):** Flags `@AttributeDefinition` methods on configuration interfaces that are never called anywhere in Java.
-* **Unused OSGi Services (`AEM-DEAD-003A`):** Identifies OSGi components that are never injected via `@Reference` and do not serve as system entry points (servlets, workflows, filters, schedulers, whiteboard SPIs).
-* **Unused Sling Models (`AEM-DEAD-003B`):** Advisory notices for Sling Models without direct Java adaptations.
-* **Inactive Delayed Components (`AEM-DEAD-003C`):** Flags components with no service interfaces and `immediate = false`.
-* **Duplicate Detection Rules (`AEM-DUP-*`):** Flags duplicate servlet endpoints (`AEM-DUP-001`), duplicate OSGi configurations (`AEM-DUP-002`), duplicate Sling Model bindings (`AEM-DUP-003`), and cloned method code blocks (`AEM-DUP-010`).
-* **Adobe Cloud Manager Quality Rules (`AEM-QUAL-*`):**
-  * **Path-Bound Servlet Registration (`AEM-QUAL-001` / CQBP-75):** Flags servlets registered by path (`sling.servlet.paths`) instead of resource types.
-  * **ProviderType Implementation (`AEM-QUAL-002` / CQBP-84):** Flags custom classes implementing or extending product `@ProviderType` interfaces.
-  * **Whiteboard Sling Scheduler Usage (`AEM-QUAL-003` / AMSCORE-554):** Flags whiteboard schedulers, recommending cluster-aware Sling Scheduled Jobs.
-  * **Unsafe Component State (`AEM-QUAL-004` / CQBP-ThreadSafety):** Flags non-thread-safe/session fields (`ResourceResolver`, `Session`, etc.) inside OSGi `@Component` singletons.
-  * **Deprecated Administrative Access (`AEM-QUAL-005` / AMSCORE-553):** Flags calls to `loginAdministrative()` and `getAdministrativeResourceResolver()`.
-* **Multi-Format Export:** Outputs rich ANSI terminal reports, canonical OASIS SARIF 2.1.0, and SonarQube Generic Issue Import JSON.
+**30 rule ids across seven families.** Every rule page documents detection logic, AEM Cloud Service
+impact and remediation — see [docs/rules](docs/rules) or `--explain <RULE>`.
+
+| Family | Rules | What it finds |
+|---|---|---|
+| **DEAD** | 8 | Orphaned OSGi configs (`-001`), ghost config properties (`-002A`), unconsumed OCD attributes (`-002B`), unused services and Sling Models and inactive delayed components (`-003A/B/C`), HTL references to missing classes (`-004`), orphaned client libraries (`-005`) |
+| **DUP** | 4 | Duplicate servlet endpoints (`-001`), conflicting OSGi configs (`-002`), competing Sling Models (`-003`), cloned code blocks via PMD CPD (`-010`) |
+| **QUAL** | 6 | Cloud Manager parity: path-bound servlets CQBP-75 (`-001`), `@ProviderType` implementations CQBP-84 (`-002`), whiteboard schedulers AMSCORE-554 (`-003`), non-thread-safe component fields (`-004`), administrative logins AMSCORE-553 (`-005`); `-006` retired, owned by `-004` |
+| **PERF** | 4 | Unclosed resolvers (`-001`), unclosed sessions (`-002`), unbounded Oak traversal (`-003`), queries without a limit (`-004`) |
+| **CLOUD** | 5 | Plaintext secrets (`-001`), JSP usage (`-002`), service users without a mapping (`-003`), APIs deprecated in AEMaaCS (`-004`), invalid runmode folders (`-005`) |
+| **SEC** | 2 | `context='unsafe'` in HTL (`-001`), request-driven redirects and SSRF (`-002`) |
+| **COMP** | 1 | Deprecated Classic UI `dialog.xml` (`-001`) |
+
+Reports: **CONSOLE**, **HTML** dashboard (history trend, duplication and coverage panels),
+**SARIF 2.1.0**, **SonarQube** generic issues, and **GitHub**, **GitLab** and **Azure** annotations.
 
 ---
 
-## Getting Started
+## Install
 
-### Prerequisites
-* Java 21+
-* Maven 3.9+
+| Requirement | Version |
+|---|---|
+| Java | 21 |
+| Maven (plugin and source builds only) | 3.9+ |
 
-### Build & Install Locally
+| Artefact | Route |
+|---|---|
+| CLI | `aem-analyser-cli.jar` from [Releases](https://github.com/RohithV16/aem-code-analyser/releases) — self-contained, needs only Java 21 |
+| `aem-analyser-core` (library) | [JitPack](https://jitpack.io/#RohithV16/aem-code-analyser), no token: `com.github.RohithV16.aem-code-analyser:aem-analyser-core:<tag>` |
+| `aem-analyser-maven-plugin` | GitHub Packages (needs a `read:packages` token) **or** offline install from the release assets |
+
+The plugin is deliberately **not** documented for JitPack: JitPack relocates the groupId, and Maven
+rejects a plugin whose descriptor declares a different group (`Invalid plugin descriptor ... wrong
+group ID`). Install the attached jars instead — no token, no registry access:
+
 ```bash
-git clone <repo-url>
-cd aem-code-analyser
-mvn clean install
+VERSION=<version>   # from the release page
+mvn install:install-file -Dfile=aem-code-analyser-$VERSION.pom \
+    -DpomFile=aem-code-analyser-$VERSION.pom
+mvn install:install-file -Dfile=aem-analyser-core-$VERSION.jar \
+    -DpomFile=aem-analyser-core-$VERSION.pom
+mvn install:install-file -Dfile=aem-analyser-maven-plugin-$VERSION.jar \
+    -DpomFile=aem-analyser-maven-plugin-$VERSION.pom
 ```
-This builds and installs `aem-analyser-core`, `aem-analyser-maven-plugin`, and `aem-analyser-cli` into your local `~/.m2/repository`.
+
+Building from source instead:
+
+```bash
+git clone https://github.com/RohithV16/aem-code-analyser
+cd aem-code-analyser && mvn clean install
+```
 
 ---
 
 ## Usage Option 1: Standalone CLI
 
-Run audits directly from the command line on any AEM repository:
+Run audits directly on any AEM repository. **The project root is optional** — with no arguments the
+analyser looks at where you are:
 
 ```bash
-# No arguments needed: the project root defaults to the current directory and,
-# when you are inside a module, to the reactor that owns it.
-java -jar aem-analyser-cli.jar
-
-# The root can also be given positionally, or with the explicit flag
-java -jar aem-analyser-cli.jar .
-java -jar aem-analyser-cli.jar --project-root /path/to/aem-project
+java -jar aem-analyser-cli.jar                      # current directory, or the reactor that owns it
+java -jar aem-analyser-cli.jar .                    # explicit, same thing
+java -jar aem-analyser-cli.jar --project-root ../aem-project
 ```
 
-The root is never required:
-
-| Invocation | Analysed root |
+| You run it in | Root that gets analysed |
 |---|---|
-| `aem-analyser` in the reactor root | the current directory |
-| `aem-analyser` in `bundle/` | the reactor that owns `bundle/` |
-| `aem-analyser /path/to/project` | that path |
-| `aem-analyser --project-root …` | that path |
+| the reactor root | that directory |
+| a module directory (`bundle/`, `ui.apps/`) | the reactor that owns the module |
+| any subdirectory without a `pom.xml` | the nearest directory above that has one |
+| `--project-root X` / positional `X` | exactly `X`, no discovery |
 
-Auto-discovery walks past a module POM (one whose declared parent exists on disk) because a
-module-only scan cannot see cross-module findings. An empty `<relativePath/>` in the POM stops the
-walk, since that parent is resolved from a repository rather than the directory above.
+Discovery walks past module POMs — a POM whose declared parent exists on disk is a module, and a
+module-only scan cannot see cross-module findings. An empty `<relativePath/>` stops the walk, because
+that parent is resolved from a repository rather than from the directory above.
 
 ### Running without downloading a jar
 
-Three ways, in order of convenience:
-
 ```bash
-# 1. Straight from a clone: builds only when the sources changed, then analyses the cwd
+# 1. Straight from a clone: builds only when the sources changed, then analyses the target
 git clone https://github.com/RohithV16/aem-code-analyser && cd aem-code-analyser
 scripts/run-from-source.sh ../my-aem-project
 
-# 2. As a Maven plugin, once installed (see the release notes for the offline install)
+# 2. As a Maven plugin, once it is installed (see "Install" below)
 mvn io.github.rohithv16:aem-analyser-maven-plugin:<version>:check
-
-# 3. Bound to the build so every `mvn verify` audits the project
 ```
 
 ```xml
+<!-- 3. Bound to the build, so every `mvn verify` audits the project -->
 <plugin>
     <groupId>io.github.rohithv16</groupId>
     <artifactId>aem-analyser-maven-plugin</artifactId>
@@ -101,9 +114,7 @@ mvn io.github.rohithv16:aem-analyser-maven-plugin:<version>:check
 </plugin>
 ```
 
-The plugin is not on JitPack: JitPack relocates the groupId, and Maven rejects a plugin whose
-descriptor declares a different group. Publish/consume it through GitHub Packages (needs a
-`read:packages` token) or install the release jars with `install:install-file`.
+### Common runs
 
 ```bash
 # Basic run with colored console output (also writes the HTML dashboard)
@@ -160,7 +171,6 @@ Accepted findings can also be suppressed inline (Java, HTL or XML comments):
 ```
 ```java
 // aem-analyser-disable-file AEM-DUP-010
-```
 ```
 
 > **Tip:** You can create a shell alias in your `~/.zshrc` or `~/.bashrc`:
@@ -381,5 +391,17 @@ mvn clean deploy -DskipTests
 ```
 
 ### Publishing to Maven Central (Sonatype Central)
-For global public distribution without requiring authentication tokens or custom repositories, refer to the step-by-step guide:
+
+**Not published to Central yet.** Central requires GPG signatures plus sources and javadoc jars,
+which the current release workflow does not produce, so no step of that plan has been executed.
+Today's availability:
+
+| Artefact | From | Token |
+|---|---|---|
+| CLI jar | GitHub Releases | no |
+| `aem-analyser-core` | JitPack | no |
+| `aem-analyser-maven-plugin` | GitHub Packages | `read:packages` |
+| `aem-analyser-maven-plugin` | release assets via `install:install-file` | no |
+
+The full procedure, once that gap is closed, is in the
 [Maven Central Publishing Guide](docs/MAVEN_CENTRAL_PUBLISHING_GUIDE.md).

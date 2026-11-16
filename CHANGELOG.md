@@ -5,6 +5,92 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+Nothing yet.
+
+## [1.0.8] — 2026-11-16
+
+### Changed
+
+- **The project root is optional.** With no arguments the analyser uses the current directory and,
+  when run inside a module, the reactor that owns it. Discovery walks past module POMs (a POM whose
+  declared parent exists on disk is a module) and stops at an empty `<relativePath/>`, because that
+  parent is resolved from a repository. Previously it stopped at the first POM, so running inside
+  `bundle/` analysed that module alone and silently lost every cross-module finding.
+- A positional project root is accepted: `aem-analyser .`.
+
+### Added
+
+- `scripts/run-from-source.sh` — run the analyser straight from a clone, rebuilding only when
+  sources changed.
+- Releases now attach the core and plugin jars **and their POMs**, so the plugin can be installed
+  offline with `install:install-file` and needs no registry token.
+
+### Fixed
+
+- Documentation claimed the Maven plugin could be consumed from JitPack. It cannot: JitPack relocates
+  the groupId and Maven rejects a plugin whose descriptor declares a different group. JitPack is
+  documented for `aem-analyser-core` only.
+- Removed the CI step that rewrote documented versions; it silently did nothing on the previous two
+  releases. Snippets now use `${aem-analyser.version}` with a link to the releases page.
+
+## [1.0.7] — 2026-11-16
+
+### Added
+
+- Release assets include `aem-analyser-core` and `aem-analyser-maven-plugin` (previously only the
+  shaded CLI jar), with `SHA256SUMS.txt` covering every attached file.
+- Release notes lead with the token-free consumption route; the GitHub Packages route states its
+  `read:packages` requirement.
+
+## [1.0.6] — 2026-11-16
+
+### Fixed
+
+- The release workflow's documented-version sync anchored on the development POM version instead of
+  the newest tag, so it changed nothing (superseded in 1.0.8 by removing the rewrite entirely).
+
+## [1.0.5] — 2026-11-16
+
+### Fixed
+
+- SARIF marks retired rule ids with `defaultConfiguration.enabled: false`, so consumers and the probe
+  checker can distinguish a retired rule (`AEM-QUAL-006`) from one produced by another engine
+  (`AEM-DUP-010`, PMD CPD). Without the distinction the new validation job demanded a probe for a
+  rule that can never fire.
+
+## [1.0.4] — 2026-11-16
+
+### Changed
+
+- Every rule delegates violation-path rendering to `RuleContext.relativePath(Path)`, replacing 27
+  near-identical private helpers — the copies had drifted, and five never normalised Windows
+  separators.
+- Rule registration moved to `RuleCatalog`, which is validated against `RuleId` at startup: an
+  unknown id, a duplicate producer, or an id with no producer now fails immediately instead of
+  silently changing what a report contains.
+- Retired `AemQual006Rule`; `AEM-QUAL-004` owns the check. The id remains for baselines.
+
+### Added
+
+- `validation/reactor` — a three-module project with pinned expected findings, covering injection
+  through a wildcard import, a `@Reference` on a shared base class, an OSGi PID built from a constant
+  in another class, a factory PID amendment and a cross-module clientlib reference.
+- `scripts/run-reactor-validation.sh` and `scripts/check-rule-docs.sh`; both run in the new CI
+  `validation` job alongside the rule probes, which had never run in CI before.
+- Rule pages are now generated end to end (the retired/other-engine notes moved into the generator),
+  so a stale page fails CI instead of shipping.
+
+### Removed
+
+- `plans/` (42 files) and `docs/AEM_CODE_ANALYSER_SPECIFICATION.md` — implemented work recorded in
+  this changelog, and a 1374-line document that restated `PROJECT.md` and `docs/rules/`.
+
+### Build
+
+- Release versioning moved into `scripts/next-version.py`: a `-SNAPSHOT` publishes that version
+  instead of incrementing again, main is left on the next `-SNAPSHOT`, and an existing tag fails
+  unless `force=true`.
+
 ### Added
 
 - HTML dashboard upgrades: sortable finding columns, group-by rule/file, deep links and per-finding

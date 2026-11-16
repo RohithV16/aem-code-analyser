@@ -9,6 +9,35 @@ This guide documents the complete procedure for publishing releases of `io.githu
 
 ---
 
+## 0. Current availability (read this first)
+
+This guide describes how to publish to Maven Central. **The project is not on Central yet**, and no
+step below has been executed. What is available today:
+
+| Artefact | Available from | Token needed |
+|---|---|---|
+| `aem-analyser-cli` | the GitHub release (`aem-analyser-cli.jar`, self-contained) | no |
+| `aem-analyser-core` | JitPack — `com.github.RohithV16.aem-code-analyser:aem-analyser-core:<tag>` | no |
+| `aem-analyser-maven-plugin` | GitHub Packages (`maven.pkg.github.com`) | yes, `read:packages` |
+| `aem-analyser-maven-plugin` | the release assets, via `install:install-file` | no |
+
+The plugin cannot be consumed from JitPack: JitPack relocates the groupId, and Maven rejects a plugin
+whose descriptor declares a different group (`Invalid plugin descriptor ... wrong group ID`). Until
+Central is set up, use GitHub Packages or the offline install:
+
+```bash
+VERSION=<version>
+mvn install:install-file -Dfile=aem-code-analyser-$VERSION.pom -DpomFile=aem-code-analyser-$VERSION.pom
+mvn install:install-file -Dfile=aem-analyser-core-$VERSION.jar -DpomFile=aem-analyser-core-$VERSION.pom
+mvn install:install-file -Dfile=aem-analyser-maven-plugin-$VERSION.jar -DpomFile=aem-analyser-maven-plugin-$VERSION.pom
+mvn io.github.rohithv16:aem-analyser-maven-plugin:$VERSION:check
+```
+
+Central requires GPG signatures and sources/javadoc jars, which the current release workflow does not
+produce — sections 2+ are the plan for closing that gap.
+
+---
+
 ## 1. Overview & Architecture
 
 Maven Central is the default artifact repository for Apache Maven, Gradle, and JVM tooling. Once published here:

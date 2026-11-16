@@ -5,7 +5,7 @@ import io.github.rohithv16.aem.analyser.core.model.report.Violation;
 import java.util.List;
 
 /**
- * Contract implemented by each Phase 1 detection rule.
+ * Contract implemented by each detection rule.
  */
 public interface RuleEvaluator {
 

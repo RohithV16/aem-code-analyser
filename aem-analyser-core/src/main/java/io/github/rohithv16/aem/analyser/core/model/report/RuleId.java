@@ -1,7 +1,7 @@
 package io.github.rohithv16.aem.analyser.core.model.report;
 
 /**
- * Catalog of Phase 1 rule identifiers with their canonical definitions.
+ * Catalogue of rule identifiers with their canonical definitions.
  */
 public enum RuleId {
     AEM_DEAD_001("AEM-DEAD-001", "OrphanedOsgiConfiguration",

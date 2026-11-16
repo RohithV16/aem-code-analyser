@@ -11,7 +11,7 @@ import io.github.rohithv16.aem.analyser.core.rules.RuleEvaluator;
 import java.util.List;
 
 /**
- * FEAT-RULE-07: Rule AEM-DEAD-003B — Unused Sling Models (Phase 1 boundary).
+ * Rule AEM-DEAD-003B — Sling Models with no adaptation and no resource type binding.
  * Sling Models with 0 Java adaptations but a resourceType binding are retained as active
  * candidates (HTL cross-referencing arrives in Phase 2); models without a resourceType
  * and zero adaptations are reported at INFO severity.

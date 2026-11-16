@@ -27,6 +27,20 @@ mvn clean verify
 4. Run `scripts/run-rule-probes.sh` and the validation project before opening a PR.
 5. Update `README.md`, `docs/rules/<RULE-ID>.md` and `CHANGELOG.md`.
 
+## Gates to run before a PR
+
+```bash
+mvn -B -ntp clean verify           # unit, integration and exporter tests
+scripts/run-rule-probes.sh         # every active rule must fire on its probe
+scripts/run-reactor-validation.sh  # pinned findings for validation/reactor
+scripts/check-rule-docs.sh         # docs/rules must match the generator
+```
+
+All four run in CI (`ci.yml`: verify matrix, Invoker ITs, validation, quality). A new rule needs a
+probe fixture in `validation/probes` **and** an entry in its `expected-rules.txt`; a rule that changes
+behaviour needs the reactor's `expected-findings.txt` re-pinned deliberately
+(`scripts/run-reactor-validation.sh <jar> --update`), with the reason in the PR.
+
 ## Tests
 
 - Unit tests live next to the code under `src/test/java`.

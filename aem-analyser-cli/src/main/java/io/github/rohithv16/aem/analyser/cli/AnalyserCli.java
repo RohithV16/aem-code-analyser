@@ -39,18 +39,17 @@ import java.util.Set;
 @Command(name = "aem-analyser",
         mixinStandardHelpOptions = true,
         versionProvider = VersionProvider.class,
-        description = "AEM Code Analyser — cross-boundary dead code detection engine "
-                + "(Phase 1: Java & OSGi configurations).")
+        description = "AEM Code Analyser — cross-boundary dead code, duplication and "
+                + "AEM as a Cloud Service analysis for Adobe Experience Manager projects.")
 public class AnalyserCli implements Runnable {
 
     @Option(names = {"-p", "--project-root"},
-            description = "Project (reactor) root directory. Defaults to the current directory, "
-                    + "auto-discovering the enclosing reactor root.")
+            description = "Project (reactor) root. Default: the current directory, or the "
+                    + "reactor that owns it when run inside a module.")
     private Path projectRoot;
 
     @Parameters(index = "0", arity = "0..1", paramLabel = "PROJECT_ROOT",
-            description = "Project root, as a shorthand for --project-root "
-                    + "(e.g. 'aem-analyser .' inside the project).")
+            description = "Project root; shorthand for --project-root.")
     private Path positionalProjectRoot;
 
     @Option(names = {"-f", "--format"}, split = ",",

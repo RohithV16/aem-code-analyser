@@ -35,7 +35,7 @@ public final class AemDead002BRule implements RuleEvaluator {
                     .filter(c -> c.getDesignatedOcdFqn().map(ocd.getOcdFqn()::equals).orElse(false))
                     .toList();
             if (designatingComponents.isEmpty()) {
-                continue; // no consumer possible; ghost OCDs are out of Phase 1 scope
+                continue; // no consumer possible; ghost OCDs belong to AEM-DEAD-002A
             }
             for (OcdPropertyMethodNode method : ocd.getPropertyMethods().values()) {
                 if (io.github.rohithv16.aem.analyser.core.rules.catalogs.FrameworkPropertyWhitelist.isWhitelisted(method.getNormalizedOsgiPropName())

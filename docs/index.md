@@ -25,23 +25,45 @@ caller, configuration that no longer has an owner, and patterns that break on AE
 
 ## Quick start
 
-### Standalone CLI
-
 ```bash
-git clone https://github.com/rohithv16/aem-code-analyser.git
-cd aem-code-analyser
-mvn -q -DskipTests package
+# 1. Get the jar (self-contained, needs Java 21)
+curl -LO https://github.com/RohithV16/aem-code-analyser/releases/latest/download/aem-analyser-cli.jar
 
-java -jar aem-analyser-cli/target/aem-analyser-cli.jar \
-  --project-root /path/to/aem-project
+# 2. Run it in your project — no arguments, no flags
+cd /path/to/aem-project
+java -jar aem-analyser-cli.jar
 ```
+
+The project root is **optional**. With no arguments the analyser uses the current directory and, if
+you are standing inside a module, the reactor that owns it:
+
+| You run it in | Root that gets analysed |
+|---|---|
+| the reactor root | that directory |
+| a module directory (`core/`, `ui.apps/`, `ui.config/`) | the reactor that owns the module |
+| any subdirectory without a `pom.xml` | the nearest directory above that has one |
+| `--project-root X`, or positional `X` | exactly `X`, with no discovery |
+
+Discovery walks past module POMs, because a POM whose declared parent exists on disk is a module and
+a module-only scan cannot see cross-module findings. An empty `<relativePath/>` stops the walk, since
+that parent comes from a repository rather than the directory above.
 
 Every run writes a console report **and** an HTML dashboard to
 `target/aem-analyser/aem-analyser-report.html` unless `--no-html` is passed.
 
-### Maven plugin
+### Running without downloading a jar
+
+```bash
+# Straight from a clone: rebuilds only when the sources changed, then analyses the target
+git clone https://github.com/RohithV16/aem-code-analyser && cd aem-code-analyser
+scripts/run-from-source.sh ../my-aem-project
+
+# As a Maven plugin goal, once the plugin is installed
+mvn io.github.rohithv16:aem-analyser-maven-plugin:<version>:check
+```
 
 ```xml
+<!-- Or bound to the build, so every `mvn verify` audits the project -->
 <plugin>
   <groupId>io.github.rohithv16</groupId>
   <artifactId>aem-analyser-maven-plugin</artifactId>
@@ -55,12 +77,37 @@ Every run writes a console report **and** an HTML dashboard to
 </plugin>
 ```
 
+### Install
+
+| Artefact | Route |
+|---|---|
+| CLI | `aem-analyser-cli.jar` from [Releases](https://github.com/RohithV16/aem-code-analyser/releases) |
+| `aem-analyser-core` (library) | [JitPack](https://jitpack.io/#RohithV16/aem-code-analyser), no token — `com.github.RohithV16.aem-code-analyser:aem-analyser-core:<tag>` |
+| `aem-analyser-maven-plugin` | GitHub Packages (needs a `read:packages` token) **or** offline install from the release assets |
+
+{% raw %}
+The plugin is **not** available from JitPack: JitPack relocates the groupId, and Maven rejects a
+plugin whose descriptor declares a different group (`Invalid plugin descriptor ... wrong group ID`).
+Releases attach the plugin, the core library and their POMs, so an offline install needs no registry
+access at all:
+
+```bash
+VERSION=<version>   # from the release page
+mvn install:install-file -Dfile=aem-code-analyser-$VERSION.pom \
+    -DpomFile=aem-code-analyser-$VERSION.pom
+mvn install:install-file -Dfile=aem-analyser-core-$VERSION.jar \
+    -DpomFile=aem-analyser-core-$VERSION.pom
+mvn install:install-file -Dfile=aem-analyser-maven-plugin-$VERSION.jar \
+    -DpomFile=aem-analyser-maven-plugin-$VERSION.pom
+```
+{% endraw %}
+
 ### Requirements
 
 | Component | Version |
 |---|---|
 | Java | 21 |
-| Maven | 3.9+ |
+| Maven | 3.9+ (plugin and source builds) |
 | AEM project layout | any multi-module reactor (`core`, `ui.apps`, `ui.config`, `all`, …) |
 
 ---
@@ -110,7 +157,8 @@ and keyboard-accessible tabs.
 
 | Flag | Default | Description |
 |---|---|---|
-| `-p, --project-root <dir>` | current dir | Reactor root to analyse. |
+| `[project-root]` (positional) | current dir | Shorthand for `--project-root`. |
+| `-p, --project-root <dir>` | current dir | Reactor root to analyse; omit it to use the current directory (module directories resolve to their reactor). |
 | `-f, --format <list>` | `CONSOLE` | Comma-separated: `CONSOLE,SARIF,SONAR,HTML,GITHUB,GITLAB,AZURE`. |
 | `--html [path]` | target path | Generate the HTML dashboard at a custom path. |
 | `--no-html` | off | Skip the HTML dashboard. |
@@ -319,7 +367,7 @@ AEM as a Cloud Service, and the remediation.
 | [AEM-DUP-001](rules/AEM-DUP-001.html) | ERROR | Multiple servlets claim identical paths or resource type selectors. |
 | [AEM-DUP-002](rules/AEM-DUP-002.html) | WARNING | Conflicting OSGi configuration for the same PID and runmode. |
 | [AEM-DUP-003](rules/AEM-DUP-003.html) | WARNING | Multiple Sling Models bind to the same resource type and adapter. |
-| [AEM-DUP-010](rules/AEM-DUP-010.html) | WARNING | Duplicate method or code block detected across classes. |
+| [AEM-DUP-010](rules/AEM-DUP-010.html) | WARNING | Duplicate method or code block detected across classes (produced by the embedded PMD CPD scan). |
 
 ### Quality
 
@@ -330,7 +378,7 @@ AEM as a Cloud Service, and the remediation.
 | [AEM-QUAL-003](rules/AEM-QUAL-003.html) | WARNING | Whiteboard scheduler used instead of Sling Scheduled Jobs (AMSCORE-554). |
 | [AEM-QUAL-004](rules/AEM-QUAL-004.html) | ERROR | Non-thread-safe object stored in an OSGi component field. |
 | [AEM-QUAL-005](rules/AEM-QUAL-005.html) | ERROR | Deprecated administrative login or resolver API (AMSCORE-553). |
-| [AEM-QUAL-006](rules/AEM-QUAL-006.html) | WARNING | Request-scoped resolver or session stored in an instance field. |
+| [AEM-QUAL-006](rules/AEM-QUAL-006.html) | WARNING | Request-scoped resolver or session stored in an instance field — *retired as a producer*; AEM-QUAL-004 owns the check. |
 
 ### Performance
 
@@ -363,27 +411,54 @@ AEM as a Cloud Service, and the remediation.
 
 ## Validation harness
 
-Every rule is verified by a deliberate probe — a fixture that must produce a finding — rather than
-only by unit tests:
+Every active rule is verified by a deliberate probe — a fixture that must produce a finding — rather
+than only by unit tests:
 
 ```bash
-scripts/run-rule-probes.sh                       # expects 30/30
+scripts/run-rule-probes.sh                       # expects 29/29 active rules
 scripts/inject-rule-probes.sh /path/to/aem-repo  # runs probes inside a temp copy of a real repo
 ```
 
 The injection script `rsync`s the target into a temporary directory, so the original repository is
 never modified. The checker fails when a rule is missing, fires only on non-probe code, has no probe
-in the catalogue, or when the parser silently skipped a file.
+in the catalogue, or when the parser silently skipped a file. Retired rules (AEM-QUAL-006) are
+declared disabled in SARIF and exempt; AEM-DUP-010 is exempt from the evaluator check because it is
+produced by the duplication engine.
 
-The harness was validated independently against a large multi-project monorepo and a second
-production repository; both reported 30/30 with the originals unchanged.
+### Cross-module reactor
+
+Single-file probes cannot express behaviour that only exists across a reactor, so
+`validation/reactor` is a real three-module project (`bundle`, `ui.apps`, `ui.config`) with its
+findings pinned:
+
+```bash
+scripts/run-reactor-validation.sh                 # compare against validation/reactor/expected-findings.txt
+scripts/run-reactor-validation.sh <jar> --update  # re-pin after an intended change
+```
+
+It covers injection through a wildcard import, a `@Reference` declared on a shared base class, an
+OSGi PID composed from a constant in another class, a factory PID with an amendment, and a clientlib
+referenced from a sibling module — the cases that produced real defects in earlier releases.
+
+### Rule documentation
+
+`docs/rules/*.md` are generated from `RuleRegistry`, so a page cannot drift from the code:
+
+```bash
+scripts/check-rule-docs.sh                                        # fails when a page is stale
+java -jar aem-analyser-cli.jar --generate-rule-docs docs/rules    # regenerate
+```
+
+All three checks run in CI, together with the unit, integration and quality jobs on Linux, macOS and
+Windows.
 
 ---
 
 ## Documentation
 
 - [Rule pages](rules/) — detection logic and remediation for all 30 rules
-- [Maven Central publishing guide](MAVEN_CENTRAL_PUBLISHING_GUIDE.html)
+- [Releases and download assets](https://github.com/RohithV16/aem-code-analyser/releases)
+- [Maven publishing guide](MAVEN_CENTRAL_PUBLISHING_GUIDE.html)
 - [Full CLI and Maven reference](https://github.com/rohithv16/aem-code-analyser#cli-options-reference)
 - [Contributing](https://github.com/rohithv16/aem-code-analyser/blob/main/CONTRIBUTING.md)
 - [Security policy](https://github.com/rohithv16/aem-code-analyser/blob/main/SECURITY.md)

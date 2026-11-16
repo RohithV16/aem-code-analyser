@@ -1,4 +1,4 @@
-# AEM Code Analyser (Phase 1: Java & OSGi Configurations)
+# AEM Code Analyser — Architecture
 
 ## 1. Overview & Purpose
 
@@ -6,13 +6,18 @@ The **AEM Code Analyser** is an enterprise-grade static analysis tool purpose-bu
 
 Traditional static analysis tools (SonarQube, SpotBugs, PMD, Checkstyle) operate within single-language silos. In an AEM application, Java classes, Declarative Services (DS) annotations, OSGi metatype configurations (`.cfg.json`, `.config`), HTL templates, Clientlibs, and JCR XML definitions are coupled via Inversion of Control (IoC), runtime reflection, and naming conventions. Because traditional analyzers cannot trace references across these polyglot boundaries, they either report massive false positives or suppress dead code checks entirely on `@Component` and `@Model` classes, leaving enterprise repositories vulnerable to silent configuration failures, ghost properties, and zombie services.
 
-**Phase 1** focuses strictly on the foundational boundary between **Java code and OSGi configurations**:
-- Detection of orphaned OSGi configurations (`.cfg.json`, `.config`) in `ui.config` modules matching Java services or platform PIDs.
-- Detection of dead, ghost, or unreferenced OSGi configuration properties.
-- Detection of unused Sling Models, OSGi services, and Declarative Services components across bundle boundaries.
-- Cross-boundary reference graph construction using high-performance AST parsing and symbol indexing.
-- Multi-module project discovery supporting arbitrary Maven layouts without hardcoded paths.
-- Publication of findings in standard CI/CD formats: SARIF 2.1.0, SonarQube Generic Issue Import JSON, and rich ANSI console diagnostics.
+What it covers today:
+
+- **30 rule ids across seven families** — DEAD (8), DUP (4), QUAL (6), PERF (4), CLOUD (5), SEC (2),
+  COMP (1). `AEM-QUAL-006` is retained for baseline compatibility but retired as a producer;
+  `AEM-DUP-010` is emitted by the embedded PMD CPD scan.
+- **Cross-boundary reference graph** over Java ASTs, OSGi metatypes, HTL, client libraries, JCR
+  content and dependency JARs.
+- **Multi-module discovery** for arbitrary Maven layouts, with no hardcoded paths.
+- **Seven report formats** — CONSOLE, HTML, SARIF 2.1.0, SonarQube Generic Issues, GitHub, GitLab and
+  Azure annotations.
+- **Safe remediation** — read-only by default; `--fix` repairs only proven cases, `--fix-dry-run`
+  previews them.
 
 ---
 
@@ -65,75 +70,41 @@ The AEM Code Analyser employs a **Decoupled Tri-Tier Architecture** centered aro
    - Native Apache Maven plugin providing goals `aem-analyser:check` (build-breaking quality gate during `verify` or `process-classes`) and `aem-analyser:report` (report generation).
    - Automatically binds to the Maven reactor, leverages Maven project model dependencies, and enables zero-configuration integration in CI/CD pipelines (Adobe Cloud Manager, Jenkins, GitHub Actions).
 3. **`aem-analyser-cli`**:
-   - Standalone command-line executable powered by **Picocli**, packaged as a fat runnable JAR (and optional GraalVM native-image binary).
+   - Standalone command-line executable powered by **Picocli**, shaded into one runnable jar (`aem-analyser-cli.jar`, ~34 MB with SonarJava, PMD CPD and JDT embedded).
    - Designed for sub-second developer inner-loop scans, pre-commit hooks (Husky, lint-staged), and standalone audits of unbuilt repositories.
 
 ---
 
-## 3. Feature Inventory & Phase 1 Milestone Assignments
+## 3. How a run works
 
-| Feature ID | Feature Name | Target Module | Phase 1 Milestone | Description | Status |
-|---|---|---|---|---|---|
-| **FEAT-DISC-01** | Recursive POM Tree Walker | `core` | **M1** | Traverses nested Maven POM hierarchies across arbitrary depth, evaluating active profiles without hardcoded paths. | Planned |
-| **FEAT-DISC-02** | Semantic Module Classifier | `core` | **M1** | Classifies modules using 11-type taxonomy (`AGGREGATOR`, `CONTAINER`, `CONFIG`, `BUNDLE`, `APPS`, `CONTENT`, `STRUCTURE`, `ACL`, `FRONTEND`, `DISPATCHER`, `TEST`, `PIPELINE`), with `<embeddeds>` container disambiguation and strict `osgiconfig/` path requirement. | Planned |
-| **FEAT-DISC-03** | Cloud Configuration Discovery Engine | `core` | **M1** | Scans repository root non-Maven configurations (`config/{dev,stage,prod,rde}/cdn.yaml`, WAF, Rate Limiting) and links environment tiers. | Planned |
-| **FEAT-DISC-04** | Tooling File Hazard Eliminator | `core` | **M1** | 3-layer defense-in-depth scanner excluding `lombok.config`, `.editorconfig`, and requiring OSGi PID grammar validation. | Planned |
-| **FEAT-PARSE-01** | Java Declarative Services AST Visitor | `core` | **M2** | JavaParser visitor extracting `@Component`, `@Reference`, `@Designate`, service interfaces, and properties. | Planned |
-| **FEAT-PARSE-02** | OSGi Metatype OCD AST Visitor | `core` | **M2** | JavaParser visitor extracting `@ObjectClassDefinition` and `@AttributeDefinition` methods, explicit `id`, defaults, and return types. | Planned |
-| **FEAT-PARSE-03** | Sling Model AST Visitor | `core` | **M2** | JavaParser visitor extracting `@Model` adaptables, adapters, and `resourceType` bindings. | Planned |
-| **FEAT-PARSE-04** | OSGi `.cfg.json` Parser | `core` | **M2** | Jackson streaming parser with exact line/column tracking, RFC 724 typed key stripping (`:Integer`, `:String[]`), comment support, and env-var placeholders. | Planned |
-| **FEAT-PARSE-05** | Legacy Apache Felix `.config` Parser | `core` | **M2** | Robust parser for Felix typed property syntax, escaped characters, and hyphen/tilde factory delimiters. | Planned |
-| **FEAT-PARSE-06** | Dependency Bytecode Indexer | `core` | **M2** | High-speed ASM scanner extracting exported PIDs and service interfaces from external dependency JARs. | Planned |
-| **FEAT-GRAPH-01** | Thread-Confined Reference Graph Engine | `core` | **M3** | JGraphT directed multigraph linking configs, properties, components, OCDs, models, and `CONSUMES_PROPERTY` edges with $<50\text{ MB}$ heap footprint. | Planned |
-| **FEAT-GRAPH-02** | Secondary In-Memory Lookups | `core` | **M3** | Concurrent hash maps indexing nodes by PID, interface, resource type, OCD FQN, and runmode for $O(1)$ lookups. | Planned |
-| **FEAT-GRAPH-03** | Metatype 1.4 (§105.10) Lookahead Normalizer | `core` | **M3** | Single-pass lookahead normalizer with leading underscore removal (`_default` $\rightarrow$ `default`) and `@AttributeDefinition(id)` override. | Planned |
-| **FEAT-RULE-01** | Rule AEM-DEAD-001 (Orphaned Configurations) | `core` | **M4** | Detects orphaned configs via DS 1.4 §112.8.2 `ActivePids(K)` with default PID suppression and `"$"` expansion, emitting `ORPHANED_OCD_NAMED_CONFIG`. | Planned |
-| **FEAT-RULE-02** | Platform PID Catalog & Whitelist | `core` | **M4** | Curated catalog of standard platform PIDs and comprehensive framework whitelist (Sling servlets/filters, schedulers, event topics, health checks). | Planned |
-| **FEAT-RULE-03** | Rule AEM-DEAD-002A (Ghost Configuration Properties) | `core` | **M4** | Detects config properties not declared in bound `@ObjectClassDefinition` using RFC 724 typed key stripping. | Planned |
-| **FEAT-RULE-04** | Rule AEM-DEAD-002B (Unconsumed OCD Properties) | `core` | **M4** | Detects `@AttributeDefinition` methods never accessed, aggregating call sites across all designating components via `CONSUMES_PROPERTY` in-degree. | Planned |
-| **FEAT-RULE-05** | Rule AEM-DEAD-003A / 003C (Unused Services) | `core` | **M4** | Detects unused OSGi services evaluating service interface package exports and tightened `immediate = true` semantics; flags inactive delayed components. | Planned |
-| **FEAT-RULE-06** | System Entry Point Catalog | `core` | **M4** | 11-category catalog exempting Servlets, Filters, EventHandlers, Schedulers, Workflows, and Whiteboard SPIs (Injectors, Exporters, AuthHandlers). | Planned |
-| **FEAT-RULE-07** | Rule AEM-DEAD-003B (Unused Sling Models) | `core` | **M4** | Detects Sling Models with 0 Java adaptations, unbound `resourceType`, and not exported. | Complete |
-| **FEAT-RULE-08** | Rule AEM-QUAL-001 (Path-Bound Servlets / CQBP-75) | `core` | **M4** | Detects servlets registered via `sling.servlet.paths` instead of resource types. | Complete |
-| **FEAT-RULE-09** | Rule AEM-QUAL-002 (ProviderType Implementation / CQBP-84) | `core` | **M4** | Detects custom classes implementing/extending `@ProviderType` product interfaces. | Complete |
-| **FEAT-RULE-10** | Rule AEM-QUAL-003 (Sling Scheduler Usage / AMSCORE-554) | `core` | **M4** | Detects whiteboard Sling Schedulers; enforces Sling Scheduled Jobs for cluster reliability. | Complete |
-| **FEAT-RULE-11** | Rule AEM-QUAL-004 (Unsafe Component State / CQBP-ThreadSafety) | `core` | **M4** | Detects session/request fields (`ResourceResolver`, `Session`) in `@Component` singletons. | Complete |
-| **FEAT-RULE-12** | Rule AEM-QUAL-005 (Administrative Logins / AMSCORE-553) | `core` | **M4** | Detects deprecated `loginAdministrative()` and `getAdministrativeResourceResolver()`. | Complete |
-| **FEAT-DUP-01** | Rules AEM-DUP-001/002/003/010 (Duplication Engine) | `core` | **M4** | Detects duplicate endpoints, duplicate configs, duplicate Sling Models, and code clones. | Complete |
-| **FEAT-DELIV-01** | Maven Plugin (`aem-analyser-maven-plugin`) | `maven-plugin` | **M5** | Maven Mojo bindings for `check` and `report`, lifecycle hooks, and build-fail thresholds. | Planned |
-| **FEAT-DELIV-02** | Standalone CLI (`aem-analyser-cli`) | `cli` | **M5** | Picocli CLI executable, parameter handling (`--project-root`, `--fail-on-warning`, `--format`). | Planned |
-| **FEAT-REP-01** | SARIF 2.1.0 Exporter | `core` | **M5** | Canonical OASIS SARIF 2.1.0 exporter with `ruleIndex`, `%SRCROOT%`, and 1-based coordinates for GitHub Code Scanning / Azure DevOps. | Planned |
-| **FEAT-REP-02** | SonarQube Generic Issue Import JSON Exporter | `core` | **M5** | Native SonarQube JSON exporter with reactor-root relative paths and 0-based coordinate transformation ($C_{\text{sonar}} = C_{\text{jp}} - 1$). | Planned |
-| **FEAT-REP-03** | ANSI Console Formatter | `core` | **M5** | Colored, formatted terminal diagnostics with line numbers, code snippets, and remediation steps. | Planned |
+1. **Resolve the root** — `--project-root`, the positional argument, or the working directory. When
+   the start directory sits inside a module (a POM whose declared parent exists on disk), discovery
+   walks up to the reactor, because a module-only scan cannot see cross-module findings. An empty
+   `<relativePath/>` stops the walk: that parent comes from a repository.
+2. **Discover modules** — recursive POM walk, profile evaluation, 11-category classification,
+   `<embeddeds>` container disambiguation and a strict `osgiconfig/` requirement. Tooling noise
+   (`node_modules`, `target`, `dist`) is filtered from every walk.
+3. **Parse in parallel** — JavaParser for DS components, OCDs, Sling Models and call sites; Jackson
+   for `.cfg.json` with RFC 724 typed keys (`:Integer`, `:String[]`); the Felix handler for `.config`;
+   ASM for dependency JARs; dedicated scanners for HTL, client libraries and JCR content.
+4. **Build the graph** — typed nodes and edges (including `CONSUMES_PROPERTY`) plus indices for
+   components by FQN, models by resource type, OSGi configuration by PID and runmode.
+5. **Evaluate rules** — `RuleCatalog`, validated against `RuleId` at startup, runs the registered
+   evaluators; the embedded PMD CPD and SonarJava scans contribute their findings.
+6. **Deliver** — exporters write the requested formats, the HTML dashboard and the run history;
+   inline suppression, baselines and `--fail-on` decide the exit code.
 
----
+### 3.1 Capabilities
 
-## 4. Phased Milestones Breakdown
-
-### Milestone 1 (M1): Foundation & Generic Multi-Module Discovery Engine
-- **Objective**: Establish project foundation and implement generic, recursive Maven reactor discovery capable of analyzing arbitrary multi-module layouts without hardcoded paths.
-- **Key Deliverables**: `pom.xml`, `aem-analyser-core` module setup, `ProjectDiscoveryEngine`, `ModuleDescriptor`, 11-category module classifier with `<embeddeds>` container package disambiguation, non-Maven `CloudConfigDiscoveryEngine`, 3-layer tooling exclusion (`lombok.config`), multi-tenant test fixtures modeled after `an enterprise AEM project` and `a standard AEM archetype project`.
-- **Success Criteria**: 100% accurate classification across all 32 modules in reference repositories (0.0% unclassified rate); complete isolation from non-OSGi tooling configurations.
-
-### Milestone 2 (M2): Polyglot Parsing & AST Symbol Extraction Engine
-- **Objective**: Implement standalone source parsers for Java (Declarative Services, Metatype OCDs, Sling Models) and OSGi configurations (`.cfg.json`, `.config`).
-- **Key Deliverables**: JavaParser AST visitors (`OsgiComponentVisitor`, `MetatypeOcdVisitor` with `@AttributeDefinition(id)` support, `SlingModelVisitor`), `ComponentPropertyConsumptionVisitor` extracting `CONSUMES_PROPERTY` references on-the-fly and immediately dereferencing ASTs, Jackson line-tracking `.cfg.json` parser with RFC 724 typed key stripping (`:Integer`, `:String[]`), Felix `.config` parser, ASM dependency indexer.
-- **Success Criteria**: Flawless extraction of PIDs, properties, references, and metatypes with exact line/column numbers; resident heap memory strictly bounded under $<50\text{ MB}$.
-
-### Milestone 3 (M3): Cross-Boundary Reference Graph & In-Memory Indexing
-- **Objective**: Construct the directed multigraph linking decoupled Java symbols to configuration files and properties using a thread-confined ingestion pipeline.
-- **Key Deliverables**: JGraphT `DirectedPseudograph` graph implementation, typed nodes and edges (including `CONSUMES_PROPERTY`), thread-confined two-phase ingestion pipeline, `ReferenceGraphIndex` concurrent lookups, deterministic single-pass OSGi Metatype 1.4 name normalization engine.
-- **Success Criteria**: Sub-second graph construction across enterprise multi-module projects ($<250\text{ ms}$ for 5,000 classes); zero lock contention; $O(1)$ query lookups for cross-boundary resolution.
-
-### Milestone 4 (M4): Dead Code Detection Rules & Violation Engine
-- **Objective**: Implement Phase 1 detection algorithms with rigorous false-positive elimination.
-- **Key Deliverables**: Rule evaluators for `AEM-DEAD-001` (DS 1.4 §112.8.2 `ActivePids(K)` with default PID suppression and `"$"` wildcard, detecting `ORPHANED_OCD_NAMED_CONFIG`), `AEM-DEAD-002A` (ghost properties with typed key stripping), `AEM-DEAD-002B` (multi-component OCD call aggregation via `CONSUMES_PROPERTY` in-degree), `AEM-DEAD-003A` (service interface package exports and tightened `immediate = true`), `AEM-DEAD-003B` (Sling Models), and `AEM-DEAD-003C` (inactive delayed components); Platform PID Catalog; 11-category System Entry Point Catalog (including Whiteboard SPIs).
-- **Success Criteria**: Flawlessly flags real-world production defects (`SharedServletConfig.cfg.json` and `ContentConfig.cfg.json`) while maintaining zero false positives on whiteboard servlets, SPI injectors, and platform configs.
-
-### Milestone 5 (M5): Delivery Mechanisms (Maven Plugin & CLI) & Exporters
-- **Objective**: Package the analyzer into developer-ready delivery forms with industry-standard CI reporting.
-- **Key Deliverables**: `aem-analyser-maven-plugin`, `aem-analyser-cli`, canonical OASIS SARIF 2.1.0 exporter (with `ruleIndex`, `%SRCROOT%`, and 1-based coordinates), SonarQube Generic Issue JSON exporter (with reactor-root path normalization and 0-based coordinate transformation $C_{\text{sonar}} = C_{\text{jp}} - 1$), ANSI console formatter.
-- **Success Criteria**: Successful standalone CLI execution, Maven plugin build enforcement, valid SARIF rendering in GitHub/Azure, and compliant SonarQube ingestion.
+| Area | Covered by |
+|---|---|
+| Dead code | `AEM-DEAD-001` orphaned configs, `-002A` ghost properties, `-002B` unconsumed OCD attributes, `-003A` unused services, `-003B` unused Sling Models, `-003C` inactive delayed components, `-004` broken HTL references, `-005` orphaned client libraries |
+| Duplication | `AEM-DUP-001` endpoints, `-002` OSGi configs, `-003` Sling Models, `-010` cloned code (PMD CPD) |
+| Cloud Manager parity | `AEM-QUAL-001` CQBP-75, `-002` CQBP-84, `-003` AMSCORE-554, `-004` thread safety, `-005` AMSCORE-553 |
+| Performance | `AEM-PERF-001`/`-002` unclosed resolvers and sessions, `-003` unbounded traversal, `-004` unlimited queries |
+| Cloud Service | `AEM-CLOUD-001` secrets, `-002` JSP, `-003` service users, `-004` deprecated APIs, `-005` runmode folders |
+| Security | `AEM-SEC-001` `context='unsafe'`, `AEM-SEC-002` redirect/SSRF |
+| Components | `AEM-COMP-001` Classic UI dialogs |
 
 ---
 
@@ -273,62 +244,62 @@ public interface ReportExporter {
 ## 6. Code Layout & Repository Structure
 
 ```
-/Users/rvenat01/Documents/rohith/aem-code-analyser/
-├── PROJECT.md                                # Global project index & architecture blueprint
-├── pom.xml                                   # Root Maven parent POM
-├── docs/                                     # Technical specifications & documentation
-│   ├── MAVEN_CENTRAL_PUBLISHING_GUIDE.md     # Release / consumption guide
-│   └── rules/                                # One page per rule id
-├── aem-analyser-core/                        # Core analysis engine & domain logic
-│   ├── pom.xml
-│   └── src/
-│       ├── main/java/io/github/aemtools/analyser/core/
-│       │   ├── api/                          # Public interfaces & orchestration
-│       │   ├── discovery/                    # Multi-module POM discovery & classification
-│       │   ├── parser/                       # Java AST & OSGi config parsers
-│       │   │   ├── java/                     # JavaParser visitors (Component, OCD, Model)
-│       │   │   ├── config/                   # Jackson & Felix OSGi config parsers
-│       │   │   └── bytecode/                 # ASM dependency indexer
-│       │   ├── model/                        # Domain models, nodes, edges, AST symbols
-│       │   ├── graph/                        # JGraphT reference graph & secondary indices
-│       │   ├── rules/                        # Phase 1 detection rules & catalogs
-│       │   │   ├── catalogs/                 # Platform PIDs & System Entry Points
-│       │   │   └── impl/                     # AEM-DEAD-001, 002, 003 rule implementations
-│       │   └── export/                       # SARIF 2.1.0, Sonar JSON, ANSI console exporters
-│       └── test/java/io/github/aemtools/analyser/core/
-│           ├── discovery/                    # Discovery engine tests
-│           ├── parser/                       # Parser tests & golden files
-│           ├── rules/                        # Rule unit tests & edge cases
-│           └── fixtures/                     # Test POMs, configs, and Java classes
-├── aem-analyser-maven-plugin/                # Apache Maven plugin integration
-│   ├── pom.xml
-│   └── src/
-│       ├── main/java/io/github/aemtools/analyser/maven/
-│       │   ├── CheckMojo.java                # aem-analyser:check (Quality Gate)
-│       │   └── ReportMojo.java               # aem-analyser:report (Site/Report)
-│       └── test/java/io/github/aemtools/analyser/maven/
-├── aem-analyser-cli/                         # Standalone Picocli command-line tool
-│   ├── pom.xml
-│   └── src/
-│       ├── main/java/io/github/aemtools/analyser/cli/
-│       │   ├── AnalyserCli.java              # Main CLI entry point
-│       │   └── commands/                     # Subcommands & parameter validation
-│       └── test/java/io/github/aemtools/analyser/cli/
-└── .agents/teamwork/                         # Agent coordination metadata (ONLY)
+aem-code-analyser/
+├── PROJECT.md                        # Architecture overview (this file)
+├── README.md                         # User guide: install, CLI, Maven plugin, CI
+├── CHANGELOG.md                      # Shipped changes, newest first
+├── CONTRIBUTING.md                   # How to add a rule, run the gates
+├── pom.xml                           # Root parent POM (Java 21, enforcer >= 3.9)
+├── docs/                             # Published site (GitHub Pages)
+│   ├── index.md                      # Overview, quick start, CLI/Maven reference
+│   ├── MAVEN_CENTRAL_PUBLISHING_GUIDE.md
+│   └── rules/                        # One generated page per rule id
+├── scripts/
+│   ├── next-version.py               # Snapshot-aware release/snapshot arithmetic
+│   ├── run-from-source.sh            # Run the CLI from a clone, no jar download
+│   ├── run-rule-probes.sh            # Probe gate: every active rule must fire
+│   ├── run-reactor-validation.sh     # Golden findings for validation/reactor
+│   ├── check-rule-docs.sh            # docs/rules must equal generated output
+│   ├── check_rule_probes.py          # Probe-result checker
+│   └── inject-rule-probes.sh         # Run probes inside a temp copy of a repo
+├── validation/
+│   ├── probes/                       # One deliberate fixture per rule
+│   └── reactor/                      # Three-module project + pinned findings
+├── aem-analyser-core/                # Analysis engine
+│   ├── src/main/java/io/github/rohithv16/aem/analyser/core/
+│   │   ├── api/                      # Public entry points (DefaultAemCodeAnalyser)
+│   │   ├── discovery/                # Reactor discovery, module classification
+│   │   ├── parser/                   # Java AST, OSGi config, bytecode (ASM) indexers
+│   │   ├── model/                    # Immutable domain model (nodes, edges, reports)
+│   │   ├── graph/                    # Reference graph and secondary indices
+│   │   ├── rules/                    # RuleEvaluator implementations
+│   │   │   ├── RuleCatalog.java      # Registry, validated against RuleId at startup
+│   │   │   ├── catalogs/             # Platform PIDs, system entry points
+│   │   │   └── impl/                 # One class per rule id
+│   │   ├── baseline/                 # Fingerprints, inline suppression
+│   │   ├── export/                   # SARIF, Sonar, GitLab, Azure, GitHub, console, HTML
+│   │   └── fix/                      # Safe automated fixes (--fix)
+│   └── src/test/java/…               # Unit and golden-file tests
+├── aem-analyser-maven-plugin/        # check / report goals, Invoker ITs (src/it)
+├── aem-analyser-cli/                 # Picocli CLI, shaded into a single runnable jar
+└── .github/workflows/                # ci.yml (verify/ITs/validation/quality), release.yml
 ```
 
 ---
 
-## 7. Verification Strategy & Independent Validation
+## 7. Verification Strategy
 
-Every phase and feature of the analyzer must be independently verifiable against real-world test cases:
-1. **Unit Testing**: Golden-file test suites validating JavaParser annotation visitors, Jackson token location tracking, Felix `.config` parser, Metatype 1.4 name normalization, and individual rule evaluators.
-2. **Integration Testing Against Reference Repositories**:
-   - **Standard Archetype (`a standard AEM archetype project`)**: Confirms zero false positives on standard factory configurations (`SiteIndexingProfileImpl~en.cfg.json`), underscore properties (`webconsole_configurationFactory_nameHint`), and whiteboard servlets.
-   - **Enterprise Multi-Tenant (`an enterprise AEM project`)**: Confirms detection of the two real-world production defects:
-     - `com.example.core.servlets.shared.SharedServletConfig.cfg.json` (Flagged as Orphaned / Mismatched PID).
-     - `com.example.core.config.ContentConfig.cfg.json` (Flagged as Orphaned OCD named config).
-     - Mixed `.config` parsing in `brand` without syntax failure.
-3. **Format Conformance**:
-   - Validate exported `.sarif` files against the official OASIS SARIF 2.1.0 JSON Schema using JSON schema validators.
-   - Validate `sonar-report.json` against SonarQube Generic Issue Import specifications.
+1. **Unit and golden-file tests** — JavaParser visitors, config parsers, ASM indexer, every rule
+   implementation, exporters (including SARIF schema conformance).
+2. **Rule probe gate** — `validation/probes` holds a deliberate positive fixture for every active
+   rule; `scripts/run-rule-probes.sh` fails if a rule does not fire, fires only outside probe code, or
+   has no probe, and if the parser silently skipped a file.
+3. **Cross-module reactor** — `validation/reactor` pins the findings of a realistic three-module
+   project, covering cases single-file probes cannot express: wildcard-import injection, inherited
+   `@Reference`, PIDs built from constants in another class, factory PID amendments and cross-module
+   clientlib references.
+4. **Documentation gate** — `docs/rules/*.md` must equal `--generate-rule-docs` output.
+5. **Cross-platform CI** — the full suite runs on Linux, macOS and Windows; path handling that only
+   breaks on Windows has shipped before, so the matrix is part of the contract.
+6. **Consumer proof** — every documented consumption route (release jar, JitPack library, plugin via
+   GitHub Packages, offline `install:install-file`) is executed end to end against a real project.
