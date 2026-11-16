@@ -68,10 +68,6 @@ public final class AemCloud002Rule implements RuleEvaluator {
     }
 
     private String relativePath(RuleContext context, Path path) {
-        if (path == null) {
-            return "";
-        }
-        return context.projectRoot().relativize(path.toAbsolutePath().normalize())
-                .toString().replace('\\', '/');
+        return context.relativePath(path);
     }
 }

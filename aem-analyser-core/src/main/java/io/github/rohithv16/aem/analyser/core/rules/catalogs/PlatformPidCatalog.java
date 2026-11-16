@@ -143,22 +143,6 @@ public final class PlatformPidCatalog {
         return pid.equals(prefix) || pid.startsWith(prefix + ".");
     }
 
-    public static Set<String> exactPids() {
-        return Set.copyOf(EXACT_PIDS);
+    
+    
     }
-
-    public static List<String> wildcardPrefixes() {
-        return List.copyOf(WILDCARD_PREFIXES);
-    }
-
-    public static boolean matchesPattern(String pattern, String pid) {
-        if (pid == null) {
-            return false;
-        }
-        String normalized = pattern.toLowerCase(Locale.ROOT);
-        String candidate = pid.toLowerCase(Locale.ROOT);
-        return normalized.endsWith("*")
-                ? candidate.startsWith(normalized.substring(0, normalized.length() - 1))
-                : normalized.equals(candidate);
-    }
-}

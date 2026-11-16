@@ -147,8 +147,7 @@ public final class AemDead001Rule implements RuleEvaluator {
     }
 
     private String relativePath(RuleContext context, Path path) {
-        return context.projectRoot().relativize(path.toAbsolutePath().normalize())
-                .toString().replace('\\', '/');
+        return context.relativePath(path);
     }
 
     private TextRegion regionOf(io.github.rohithv16.aem.analyser.core.model.graph.node.AbstractPolyglotNode node) {

@@ -153,6 +153,26 @@ public record RuleContext(ReferenceGraph graph,
         return graph.getIndex();
     }
 
+    /**
+     * Renders a violation path relative to the project root with forward slashes, so every rule and
+     * every exporter agree on the same string on every platform.
+     */
+    public String relativePath(java.nio.file.Path file) {
+        if (file == null) {
+            return "";
+        }
+        java.nio.file.Path absolute = file.toAbsolutePath().normalize();
+        java.nio.file.Path root = projectRoot;
+        if (root != null) {
+            try {
+                return root.relativize(absolute).toString().replace('\\', '/');
+            } catch (IllegalArgumentException ignored) {
+                // different filesystem provider (or a path outside the root): fall through
+            }
+        }
+        return absolute.toString().replace('\\', '/');
+    }
+
     public boolean isExternalPid(String pid) {
         return dependencyIndex != null && dependencyIndex.getComponentPids().contains(pid);
     }

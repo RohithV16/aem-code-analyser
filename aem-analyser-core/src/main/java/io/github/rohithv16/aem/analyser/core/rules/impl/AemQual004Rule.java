@@ -92,13 +92,6 @@ public final class AemQual004Rule implements RuleEvaluator {
     }
 
     private String relativePath(RuleContext context, Path path) {
-        if (path == null) {
-            return "";
-        }
-        try {
-            return context.projectRoot().relativize(path).toString().replace('\\', '/');
-        } catch (IllegalArgumentException e) {
-            return path.toString();
-        }
+        return context.relativePath(path);
     }
 }

@@ -45,7 +45,6 @@ import io.github.rohithv16.aem.analyser.core.rules.impl.AemQual002Rule;
 import io.github.rohithv16.aem.analyser.core.rules.impl.AemQual003Rule;
 import io.github.rohithv16.aem.analyser.core.rules.impl.AemQual004Rule;
 import io.github.rohithv16.aem.analyser.core.rules.impl.AemQual005Rule;
-import io.github.rohithv16.aem.analyser.core.rules.impl.AemQual006Rule;
 import io.github.rohithv16.aem.analyser.core.rules.impl.AemSec001Rule;
 import io.github.rohithv16.aem.analyser.core.rules.impl.AemSec002Rule;
 
@@ -90,10 +89,8 @@ public final class DefaultAemCodeAnalyser implements AemCodeAnalyser {
             new AemQual002Rule(),
             new AemQual003Rule(),
             new AemQual004Rule(),
-            // AEM-QUAL-006 is deliberately NOT registered: its field check (ResourceResolver /
-            // Session in a non-static field) is a strict subset of AEM-QUAL-004, so registering both
-            // reported every field twice with different severities. QUAL-006 stays in RuleId /
-            // RuleRegistry for metadata and baseline compatibility, like AEM-DUP-010.
+            // AEM-QUAL-006 has no evaluator: its check (ResourceResolver/Session in a field) is a
+            // strict subset of AEM-QUAL-004. The id stays in RuleId/RuleRegistry for baselines.
 
             new AemQual005Rule(),
             new AemPerf001Rule(),

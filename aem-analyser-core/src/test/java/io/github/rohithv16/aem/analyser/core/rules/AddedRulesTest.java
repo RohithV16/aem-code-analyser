@@ -12,7 +12,7 @@ import io.github.rohithv16.aem.analyser.core.rules.impl.AemCloud004Rule;
 import io.github.rohithv16.aem.analyser.core.rules.impl.AemCloud005Rule;
 import io.github.rohithv16.aem.analyser.core.rules.impl.AemDead005Rule;
 import io.github.rohithv16.aem.analyser.core.rules.impl.AemPerf004Rule;
-import io.github.rohithv16.aem.analyser.core.rules.impl.AemQual006Rule;
+import io.github.rohithv16.aem.analyser.core.rules.impl.AemQual004Rule;
 import io.github.rohithv16.aem.analyser.core.rules.impl.AemSec002Rule;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -64,11 +64,12 @@ class AddedRulesTest {
                 List.of(new OSGiComponentNode.DeclaredField(
                         "resolver", "org.apache.sling.api.resource.ResourceResolver", location, false)));
 
-        List<Violation> violations = new AemQual006Rule().evaluate(
+        // AEM-QUAL-006 is retired; AEM-QUAL-004 owns this check (same fixture, one owner).
+        List<Violation> violations = new AemQual004Rule().evaluate(
                 context(Map.of(component.getFqn(), component), Map.of(), Map.of()));
 
         assertEquals(1, violations.size());
-        assertEquals("REQUEST_SCOPED_FIELD", violations.get(0).subtype());
+        assertEquals("UNSAFE_COMPONENT_STATE", violations.get(0).subtype());
     }
 
     @Test
