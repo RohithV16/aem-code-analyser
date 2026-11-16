@@ -58,6 +58,13 @@ public final class RuleCatalog {
                     // Retired: identical to AEM-QUAL-004, kept only for baseline/SARIF continuity.
                     RuleId.AEM_QUAL_006.id())));
 
+    /**
+     * Ids that no longer have any producer. Unlike {@link #PRODUCED_ELSEWHERE}, these are reported as
+     * disabled in SARIF because nothing can ever emit them.
+     */
+    public static final Set<String> RETIRED = Collections.unmodifiableSet(
+            new java.util.LinkedHashSet<>(List.of(RuleId.AEM_QUAL_006.id())));
+
     private static final Map<String, RuleEvaluator> BY_ID = validate(List.of(
             new AemDead001Rule(),
             new AemDead002ARule(),

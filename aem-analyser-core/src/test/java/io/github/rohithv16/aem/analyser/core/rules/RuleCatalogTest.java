@@ -33,6 +33,15 @@ class RuleCatalogTest {
     }
 
     @Test
+    void retiredIdsAreASubsetOfIdsWithoutAnEvaluator() {
+        assertTrue(RuleCatalog.PRODUCED_ELSEWHERE.containsAll(RuleCatalog.RETIRED),
+                "a retired id has no producer, so it must also be declared as produced elsewhere");
+        for (String id : RuleCatalog.RETIRED) {
+            assertFalse(RuleCatalog.evaluators().containsKey(id), id + " is retired but still registered");
+        }
+    }
+
+    @Test
     void evaluatorIdsMatchTheirRegistryKeys() {
         RuleCatalog.evaluators().forEach((id, evaluator) ->
                 assertEquals(id, evaluator.getRuleId(),
