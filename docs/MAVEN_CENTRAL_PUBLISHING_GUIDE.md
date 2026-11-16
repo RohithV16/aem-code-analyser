@@ -9,21 +9,80 @@ This guide documents the complete procedure for publishing releases of `io.githu
 
 ---
 
-## 0. Current availability (read this first)
+## 0. Current state
 
-This guide describes how to publish to Maven Central. **The project is not on Central yet**, and no
-step below has been executed. What is available today:
+**The build side is done; the account side needs the maintainer.** Everything Central validates is
+produced by the `release-central` profile:
 
-| Artefact | Available from | Token needed |
+| Requirement | Where it is handled |
+|---|---|
+| Release version, never `-SNAPSHOT` | `scripts/next-version.py` + the release workflow |
+| `-sources.jar` per artefact | `maven-source-plugin` (profile) |
+| `-javadoc.jar` per artefact | `maven-javadoc-plugin`, `doclint=none` (record components carry no `@param`) |
+| `.asc` signature on every file, POM included | `maven-gpg-plugin` with `--pinentry-mode loopback` |
+| POM metadata: name, description, url, licenses, developers, scm | root `pom.xml` |
+| Upload through the Portal | `central-publishing-maven-plugin` 0.12.0, `autoPublish=false`, `waitUntil=validated` |
+
+`mvn -Prelease-central deploy` publishes `aem-analyser-core` and `aem-analyser-maven-plugin`. The CLI
+is excluded (`excludeArtifacts`): it is an application whose shaded jar bundles every dependency, and
+publishing that to Central would hand duplicate classes to anyone who depends on it — it ships as a
+GitHub release asset instead. `maven-deploy-plugin` is skipped inside the profile so a Central run
+never also pushes to GitHub Packages.
+
+### 0.1 What the maintainer has to do once
+
+1. **Register the namespace.** Sign in at <https://central.sonatype.com> **with the `RohithV16` GitHub
+   account** — signing in with GitHub auto-provisions and verifies `io.github.rohithv16`, which is the
+   `groupId` this project already uses. Signing in with email instead leaves it unverified. If the
+   namespace is not auto-created, add it under *View Namespaces*, create a public repository named
+   after the verification key it shows, press *Verify*, then delete the repository. Only the GitHub
+   **username** is auto-provisioned — an organisation namespace would have to be re-verified.
+2. **Create the user token.** Portal → account menu → *Generate User Token*. This is the
+   username/password pair Maven authenticates with; store them, not your Portal password.
+3. **Create and publish a signing key.**
+   ```bash
+   gpg --quick-generate-key "Rohith V <you@example.com>" rsa4096 sign 0
+   gpg --keyserver keyserver.ubuntu.com --send-keys <FINGERPRINT>
+   gpg --armor --export-secret-keys <FINGERPRINT>   # goes into GPG_PRIVATE_KEY, never into git
+   ```
+4. **Add four repository secrets** (`Settings → Secrets and variables → Actions`):
+
+   | Secret | Value |
+   |---|---|
+   | `MAVEN_CENTRAL_USERNAME` | token username from step 2 |
+   | `MAVEN_CENTRAL_PASSWORD` | token password from step 2 |
+   | `GPG_PRIVATE_KEY` | ASCII-armoured secret key from step 3 |
+   | `GPG_PASSPHRASE` | passphrase of that key |
+
+Until they exist the release workflow skips Central and stays green, printing a notice.
+
+### 0.2 Verifying without publishing
+
+```bash
+mvn -B -ntp -Prelease-central -DskipTests verify -Dgpg.passphrase=…
+# every module except the CLI must now have: jar ++ sources ++ javadoc ++ .asc for each
+gpg --verify aem-analyser-core/target/aem-analyser-core-<v>.jar.asc \
+             aem-analyser-core/target/aem-analyser-core-<v>.jar
+```
+
+After a release run the bundle waits for approval at
+<https://central.sonatype.com/publishing/deployments> — press *Publish* there (`autoPublish=false` is
+deliberate: two accidental clicks on a workflow must not be able to publish).
+
+### 0.3 What is available today
+
+| Artefact | From | Token needed |
 |---|---|---|
-| `aem-analyser-cli` | the GitHub release (`aem-analyser-cli.jar`, self-contained) | no |
-| `aem-analyser-core` | JitPack — `com.github.RohithV16.aem-code-analyser:aem-analyser-core:<tag>` | no |
-| `aem-analyser-maven-plugin` | GitHub Packages (`maven.pkg.github.com`) | yes, `read:packages` |
-| `aem-analyser-maven-plugin` | the release assets, via `install:install-file` | no |
+| `aem-analyser-cli` | GitHub release asset (`aem-analyser-cli.jar`) | no |
+| `aem-analyser-core` | JitPack, `com.github.RohithV16.aem-code-analyser:aem-analyser-core:<tag>` | no |
+| `aem-analyser-maven-plugin` | GitHub Packages | `read:packages` |
+| `aem-analyser-maven-plugin` | release assets via `install:install-file` | no |
+| both libraries/plugins | Maven Central | — as soon as 0.1 is done |
 
-The plugin cannot be consumed from JitPack: JitPack relocates the groupId, and Maven rejects a plugin
-whose descriptor declares a different group (`Invalid plugin descriptor ... wrong group ID`). Until
-Central is set up, use GitHub Packages or the offline install:
+JitPack cannot serve the plugin: it relocates the groupId and Maven rejects a plugin whose descriptor
+disagrees (`Invalid plugin descriptor ... wrong group ID`). Central is the fix for that, not JitPack.
+
+To install the plugin without any registry while Central is not live:
 
 ```bash
 VERSION=<version>
@@ -32,11 +91,6 @@ mvn install:install-file -Dfile=aem-analyser-core-$VERSION.jar -DpomFile=aem-ana
 mvn install:install-file -Dfile=aem-analyser-maven-plugin-$VERSION.jar -DpomFile=aem-analyser-maven-plugin-$VERSION.pom
 mvn io.github.rohithv16:aem-analyser-maven-plugin:$VERSION:check
 ```
-
-Central requires GPG signatures and sources/javadoc jars, which the current release workflow does not
-produce — sections 2+ are the plan for closing that gap.
-
----
 
 ## 1. Overview & Architecture
 

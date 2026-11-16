@@ -10,7 +10,8 @@
     <packaging>pom</packaging>
 
     <name>AEM Code Analyser</name>
-    <description>Cross-boundary dead code detection engine for Adobe Experience Manager (Phase 1: Java &amp; OSGi Configurations)</description>
+    <description>Cross-boundary dead code, duplication and AEM as a Cloud Service analysis for
+        Adobe Experience Manager projects</description>
     <url>https://github.com/rohithv16/aem-code-analyser</url>
     <inceptionYear>2026</inceptionYear>
 
@@ -344,7 +345,14 @@
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-javadoc-plugin</artifactId>
-                        <version>3.8.0</version>
+                        <version>3.12.0</version>
+                        <configuration>
+                            <!-- Central requires a javadoc jar; record components without @param are
+                                 a doclint error, not a documentation defect, so doclint stays off. -->
+                            <doclint>none</doclint>
+                            <quiet>true</quiet>
+                            <nohelp>true</nohelp>
+                        </configuration>
                         <executions>
                             <execution>
                                 <id>attach-javadocs</id>
@@ -355,7 +363,13 @@
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-gpg-plugin</artifactId>
-                        <version>3.2.4</version>
+                        <version>3.2.8</version>
+                        <configuration>
+                            <gpgArguments>
+                                <arg>--pinentry-mode</arg>
+                                <arg>loopback</arg>
+                            </gpgArguments>
+                        </configuration>
                         <executions>
                             <execution>
                                 <id>sign-artifacts</id>
@@ -367,11 +381,28 @@
                     <plugin>
                         <groupId>org.sonatype.central</groupId>
                         <artifactId>central-publishing-maven-plugin</artifactId>
-                        <version>0.5.0</version>
+                        <version>0.12.0</version>
                         <extensions>true</extensions>
                         <configuration>
                             <publishingServerId>central</publishingServerId>
+                            <!-- Upload and let the Portal validate; a human presses Publish. -->
                             <autoPublish>false</autoPublish>
+                            <waitUntil>validated</waitUntil>
+                            <excludeArtifacts>
+                                <!-- The CLI is an application: its shaded jar bundles every
+                                     dependency, so publishing it would ship a 34 MB artefact with
+                                     duplicate classes. It ships as a release asset instead. -->
+                                <artifact>io.github.rohithv16:aem-analyser-cli:*</artifact>
+                            </excludeArtifacts>
+                        </configuration>
+                    </plugin>
+                    <plugin>
+                        <!-- Publishing replaces a repository deploy; never also push to GitHub
+                             Packages in the same run. -->
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-deploy-plugin</artifactId>
+                        <configuration>
+                            <skip>true</skip>
                         </configuration>
                     </plugin>
                     <plugin>
@@ -418,4 +449,5 @@
             </build>
         </profile>
     </profiles>
+
 </project>
