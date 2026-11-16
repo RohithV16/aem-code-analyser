@@ -45,7 +45,26 @@ never also pushes to GitHub Packages.
    (e.g. 1 year), and copy both values immediately — the modal shows them once and they cannot be
    retrieved later. These two strings are `MAVEN_CENTRAL_USERNAME` and `MAVEN_CENTRAL_PASSWORD`; they
    are not your Portal login.
-3. **Create and publish a signing key.**
+3. **Signing key — already done for this repository.** The release signing key exists and is
+   published:
+
+   ```
+   fingerprint  80F1F4DE989712DA58A2783CEEE5C950563D36EF
+   uid          Rohith V (AEM Code Analyser release signing) <117726181+RohithV16@users.noreply.github.com>
+   published    keyserver.ubuntu.com (and keys.openpgp.org)
+   secrets      GPG_PRIVATE_KEY, GPG_PASSPHRASE are set on the repository
+   ```
+
+   Verified by fetching the public key from the keyserver into an empty keyring and checking a
+   signature made by this build — that is exactly what Central does. Rotating the key means
+   generating a new one, re-running the `gh secret set` commands, and keeping the old key on the
+   keyserver so existing releases still verify.
+
+   The key has **no expiry** so releases do not break silently; rotate deliberately. The revocation
+   certificate is at `~/.gnupg/openpgp-revocs.d/80F1F4DE989712DA58A2783CEEE5C950563D36EF.rev`.
+
+   For reference, generating a fresh one by hand:
+
    ```bash
    gpg --quick-generate-key "Rohith V <you@example.com>" rsa4096 sign 0
    gpg --keyserver keyserver.ubuntu.com --send-keys <FINGERPRINT>
