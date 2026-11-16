@@ -22,6 +22,7 @@ produced by the `release-central` profile:
 | `.asc` signature on every file, POM included | `maven-gpg-plugin` with `--pinentry-mode loopback` |
 | POM metadata: name, description, url, licenses, developers, scm | root `pom.xml` |
 | Upload through the Portal | `central-publishing-maven-plugin` 0.12.0, `autoPublish=false`, `waitUntil=validated` |
+| Nothing uploaded by a release | Central runs from its own manual workflow, `.github/workflows/publish-central.yml` |
 
 `mvn -Prelease-central deploy` publishes `aem-analyser-core` and `aem-analyser-maven-plugin`. The CLI
 is excluded (`excludeArtifacts`): it is an application whose shaded jar bundles every dependency, and
@@ -80,6 +81,19 @@ never also pushes to GitHub Packages.
    | `GPG_PASSPHRASE` | passphrase of that key |
 
 Until they exist the release workflow skips Central and stays green, printing a notice.
+
+### 0.1b Publishing is manual, in two steps
+
+A release never uploads to Central. Central has a publishing quota and a permanent public record, so
+it is triggered deliberately:
+
+1. **Upload** — `Actions → Publish to Maven Central → Run workflow`, giving the release tag
+   (e.g. `v1.0.10`). There is a `dry_run` switch that builds and signs without uploading. The job
+   checks out the tag (so the version is a release version, not `-SNAPSHOT`) and uploads the bundle.
+   The Portal validates it and the job ends with the deployment id.
+2. **Release** — a human presses *Publish* at
+   <https://central.sonatype.com/publishing/deployments>. Until that click nothing is public, and the
+   deployment can be discarded instead.
 
 ### 0.2 Verifying without publishing
 

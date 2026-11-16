@@ -14,6 +14,10 @@ All notable changes to this project are documented here. The format follows
 
 ### Changed
 
+- Maven Central publishing is a separate manual workflow (`publish-central.yml`, tag + optional dry
+  run) instead of part of the release: Central has a publishing quota and a permanent public record,
+  so a release only tags, publishes to GitHub Packages and attaches assets.
+
 - README and the published site now lead with the easiest route — run it from a clone with nothing to
   install, then download the jar, then the Maven plugin — and the per-rule detail lives only in the
   generated rule catalogue (`docs/rules/`), which the site links to instead of repeating 30 rows on

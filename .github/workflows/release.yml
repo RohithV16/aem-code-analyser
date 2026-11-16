@@ -25,9 +25,6 @@ permissions:
 jobs:
   release:
     runs-on: ubuntu-latest
-    env:
-      # `secrets` is not allowed in a step `if:` condition, so it is resolved once here.
-      CENTRAL_ENABLED: ${{ secrets.MAVEN_CENTRAL_USERNAME != '' && secrets.GPG_PRIVATE_KEY != '' }}
 
     steps:
       - name: Checkout repository
@@ -102,45 +99,10 @@ jobs:
             git push origin "refs/tags/${{ steps.bump.outputs.tag }}"
           fi
 
-      # The three steps below activate themselves once MAVEN_CENTRAL_USERNAME and GPG_PRIVATE_KEY
-      # exist as repository secrets; until then a release stays green and says so.
-      - name: Import the signing key
-        if: env.CENTRAL_ENABLED == 'true'
-        env:
-          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
-        run: |
-          echo "$GPG_PRIVATE_KEY" | gpg --batch --import
-          gpg --list-secret-keys --with-colons | grep -c '^sec' | xargs echo "imported signing keys:"
-
-      - name: Publish to Maven Central
-        if: env.CENTRAL_ENABLED == 'true'
-        env:
-          MAVEN_CENTRAL_USERNAME: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
-          MAVEN_CENTRAL_PASSWORD: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
-          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
-        run: |
-          SETTINGS="$RUNNER_TEMP/settings-central.xml"
-          cat > "$SETTINGS" <<EOF
-          <settings xmlns="http://maven.apache.org/SETTINGS/1.0.0">
-            <servers>
-              <server>
-                <id>central</id>
-                <username>${MAVEN_CENTRAL_USERNAME}</username>
-                <password>${MAVEN_CENTRAL_PASSWORD}</password>
-              </server>
-            </servers>
-          </settings>
-          EOF
-          # Sources, javadoc, jars and POMs, all signed; the Portal validates before publishing.
-          mvn -B -ntp -Prelease-central deploy -DskipTests \
-            -Dgpg.passphrase="$GPG_PASSPHRASE" \
-            -s "$SETTINGS"
-          echo "Uploaded. Publish it at https://central.sonatype.com/publishing/deployments"
-
-      - name: Maven Central not configured
-        if: env.CENTRAL_ENABLED != 'true'
-        run: |
-          echo "::notice::Maven Central skipped - set MAVEN_CENTRAL_USERNAME, MAVEN_CENTRAL_PASSWORD, GPG_PRIVATE_KEY and GPG_PASSPHRASE to enable publishing."
+      # Maven Central is deliberately NOT part of a release: a release only tags,
+      # publishes to GitHub Packages and attaches the assets. Central has a publishing
+      # quota and an irreversible public record, so it is a separate manual workflow:
+      # .github/workflows/publish-central.yml
 
       - name: Publish to GitHub Packages
         run: mvn deploy -DskipTests -s ${{ github.workspace }}/settings.xml

@@ -308,9 +308,13 @@ mvn clean deploy -DskipTests
 ### Publishing to Maven Central (Sonatype Central)
 
 The build is ready: `mvn -Prelease-central deploy` produces signed jars, sources, javadoc and POMs for
-`aem-analyser-core` and `aem-analyser-maven-plugin` and uploads them to the Portal for validation.
-The CLI is intentionally excluded — its shaded jar bundles every dependency, and it ships as a release
-asset instead.
+`aem-analyser-core` and `aem-analyser-maven-plugin`. The CLI is intentionally excluded — its shaded jar
+bundles every dependency, and it ships as a release asset instead.
+
+Publishing is **manual and separate from a release**, because Central has a publishing quota and an
+irreversible public record: run the *Publish to Maven Central* workflow with a release tag, then press
+*Publish* on the Portal deployment. A release on its own only tags, publishes to GitHub Packages and
+attaches assets.
 
 Publishing starts working as soon as the maintainer completes four one-time steps (namespace, user
 token, GPG key, four repository secrets) — see
