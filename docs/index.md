@@ -1,33 +1,35 @@
 ---
 layout: default
 title: AEM Code Analyser
-description: Cross-boundary dead-code, duplication and AEM as a Cloud Service analysis for Adobe Experience Manager projects.
+description: Find dead code, orphaned OSGi configuration, duplication and AEM as a Cloud Service problems across your whole AEM project.
 ---
 
 # AEM Code Analyser
 
 [![Rules](https://img.shields.io/badge/rules-30-blue.svg)](rules/)
-[![Formats](https://img.shields.io/badge/reports-7-informational.svg)](#report-formats)
 [![Java](https://img.shields.io/badge/Java-21-orange.svg)](https://adoptium.net/)
-[![License](https://img.shields.io/badge/license-Apache--2.0-green.svg)](https://github.com/rohithv16/aem-code-analyser/blob/main/LICENSE)
+[![Maven Central](https://img.shields.io/badge/maven%20central-1.0.10-brightgreen.svg)](https://repo1.maven.org/maven2/io/github/rohithv16/)
+[![License](https://img.shields.io/badge/license-Apache--2.0-green.svg)](https://github.com/RohithV16/aem-code-analyser/blob/main/LICENSE)
 
-A static analyser for Adobe Experience Manager projects that reasons **across** Java, OSGi
-configurations, HTL, client libraries and content packages. It finds code that no longer has a
-caller, configuration that no longer has an owner, and patterns that break on AEM as a Cloud Service
-— then reports them in the format your CI already understands.
+A static analysis tool for Adobe Experience Manager projects. It looks at the whole project at once —
+Java, HTL, OSGi configuration, client libraries and content packages — and reports what is easy to
+miss one module at a time:
 
-- **Zero configuration** — run it inside the project and it discovers the module layout itself.
-- **Cross-boundary** — resolves references between Java, HTL, OSGi configs and dependency JARs.
-- **CI native** — console, HTML, SARIF, SonarQube, GitHub, GitLab and Azure reports.
-- **Safe by design** — read-only by default, with an explicit `--fix` mode for proven repairs.
+- code that nothing calls any more,
+- OSGi configuration that no component owns, and properties that nothing reads,
+- duplicated servlet endpoints, conflicting configuration, cloned code,
+- patterns that break on AEM as a Cloud Service: plaintext secrets, JSP, `context='unsafe'`,
+  deprecated APIs, invalid runmode folders.
+
+You get a console report, an HTML dashboard, and SARIF for GitHub code scanning.
 
 ---
 
-## Quick start
+## Use it
 
-Three ways in, easiest first. None of them needs configuration, flags or a project root argument.
+Three ways, easiest first. None of them needs configuration, a project-root argument or a flag.
 
-### 1 · Run it now, nothing to install
+### 1 · Run it without installing anything
 
 ```bash
 git clone https://github.com/RohithV16/aem-code-analyser
@@ -35,8 +37,7 @@ cd aem-code-analyser
 scripts/run-from-source.sh ~/my-aem-project
 ```
 
-Builds once with Maven, then analyses the path you gave it — later runs reuse the build. Leave the
-path out to analyse the directory you are standing in.
+Builds once, then analyses the path you gave it. Leave the path out to analyse the current directory.
 
 ### 2 · Or download the jar
 
@@ -45,176 +46,106 @@ curl -LO https://github.com/RohithV16/aem-code-analyser/releases/latest/download
 cd ~/my-aem-project && java -jar aem-analyser-cli.jar
 ```
 
-Self-contained; all it needs is Java 21. Every run prints a console report and writes an HTML
-dashboard to `target/aem-analyser/` (`--no-html` skips it).
+Self-contained — it needs Java 21 and nothing else. Run it from anywhere inside the project: at the
+reactor root it scans the whole reactor, in a module directory it walks up to the reactor that owns it,
+in any subdirectory it finds the nearest `pom.xml` above.
 
-### 3 · Or wire it into the build
+### 3 · Or add it to the AEM project's build
+
+This is how a team uses it: one entry in the root `pom.xml`, and every `mvn verify` produces the
+report. The plugin comes from Maven Central — no `<pluginRepositories>`, no token.
 
 ```xml
-<plugin>
-  <groupId>io.github.rohithv16</groupId>
-  <artifactId>aem-analyser-maven-plugin</artifactId>
-  <version>${aem-analyser.version}</version>
-  <executions>
-    <execution>
-      <phase>verify</phase>
-      <goals><goal>check</goal></goals>
-    </execution>
-  </executions>
-</plugin>
+<build>
+    <plugins>
+        <plugin>
+            <groupId>io.github.rohithv16</groupId>
+            <artifactId>aem-analyser-maven-plugin</artifactId>
+            <version>1.0.10</version>
+            <!-- once, at the reactor root: module-by-module scans cannot see cross-module findings -->
+            <inherited>false</inherited>
+            <executions>
+                <execution>
+                    <phase>verify</phase>
+                    <goals><goal>report</goal></goals>
+                    <configuration>
+                        <formats>SARIF,HTML</formats>
+                    </configuration>
+                </execution>
+            </executions>
+        </plugin>
+    </plugins>
+</build>
 ```
 
-`mvn verify` then fails on new findings. The plugin resolves straight from **Maven Central** — no
-`<pluginRepositories>`, no token, no install step. `aem-analyser-core` is there too, if you want the
-engine as a library.
-
-### No flags needed
-
-| You run it in | Root that gets analysed |
-|---|---|
-| the reactor root | that directory |
-| a module directory (`core/`, `ui.apps/`, `ui.config/`) | the reactor that owns the module |
-| any subdirectory without a `pom.xml` | the nearest directory above that has one |
-| `--project-root X`, or positional `X` | exactly `X`, with no discovery |
-
-Discovery walks past module POMs — a POM whose declared parent exists on disk is a module, and a
-module-only scan cannot see cross-module findings. An empty `<relativePath/>` stops the walk, since
-that parent comes from a repository.
-
-### Requirements
-
-| Component | Version |
-|---|---|
-| Java | 21 |
-| Maven | 3.9+ (plugin and source builds only) |
-| AEM project layout | any multi-module reactor (`core`, `ui.apps`, `ui.config`, `all`, …) |
-
-The Maven plugin and the core library are published to **Maven Central** from version 1.0.10 onward;
-the CLI is a release asset. See the
-[publishing guide](MAVEN_CENTRAL_PUBLISHING_GUIDE.html) for signing, namespaces and how a release is
-promoted.
+`mvn verify` then writes `target/aem-analyser/aem-analyser.sarif` and
+`aem-analyser-report.html`. The `report` goal never fails the build — switch it to `check` when you
+want it to gate pull requests (see [Making it a gate](#making-it-a-gate)).
 
 ---
 
----
+## A worked example
 
-## Report formats
+It is wired into a real project here:
+**[rohith-aem-portfolio#32](https://github.com/RohithV16/rohith-aem-portfolio/pull/32)** adds the
+plugin above to an AEM archetype project (10 modules — `core`, `ui.apps`, `ui.config`, `dispatcher`)
+together with a CI job that uploads the SARIF.
 
-| Format | Output | Use case |
+On that project it reports **0 errors and 3 warnings**:
+
+| Rule | Where | What it found |
 |---|---|---|
-| `CONSOLE` | ANSI terminal report | Local runs, quick triage |
-| `HTML` | `aem-analyser-report.html` | Shareable dashboard, history trend |
-| `SARIF` | `aem-analyser.sarif` | GitHub Code Scanning, Azure DevOps |
-| `SONAR` | `sonar-aem-analyser-report.json` | SonarQube `sonar.externalIssuesReportPaths` |
-| `GITHUB` | `github-annotations.txt` | Inline GitHub Actions annotations |
-| `GITLAB` | `gitlab-code-quality.json` | GitLab Code Quality widget |
-| `AZURE` | `azure-pipelines.log` | Azure Pipelines logging commands |
+| `AEM-QUAL-001` | `core/.../servlets/ResolverServiceTest.java:19` | Servlet registered by path (`/bin/resolverservicetest`) instead of a resource type — Cloud Manager check CQBP-75 |
+| `AEM-SEC-001` | `ui.apps/.../xfpage/customfooterlibs.html:25` | `@ context='unsafe'` disables XSS escaping |
+| `AEM-SEC-001` | `ui.apps/.../xfpage/customheaderlibs.html:29` | Same expression in the header clientlibs |
 
-The HTML dashboard includes active violations by severity, an architecture and quality overview,
-PMD CPD duplication breakdown with source previews, JaCoCo coverage status, a run-history trend and
-the safe remediation plan produced by `--fix`.
-
-The violations explorer supports search, severity and category filters, sortable columns,
-group-by-rule/file, deep links and per-finding permalinks. The current filtered view can be exported
-as CSV or JSON, or copied as a Markdown summary for a pull request. A **Run Health** tab surfaces
-parser/scan diagnostics and baseline-accepted findings, so a silently skipped file can never look
-like a clean result. The dashboard is self-contained, has a persistent dark mode, a print stylesheet
-and keyboard-accessible tabs.
+Three of the categories worth knowing: a Cloud Service incompatibility, an escaping bypass, and a
+cross-module correlation that per-module tools never make.
 
 ---
 
-## CLI options
+## Reading the results
 
-| Flag | Default | Description |
+| Output | Where | Use it for |
 |---|---|---|
-| `[project-root]` (positional) | current dir | Shorthand for `--project-root`. |
-| `-p, --project-root <dir>` | current dir | Reactor root to analyse; omit it to use the current directory (module directories resolve to their reactor). |
-| `-f, --format <list>` | `CONSOLE` | Comma-separated: `CONSOLE,SARIF,SONAR,HTML,GITHUB,GITLAB,AZURE`. |
-| `--html [path]` | target path | Generate the HTML dashboard at a custom path. |
-| `--no-html` | off | Skip the HTML dashboard. |
-| `-o, --output <dir>` | `target/aem-analyser` | Output directory for report files. |
-| `-t, --threads <n>` | cores − 1 | Worker threads for parallel parsing. |
-| `--profile <list>` | — | Maven profiles to activate during discovery. |
-| `--max-file-size <bytes>` | `10485760` | Skip files larger than this size. |
-| `--timeout <seconds>` | `0` | Overall analysis budget (0 = none). |
-| `--ignore-config <globs>` | — | Reactor-relative config globs to exclude. |
-| `--ignored-services <classes>` | — | Service implementations never flagged unused. |
-| `--dependency-jars <paths>` | — | JARs/directories for external PID suppression. |
-| `--config <file>` | `.aem-analyser.yml` | Project configuration YAML. |
-| `--changed-only` | off | Analyse only files changed in Git. |
-| `--since <ref>` | — | Git ref to compare against (implies changed-only). |
-| `--fix` | off | Apply safe automated fixes, then re-analyse. |
-| `--fix-dry-run` | off | Preview fixes without writing. |
-| `--fail-on <severity>` | — | Fail on `ERROR`, `WARNING` or `INFO`. |
-| `--fail-on-warning` | off | Legacy alias for `--fail-on WARNING`. |
-| `--baseline <file>` | `.aem-analyser-baseline.json` | Baseline of accepted findings. |
-| `--update-baseline` | off | Write current findings to the baseline. |
-| `--baseline-report` | off | Keep suppressed findings at `INFO`. |
-| `--history <dir>` | — | Append `runs.jsonl` and render the HTML trend. |
-| `--history-limit <n>` | `20` | Runs shown in the trend. |
-| `--collect-coverage` | off | Run tests with JaCoCo instrumentation. |
-| `--force` | off | Force test/coverage re-execution. |
-| `--min-coverage <pct>` | — | Quality gate: minimum line coverage. |
-| `--max-duplication <pct>` | — | Quality gate: maximum duplication. |
-| `--max-warnings <n>` | — | Quality gate: maximum warnings. |
-| `--sonar` / `--no-sonar` | on | Toggle embedded SonarJava analysis. |
-| `--sonar-rules <list>` | `default` | SonarJava ruleset filter. |
-| `--list-rules` | — | Print the rule catalogue and exit. |
-| `--explain <RULE>` | — | Print one rule's metadata and exit. |
-| `--generate-rule-docs <dir>` | — | Generate Markdown rule pages and exit. |
-| `-v, --verbose` | off | Print analysis diagnostics. |
-| `--no-color` | off | Disable ANSI colours. |
+| Console | your terminal | quick triage while coding |
+| HTML dashboard | `target/aem-analyser/aem-analyser-report.html` | sharing with the team: filters, per-finding permalinks, history trend, duplication and coverage panels |
+| SARIF | `target/aem-analyser/aem-analyser.sarif` | GitHub code scanning, Azure DevOps |
+| SonarQube / GitLab / Azure | `--format SONAR`, `GITLAB`, `AZURE` | the CI you already have |
 
-### Maven parameters
+Each finding names the rule, file and line, the affected symbol, and a remediation sentence. Every
+rule is documented in the <a href="rules/">rule catalogue</a>; `--explain AEM-SEC-001` prints the same
+explanation in the terminal.
 
-Both `aem-analyser:check` and `aem-analyser:report` share these parameters.
+The full set of formats: `CONSOLE` (default), `HTML`, `SARIF`, `SONAR`, `GITHUB`, `GITLAB`, `AZURE`.
 
-| Parameter | Default | Description |
-|---|---|---|
-| `projectRoot` | execution root | Reactor root to analyse. |
-| `profiles` | — | Comma-separated Maven profiles for discovery. |
-| `threads` | `0` | Worker threads (0 = cores − 1). |
-| `maxFileSizeBytes` / `maxFileSize` | `10485760` | Skip files larger than this size. |
-| `timeoutSeconds` / `timeout` | `0` | Overall analysis budget. |
-| `ignoredServices` | — | Service classes never flagged unused. |
-| `ignoredConfigPaths` | — | Config globs to exclude. |
-| `dependencyJars` | — | JARs/directories for external PID suppression. |
-| `configFile` | `.aem-analyser.yml` | Project configuration YAML. |
-| `enableSonar` | `true` | Toggle embedded SonarJava analysis. |
-| `sonarRules` | `default` | SonarJava ruleset filter. |
-| `formats` / `format` | `CONSOLE` (`report`: `SARIF,SONAR`) | Comma-separated formats. |
-| `outputFile` | build dir | Single output file or output directory. |
-| `generateHtml` | `true` | Write the HTML dashboard even when not in `formats`. |
-| `skip` | `false` | Skip the goal. |
-| `verbose` | `false` | Print analysis diagnostics. |
-| `baseline` | — | Baseline JSON of accepted findings. |
-| `updateBaseline` | `false` | Write the baseline, gate only new findings. |
-| `baselineReport` | `false` | Keep suppressed findings at `INFO`. |
-| `changedOnly` | `false` | Analyse only files changed in Git. |
-| `since` | — | Git ref to compare against. |
-| `fix` / `fixDryRun` | `false` | Apply/preview automated fixes. |
-| `failOn` | — | Fail on `ERROR`, `WARNING` or `INFO` (`check` only). |
-| `failOnError` | `true` | Fail on any ERROR (`check` only). |
-| `failOnWarning` | `false` | Fail on any WARNING (`check` only). |
-| `minCoverage` | — | Quality gate: minimum line coverage. |
-| `maxDuplication` | — | Quality gate: maximum duplication. |
-| `maxWarnings` | — | Quality gate: maximum warnings. |
-| `history` | — | Append `runs.jsonl` and render the trend. |
-| `historyLimit` | `20` | Runs shown in the trend. |
+### Making it a gate
+
+```xml
+<goals><goal>check</goal></goals>
+```
+
+`check` fails the build when findings reach the configured threshold. Exit codes: `0` clean,
+`1` findings at or above `--fail-on`, `2` the analysis itself failed. From the command line:
+
+```bash
+java -jar aem-analyser-cli.jar --fail-on ERROR   # fail on errors only
+java -jar aem-analyser-cli.jar --fail-on NONE    # report only, always exits 0
+```
 
 ---
 
-## Configuration
+## Tune it to your project
 
-### Project file — `.aem-analyser.yml`
+Three things cover most needs: mute a rule, accept today's findings, silence one line.
 
 ```yaml
-schemaVersion: 1
+# .aem-analyser.yml in the project root
 rules:
   AEM-DEAD-003B:
     enabled: false
   AEM-SEC-001:
-    severity: WARNING
+    severity: ERROR
 allowlists:
   services:
     - com.example.LegacyService
@@ -222,56 +153,31 @@ allowlists:
     - ui.config/**/config.local/**
 ```
 
-Rule overrides are applied after analysis, so severity changes flow into every report and into the
-exit code. `--config` points at a different file.
-
-### Baseline — `.aem-analyser-baseline.json`
-
-Freeze findings that are already accepted, then gate only regressions:
-
 ```bash
-aem-analyser --project-root . --update-baseline
-aem-analyser --project-root . --baseline .aem-analyser-baseline.json
-aem-analyser --project-root . --baseline-report   # keep suppressed findings visible at INFO
+# accept everything that exists today, then fail only on new findings
+java -jar aem-analyser-cli.jar --update-baseline
+java -jar aem-analyser-cli.jar --baseline .aem-analyser-baseline.json
 ```
-
-### Inline suppression
 
 ```java
 // aem-analyser-disable-next-line AEM-DEAD-001
 ```
+
 ```html
 <!-- aem-analyser-disable-next-line AEM-SEC-001 -->
-```
-```java
-// aem-analyser-disable-file AEM-DUP-010
-```
-
-### Scoping a run
-
-```bash
-# Only files changed since a Git ref
-aem-analyser --project-root . --since origin/main
-
-# Exclude generated or environment-specific configuration
-aem-analyser --project-root . --ignore-config "ui.config/**/config.publish/**"
-
-# Recognise PIDs that live in dependency bundles
-aem-analyser --project-root . --dependency-jars ~/.m2/repository/com/vendor
 ```
 
 ---
 
-## CI integration
-
-### GitHub Actions with Code Scanning
+## In CI
 
 {% raw %}
 ```yaml
-- name: AEM analysis
+- name: Analyse
   run: |
-    java -jar aem-analyser-cli/target/aem-analyser-cli.jar \
-      --project-root . --format SARIF --no-color
+    mvn -B -ntp io.github.rohithv16:aem-analyser-maven-plugin:1.0.10:report \
+      -Daem-analyser.formats=SARIF,HTML \
+      -Daem-analyser.outputFile=target/aem-analyser
 
 - name: Upload SARIF
   uses: github/codeql-action/upload-sarif@v3
@@ -280,102 +186,81 @@ aem-analyser --project-root . --dependency-jars ~/.m2/repository/com/vendor
 ```
 {% endraw %}
 
-### SonarQube
+Calling the goal directly keeps the job fast: it reads sources and configuration without compiling the
+project or needing an AEM instance.
+
+For SonarQube:
 
 ```bash
-aem-analyser --project-root . --format SONAR --output target/sonar
-
-sonar-scanner \
-  -Dsonar.externalIssuesReportPaths=target/sonar/sonar-aem-analyser-report.json
+java -jar aem-analyser-cli.jar --format SONAR --output target/sonar
+sonar-scanner -Dsonar.externalIssuesReportPaths=target/sonar/sonar-aem-analyser-report.json
 ```
-
-### Quality gates
-
-```bash
-aem-analyser --project-root . \
-  --fail-on ERROR \
-  --min-coverage 60 --max-duplication 5 --max-warnings 0
-```
-
-Exit codes: `0` clean, `1` findings at or above the configured threshold, `2` analysis failure.
-`--fail-on NONE` is report-only: it exits `0` with findings and says so on stdout.
 
 ---
 
-## Rule catalogue
+## Every rule, in detail
 
-**30 rules in seven families.** Every rule has its own page with the detection logic, the AEM as a
-Cloud Service impact and the remediation:
+**30 rules in seven families**: dead code (8), duplication (4), Cloud Manager parity (6), performance
+(4), AEM as a Cloud Service (5), security (2), component compatibility (1).
 
-**→ [Browse the full rule catalogue](rules/)** — or `aem-analyser --explain <RULE-ID>` for the same
-detail in the terminal.
+**→ <a href="rules/">Browse the rule catalogue</a>** — each page explains what the rule detects, why it
+matters on AEM as a Cloud Service, and how to fix it.
 
-| Family | Rules | Focus |
-|---|---|---|
-| DEAD | 8 | Code, configuration and content with no remaining consumer |
-| DUP | 4 | Duplicate endpoints, configuration, bindings and code blocks |
-| QUAL | 6 | Cloud Manager quality checks and thread safety (`AEM-QUAL-006` retired, owned by `-004`) |
-| PERF | 4 | Resource lifecycles and repository query cost |
-| CLOUD | 5 | Cloud Service compatibility and secrets |
-| SEC | 2 | Output escaping and request-driven redirects |
-| COMP | 1 | Deprecated Classic UI dialogs |
+| Family | Focus |
+|---|---|
+| DEAD | Code, configuration and content with no remaining consumer |
+| DUP | Duplicate endpoints, configuration, bindings and code blocks |
+| QUAL | Cloud Manager quality checks and thread safety |
+| PERF | Resource lifecycles and repository query cost |
+| CLOUD | Cloud Service compatibility and secrets |
+| SEC | Output escaping and request-driven redirects |
+| COMP | Deprecated Classic UI dialogs |
 
 Where Adobe Cloud Manager has an equivalent check, the rule id says so (`AEM-QUAL-001` ↔ CQBP-75,
 `-002` ↔ CQBP-84, `-003` ↔ AMSCORE-554, `-005` ↔ AMSCORE-553), so existing waivers keep their meaning.
 
 ---
 
-## Validation harness
+## CLI reference
 
-Every active rule is verified by a deliberate probe — a fixture that must produce a finding — rather
-than only by unit tests:
-
-```bash
-scripts/run-rule-probes.sh                       # expects 29/29 active rules
-scripts/inject-rule-probes.sh /path/to/aem-repo  # runs probes inside a temp copy of a real repo
-```
-
-The injection script `rsync`s the target into a temporary directory, so the original repository is
-never modified. The checker fails when a rule is missing, fires only on non-probe code, has no probe
-in the catalogue, or when the parser silently skipped a file. Retired rules (AEM-QUAL-006) are
-declared disabled in SARIF and exempt; AEM-DUP-010 is exempt from the evaluator check because it is
-produced by the duplication engine.
-
-### Cross-module reactor
-
-Single-file probes cannot express behaviour that only exists across a reactor, so
-`validation/reactor` is a real three-module project (`bundle`, `ui.apps`, `ui.config`) with its
-findings pinned:
-
-```bash
-scripts/run-reactor-validation.sh                 # compare against validation/reactor/expected-findings.txt
-scripts/run-reactor-validation.sh <jar> --update  # re-pin after an intended change
-```
-
-It covers injection through a wildcard import, a `@Reference` declared on a shared base class, an
-OSGi PID composed from a constant in another class, a factory PID with an amendment, and a clientlib
-referenced from a sibling module — the cases that produced real defects in earlier releases.
-
-### Rule documentation
-
-`docs/rules/*.md` are generated from `RuleRegistry`, so a page cannot drift from the code:
-
-```bash
-scripts/check-rule-docs.sh                                        # fails when a page is stale
-java -jar aem-analyser-cli.jar --generate-rule-docs docs/rules    # regenerate
-```
-
-All three checks run in CI, together with the unit, integration and quality jobs on Linux, macOS and
-Windows.
+| Flag | Default | Description |
+|---|---|---|
+| `[project-root]` | current dir | Shorthand for `--project-root`. |
+| `-p, --project-root <dir>` | current dir | Project root; omit it to use the current directory (a module directory resolves to its reactor). |
+| `-f, --format <list>` | `CONSOLE` | `CONSOLE,SARIF,SONAR,HTML,GITHUB,GITLAB,AZURE`. |
+| `--html [path]` / `--no-html` | on | Write, or skip, the HTML dashboard. |
+| `-o, --output <dir>` | `target/aem-analyser` | Where reports are written. |
+| `--fail-on <severity>` | — | Fail on `ERROR`, `WARNING`, `INFO` or `NONE`. |
+| `--fail-on-warning` | off | Alias for `--fail-on WARNING`. |
+| `--baseline <file>` | `.aem-analyser-baseline.json` | Accepted findings to ignore. |
+| `--update-baseline` | off | Write current findings to the baseline. |
+| `--baseline-report` | off | Keep suppressed findings visible at `INFO`. |
+| `--config <file>` | `.aem-analyser.yml` | Project configuration file. |
+| `--ignore-config <globs>` | — | Configuration paths to exclude. |
+| `--ignored-services <classes>` | — | Services that are never "unused". |
+| `--dependency-jars <paths>` | — | JARs/directories for PIDs from other bundles. |
+| `--changed-only` / `--since <ref>` | off | Only files changed in Git. |
+| `--collect-coverage` | off | Run tests with fresh JaCoCo data. |
+| `--min-coverage`, `--max-duplication`, `--max-warnings` | — | Quality thresholds. |
+| `--fix` / `--fix-dry-run` | off | Apply, or preview, safe automated fixes. |
+| `--explain <RULE>` | — | Print one rule's details and exit. |
+| `--list-rules` | — | Print the rule catalogue and exit. |
+| `--sonar` / `--no-sonar` | on | Embedded SonarJava analysis. |
+| `--history <dir>` / `--history-limit <n>` | — / `20` | Keep a run-history trend in the dashboard. |
+| `-t, --threads <n>` | cores − 1 | Worker threads. |
+| `--profile <list>` | — | Maven profiles to activate during discovery. |
+| `--max-file-size <bytes>` | `10485760` | Skip larger files. |
+| `--timeout <seconds>` | `0` | Overall time budget (0 = none). |
+| `-v, --verbose` | off | Print analysis diagnostics. |
+| `--no-color` | off | Disable ANSI colours. |
 
 ---
 
 ## Documentation
 
-- [Rule pages](rules/) — detection logic and remediation for all 30 rules
-- [Releases and download assets](https://github.com/RohithV16/aem-code-analyser/releases)
-- [Maven publishing guide](MAVEN_CENTRAL_PUBLISHING_GUIDE.html)
-- [Full CLI and Maven reference](https://github.com/rohithv16/aem-code-analyser#cli-options-reference)
-- [Contributing](https://github.com/rohithv16/aem-code-analyser/blob/main/CONTRIBUTING.md)
-- [Security policy](https://github.com/rohithv16/aem-code-analyser/blob/main/SECURITY.md)
-- [Changelog](https://github.com/rohithv16/aem-code-analyser/blob/main/CHANGELOG.md)
+- <a href="rules/">Rule catalogue</a> — all 30 rules, detection logic and remediation
+- [Releases](https://github.com/RohithV16/aem-code-analyser/releases) — CLI jar, checksums, Maven artefacts
+- [Maven Central](https://repo1.maven.org/maven2/io/github/rohithv16/) — plugin and library coordinates
+- [README](https://github.com/RohithV16/aem-code-analyser#readme) · [Changelog](https://github.com/RohithV16/aem-code-analyser/blob/main/CHANGELOG.md) ·
+  [Contributing](https://github.com/RohithV16/aem-code-analyser/blob/main/CONTRIBUTING.md) · [Security policy](https://github.com/RohithV16/aem-code-analyser/blob/main/SECURITY.md)
+- Maintainers: [release and Maven Central guide](MAVEN_CENTRAL_PUBLISHING_GUIDE.html)
