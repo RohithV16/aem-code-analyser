@@ -194,7 +194,7 @@ public final class CoverageDiscoveryEngine {
 
     private String relativize(Path projectRoot, Path file) {
         try {
-            return projectRoot.relativize(file).toString();
+            return projectRoot.relativize(file).toString().replace('\\', '/');
         } catch (Exception e) {
             return file.toString();
         }

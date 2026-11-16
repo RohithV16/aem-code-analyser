@@ -54,7 +54,7 @@ public final class AemQual005Rule implements RuleEvaluator {
             return "";
         }
         try {
-            return context.projectRoot().relativize(path).toString();
+            return context.projectRoot().relativize(path).toString().replace('\\', '/');
         } catch (IllegalArgumentException e) {
             return path.toString();
         }

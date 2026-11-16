@@ -85,7 +85,7 @@ public final class AemDup002Rule implements RuleEvaluator {
             return "";
         }
         try {
-            return context.projectRoot().relativize(path).toString();
+            return context.projectRoot().relativize(path).toString().replace('\\', '/');
         } catch (IllegalArgumentException e) {
             return path.toString();
         }
