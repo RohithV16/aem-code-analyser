@@ -6,7 +6,7 @@
 
     <groupId>io.github.rohithv16</groupId>
     <artifactId>aem-code-analyser</artifactId>
-    <version>1.0.9</version>
+    <version>1.0.10-SNAPSHOT</version>
     <packaging>pom</packaging>
 
     <name>AEM Code Analyser</name>
@@ -59,7 +59,7 @@
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <project.build.outputTimestamp>2026-11-16T10:06:34Z</project.build.outputTimestamp>
+        <project.build.outputTimestamp>2026-11-16T10:08:04Z</project.build.outputTimestamp>
         <japicmp.oldVersion>1.0.0</japicmp.oldVersion>
         <maven.compiler.release>21</maven.compiler.release>
         <junit.version>5.10.2</junit.version>
