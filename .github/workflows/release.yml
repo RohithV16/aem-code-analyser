@@ -12,6 +12,11 @@ on:
           - patch
           - minor
           - major
+      force:
+        description: "Overwrite the tag if it already exists"
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: write
@@ -38,36 +43,21 @@ jobs:
       - name: Bump version in POMs
         id: bump
         shell: bash
+        env:
+          BUMP: ${{ inputs.bump }}
         run: |
-          NEW_VERSION=$(python3 -c "
+          OLD_VERSION=$(python3 -c "
           import xml.etree.ElementTree as ET
-          import sys
-
-          tree = ET.parse('pom.xml')
           ns = {'m': 'http://maven.apache.org/POM/4.0.0'}
-          root = tree.getroot()
-          v_elem = root.find('m:version', ns)
-          raw_v = v_elem.text.strip().replace('-SNAPSHOT', '')
-          parts = [int(p) for p in raw_v.split('.') if p.isdigit()]
-          while len(parts) < 3:
-              parts.append(0)
-
-          bump = '${{ inputs.bump }}'.lower()
-          if bump == 'major':
-              parts[0] += 1
-              parts[1] = 0
-              parts[2] = 0
-          elif bump == 'minor':
-              parts[1] += 1
-              parts[2] = 0
-          elif bump == 'patch':
-              parts[2] += 1
-          else:
-              sys.exit(f'Unknown bump type: {bump}')
-
-          print(f'{parts[0]}.{parts[1]}.{parts[2]}')
+          print(ET.parse('pom.xml').getroot().find('m:version', ns).text.strip())
           ")
+          NEW_VERSION=$(python3 scripts/next-version.py release "$OLD_VERSION" "$BUMP")
+          if git rev-parse -q --verify "refs/tags/v${NEW_VERSION}" >/dev/null && [ "${{ inputs.force }}" != "true" ]; then
+            echo "tag v${NEW_VERSION} already exists; re-run with force=true to overwrite it" >&2
+            exit 1
+          fi
           mvn versions:set -DnewVersion="${NEW_VERSION}" -DgenerateBackupPoms=false
+          echo "previous=${OLD_VERSION}" >> "$GITHUB_OUTPUT"
           echo "version=${NEW_VERSION}" >> "$GITHUB_OUTPUT"
           echo "tag=v${NEW_VERSION}" >> "$GITHUB_OUTPUT"
 
@@ -80,16 +70,45 @@ jobs:
           cd aem-analyser-cli/target
           sha256sum aem-analyser-cli.jar > SHA256SUMS.txt
 
+      - name: Sync documented versions
+        shell: bash
+        env:
+          OLD_VERSION: ${{ steps.bump.outputs.previous }}
+          NEW_VERSION: ${{ steps.bump.outputs.version }}
+        run: |
+          python3 - <<'PY'
+          import os, pathlib, re
+          old = os.environ["OLD_VERSION"].removesuffix("-SNAPSHOT")
+          new = os.environ["NEW_VERSION"]
+          targets = ["README.md", "docs/index.md", "docs/MAVEN_CENTRAL_PUBLISHING_GUIDE.md"]
+          pattern = re.compile(r"(?<![\d.])" + re.escape(old) + r"(?:-SNAPSHOT)?(?![\d.])")
+          for name in targets:
+              path = pathlib.Path(name)
+              if not path.exists():
+                  continue
+              text = path.read_text()
+              updated, count = pattern.subn(new, text)
+              if count:
+                  path.write_text(updated)
+                  print(f"{name}: {count} version reference(s) -> {new}")
+          PY
+
       - name: Commit version bump and push tag
         shell: bash
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add pom.xml **/pom.xml
+          git add -A
           git commit -m "chore: release ${{ steps.bump.outputs.tag }} [skip ci]"
-          git tag -f "${{ steps.bump.outputs.tag }}"
-          git push origin "HEAD:${{ github.ref_name }}"
-          git push origin "refs/tags/${{ steps.bump.outputs.tag }}" --force
+          if [ "${{ inputs.force }}" = "true" ]; then
+            git tag -f "${{ steps.bump.outputs.tag }}"
+            git push origin "HEAD:${{ github.ref_name }}"
+            git push origin "refs/tags/${{ steps.bump.outputs.tag }}" --force
+          else
+            git tag "${{ steps.bump.outputs.tag }}"
+            git push origin "HEAD:${{ github.ref_name }}"
+            git push origin "refs/tags/${{ steps.bump.outputs.tag }}"
+          fi
 
       - name: Publish to GitHub Packages
         run: mvn deploy -DskipTests -s ${{ github.workspace }}/settings.xml
@@ -149,3 +168,17 @@ jobs:
                 </executions>
             </plugin>
             ```
+
+      - name: Leave main on the next development version
+        shell: bash
+        env:
+          RELEASED: ${{ steps.bump.outputs.version }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          NEXT=$(python3 scripts/next-version.py snapshot "$RELEASED")
+          mvn versions:set -DnewVersion="$NEXT" -DgenerateBackupPoms=false
+          git add -A
+          git commit -m "chore: begin ${NEXT} [skip ci]"
+          git push origin "HEAD:${{ github.ref_name }}"
+          echo "main is now on ${NEXT} (published ${RELEASED})"
