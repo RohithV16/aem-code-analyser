@@ -277,7 +277,8 @@ public interface ReportExporter {
 ├── PROJECT.md                                # Global project index & architecture blueprint
 ├── pom.xml                                   # Root Maven parent POM
 ├── docs/                                     # Technical specifications & documentation
-│   └── AEM_CODE_ANALYSER_SPECIFICATION.md    # Authoritative 9-section specification & plan
+│   ├── MAVEN_CENTRAL_PUBLISHING_GUIDE.md     # Release / consumption guide
+│   └── rules/                                # One page per rule id
 ├── aem-analyser-core/                        # Core analysis engine & domain logic
 │   ├── pom.xml
 │   └── src/

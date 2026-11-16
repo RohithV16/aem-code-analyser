@@ -280,6 +280,7 @@ aem-analyser --project-root . \
 ```
 
 Exit codes: `0` clean, `1` findings at or above the configured threshold, `2` analysis failure.
+`--fail-on NONE` is report-only: it exits `0` with findings and says so on stdout.
 
 ---
 
@@ -382,10 +383,8 @@ production repository; both reported 30/30 with the originals unchanged.
 ## Documentation
 
 - [Rule pages](rules/) — detection logic and remediation for all 30 rules
-- [Application specification](AEM_CODE_ANALYSER_SPECIFICATION.html)
 - [Maven Central publishing guide](MAVEN_CENTRAL_PUBLISHING_GUIDE.html)
 - [Full CLI and Maven reference](https://github.com/rohithv16/aem-code-analyser#cli-options-reference)
-- [Plan store and validation evidence](https://github.com/rohithv16/aem-code-analyser/tree/main/plans)
 - [Contributing](https://github.com/rohithv16/aem-code-analyser/blob/main/CONTRIBUTING.md)
 - [Security policy](https://github.com/rohithv16/aem-code-analyser/blob/main/SECURITY.md)
 - [Changelog](https://github.com/rohithv16/aem-code-analyser/blob/main/CHANGELOG.md)

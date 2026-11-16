@@ -20,11 +20,12 @@ mvn clean verify
 
 ## Adding or changing a rule
 
-1. Implement `RuleEvaluator` in `core/rules/impl` and register it in `DefaultAemCodeAnalyser.rules`.
+1. Implement `RuleEvaluator` in `core/rules/impl` and add it to `RuleCatalog` (the registry is
+   validated against `RuleId` at startup, so a missing or duplicate producer fails immediately).
 2. Add the id (and default severity) to `model/report/RuleId`.
 3. Add at least one true-positive and one false-positive-guard fixture.
-4. Run the real-project validation in `plans/validation/` and record the result.
-5. Update `README.md` and the relevant plan file under `plans/`.
+4. Run `scripts/run-rule-probes.sh` and the validation project before opening a PR.
+5. Update `README.md`, `docs/rules/<RULE-ID>.md` and `CHANGELOG.md`.
 
 ## Tests
 
@@ -39,7 +40,7 @@ mvn clean verify
   changing record components).
 - Records are used for immutable model types; keep them free of mutable state.
 
-## Plans
+## Changelog
 
-The backlog is stored in `plans/`. When you close an item, update its status row in
-`plans/README.md` and append validation evidence to `plans/validation/`.
+`CHANGELOG.md` is the record of what shipped and why; there is no separate backlog file. Add an
+entry under *Unreleased* in the same PR as the change.
