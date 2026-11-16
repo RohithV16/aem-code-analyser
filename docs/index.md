@@ -91,22 +91,24 @@ It is wired into a real project here:
 plugin above to an AEM archetype project (10 modules — `core`, `ui.apps`, `ui.config`, `dispatcher`)
 together with a CI job that uploads the SARIF.
 
-On that project `mvn verify` reports **9 warnings, 0 errors** — three from the AEM rules and six
-from the embedded SonarJava analysis the plugin runs by default (`<enableSonar>false</enableSonar>`
-turns that off):
+On that project `mvn verify` reports **5 warnings, 0 errors** — two from the AEM rules and three from
+the embedded SonarJava analysis the plugin runs by default (`<enableSonar>false</enableSonar>` turns
+that off, leaving 2):
 
 | Rule | Where | What it found |
 |---|---|---|
-| `AEM-QUAL-001` | `core/.../servlets/ResolverServiceTest.java:19` | Servlet registered by path (`/bin/resolverservicetest`) instead of a resource type — Cloud Manager check CQBP-75 |
-| `AEM-SEC-001` | `ui.apps/.../xfpage/customfooterlibs.html:25` | `@ context='unsafe'` disables XSS escaping |
-| `AEM-SEC-001` | `ui.apps/.../xfpage/customheaderlibs.html:29` | Same expression in the header clientlibs |
-| `java:S1166`, `S1481`, `S2208`, `S1155` | `core/…/ResourceResolverService.java`, `PublishEventHandler.java`, `it.tests/…` | SonarJava: exception swallowed, unused local, wildcard import, `size() == 0` |
+| `AEM-SEC-001` | `ui.apps/…/xfpage/customfooterlibs.html:25` | `@ context='unsafe'` disables XSS escaping |
+| `AEM-SEC-001` | `ui.apps/…/xfpage/customheaderlibs.html:29` | Same expression in the header clientlibs |
+| `java:S2208` | `it.tests/…/GetPageIT.java:24` | Wildcard import |
+| `java:S1166` | `it.tests/…/PublishPageValidationIT.java:87` | Exception swallowed |
+| `java:S1155` | `it.tests/…/PublishPageValidationIT.java:114` | `size() == 0` instead of `isEmpty()` |
 
-The full build was verified on that branch: `mvn -B -ntp clean verify -DskipTests` on JDK 21 completes
-(11 modules, ~4:45) and the analyser runs exactly once, at the reactor root.
+The build was verified on that branch: `mvn -B -ntp clean verify -DskipTests` on JDK 21 completes
+(11 modules) and the analyser runs exactly once, at the reactor root. That PR also demonstrates
+**every flag** on the same project, with the commands and their real results.
 
-The categories worth knowing: a Cloud Service incompatibility, an escaping bypass, and the
-cross-module correlation that per-module tools never make.
+The category worth knowing: an HTL escaping bypass — invisible to a Java analyser and to a
+per-module scan.
 
 ---
 

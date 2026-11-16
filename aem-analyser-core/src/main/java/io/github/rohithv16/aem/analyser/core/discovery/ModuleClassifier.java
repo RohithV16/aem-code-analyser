@@ -11,8 +11,6 @@ import java.util.Locale;
  */
 public final class ModuleClassifier {
 
-    private final OsgiConfigScanner osgiConfigScanner = new OsgiConfigScanner();
-
     public ModuleClassification classify(ClassificationInput input) {
         String packaging = input.packaging() == null ? "jar" : input.packaging().toLowerCase(Locale.ROOT);
         String artifactId = input.artifactId() == null ? "" : input.artifactId().toLowerCase(Locale.ROOT);

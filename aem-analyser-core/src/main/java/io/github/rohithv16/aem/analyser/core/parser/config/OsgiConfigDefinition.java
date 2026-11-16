@@ -1,7 +1,6 @@
 package io.github.rohithv16.aem.analyser.core.parser.config;
 
 import io.github.rohithv16.aem.analyser.core.model.graph.ConfigFormat;
-import io.github.rohithv16.aem.analyser.core.model.graph.DataType;
 
 import java.nio.file.Path;
 import java.util.List;

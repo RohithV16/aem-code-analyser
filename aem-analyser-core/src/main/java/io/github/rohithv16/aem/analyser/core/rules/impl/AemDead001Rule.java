@@ -1,8 +1,6 @@
 package io.github.rohithv16.aem.analyser.core.rules.impl;
 
 import io.github.rohithv16.aem.analyser.core.graph.ReferenceGraphIndex;
-import io.github.rohithv16.aem.analyser.core.model.graph.EdgeType;
-import io.github.rohithv16.aem.analyser.core.model.graph.node.JavaClassNode;
 import io.github.rohithv16.aem.analyser.core.model.graph.node.OSGiComponentNode;
 import io.github.rohithv16.aem.analyser.core.model.graph.node.OSGiConfigNode;
 import io.github.rohithv16.aem.analyser.core.model.graph.node.OSGiOcdNode;
@@ -13,7 +11,6 @@ import io.github.rohithv16.aem.analyser.core.model.report.Violation;
 import io.github.rohithv16.aem.analyser.core.rules.RuleContext;
 import io.github.rohithv16.aem.analyser.core.rules.RuleEvaluator;
 import io.github.rohithv16.aem.analyser.core.rules.catalogs.PlatformPidCatalog;
-import io.github.rohithv16.aem.analyser.core.rules.catalogs.SystemEntryPointCatalog;
 
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -21,7 +18,6 @@ import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.TreeSet;
 
 /**
  * FEAT-RULE-01: Rule AEM-DEAD-001 — Orphaned OSGi Configurations.

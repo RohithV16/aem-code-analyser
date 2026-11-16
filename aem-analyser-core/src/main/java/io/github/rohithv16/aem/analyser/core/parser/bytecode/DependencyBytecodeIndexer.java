@@ -13,7 +13,6 @@ import java.util.Locale;
 import java.util.Set;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
-import java.util.zip.ZipEntry;
 
 /**
  * FEAT-PARSE-06: high-speed ASM scanner extracting Declarative Services component PIDs

@@ -1,7 +1,6 @@
 package io.github.rohithv16.aem.analyser.cli;
 
 import io.github.rohithv16.aem.analyser.core.api.AnalysisContext;
-import io.github.rohithv16.aem.analyser.core.api.AemCodeAnalyser;
 import io.github.rohithv16.aem.analyser.core.api.AnalysisException;
 import io.github.rohithv16.aem.analyser.core.api.DefaultAemCodeAnalyser;
 import io.github.rohithv16.aem.analyser.core.export.ConsoleReportFormatter;
@@ -211,121 +210,12 @@ public class AnalyserCli implements Runnable {
     }
 
     int execute() {
-        if (generateRuleDocs != null) {
-            try {
-                io.github.rohithv16.aem.analyser.core.rules.metadata.RuleDocsGenerator
-                        .writeAll(generateRuleDocs);
-                stdout.println("[INFO] Rule documentation written to " + generateRuleDocs);
-                return 0;
-            } catch (IOException e) {
-                stdout.println("[ERROR] Could not write rule documentation: " + e.getMessage());
-                return 2;
-            }
-        }
-        if (listRules) {
-            printRules(stdout);
-            return 0;
-        }
-        if (explainRule != null && !explainRule.isBlank()) {
-            return printExplain(stdout, explainRule);
+        OptionalInt metaCommandResult = executeMetaCommand();
+        if (metaCommandResult.isPresent()) {
+            return metaCommandResult.getAsInt();
         }
         try {
-            Path root = resolveProjectRoot();
-            List<ReportFormat> reportFormats = parseFormats();
-            validateFailOn();
-            validateNumericOptions();
-            if (collectCoverage) {
-                runCoverageCollection(root);
-            }
-            AnalysisContext.Builder builder = AnalysisContext.builder(root);
-            io.github.rohithv16.aem.analyser.core.config.AnalyserConfig config;
-            try {
-                config = configFile != null
-                        ? io.github.rohithv16.aem.analyser.core.config.AnalyserConfigLoader.load(configFile)
-                        : io.github.rohithv16.aem.analyser.core.config.AnalyserConfigLoader.loadIfPresent(root);
-            } catch (IOException e) {
-                stdout.println("[ERROR] Could not read configuration: " + e.getMessage());
-                return 2;
-            }
-            java.util.Set<String> effectiveIgnoredServices = new java.util.LinkedHashSet<>(
-                    ignoredServices == null ? java.util.Set.of() : ignoredServices);
-            effectiveIgnoredServices.addAll(config.allowlists().services());
-            java.util.Set<String> effectiveIgnoredConfigs = new java.util.LinkedHashSet<>(
-                    ignoredConfigPaths == null ? java.util.Set.of() : ignoredConfigPaths);
-            effectiveIgnoredConfigs.addAll(config.allowlists().configPaths());
-            if (!effectiveIgnoredServices.isEmpty()) {
-                builder = builder.ignoredServices(effectiveIgnoredServices);
-            }
-            if (!effectiveIgnoredConfigs.isEmpty()) {
-                builder = builder.ignoredConfigPaths(effectiveIgnoredConfigs);
-            }
-            if (profiles != null && !profiles.isEmpty()) {
-                builder = builder.activeProfiles(profiles);
-            }
-            if (threads != null && threads > 0) {
-                builder = builder.threads(threads);
-            }
-            if (maxFileSizeBytes != null) {
-                builder = builder.maxFileSizeBytes(maxFileSizeBytes);
-            }
-            if (timeoutSeconds != null) {
-                builder = builder.timeoutMillis(timeoutSeconds * 1000L);
-            }
-            if (dependencyJarRoots != null && !dependencyJarRoots.isEmpty()) {
-                builder = builder.dependencyJarRoots(dependencyJarRoots);
-            }
-            boolean enableSonar = sonar;
-            builder = builder.enableSonar(enableSonar);
-            if (sonarRules != null && !sonarRules.isBlank()) {
-                builder = builder.sonarRules(sonarRules);
-            }
-
-            AnalysisContext context = builder.build();
-            if (changedOnly || (since != null && !since.isBlank())) {
-                var diff = new GitDiffResolver().resolveChanged(root, since);
-                if (diff.failed()) {
-                    // Never shrink the parsed file set from a failed diff: a typo in --since (or an
-                    // unfetched CI base ref) would otherwise report a clean build.
-                    stdout.println("[WARN] " + diff.failureReason());
-                    stdout.println("[WARN] Falling back to a FULL scan so findings cannot be dropped.");
-                } else if (diff.isGitRepo()) {
-                    context = context.toBuilder().changedFiles(diff.changedFiles()).build();
-                }
-            }
-            AnalysisReport report = analyzeAndFilter(context, root);
-
-            if (fix || fixDryRun) {
-                AutoFixEngine fixEngine = new AutoFixEngine();
-                var fixSummary = fixEngine.fix(root, report.violations(), fixDryRun);
-                if (fixSummary.hasFixes()) {
-                    stdout.println(String.format("[INFO] %s %d issue(s) across %d file(s):",
-                            fixDryRun ? "Auto-fix dry-run: would repair" : "Auto-fix successfully repaired",
-                            fixSummary.fixesApplied(), fixSummary.filesModified()));
-                    for (var r : fixSummary.records()) {
-                        stdout.println("  - [" + r.ruleId() + "] " + r.filePath() + ": " + r.description());
-                    }
-                    // A real fix changed the sources: the pre-fix report would otherwise drive a
-                    // stale console output, export files and exit code.
-                    if (!fixDryRun) {
-                        stdout.println("[INFO] Re-analysing after auto-fix...");
-                        report = analyzeAndFilter(context, root);
-                    }
-                } else {
-                    stdout.println("[INFO] No auto-fixable code smells detected in target files.");
-                }
-                if (!fixSummary.writeFailures().isEmpty()) {
-                    for (String failure : fixSummary.writeFailures()) {
-                        stdout.println("[WARNING] Could not auto-fix " + failure);
-                    }
-                }
-            }
-
-            report = config.apply(report);
-            report = applyBaseline(root, report);
-            List<io.github.rohithv16.aem.analyser.core.history.RunSummary> history = applyHistory(report);
-            export(report, reportFormats, history);
-            printDiagnostics(report);
-            return exitCode(report);
+            return runAnalysis();
         } catch (AnalysisException e) {
             stdout.println("[ERROR] Analysis failed: " + e.getMessage());
             return 2;
@@ -336,6 +226,154 @@ public class AnalyserCli implements Runnable {
             stdout.println("[ERROR] " + e.getMessage());
             return 2;
         }
+    }
+
+    /** Meta commands ({@code --generate-rule-docs}, {@code --list-rules}, {@code --explain}) exit early. */
+    private OptionalInt executeMetaCommand() {
+        if (generateRuleDocs != null) {
+            return OptionalInt.of(writeRuleDocs(generateRuleDocs));
+        }
+        if (listRules) {
+            printRules(stdout);
+            return OptionalInt.of(0);
+        }
+        if (explainRule != null && !explainRule.isBlank()) {
+            return OptionalInt.of(printExplain(stdout, explainRule));
+        }
+        return OptionalInt.empty();
+    }
+
+    private int writeRuleDocs(Path directory) {
+        try {
+            io.github.rohithv16.aem.analyser.core.rules.metadata.RuleDocsGenerator.writeAll(directory);
+            stdout.println("[INFO] Rule documentation written to " + directory);
+            return 0;
+        } catch (IOException e) {
+            stdout.println("[ERROR] Could not write rule documentation: " + e.getMessage());
+            return 2;
+        }
+    }
+
+    private int runAnalysis() throws IOException, ExportException, AnalysisException {
+        Path root = resolveProjectRoot();
+        List<ReportFormat> reportFormats = parseFormats();
+        validateFailOn();
+        validateNumericOptions();
+        if (collectCoverage) {
+            runCoverageCollection(root);
+        }
+        io.github.rohithv16.aem.analyser.core.config.AnalyserConfig config;
+        try {
+            config = loadConfig(root);
+        } catch (IOException e) {
+            stdout.println("[ERROR] Could not read configuration: " + e.getMessage());
+            return 2;
+        }
+        AnalysisContext context = scopeToChangedFiles(buildContext(root, config), root);
+        AnalysisReport report = analyzeAndFilter(context, root);
+        report = applyAutoFix(root, context, report);
+        report = config.apply(report);
+        report = applyBaseline(root, report);
+        List<io.github.rohithv16.aem.analyser.core.history.RunSummary> history = applyHistory(report);
+        export(report, reportFormats, history);
+        printDiagnostics(report);
+        return exitCode(report);
+    }
+
+    private io.github.rohithv16.aem.analyser.core.config.AnalyserConfig loadConfig(Path root)
+            throws IOException {
+        return configFile != null
+                ? io.github.rohithv16.aem.analyser.core.config.AnalyserConfigLoader.load(configFile)
+                : io.github.rohithv16.aem.analyser.core.config.AnalyserConfigLoader.loadIfPresent(root);
+    }
+
+    /** Applies command-line overrides and configured allowlists, then builds the analysis context. */
+    private AnalysisContext buildContext(Path root,
+            io.github.rohithv16.aem.analyser.core.config.AnalyserConfig config) {
+        AnalysisContext.Builder builder = AnalysisContext.builder(root);
+        Set<String> effectiveIgnoredServices = new java.util.LinkedHashSet<>(
+                ignoredServices == null ? Set.of() : ignoredServices);
+        effectiveIgnoredServices.addAll(config.allowlists().services());
+        Set<String> effectiveIgnoredConfigs = new java.util.LinkedHashSet<>(
+                ignoredConfigPaths == null ? Set.of() : ignoredConfigPaths);
+        effectiveIgnoredConfigs.addAll(config.allowlists().configPaths());
+        if (!effectiveIgnoredServices.isEmpty()) {
+            builder = builder.ignoredServices(effectiveIgnoredServices);
+        }
+        if (!effectiveIgnoredConfigs.isEmpty()) {
+            builder = builder.ignoredConfigPaths(effectiveIgnoredConfigs);
+        }
+        if (profiles != null && !profiles.isEmpty()) {
+            builder = builder.activeProfiles(profiles);
+        }
+        if (threads != null && threads > 0) {
+            builder = builder.threads(threads);
+        }
+        if (maxFileSizeBytes != null) {
+            builder = builder.maxFileSizeBytes(maxFileSizeBytes);
+        }
+        if (timeoutSeconds != null) {
+            builder = builder.timeoutMillis(timeoutSeconds * 1000L);
+        }
+        if (dependencyJarRoots != null && !dependencyJarRoots.isEmpty()) {
+            builder = builder.dependencyJarRoots(dependencyJarRoots);
+        }
+        builder = builder.enableSonar(sonar);
+        if (sonarRules != null && !sonarRules.isBlank()) {
+            builder = builder.sonarRules(sonarRules);
+        }
+        return builder.build();
+    }
+
+    /** Narrows the context to changed files when {@code --changed-only} or {@code --since} is set. */
+    private AnalysisContext scopeToChangedFiles(AnalysisContext context, Path root) {
+        if (!changedOnly && (since == null || since.isBlank())) {
+            return context;
+        }
+        var diff = new GitDiffResolver().resolveChanged(root, since);
+        if (diff.failed()) {
+            // Never shrink the parsed file set from a failed diff: a typo in --since (or an
+            // unfetched CI base ref) would otherwise report a clean build.
+            stdout.println("[WARN] " + diff.failureReason());
+            stdout.println("[WARN] Falling back to a FULL scan so findings cannot be dropped.");
+            return context;
+        }
+        if (diff.isGitRepo()) {
+            return context.toBuilder().changedFiles(diff.changedFiles()).build();
+        }
+        return context;
+    }
+
+    /**
+     * Runs the auto-fix engine when requested. A real fix changed the sources, so the report is
+     * recomputed: the pre-fix report would otherwise drive stale console output, exports and exit code.
+     */
+    private AnalysisReport applyAutoFix(Path root, AnalysisContext context, AnalysisReport report)
+            throws AnalysisException {
+        if (!fix && !fixDryRun) {
+            return report;
+        }
+        AutoFixEngine fixEngine = new AutoFixEngine();
+        var fixSummary = fixEngine.fix(root, report.violations(), fixDryRun);
+        if (fixSummary.hasFixes()) {
+            stdout.printf("[INFO] %s %d issue(s) across %d file(s):%n",
+                    fixDryRun ? "Auto-fix dry-run: would repair" : "Auto-fix successfully repaired",
+                    fixSummary.fixesApplied(), fixSummary.filesModified());
+            for (var record : fixSummary.records()) {
+                stdout.println("  - [" + record.ruleId() + "] " + record.filePath() + ": "
+                        + record.description());
+            }
+            if (!fixDryRun) {
+                stdout.println("[INFO] Re-analysing after auto-fix...");
+                report = analyzeAndFilter(context, root);
+            }
+        } else {
+            stdout.println("[INFO] No auto-fixable code smells detected in target files.");
+        }
+        for (String failure : fixSummary.writeFailures()) {
+            stdout.println("[WARNING] Could not auto-fix " + failure);
+        }
+        return report;
     }
 
     private AnalysisReport applyBaseline(Path root, AnalysisReport report) throws IOException {
@@ -791,10 +829,6 @@ public class AnalyserCli implements Runnable {
         } catch (IOException e) {
             return null;
         }
-    }
-
-    private List<String> resolveMavenCommand(Path root) {
-        return resolveMavenCommand(root, findJavaTestModules(root));
     }
 
     private List<String> resolveMavenCommand(Path root, List<String> testModules) {

@@ -13,7 +13,6 @@ import io.github.rohithv16.aem.analyser.core.rules.RuleEvaluator;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Set;
 
 /**
  * FEAT-RULE-04: Rule AEM-DEAD-002B — Unconsumed OCD Properties.

@@ -1,8 +1,5 @@
 package io.github.rohithv16.aem.analyser.core.graph;
 
-import io.github.rohithv16.aem.analyser.core.discovery.ExportPackageCollector;
-import io.github.rohithv16.aem.analyser.core.graph.MetatypeNameNormalizer;
-import io.github.rohithv16.aem.analyser.core.model.discovery.ModuleClassification;
 import io.github.rohithv16.aem.analyser.core.model.discovery.ModuleDescriptor;
 import io.github.rohithv16.aem.analyser.core.model.graph.EdgeType;
 import io.github.rohithv16.aem.analyser.core.model.graph.PolyglotEdge;
@@ -18,13 +15,11 @@ import io.github.rohithv16.aem.analyser.core.model.graph.node.OcdPropertyMethodN
 import io.github.rohithv16.aem.analyser.core.model.graph.node.SlingModelNode;
 import io.github.rohithv16.aem.analyser.core.parser.bytecode.DependencyBytecodeIndexer;
 import io.github.rohithv16.aem.analyser.core.parser.config.OsgiConfigDefinition;
-import io.github.rohithv16.aem.analyser.core.parser.config.OsgiConfigParser;
 import io.github.rohithv16.aem.analyser.core.parser.java.PendingAdaptTo;
 import io.github.rohithv16.aem.analyser.core.parser.java.PendingConsumption;
 import io.github.rohithv16.aem.analyser.core.parser.java.PendingServiceInjection;
 import io.github.rohithv16.aem.analyser.core.parser.java.JavaSourceParseResult;
 
-import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -32,10 +27,8 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
-import java.util.TreeMap;
 
 /**
  * FEAT-GRAPH-01/03: builds the cross-boundary reference graph using the two-phase
@@ -48,6 +41,9 @@ import java.util.TreeMap;
  * </ol>
  */
 public final class ReferenceGraphBuilder {
+
+    /** Prefix of every edge description that originates from an OSGi configuration node. */
+    private static final String CONFIGURATION_PREFIX = "Configuration ";
 
     private final ReferenceGraph graph = new ReferenceGraph();
 
@@ -100,7 +96,7 @@ public final class ReferenceGraphBuilder {
         }
 
         for (OsgiConfigDefinition config : input.configs()) {
-            OSGiConfigNode configNode = toConfigNode(config, configPropertyNodes, componentsByFqn);
+            OSGiConfigNode configNode = toConfigNode(config, componentsByFqn);
             if (!configNodes.containsKey(configNode.getId())) {
                 configNodes.put(configNode.getId(), configNode);
                 graph.addVertex(configNode);
@@ -125,7 +121,7 @@ public final class ReferenceGraphBuilder {
         for (OSGiConfigNode configNode : configNodes.values()) {
             for (ConfigPropertyNode property : configNode.getProperties().values()) {
                 edges.add(new SimpleEdge(configNode, property, EdgeType.CONTAINS_PROPERTY,
-                        "Configuration " + configNode.getPid() + " contains property " + property.getKey()));
+                        CONFIGURATION_PREFIX + configNode.getPid() + " contains property " + property.getKey()));
             }
         }
 
@@ -140,13 +136,13 @@ public final class ReferenceGraphBuilder {
                 OSGiComponentNode component = candidates.get(0);
                 configuringComponent.put(configNode, component);
                 edges.add(new SimpleEdge(configNode, component, EdgeType.CONFIGURES,
-                        "Configuration " + configNode.getPid() + " configures component " + component.getId()));
+                        CONFIGURATION_PREFIX + configNode.getPid() + " configures component " + component.getId()));
             } else if (candidates.size() > 1) {
                 OSGiComponentNode component = candidates.get(0);
                 configuringComponent.put(configNode, component);
                 for (OSGiComponentNode candidate : candidates) {
                     edges.add(new SimpleEdge(configNode, candidate, EdgeType.CONFIGURES,
-                            "Configuration " + configNode.getPid() + " configures component " + candidate.getId()));
+                            CONFIGURATION_PREFIX + configNode.getPid() + " configures component " + candidate.getId()));
                 }
             }
         }
@@ -475,7 +471,6 @@ public final class ReferenceGraphBuilder {
     }
 
     private OSGiConfigNode toConfigNode(OsgiConfigDefinition definition,
-                                        Map<String, ConfigPropertyNode> configPropertyNodes,
                                         Map<String, OSGiComponentNode> componentsByFqn) {
         Path filePath = definition.filePath();
         String pid = definition.pid();

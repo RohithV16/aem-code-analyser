@@ -4,7 +4,6 @@ import io.github.rohithv16.aem.analyser.core.model.graph.NodeType;
 import io.github.rohithv16.aem.analyser.core.model.graph.SourceLocation;
 
 import java.nio.file.Path;
-import java.util.EnumSet;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;

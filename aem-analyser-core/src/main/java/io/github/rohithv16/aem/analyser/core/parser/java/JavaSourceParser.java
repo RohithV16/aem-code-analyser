@@ -16,7 +16,6 @@ import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.body.TypeDeclaration;
 import com.github.javaparser.ast.expr.MethodCallExpr;
 import com.github.javaparser.ast.expr.ClassExpr;
-import com.github.javaparser.ast.expr.AnnotationExpr;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -244,11 +243,15 @@ public final class JavaSourceParser {
                 packageName, imports, localTypes)
                 : null;
         String fqn = type.getFullyQualifiedName().orElse(type.getNameAsString());
-        JavaClassNode.Kind kind = type.isAnnotationDeclaration() ? JavaClassNode.Kind.ANNOTATION
-                : type.isClassOrInterfaceDeclaration()
-                && type.asClassOrInterfaceDeclaration().isInterface() ? JavaClassNode.Kind.INTERFACE
-                : type.isEnumDeclaration() ? JavaClassNode.Kind.ENUM
-                : JavaClassNode.Kind.CLASS;
+        JavaClassNode.Kind kind = JavaClassNode.Kind.CLASS;
+        if (type.isAnnotationDeclaration()) {
+            kind = JavaClassNode.Kind.ANNOTATION;
+        } else if (type.isClassOrInterfaceDeclaration()
+                && type.asClassOrInterfaceDeclaration().isInterface()) {
+            kind = JavaClassNode.Kind.INTERFACE;
+        } else if (type.isEnumDeclaration()) {
+            kind = JavaClassNode.Kind.ENUM;
+        }
         return new JavaClassNode(fqn, kind, modifiers, superClass, interfaces, filePath,
                 MetatypeOcdVisitor.sourceLocation(type, filePath));
     }

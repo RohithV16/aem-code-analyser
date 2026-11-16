@@ -19,7 +19,6 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -36,6 +35,7 @@ public final class ProjectDiscoveryEngine implements AutoCloseable {
     private static final String BND_PLUGIN_ARTIFACT = "bnd-maven-plugin";
     private static final String AEM_SDK_API = "aem-sdk-api";
     private static final String UBER_JAR = "uber-jar";
+    private static final String POM_FILE = "pom.xml";
 
     private final ModelReader modelReader;
     private final ModuleClassifier classifier = new ModuleClassifier();
@@ -57,7 +57,7 @@ public final class ProjectDiscoveryEngine implements AutoCloseable {
 
     public DiscoveryResult discover(Path projectRoot, List<String> activeProfiles) {
         this.activeProfiles = activeProfiles == null ? List.of() : activeProfiles;
-        Path rootPom = projectRoot.resolve("pom.xml");
+        Path rootPom = projectRoot.resolve(POM_FILE);
         if (!Files.isRegularFile(rootPom)) {
             throw new IllegalArgumentException("No root pom.xml found under " + projectRoot);
         }
@@ -81,7 +81,7 @@ public final class ProjectDiscoveryEngine implements AutoCloseable {
             List<String> modelModules = collectModules(model);
             collectChildModulePoms(modelModules, moduleDirectory, queue);
 
-            modules.add(buildDescriptor(model, pomPath, moduleDirectory, activeProfiles, modelModules));
+            modules.add(buildDescriptor(model, pomPath, moduleDirectory, modelModules));
         }
 
         List<CloudConfigDescriptor> cloudConfigs = cloudConfigEngine.discover(projectRoot);
@@ -99,8 +99,8 @@ public final class ProjectDiscoveryEngine implements AutoCloseable {
     private void collectChildModulePoms(List<String> modelModules, Path moduleDirectory, Deque<Path> queue) {
         for (String module : modelModules) {
             Path childDir = moduleDirectory.resolve(module).normalize();
-            Path childPom = Files.isRegularFile(childDir.resolve("pom.xml"))
-                    ? childDir.resolve("pom.xml")
+            Path childPom = Files.isRegularFile(childDir.resolve(POM_FILE))
+                    ? childDir.resolve(POM_FILE)
                     : childDir;
             if (Files.isRegularFile(childPom)) {
                 queue.add(childPom);
@@ -135,12 +135,13 @@ public final class ProjectDiscoveryEngine implements AutoCloseable {
     }
 
     private ModuleDescriptor buildDescriptor(Model model, Path pomPath, Path moduleDirectory,
-                                             List<String> activeProfiles, List<String> modelModules) {
+                                             List<String> modelModules) {
         String artifactId = model.getArtifactId() != null ? model.getArtifactId() : moduleDirectory.getFileName().toString();
         String packaging = model.getPackaging() != null ? model.getPackaging() : "jar";
-        String groupId = model.getGroupId() != null
-                ? model.getGroupId()
-                : (model.getParent() != null ? model.getParent().getGroupId() : null);
+        String groupId = model.getGroupId();
+        if (groupId == null && model.getParent() != null) {
+            groupId = model.getParent().getGroupId();
+        }
 
         FileVaultPluginConfig fvConfig = findPlugin(model, FILEVAULT_PLUGIN_ARTIFACT)
                 .map(p -> FileVaultPluginConfig.fromPluginConfiguration(artifactId, p.getConfiguration()))

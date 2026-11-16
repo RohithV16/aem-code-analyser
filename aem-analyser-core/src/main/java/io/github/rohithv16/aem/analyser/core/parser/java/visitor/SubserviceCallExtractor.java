@@ -7,8 +7,6 @@ import com.github.javaparser.ast.body.VariableDeclarator;
 import com.github.javaparser.ast.expr.Expression;
 import com.github.javaparser.ast.expr.FieldAccessExpr;
 import com.github.javaparser.ast.expr.MethodCallExpr;
-import com.github.javaparser.ast.expr.NameExpr;
-import com.github.javaparser.ast.expr.StringLiteralExpr;
 import io.github.rohithv16.aem.analyser.core.model.serviceuser.SubserviceCall;
 
 import java.nio.file.Path;
@@ -37,10 +35,11 @@ public final class SubserviceCallExtractor {
         // Collect class-level constant string values
         Map<String, String> localConstants = new HashMap<>();
         for (FieldDeclaration field : cu.findAll(FieldDeclaration.class)) {
-            for (VariableDeclarator var : field.getVariables()) {
-                var.getInitializer().ifPresent(init -> {
+            for (VariableDeclarator declarator : field.getVariables()) {
+                declarator.getInitializer().ifPresent(init -> {
                     if (init.isStringLiteralExpr()) {
-                        localConstants.put(var.getNameAsString(), init.asStringLiteralExpr().getValue());
+                        localConstants.put(declarator.getNameAsString(),
+                                init.asStringLiteralExpr().getValue());
                     }
                 });
             }
@@ -54,7 +53,7 @@ public final class SubserviceCallExtractor {
             }
 
             String subservice = null;
-            SubserviceCall.Resolution resolution = SubserviceCall.Resolution.UNRESOLVED;
+            SubserviceCall.Resolution resolution;
             if (name.equals("loginService") || name.equals("loginAdministrative")) {
                 Expression argument = call.getArgument(0);
                 if (argument.isNullLiteralExpr()) {

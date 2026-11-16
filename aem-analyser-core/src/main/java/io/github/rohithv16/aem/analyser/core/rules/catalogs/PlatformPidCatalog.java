@@ -1,8 +1,6 @@
 package io.github.rohithv16.aem.analyser.core.rules.catalogs;
 
 import java.util.List;
-import java.util.Locale;
-import java.util.Set;
 
 /**
  * FEAT-RULE-02: curated catalog of standard platform PIDs across AEM, Sling, Oak,

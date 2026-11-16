@@ -3,7 +3,6 @@ package io.github.rohithv16.aem.analyser.core.discovery;
 import io.github.rohithv16.aem.analyser.core.model.htl.HtlUnsafeContextFinding;
 import io.github.rohithv16.aem.analyser.core.model.htl.HtlUsage;
 
-import java.io.BufferedReader;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -21,10 +20,6 @@ public final class HtlScanner {
     public record HtlScanResult(List<HtlUsage> usages, List<HtlUnsafeContextFinding> unsafeContexts) {}
 
     private static final long MAX_FILE_SIZE_BYTES = 10L * 1024 * 1024;
-
-    private static final Pattern SLY_USE_PATTERN = Pattern.compile(
-            "data-sly-use(?:\\.([a-zA-Z0-9_$-]+))?\\s*=\\s*([\"'])(.*?)\\2"
-    );
 
     /** Same expression but across line breaks (multi-line HTL attributes). */
     private static final Pattern SLY_USE_PATTERN_MULTILINE = Pattern.compile(

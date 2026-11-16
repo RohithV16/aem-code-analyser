@@ -31,6 +31,9 @@ import java.util.Optional;
  */
 public class SonarBridgeComponents extends SonarComponents {
 
+    /** Repository prefix SonarJava uses in its stable rule ids. */
+    private static final String SONAR_RULE_PREFIX = "java:";
+
     private final Path projectRoot;
     private final List<Violation> violations = new ArrayList<>();
     private final java.util.Set<String> reportedSignatures = new java.util.HashSet<>();
@@ -93,7 +96,7 @@ public class SonarBridgeComponents extends SonarComponents {
                         if ("save".equals(name)) {
                             if (ruleKey != null) {
                                 String rKey = ruleKey.rule();
-                                String ruleId = "java:" + rKey;
+                                String ruleId = SONAR_RULE_PREFIX + rKey;
                                 String pathStr = "";
                                 if (inputComponent instanceof InputFile ifile) {
                                     pathStr = ifile.path() != null ? ifile.path().toString().replace('\\', '/') : ifile.filename();
@@ -101,7 +104,9 @@ public class SonarBridgeComponents extends SonarComponents {
                                         try {
                                             pathStr = projectRoot.toAbsolutePath().normalize().relativize(ifile.path().toAbsolutePath().normalize())
                                                     .toString().replace('\\', '/');
-                                        } catch (Exception ignored) {
+                                        } catch (Exception notRelativizable) {
+                                            // A file outside the analysed root keeps its absolute
+                                            // path: the finding is still reported, only not relative.
                                         }
                                     }
                                 }
@@ -213,12 +218,9 @@ public class SonarBridgeComponents extends SonarComponents {
         JavaCheck check = message.getCheck();
         Rule rule = check.getClass().getAnnotation(Rule.class);
         String ruleKey = (rule != null && rule.key() != null) ? rule.key() : check.getClass().getSimpleName();
-        String ruleId = "java:" + ruleKey;
+        String ruleId = SONAR_RULE_PREFIX + ruleKey;
 
-        AnalyzerMessage.TextSpan span = message.primaryLocation();
-        TextRegion region = (span != null && span.startLine > 0)
-                ? new TextRegion(span.startLine, span.startCharacter, span.endLine, span.endCharacter)
-                : (message.getLine() != null ? TextRegion.forLine(message.getLine()) : TextRegion.forWholeFile());
+        TextRegion region = primaryRegion(message);
 
         InputComponent comp = message.getInputComponent();
         String pathStr = "";
@@ -228,7 +230,9 @@ public class SonarBridgeComponents extends SonarComponents {
                 try {
                     pathStr = projectRoot.toAbsolutePath().normalize().relativize(ifile.path().toAbsolutePath().normalize())
                             .toString().replace('\\', '/');
-                } catch (Exception ignored) {
+                } catch (Exception notRelativizable) {
+                    // A file outside the analysed root keeps its absolute path: the finding is still
+                    // reported, only not project-relative.
                 }
             }
         }
@@ -253,6 +257,18 @@ public class SonarBridgeComponents extends SonarComponents {
         ));
     }
 
+    /** Prefers the analyzer's character-accurate span, then the line, then the whole file. */
+    private static TextRegion primaryRegion(AnalyzerMessage message) {
+        AnalyzerMessage.TextSpan span = message.primaryLocation();
+        if (span != null && span.startLine > 0) {
+            return new TextRegion(span.startLine, span.startCharacter, span.endLine, span.endCharacter);
+        }
+        if (message.getLine() != null) {
+            return TextRegion.forLine(message.getLine());
+        }
+        return TextRegion.forWholeFile();
+    }
+
     @Override
     public void addIssue(InputComponent component, JavaCheck check, int line, String message, Integer cost) {
         if (check == null) {
@@ -260,7 +276,7 @@ public class SonarBridgeComponents extends SonarComponents {
         }
         Rule rule = check.getClass().getAnnotation(Rule.class);
         String ruleKey = (rule != null && rule.key() != null) ? rule.key() : check.getClass().getSimpleName();
-        String ruleId = "java:" + ruleKey;
+        String ruleId = SONAR_RULE_PREFIX + ruleKey;
 
         String pathStr = "";
         if (component instanceof InputFile ifile) {
@@ -269,7 +285,9 @@ public class SonarBridgeComponents extends SonarComponents {
                 try {
                     pathStr = projectRoot.toAbsolutePath().normalize().relativize(ifile.path().toAbsolutePath().normalize())
                             .toString().replace('\\', '/');
-                } catch (Exception ignored) {
+                } catch (Exception notRelativizable) {
+                    // A file outside the analysed root keeps its absolute path: the finding is still
+                    // reported, only not project-relative.
                 }
             }
         }

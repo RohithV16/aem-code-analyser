@@ -8,8 +8,6 @@ import io.github.rohithv16.aem.analyser.core.model.graph.node.JavaClassNode;
 import io.github.rohithv16.aem.analyser.core.model.graph.node.OSGiComponentNode;
 import io.github.rohithv16.aem.analyser.core.model.graph.node.OSGiConfigNode;
 import io.github.rohithv16.aem.analyser.core.model.graph.node.SlingModelNode;
-import io.github.rohithv16.aem.analyser.core.model.discovery.ModuleDescriptor;
-import io.github.rohithv16.aem.analyser.core.model.report.CoverageReport;
 import io.github.rohithv16.aem.analyser.core.model.report.Violation;
 import io.github.rohithv16.aem.analyser.core.rules.impl.AemDup001Rule;
 import io.github.rohithv16.aem.analyser.core.rules.impl.AemDup002Rule;

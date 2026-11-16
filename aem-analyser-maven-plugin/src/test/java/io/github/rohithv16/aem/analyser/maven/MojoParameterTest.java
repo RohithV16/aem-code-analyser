@@ -2,7 +2,6 @@ package io.github.rohithv16.aem.analyser.maven;
 
 import org.junit.jupiter.api.Test;
 
-import java.lang.reflect.Field;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -47,7 +46,8 @@ class MojoParameterTest {
         Class<?> current = type;
         while (current != null) {
             try {
-                Field ignored = current.getDeclaredField(name);
+                // Called for its NoSuchFieldException: a miss means this class does not declare it.
+                current.getDeclaredField(name);
                 return true;
             } catch (NoSuchFieldException e) {
                 current = current.getSuperclass();

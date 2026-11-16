@@ -4,7 +4,6 @@ import io.github.rohithv16.aem.analyser.core.model.graph.node.JavaClassNode;
 import io.github.rohithv16.aem.analyser.core.model.graph.node.OSGiComponentNode;
 import io.github.rohithv16.aem.analyser.core.model.graph.node.OSGiConfigNode;
 import io.github.rohithv16.aem.analyser.core.model.graph.node.OSGiOcdNode;
-import io.github.rohithv16.aem.analyser.core.model.graph.node.OcdPropertyMethodNode;
 import io.github.rohithv16.aem.analyser.core.model.graph.node.SlingModelNode;
 
 import java.util.ArrayList;
@@ -12,7 +11,6 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.function.Function;
 
 /**
  * FEAT-GRAPH-02: secondary concurrent in-memory lookup indices providing O(1)

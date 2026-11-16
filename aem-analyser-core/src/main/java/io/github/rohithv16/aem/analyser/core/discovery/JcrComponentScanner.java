@@ -2,7 +2,6 @@ package io.github.rohithv16.aem.analyser.core.discovery;
 
 import io.github.rohithv16.aem.analyser.core.model.htl.CqComponentDefinition;
 
-import java.io.BufferedReader;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;

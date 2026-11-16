@@ -11,13 +11,10 @@ import io.github.rohithv16.aem.analyser.core.rules.RuleEvaluator;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
-import java.util.Set;
-import java.util.stream.Collectors;
 
 /**
  * Rule AEM-DUP-001 — Duplicate / Conflicting Servlet Endpoints.
@@ -166,13 +163,16 @@ public final class AemDup001Rule implements RuleEvaluator {
             } else if (lower.startsWith("service.ranking=")) {
                 try {
                     ranking = Integer.parseInt(prop.substring("service.ranking=".length()).trim());
-                } catch (NumberFormatException ignored) {}
+                } catch (NumberFormatException malformedRanking) {
+                    // A non-numeric ranking keeps the default (0): the endpoint is still compared,
+                    // only the ranking dimension is left at its Sling default.
+                }
             }
         }
 
-        Collections.sort(selectors);
-        Collections.sort(extensions);
-        Collections.sort(methods);
+        selectors.sort(Comparator.naturalOrder());
+        extensions.sort(Comparator.naturalOrder());
+        methods.sort(Comparator.naturalOrder());
 
         return new ServletRegistration(component, paths, resourceTypes, selectors, extensions, methods, ranking);
     }
@@ -180,9 +180,9 @@ public final class AemDup001Rule implements RuleEvaluator {
     private List<String> extractValues(String raw) {
         return Arrays.stream(raw.split("[,;]"))
                 .map(String::trim)
-                .map(s -> s.replaceAll("^\"|\"$", ""))
+                .map(s -> s.replaceAll("(^\")|(\"$)", ""))
                 .filter(s -> !s.isEmpty())
-                .collect(Collectors.toList());
+                .toList();
     }
 
     private String relativePath(RuleContext context, Path path) {
