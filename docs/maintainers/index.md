@@ -30,6 +30,7 @@ Everything Central validates is produced by the `release-central` profile:
 | POM metadata: name, description, url, licenses, developers, scm | root `pom.xml` |
 | Upload through the Portal | `central-publishing-maven-plugin` 0.12.0, `autoPublish=false`, `waitUntil=validated` |
 | Nothing uploaded by a release | Central runs from its own manual workflow, `.github/workflows/publish-central.yml` |
+| The site shows the released version | `docs/_data/version.yml`, rewritten by `release.yml`; the header, footer and install snippets read `site.data.version.current` |
 
 `mvn -Prelease-central deploy` publishes `aem-analyser-core` and `aem-analyser-maven-plugin`. The CLI
 is excluded (`excludeArtifacts`): it is an application whose shaded jar bundles every dependency, and

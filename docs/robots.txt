@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://rohithv16.github.io/aem-code-analyser/sitemap.xml

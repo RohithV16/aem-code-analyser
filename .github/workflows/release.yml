@@ -63,6 +63,15 @@ jobs:
           echo "version=${NEW_VERSION}" >> "$GITHUB_OUTPUT"
           echo "tag=v${NEW_VERSION}" >> "$GITHUB_OUTPUT"
 
+      - name: Point the published site at the new release
+        shell: bash
+        env:
+          VERSION: ${{ steps.bump.outputs.version }}
+        run: |
+          mkdir -p docs/_data
+          printf 'current: %s\n' "$VERSION" > docs/_data/version.yml
+          cat docs/_data/version.yml
+
       - name: Build and package
         run: mvn clean package --batch-mode
 

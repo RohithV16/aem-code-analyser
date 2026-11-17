@@ -1,5 +1,4 @@
 title: AEM Code Analyser
-version: 1.0.10
 description: >-
   Whole-project static analysis for Adobe Experience Manager: dead code, orphaned OSGi
   configuration, duplication, Cloud Service parity and security findings in one pass.
@@ -10,6 +9,9 @@ lang: en
 
 markdown: kramdown
 highlighter: none
+
+plugins:
+  - jekyll-sitemap
 
 exclude:
   - README.md
