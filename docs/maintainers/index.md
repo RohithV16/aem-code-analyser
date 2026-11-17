@@ -30,7 +30,7 @@ Everything Central validates is produced by the `release-central` profile:
 | POM metadata: name, description, url, licenses, developers, scm | root `pom.xml` |
 | Upload through the Portal | `central-publishing-maven-plugin` 0.12.0, `autoPublish=false`, `waitUntil=validated` |
 | Nothing uploaded by a release | Central runs from its own manual workflow, `.github/workflows/publish-central.yml` |
-| The site shows the released version | `docs/_data/version.yml`, rewritten by `release.yml`; the header, footer and install snippets read `site.data.version.current` |
+| The site shows the released version | `docs/_data/version.yml`, rewritten by the release job in `ci.yml`; the header, footer and install snippets read `site.data.version.current` |
 
 `mvn -Prelease-central deploy` publishes `aem-analyser-core` and `aem-analyser-maven-plugin`. The CLI
 is excluded (`excludeArtifacts`): it is an application whose shaded jar bundles every dependency, and
@@ -167,7 +167,7 @@ Maven Central is the default artifact repository for Apache Maven, Gradle, and J
 ```
 +-------------------------------------------------------------------------------+
 |                             GitHub Actions Workflow                           |
-|                               (release.yml)                                   |
+|                               (ci.yml)                                   |
 +-------------------------------------------------------------------------------+
           |                                                   |
           v                                                   v
@@ -368,9 +368,9 @@ Add a dedicated Maven profile `release-central` so everyday local builds and tes
 
 ---
 
-### Step 5: Updating GitHub Actions Workflow (`release.yml`)
+### Step 5: Updating GitHub Actions Workflow (`ci.yml`)
 
-When activating Maven Central publishing, update [`.github/workflows/release.yml`](https://github.com/RohithV16/aem-code-analyser/blob/main/.github/workflows/release.yml):
+When activating Maven Central publishing, update [`.github/workflows/ci.yml`](https://github.com/RohithV16/aem-code-analyser/blob/main/.github/workflows/ci.yml):
 
 ```yaml
       - name: Import GPG Key

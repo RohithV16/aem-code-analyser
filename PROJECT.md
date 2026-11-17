@@ -286,7 +286,8 @@ aem-code-analyser/
 │   └── src/test/java/…               # Unit and golden-file tests
 ├── aem-analyser-maven-plugin/        # check / report goals, Invoker ITs (src/it)
 ├── aem-analyser-cli/                 # Picocli CLI, shaded into a single runnable jar
-└── .github/workflows/                # ci.yml (verify/ITs/validation/quality), release.yml
+└── .github/workflows/                # ci.yml (verify/ITs/validation/quality + release)
+                                      # publish-central.yml (manual Maven Central only)
 ```
 
 ---

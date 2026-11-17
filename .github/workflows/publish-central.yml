@@ -1,6 +1,6 @@
 name: Publish to Maven Central
 
-# Manual on purpose. A release (.github/workflows/release.yml) only tags, publishes to GitHub
+# Manual on purpose. A release (the release job in .github/workflows/ci.yml) only tags, publishes to GitHub
 # Packages and attaches the assets; Central has a publishing quota and a permanent public record,
 # so uploading there is a deliberate, human-triggered action.
 #

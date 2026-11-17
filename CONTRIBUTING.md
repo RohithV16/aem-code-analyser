@@ -37,7 +37,7 @@ scripts/run-reactor-validation.sh  # pinned findings for validation/reactor
 scripts/check-rule-docs.sh         # docs/rules must match the generator
 ```
 
-All four run in CI (`ci.yml`: verify matrix, Invoker ITs, validation, quality). A new rule needs a
+All four run in CI (`ci.yml`: verify matrix, Invoker ITs, validation, quality). Releases are dispatched from the same workflow. A new rule needs a
 probe fixture in `validation/probes` **and** an entry in its `expected-rules.txt`; a rule that changes
 behaviour needs the reactor's `expected-findings.txt` re-pinned deliberately
 (`scripts/run-reactor-validation.sh <jar> --update`), with the reason in the PR.
