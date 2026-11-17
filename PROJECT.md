@@ -250,7 +250,7 @@ aem-code-analyser/
 ├── CHANGELOG.md                      # Shipped changes, newest first
 ├── CONTRIBUTING.md                   # How to add a rule, run the gates
 ├── pom.xml                           # Root parent POM (Java 21, enforcer >= 3.9)
-├── docs/                             # Published site (GitHub Pages, Jekyll layout + one stylesheet)
+├── docs/                             # Published site source (Jekyll; deployed by ci.yml, not by Pages)
 │   ├── index.html                    # Overview, quick start, install paths
 │   ├── getting-started/              # Install, verify, gate, CI, tune, troubleshooting
 │   ├── issues/                       # Generated issue reference: every rule, why, fix, examples
@@ -286,7 +286,7 @@ aem-code-analyser/
 │   └── src/test/java/…               # Unit and golden-file tests
 ├── aem-analyser-maven-plugin/        # check / report goals, Invoker ITs (src/it)
 ├── aem-analyser-cli/                 # Picocli CLI, shaded into a single runnable jar
-└── .github/workflows/                # ci.yml (verify/ITs/validation/quality + release)
+└── .github/workflows/                # ci.yml (verify/ITs/validation/quality, site deploy, release)
                                       # publish-central.yml (manual Maven Central only)
 ```
 

@@ -31,6 +31,7 @@ Everything Central validates is produced by the `release-central` profile:
 | Upload through the Portal | `central-publishing-maven-plugin` 0.12.0, `autoPublish=false`, `waitUntil=validated` |
 | Nothing uploaded by a release | Central runs from its own manual workflow, `.github/workflows/publish-central.yml` |
 | The site shows the released version | `docs/_data/version.yml`, rewritten by the release job in `ci.yml`; the header, footer and install snippets read `site.data.version.current` |
+| The site is published only after CI passes | the `site` and `deploy` jobs in `ci.yml` build `docs/` with Jekyll and deploy the artifact; Pages is set to *GitHub Actions*, not to the branch builder |
 
 `mvn -Prelease-central deploy` publishes `aem-analyser-core` and `aem-analyser-maven-plugin`. The CLI
 is excluded (`excludeArtifacts`): it is an application whose shaded jar bundles every dependency, and
