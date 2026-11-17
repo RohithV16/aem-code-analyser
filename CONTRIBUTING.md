@@ -25,7 +25,8 @@ mvn clean verify
 2. Add the id (and default severity) to `model/report/RuleId`.
 3. Add at least one true-positive and one false-positive-guard fixture.
 4. Run `scripts/run-rule-probes.sh` and the validation project before opening a PR.
-5. Update `README.md`, `docs/rules/<RULE-ID>.md` and `CHANGELOG.md`.
+5. Update `README.md`, regenerate the issue reference (`--generate-rule-docs docs`) and add a
+   `CHANGELOG.md` entry.
 
 ## Gates to run before a PR
 

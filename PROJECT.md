@@ -250,16 +250,20 @@ aem-code-analyser/
 ├── CHANGELOG.md                      # Shipped changes, newest first
 ├── CONTRIBUTING.md                   # How to add a rule, run the gates
 ├── pom.xml                           # Root parent POM (Java 21, enforcer >= 3.9)
-├── docs/                             # Published site (GitHub Pages)
-│   ├── index.md                      # Overview, quick start, CLI/Maven reference
-│   ├── MAVEN_CENTRAL_PUBLISHING_GUIDE.md
-│   └── rules/                        # One generated page per rule id
+├── docs/                             # Published site (GitHub Pages, Jekyll layout + one stylesheet)
+│   ├── index.html                    # Overview, quick start, install paths
+│   ├── getting-started/              # Install, verify, gate, CI, tune, troubleshooting
+│   ├── issues/                       # Generated issue reference: every rule, why, fix, examples
+│   ├── reference/                    # Every flag, format, exit code and config key
+│   ├── demo/                         # Committed sample report (scripts/build-demo-report.sh)
+│   ├── maintainers/                  # Release and Maven Central guide
+│   └── assets/                       # site.css, site.js, favicon
 ├── scripts/
 │   ├── next-version.py               # Snapshot-aware release/snapshot arithmetic
 │   ├── run-from-source.sh            # Run the CLI from a clone, no jar download
 │   ├── run-rule-probes.sh            # Probe gate: every active rule must fire
 │   ├── run-reactor-validation.sh     # Golden findings for validation/reactor
-│   ├── check-rule-docs.sh            # docs/rules must equal generated output
+│   ├── check-rule-docs.sh            # docs/issues must equal generated output
 │   ├── check_rule_probes.py          # Probe-result checker
 │   └── inject-rule-probes.sh         # Run probes inside a temp copy of a repo
 ├── validation/
@@ -298,7 +302,7 @@ aem-code-analyser/
    project, covering cases single-file probes cannot express: wildcard-import injection, inherited
    `@Reference`, PIDs built from constants in another class, factory PID amendments and cross-module
    clientlib references.
-4. **Documentation gate** — `docs/rules/*.md` must equal `--generate-rule-docs` output.
+4. **Documentation gate** — `docs/issues/index.html` must equal `--generate-rule-docs` output.
 5. **Cross-platform CI** — the full suite runs on Linux, macOS and Windows; path handling that only
    breaks on Windows has shipped before, so the matrix is part of the contract.
 6. **Consumer proof** — every documented consumption route (release jar, JitPack library, plugin via

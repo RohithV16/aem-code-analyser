@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
-# Fails when docs/rules/ is not byte-identical to what --generate-rule-docs produces.
+# Fails when docs/issues/ is not byte-identical to what --generate-rule-docs produces.
 #
-# The pages are generated from RuleRegistry, so a change to a rule's severity, description or
-# remediation must not leave the published docs describing the old behaviour.
+# The page is generated from RuleRegistry and RuleFixCatalog, so a change to a rule's severity,
+# description, remediation or fix example must not leave the published reference describing the
+# old behaviour — the dashboard links every finding to an anchor on that page.
 #
 # Usage: scripts/check-rule-docs.sh [jar]
 set -euo pipefail
@@ -15,9 +16,9 @@ trap 'rm -rf "$OUT"' EXIT
 
 java -jar "$JAR" --generate-rule-docs "$OUT" >/dev/null
 
-if diff -ru docs/rules "$OUT"; then
-  echo "rule docs are up to date ($(ls "$OUT" | wc -l | tr -d ' ') pages)"
+if diff -ru docs/issues "$OUT/issues"; then
+  echo "issue reference is up to date ($(grep -c 'class="rule-card"' docs/issues/index.html) rules)"
 else
-  echo "rule docs are stale: run --generate-rule-docs docs/rules and commit the result" >&2
+  echo "issue reference is stale: run --generate-rule-docs docs and commit the result" >&2
   exit 1
 fi

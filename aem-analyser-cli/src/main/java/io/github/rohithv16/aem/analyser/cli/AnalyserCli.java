@@ -188,7 +188,7 @@ public class AnalyserCli implements Runnable {
     private String explainRule;
 
     @Option(names = {"--generate-rule-docs"}, paramLabel = "DIR",
-            description = "Generate Markdown documentation for every rule into DIR, then exit.")
+            description = "Generate the HTML issue reference into DIR/issues, then exit.")
     private Path generateRuleDocs;
 
     @Option(names = {"--fail-on"},

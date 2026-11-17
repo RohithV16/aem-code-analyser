@@ -144,6 +144,54 @@ class HtmlReportExporterTest {
         assertTrue(html.contains("42"), html);
     }
 
+    @Test
+    void sonarRulesLinkToSonarSourceInsteadOfAMissingAnchor() {
+        Violation sonar = new Violation("java:S2208", Severity.WARNING, null, "Wildcard import",
+                "core/A.java", new TextRegion(1, 1, 1, 5), null, null, List.of());
+        AnalysisReport report = new AnalysisReport(Path.of("/workspace/project"), Map.of(),
+                List.of(sonar), 10);
+
+        String html = new HtmlReportExporter().generateHtml(report);
+
+        assertTrue(html.contains("https://rules.sonarsource.com/java/rule/S2208/"), html);
+        assertFalse(html.contains("issues/#java:s2208"),
+                "the issue reference has no anchor for embedded SonarJava rules");
+    }
+
+    @Test
+    void everyAemRuleLinksToAnAnchorTheSiteActuallyPublishes() throws Exception {
+        var output = java.nio.file.Files.createTempDirectory("rule-docs");
+        try {
+            io.github.rohithv16.aem.analyser.core.rules.metadata.RuleDocsGenerator.writeAll(output);
+            String issues = java.nio.file.Files.readString(output.resolve("issues/index.html"));
+
+            for (io.github.rohithv16.aem.analyser.core.rules.metadata.RuleDescriptor rule
+                    : io.github.rohithv16.aem.analyser.core.rules.metadata.RuleRegistry.all()) {
+                Violation violation = new Violation(rule.id(), rule.defaultSeverity(), null, "message",
+                        "core/A.java", new TextRegion(1, 1, 1, 5), null, null, List.of());
+                String html = new HtmlReportExporter()
+                        .generateHtml(new AnalysisReport(Path.of("/workspace/project"), Map.of(),
+                                List.of(violation), 10));
+
+                String anchor = rule.id().toLowerCase(java.util.Locale.ROOT);
+                assertTrue(html.contains("issues/#" + anchor),
+                        "dashboard must link " + rule.id() + " to its published anchor");
+                assertTrue(issues.contains("id=\"" + anchor + "\""),
+                        "issue reference must publish the anchor for " + rule.id());
+            }
+        } finally {
+            try (var files = java.nio.file.Files.walk(output)) {
+                files.sorted(java.util.Comparator.reverseOrder()).forEach(path -> {
+                    try {
+                        java.nio.file.Files.deleteIfExists(path);
+                    } catch (java.io.IOException ignored) {
+                        // scratch directory
+                    }
+                });
+            }
+        }
+    }
+
     private Violation violation(String ruleId, String message, int line) {
         return new Violation(ruleId, Severity.WARNING, null, message, "core/A.java",
                 new TextRegion(line, 1, line, 10), null, null, List.of());

@@ -142,9 +142,9 @@ public final class ConsoleReportFormatter implements ReportExporter {
         long warnings = report.countBySeverity(Severity.WARNING);
         long infos = report.countBySeverity(Severity.INFO);
         sb.append(" Total Violations: ").append(report.violations().size())
-                .append(" (").append(errors).append(" Errors, ")
-                .append(warnings).append(" Warnings, ")
-                .append(infos).append(" Infos)\n");
+                .append(" (").append(errors).append(errors == 1 ? " Error, " : " Errors, ")
+                .append(warnings).append(warnings == 1 ? " Warning, " : " Warnings, ")
+                .append(infos).append(infos == 1 ? " Info)\n" : " Infos)\n");
         sb.append(" Execution Time: ").append(String.format("%.3f", report.durationMillis() / 1000.0))
                 .append(" s\n");
         sb.append(line).append('\n');

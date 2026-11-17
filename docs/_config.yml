@@ -1,12 +1,17 @@
 title: AEM Code Analyser
-description: Cross-boundary dead-code, duplication and AEM Cloud Service analysis for AEM projects.
-theme: jekyll-theme-cayman
-markdown: kramdown
-plugins:
-  - jekyll-relative-links
-relative_links:
-  enabled: true
-  collections: false
+version: 1.0.10
+description: >-
+  Whole-project static analysis for Adobe Experience Manager: dead code, orphaned OSGi
+  configuration, duplication, Cloud Service parity and security findings in one pass.
 url: https://rohithv16.github.io
 baseurl: /aem-code-analyser
 repository: RohithV16/aem-code-analyser
+lang: en
+
+markdown: kramdown
+highlighter: none
+
+exclude:
+  - README.md
+  - Gemfile
+  - Gemfile.lock

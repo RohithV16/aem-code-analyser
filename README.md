@@ -30,7 +30,7 @@ cd ~/my-aem-project && java -jar aem-analyser-cli.jar
 ```
 
 Self-contained; all it needs is Java 21. Run it inside the project and it finds everything by itself.
-Every run prints a console report and writes an HTML dashboard to `target/aem-analyser/`
+Every run prints a console report and writes an HTML dashboard to `target/aem-analyser/` by default
 (`--no-html` skips the dashboard).
 
 ### 3 · Or wire it into the build
@@ -40,7 +40,7 @@ Every run prints a console report and writes an HTML dashboard to `target/aem-an
     <groupId>io.github.rohithv16</groupId>
     <artifactId>aem-analyser-maven-plugin</artifactId>
     <!-- latest version: https://github.com/RohithV16/aem-code-analyser/releases -->
-    <version>${aem-analyser.version}</version>
+    <version>1.0.10</version>
     <executions>
         <execution>
             <phase>verify</phase>
@@ -72,7 +72,7 @@ performance (4), AEM as a Cloud Service (5), security (2), component compatibili
 reported as console output, an HTML dashboard, SARIF 2.1.0, SonarQube issues, or GitHub/GitLab/Azure
 annotations.
 
-**→ [Rule catalogue — every rule, what it detects, how to fix it](docs/rules/index.md)** ·
+**→ [Issue reference — every rule, what it detects, how to fix it](https://rohithv16.github.io/aem-code-analyser/issues/)** ·
 `aem-analyser --explain AEM-DEAD-001` for the same detail in the terminal.
 
 ## Common runs
@@ -139,7 +139,7 @@ and offers a persistent dark mode, print stylesheet and keyboard-accessible tabs
 | `--sonar-rules <list>` | `default` | SonarJava ruleset filter. |
 | `--list-rules` | — | Print the rule catalogue and exit. |
 | `--explain <RULE>` | — | Print one rule's metadata and exit. |
-| `--generate-rule-docs <dir>` | — | Generate Markdown rule pages and exit. |
+| `--generate-rule-docs <dir>` | — | Generate the issue reference page into `<dir>/issues` and exit. |
 | `-v, --verbose` | off | Print analysis diagnostics. |
 | `--no-color` | off | Disable ANSI colours. |
 
@@ -222,12 +222,16 @@ scripts/run-reactor-validation.sh <jar> --update  # deliberately re-pin after an
 
 ### Rule documentation
 
-`docs/rules/*.md` are generated from `RuleRegistry`, so they cannot drift from the code:
+`docs/issues/index.html` — the published issue reference — is generated from `RuleRegistry` and
+`RuleFixCatalog`, so it cannot drift from the code:
 
 ```bash
-scripts/check-rule-docs.sh          # fails when a page no longer matches the code
-java -jar <cli.jar> --generate-rule-docs docs/rules   # regenerate
+scripts/check-rule-docs.sh                            # fails when the page no longer matches the code
+java -jar <cli.jar> --generate-rule-docs docs          # regenerate
 ```
+
+`RuleFixCatalog` switches over `RuleId` exhaustively: adding a rule without writing its explanation
+and fix example is a compile error.
 
 ---
 
@@ -242,7 +246,7 @@ To automatically enforce dead-code quality checks in any AEM project during `mvn
             <groupId>io.github.rohithv16</groupId>
             <artifactId>aem-analyser-maven-plugin</artifactId>
             <!-- latest version: https://github.com/RohithV16/aem-code-analyser/releases -->
-            <version>${aem-analyser.version}</version>
+            <version>1.0.10</version>
             <executions>
                 <execution>
                     <id>aem-dead-code-check</id>
@@ -324,5 +328,5 @@ irreversible public record:
 
 A release on its own only tags, publishes to GitHub Packages and attaches release assets. Signing key,
 namespace and secrets are documented in the
-[publishing guide](docs/MAVEN_CENTRAL_PUBLISHING_GUIDE.md).
+[publishing guide](docs/maintainers/).
 

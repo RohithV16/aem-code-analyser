@@ -1,0 +1,258 @@
+---
+layout: default
+nav: reference
+title: CLI reference
+description: Every flag, output format, exit code, configuration key and suppression syntax in AEM Code Analyser.
+---
+
+<div class="shell docs">
+  <aside class="docs__aside">
+    <h2>On this page</h2>
+    <ul>
+      <li><a href="#flags">Flags</a></li>
+      <li><a href="#formats">Output formats</a></li>
+      <li><a href="#exit-codes">Exit codes</a></li>
+      <li><a href="#configuration">Configuration file</a></li>
+      <li><a href="#baseline">Baseline</a></li>
+      <li><a href="#suppression">Inline suppression</a></li>
+      <li><a href="#maven-plugin">Maven plugin</a></li>
+      <li><a href="#scope">What gets scanned</a></li>
+    </ul>
+    <h2>Elsewhere</h2>
+    <ul>
+      <li><a href="{{ site.baseurl }}/getting-started/">Getting started</a></li>
+      <li><a href="{{ site.baseurl }}/issues/">Issues and fixes</a></li>
+    </ul>
+  </aside>
+
+  <div class="docs__main">
+    <h1>CLI reference</h1>
+    <p class="lede">
+      Everything the analyser accepts, in one place. Defaults are what you get when you pass nothing —
+      which is the intended way to start.
+    </p>
+
+    <section id="flags">
+      <h2 class="mt-0">Usage</h2>
+      <div class="code">
+        <div class="code__bar"><span class="code__label">bash</span></div>
+<pre><code>java -jar aem-analyser-cli.jar [options] [project-root]</code></pre>
+      </div>
+
+      <h2>Flags</h2>
+      <div class="table-wrap">
+        <table class="table--compact flags">
+          <thead>
+            <tr><th scope="col">Flag</th><th scope="col">Default</th><th scope="col">Description</th></tr>
+          </thead>
+          <tbody>
+            <tr><td class="mono nowrap">[project-root]</td><td class="mono">current dir</td><td>Shorthand for <code>--project-root</code>.</td></tr>
+            <tr><td class="mono nowrap">-p, --project-root &lt;dir&gt;</td><td class="mono">current dir</td><td>Project or reactor root. A module directory resolves up to the reactor that owns it.</td></tr>
+            <tr><td class="mono nowrap">-f, --format &lt;list&gt;</td><td class="mono">CONSOLE</td><td>Comma-separated: <code>CONSOLE</code>, <code>SARIF</code>, <code>SONAR</code>, <code>HTML</code>, <code>GITHUB</code>, <code>GITLAB</code>, <code>AZURE</code>.</td></tr>
+            <tr><td class="mono nowrap">--html [path], --html-report</td><td class="mono">on</td><td>Write the HTML dashboard. <code>--no-html</code> turns it off for one run.</td></tr>
+            <tr><td class="mono nowrap">-o, --output &lt;dir&gt;</td><td class="mono">target/aem-analyser</td><td>Directory for SARIF, SONAR, HTML and CI annotation files.</td></tr>
+            <tr><td class="mono nowrap">--fail-on &lt;severity&gt;</td><td class="mono">—</td><td><code>ERROR</code>, <code>WARNING</code>, <code>INFO</code> or <code>NONE</code>. Without it, any ERROR finding already fails the run.</td></tr>
+            <tr><td class="mono nowrap">-w, --fail-on-warning</td><td class="mono">off</td><td>Also fail when warnings exist. Ignored by <code>--fail-on NONE</code>.</td></tr>
+            <tr><td class="mono nowrap">--min-coverage &lt;percent&gt;</td><td class="mono">—</td><td>Quality gate: minimum line coverage.</td></tr>
+            <tr><td class="mono nowrap">--max-duplication &lt;percent&gt;</td><td class="mono">—</td><td>Quality gate: maximum tolerated duplication.</td></tr>
+            <tr><td class="mono nowrap">--max-warnings &lt;n&gt;</td><td class="mono">—</td><td>Quality gate: maximum tolerated warning count.</td></tr>
+            <tr><td class="mono nowrap">--sonar / --no-sonar</td><td class="mono">on</td><td>Embedded SonarJava analysis.</td></tr>
+            <tr><td class="mono nowrap">--sonar-rules &lt;list&gt;</td><td class="mono">default</td><td>SonarJava ruleset filter, e.g. <code>S106,S1147</code>.</td></tr>
+            <tr><td class="mono nowrap">--collect-coverage</td><td class="mono">off</td><td>Run unit tests with JaCoCo instrumentation to produce fresh coverage.</td></tr>
+            <tr><td class="mono nowrap">--force</td><td class="mono">off</td><td>Re-run those tests even when coverage artefacts already exist.</td></tr>
+            <tr><td class="mono nowrap">--baseline &lt;file&gt;</td><td class="mono">.aem-analyser-baseline.json</td><td>Accepted findings to ignore.</td></tr>
+            <tr><td class="mono nowrap">--update-baseline</td><td class="mono">off</td><td>Write current findings to the baseline.</td></tr>
+            <tr><td class="mono nowrap">--baseline-report</td><td class="mono">off</td><td>Keep suppressed findings visible at <code>INFO</code>.</td></tr>
+            <tr><td class="mono nowrap">--changed-only</td><td class="mono">off</td><td>Only files and lines changed in Git.</td></tr>
+            <tr><td class="mono nowrap">--since &lt;ref&gt;</td><td class="mono">—</td><td>Git reference to compare against (<code>HEAD~1</code>, <code>origin/main</code>); implies <code>--changed-only</code>.</td></tr>
+            <tr><td class="mono nowrap">--config &lt;file&gt;</td><td class="mono">.aem-analyser.yml</td><td>Project configuration file.</td></tr>
+            <tr><td class="mono nowrap">--ignore-config, --ignore-config-path &lt;globs&gt;</td><td class="mono">—</td><td>Reactor-relative configuration paths to exclude.</td></tr>
+            <tr><td class="mono nowrap">--ignored-services &lt;classes&gt;</td><td class="mono">—</td><td>Service classes that are never reported as unused.</td></tr>
+            <tr><td class="mono nowrap">--dependency-jars &lt;paths&gt;</td><td class="mono">—</td><td>JARs or directories to index for platform PIDs from other bundles.</td></tr>
+            <tr><td class="mono nowrap">--fix / --fix-dry-run</td><td class="mono">off</td><td>Apply, or preview, safe automated fixes.</td></tr>
+            <tr><td class="mono nowrap">--history &lt;dir&gt; / --history-limit &lt;n&gt;</td><td class="mono">— / 20</td><td>Keep a run history and render its trend in the dashboard.</td></tr>
+            <tr><td class="mono nowrap">-t, --threads &lt;n&gt;</td><td class="mono">max(2, cores − 1)</td><td>Worker threads.</td></tr>
+            <tr><td class="mono nowrap">--profile &lt;list&gt;</td><td class="mono">—</td><td>Maven profiles to activate during discovery.</td></tr>
+            <tr><td class="mono nowrap">--max-file-size &lt;bytes&gt;</td><td class="mono">10485760</td><td>Skip larger files. They are reported as diagnostics.</td></tr>
+            <tr><td class="mono nowrap">--timeout &lt;seconds&gt;</td><td class="mono">0</td><td>Overall time budget. 0 means none.</td></tr>
+            <tr><td class="mono nowrap">--explain &lt;RULE&gt;</td><td class="mono">—</td><td>Print one rule's metadata and exit.</td></tr>
+            <tr><td class="mono nowrap">--list-rules</td><td class="mono">—</td><td>Print the rule catalogue and exit.</td></tr>
+            <tr><td class="mono nowrap">--generate-rule-docs &lt;dir&gt;</td><td class="mono">—</td><td>Generate the issue reference into <code>&lt;dir&gt;/issues</code> and exit.</td></tr>
+            <tr><td class="mono nowrap">-v, --verbose</td><td class="mono">off</td><td>Print parse and scan diagnostics.</td></tr>
+            <tr><td class="mono nowrap">--no-color</td><td class="mono">off</td><td>Disable ANSI colours.</td></tr>
+            <tr><td class="mono nowrap">-h, --help / -V, --version</td><td class="mono">—</td><td>Usage and version, from picocli.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="formats">
+      <h2>Output formats</h2>
+      <p>
+        Formats combine: pass a comma-separated list to <code>--format</code>. Only
+        <code>CONSOLE</code> writes to stdout; every other format is a file under
+        <code>--output</code> (default <code>target/aem-analyser</code>).
+      </p>
+      <div class="table-wrap">
+        <table class="table--compact">
+          <thead><tr><th scope="col">Format</th><th scope="col">File</th><th scope="col">Consumer</th></tr></thead>
+          <tbody>
+            <tr><td class="mono">CONSOLE</td><td>stdout (plugin: <span class="mono">aem-analyser-report.txt</span>)</td><td>Terminal and build log</td></tr>
+            <tr><td class="mono">HTML</td><td class="mono">aem-analyser-report.html</td><td>People: a standalone dashboard</td></tr>
+            <tr><td class="mono">SARIF</td><td class="mono">aem-analyser.sarif</td><td>GitHub code scanning, Azure DevOps</td></tr>
+            <tr><td class="mono">SONAR</td><td class="mono">sonar-aem-analyser-report.json</td><td>SonarQube external issues</td></tr>
+            <tr><td class="mono">GITHUB</td><td class="mono">github-annotations.txt</td><td><code>::error</code> / <code>::warning</code> lines — <code>cat</code> the file in the step</td></tr>
+            <tr><td class="mono">GITLAB</td><td class="mono">gitlab-code-quality.json</td><td>GitLab code quality artefact</td></tr>
+            <tr><td class="mono">AZURE</td><td class="mono">azure-pipelines.log</td><td><code>##vso</code> logging commands — <code>cat</code> the file in the step</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="exit-codes">
+      <h2>Exit codes</h2>
+      <div class="table-wrap">
+        <table class="table--compact">
+          <thead><tr><th scope="col">Code</th><th scope="col">Meaning</th></tr></thead>
+          <tbody>
+            <tr>
+              <td class="mono">0</td>
+              <td>Analysis completed and the gate passed. <code>--fail-on NONE</code> always exits 0
+                unless a coverage or duplication threshold trips.</td>
+            </tr>
+            <tr>
+              <td class="mono">1</td>
+              <td>The gate failed — any ERROR-severity finding by default, anything at or above
+                <code>--fail-on</code>, <code>--fail-on-warning</code>, or a
+                <code>--min-coverage</code> / <code>--max-duplication</code> / <code>--max-warnings</code> breach.</td>
+            </tr>
+            <tr>
+              <td class="mono">2</td>
+              <td>The analysis could not run. Not a verdict on the code.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="muted">
+        Exit codes are a CLI contract. Through Maven, both a failed gate and a failed analysis surface
+        as a build failure, so the pipeline sees one non-zero exit.
+      </p>
+    </section>
+
+    <section id="configuration">
+      <h2>Configuration file</h2>
+      <p>
+        <code>.aem-analyser.yml</code> in the project root, or a path given with
+        <code>--config</code>. Every key is optional.
+      </p>
+      <div class="code">
+        <div class="code__bar"><span class="code__label">.aem-analyser.yml</span></div>
+<pre><code>rules:
+  AEM-DEAD-003B:
+    enabled: false
+  AEM-SEC-001:
+    severity: ERROR
+allowlists:
+  services:
+    - com.example.LegacyService
+  configPaths:
+    - ui.config/**/config.local/**</code></pre>
+      </div>
+      <ul>
+        <li><code>rules.&lt;ID&gt;.enabled</code> — turn a rule off without touching source.</li>
+        <li><code>rules.&lt;ID&gt;.severity</code> — raise or lower a rule’s severity for this project.</li>
+        <li><code>allowlists.services</code> — classes that are never reported as unused services.</li>
+        <li><code>allowlists.configPaths</code> — configuration globs the dead-configuration rules ignore.</li>
+        <li><code>schemaVersion</code> — configuration format version (currently <code>1</code>).</li>
+      </ul>
+    </section>
+
+    <section id="baseline">
+      <h2>Baseline</h2>
+      <p>
+        A baseline freezes the findings that exist today, so a gate can fail on new ones only.
+        Totals and exit codes count active findings; accepted ones are listed separately in the
+        dashboard’s Run Health tab.
+      </p>
+      <div class="code code--shell">
+        <div class="code__bar"><span class="code__label">bash</span></div>
+<pre><code>java -jar aem-analyser-cli.jar --update-baseline
+java -jar aem-analyser-cli.jar --baseline .aem-analyser-baseline.json
+java -jar aem-analyser-cli.jar --baseline .aem-analyser-baseline.json --baseline-report</code></pre>
+      </div>
+      <p class="muted">
+        <code>--baseline-report</code> keeps suppressed findings visible at <code>INFO</code>, which is
+        what you want while paying a baseline down.
+      </p>
+    </section>
+
+    <section id="suppression">
+      <h2>Inline suppression</h2>
+      <p>The next line is skipped for the named rule. Unknown rule ids are ignored, so a typo silences nothing.</p>
+      <div class="code">
+        <div class="code__bar"><span class="code__label">java</span></div>
+<pre><code>// aem-analyser-disable-next-line AEM-DEAD-001</code></pre>
+      </div>
+      <div class="code">
+        <div class="code__bar"><span class="code__label">html · HTL and XML</span></div>
+<pre><code>&lt;!-- aem-analyser-disable-next-line AEM-SEC-001 --&gt;</code></pre>
+      </div>
+      <p class="muted">
+        Two ids have no suppression hook because they are not produced by a rule evaluator:
+        <code>AEM-DUP-010</code> comes from the PMD CPD scan, and <code>AEM-QUAL-006</code> is retired —
+        <code>AEM-QUAL-004</code> now owns that check.
+      </p>
+    </section>
+
+    <section id="maven-plugin">
+      <h2>Maven plugin</h2>
+      <p>
+        Coordinates: <code>io.github.rohithv16:aem-analyser-maven-plugin</code>. Goals
+        <code>report</code> and <code>check</code>.
+      </p>
+      <div class="table-wrap">
+        <table class="table--compact">
+          <thead><tr><th scope="col">Parameter</th><th scope="col">Default</th><th scope="col">Description</th></tr></thead>
+          <tbody>
+            <tr><td class="mono">formats</td><td class="mono">SARIF,SONAR</td><td>Comma-separated formats for <code>report</code>; <code>check</code> defaults to <code>CONSOLE</code>.</td></tr>
+            <tr><td class="mono">outputFile</td><td class="mono">${project.build.directory}</td><td>Output directory, or the file itself when exactly one format is configured.</td></tr>
+            <tr><td class="mono">failOn</td><td class="mono">unset</td><td>Severity threshold for the <code>check</code> goal; unset means any ERROR fails.</td></tr>
+            <tr><td class="mono">failOnError</td><td class="mono">true</td><td>Fail when at least one ERROR finding exists (the default gate).</td></tr>
+            <tr><td class="mono">failOnWarning</td><td class="mono">false</td><td>Also fail when WARNING findings exist.</td></tr>
+            <tr><td class="mono">projectRoot</td><td class="mono">reactor root</td><td>Analyse a different directory.</td></tr>
+            <tr><td class="mono">enableSonar</td><td class="mono">true</td><td>Embedded SonarJava analysis.</td></tr>
+            <tr><td class="mono">configFile</td><td class="mono">.aem-analyser.yml</td><td>Project configuration file.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="mt-2">
+        These are the six you are likely to touch; the full parameter list (threads, baselines, Git
+        diffing, history, Sonar rules, coverage gates) mirrors the CLI flags and is documented in the
+        README.
+      </p>
+
+      <p>The same values work from the command line:</p>
+      <div class="code code--shell">
+        <div class="code__bar"><span class="code__label">bash</span></div>
+<pre><code>mvn -B -ntp io.github.rohithv16:aem-analyser-maven-plugin:1.0.10:report \
+  -Daem-analyser.formats=SARIF,HTML \
+  -Daem-analyser.outputFile=target/aem-analyser</code></pre>
+      </div>
+    </section>
+
+    <section id="scope">
+      <h2>What gets scanned</h2>
+      <p>
+        One pass over the reactor reads Java sources, HTL and JSP templates, OSGi configuration
+        (<code>.cfg.json</code>, <code>.config</code>, <code>sling:OsgiConfig</code>), client library
+        definitions, package metadata and content package filters. Files larger than
+        <code>--max-file-size</code> are skipped and reported as diagnostics rather than silently
+        dropped.
+      </p>
+      <p class="muted mb-0">
+        Skipped or partially parsed files appear in the dashboard’s <b>Run Health</b> tab — a clean
+        result on a run with diagnostics is not the same as a clean result on a run without them.
+      </p>
+    </section>
+  </div>
+</div>

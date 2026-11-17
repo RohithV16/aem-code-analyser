@@ -1,0 +1,432 @@
+---
+layout: default
+nav: start
+title: Getting started
+description: Install AEM Code Analyser from Maven Central or as a CLI jar, run your first scan, read the dashboard, gate a pull request and tune the rules.
+---
+
+<div class="shell docs">
+  <aside class="docs__aside">
+    <h2>On this page</h2>
+    <ul>
+      <li><a href="#before-you-start">Before you start</a></li>
+      <li><a href="#run">1 · Run your first scan</a></li>
+      <li><a href="#read">2 · Read the results</a></li>
+      <li><a href="#build">3 · Add it to the build</a></li>
+      <li><a href="#gate">4 · Gate a pull request</a></li>
+      <li><a href="#ci">5 · Run it in CI</a></li>
+      <li><a href="#tune">6 · Tune it</a></li>
+      <li><a href="#troubleshooting">Troubleshooting</a></li>
+    </ul>
+    <h2>Elsewhere</h2>
+    <ul>
+      <li><a href="{{ site.baseurl }}/issues/">Issues and fixes</a></li>
+      <li><a href="{{ site.baseurl }}/reference/">CLI reference</a></li>
+    </ul>
+  </aside>
+
+  <div class="docs__main">
+    <h1>Getting started</h1>
+    <p class="lede">
+      Ten minutes from download to a dashboard your team can read. A first report needs no flags, no
+      configuration file and no project-root argument — tuning (step 6) is optional.
+    </p>
+
+    <p class="muted" style="font-size: 0.88rem;">
+      Three words used throughout: a <strong>rule</strong> is the check (AEM-DEAD-001), a
+      <strong>finding</strong> is one occurrence of it in your code, and the <strong>dashboard</strong>
+      is the <code>aem-analyser-report.html</code> file a run writes.
+    </p>
+
+    <section id="before-you-start">
+      <h2 class="mt-0">Before you start</h2>
+
+      <div class="table-wrap">
+        <table class="table--compact">
+          <thead><tr><th scope="col">Requirement</th><th scope="col">Why</th><th scope="col">Check</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><strong>Java 21</strong></td>
+              <td>The analyser runs on 21. The project it reads is parsed as source, so the project’s own target does not have to be 21.</td>
+              <td><code>java -version</code></td>
+            </tr>
+            <tr>
+              <td><strong>Maven 3.9+</strong></td>
+              <td>Only for the plugin route. The jar and the script need no Maven at all.</td>
+              <td><code>mvn -v</code></td>
+            </tr>
+            <tr>
+              <td><strong>Git</strong></td>
+              <td>Only for <code>--changed-only</code>, <code>--since</code> and the from-source route.</td>
+              <td><code>git --version</code></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout callout--accent">
+        <p>
+          <strong>No AEM instance, no network, no credentials.</strong> Everything is read from the
+          file system. The analyser never connects to a repository, an author instance or a licence
+          server, so it is safe to run in an air-gapped build agent.
+        </p>
+      </div>
+    </section>
+
+    <section id="run">
+      <h2>1 · Run your first scan</h2>
+
+      <ol class="steps">
+        <li>
+          <h3>Download the CLI jar</h3>
+          <div class="code code--shell">
+            <div class="code__bar"><span class="code__label">bash</span></div>
+<pre><code>HOST=https://github.com/RohithV16/aem-code-analyser
+cd ~/my-aem-project
+curl -LO "$HOST/releases/latest/download/aem-analyser-cli.jar"</code></pre>
+          </div>
+          <p class="muted">
+            One self-contained jar. It can live anywhere — put it in the project, in
+            <code>~/tools</code>, wherever you keep it.
+          </p>
+        </li>
+
+        <li>
+          <h3>Run it from inside the project</h3>
+          <div class="code code--shell">
+            <div class="code__bar"><span class="code__label">bash</span></div>
+<pre><code>java -jar aem-analyser-cli.jar</code></pre>
+          </div>
+          <p>
+            Where you run it decides how much is scanned: the reactor root scans the whole reactor, a
+            module directory walks up to the reactor that owns it, and any subdirectory resolves to the
+            nearest <code>pom.xml</code> above. No <code>--project-root</code> needed.
+          </p>
+        </li>
+
+        <li>
+          <h3>Confirm it worked</h3>
+          <p>
+            The console ends with a total, an execution time and a verdict. Anything other than
+            <code>Total Violations: 0</code> on a first run is normal — a mature project usually has
+            findings:
+          </p>
+          <div class="code">
+            <div class="code__bar"><span class="code__label">console output (tail)</span></div>
+<pre><code>--------------------------------------------------------------------------------
+ Total Violations: 10 (4 Errors, 5 Warnings, 1 Infos)
+ Execution Time: 0.526 s
+================================================================================
+GATE FAILED: 4 error-severity findings detected.
+================================================================================</code></pre>
+          </div>
+          <p class="muted">
+            A run with no findings ends with <code>GATE PASSED</code>. The verdict reflects the
+            default gate: any ERROR-severity finding fails it.
+          </p>
+        </li>
+      </ol>
+    </section>
+
+    <section id="read">
+      <h2>2 · Read the results</h2>
+
+      <p>
+        A CLI run prints the console report and writes one file,
+        <code>target/aem-analyser/aem-analyser-report.html</code>. Add
+        <code>--format SARIF,HTML</code> to write the SARIF file as well:
+      </p>
+
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th scope="col">File</th><th scope="col">Use it for</th></tr></thead>
+          <tbody>
+            <tr>
+              <td class="mono">aem-analyser-report.html</td>
+              <td>The dashboard: filters, per-finding permalinks, run history, duplication and coverage panels. Opens offline, no server needed.</td>
+            </tr>
+            <tr>
+              <td class="mono">aem-analyser.sarif</td>
+              <td>Only with <code>--format SARIF</code>: GitHub code scanning, Azure DevOps, any SARIF viewer.</td>
+            </tr>
+            <tr>
+              <td class="mono">stdout</td>
+              <td>The console report: severity, rule id, file:line:column, message and the remediation sentence.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="code mt-3">
+        <div class="code__bar"><span class="code__label">bash · open the dashboard</span></div>
+<pre><code>open target/aem-analyser/aem-analyser-report.html      # macOS
+xdg-open target/aem-analyser/aem-analyser-report.html  # Linux
+start target\aem-analyser\aem-analyser-report.html     # Windows</code></pre>
+      </div>
+
+      <p>
+        A real example, generated from the three-module fixture committed in this repository:
+        <a href="{{ site.baseurl }}/demo/">the validation reactor report</a>.
+        It is produced by the current build of the site, so its header shows the version that
+        generated it; the Maven coordinates above are the latest release.
+      </p>
+
+      <p>
+        Every rule id in the dashboard links to its entry in the
+        <a href="{{ site.baseurl }}/issues/">issue reference</a> — what it detects, why it matters,
+        and the fix with a code example. Filter chips narrow by severity or family; the count next to
+        the search box always reflects the rows you can see.
+      </p>
+    </section>
+
+    <section id="build">
+      <h2>3 · Add it to the build</h2>
+
+      <p>
+        This is how a team uses it: one entry in the root <code>pom.xml</code>, and every
+        <code>mvn verify</code> produces the report. The plugin comes from Maven Central — no
+        <code>&lt;pluginRepositories&gt;</code>, no token.
+      </p>
+
+      <div class="code">
+        <div class="code__bar"><span class="code__label">pom.xml · reactor root</span></div>
+<pre><code>&lt;build&gt;
+  &lt;plugins&gt;
+    &lt;plugin&gt;
+      &lt;groupId&gt;io.github.rohithv16&lt;/groupId&gt;
+      &lt;artifactId&gt;aem-analyser-maven-plugin&lt;/artifactId&gt;
+      &lt;version&gt;1.0.10&lt;/version&gt;
+      &lt;!-- once, at the reactor root: module-by-module scans cannot see cross-module findings --&gt;
+      &lt;inherited&gt;false&lt;/inherited&gt;
+      &lt;executions&gt;
+        &lt;execution&gt;
+          &lt;phase&gt;verify&lt;/phase&gt;
+          &lt;goals&gt;&lt;goal&gt;report&lt;/goal&gt;&lt;/goals&gt;
+          &lt;configuration&gt;
+            &lt;formats&gt;SARIF,HTML&lt;/formats&gt;
+            &lt;outputFile&gt;${project.build.directory}/aem-analyser&lt;/outputFile&gt;
+          &lt;/configuration&gt;
+        &lt;/execution&gt;
+      &lt;/executions&gt;
+    &lt;/plugin&gt;
+  &lt;/plugins&gt;
+&lt;/build&gt;</code></pre>
+      </div>
+
+      <div class="callout">
+        <p>
+          <strong>About <code>&lt;inherited&gt;false&lt;/inherited&gt;</code>.</strong>
+          The mojos are aggregators, so the analysis always runs once at the reactor root. Without
+          the flag the plugin is still inherited into every module and each one logs a one-line skip,
+          which makes the build log noisy. It is a hygiene setting, not a requirement.
+        </p>
+      </div>
+
+      <p>Run it:</p>
+
+      <div class="code code--shell">
+        <div class="code__bar"><span class="code__label">bash</span></div>
+<pre><code>mvn -B -ntp verify</code></pre>
+      </div>
+
+      <p class="muted">
+        Result: <code>target/aem-analyser/aem-analyser.sarif</code> and
+        <code>target/aem-analyser/aem-analyser-report.html</code>.
+        The <code>report</code> goal never fails the build.
+      </p>
+    </section>
+
+    <section id="gate">
+      <h2>4 · Gate a pull request</h2>
+
+      <p>
+        Switch the goal from <code>report</code> to <code>check</code> when the report should decide
+        whether the build passes.
+      </p>
+
+      <div class="code">
+        <div class="code__bar"><span class="code__label">pom.xml · fail on errors, not warnings</span></div>
+<pre><code>&lt;execution&gt;
+  &lt;phase&gt;verify&lt;/phase&gt;
+  &lt;goals&gt;&lt;goal&gt;check&lt;/goal&gt;&lt;/goals&gt;
+  &lt;configuration&gt;
+    &lt;failOn&gt;ERROR&lt;/failOn&gt;
+  &lt;/configuration&gt;
+&lt;/execution&gt;</code></pre>
+      </div>
+
+      <h3>Exit codes</h3>
+      <div class="table-wrap">
+        <table class="table--compact">
+          <thead><tr><th scope="col">Code</th><th scope="col">Meaning</th></tr></thead>
+          <tbody>
+            <tr>
+              <td class="mono">0</td>
+              <td>Analysis completed and nothing tripped the gate. <code>--fail-on NONE</code> forces this.</td>
+            </tr>
+            <tr>
+              <td class="mono">1</td>
+              <td>The gate failed: at least one ERROR finding (the default), anything at or above
+                <code>--fail-on</code>, <code>--fail-on-warning</code>, or a
+                <code>--min-coverage</code> / <code>--max-duplication</code> / <code>--max-warnings</code> breach.</td>
+            </tr>
+            <tr>
+              <td class="mono">2</td>
+              <td>The analysis could not run — not a verdict on your code. Through Maven both 1 and 2
+                surface as a build failure.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p class="mt-2">
+        From the command line the same thing is:
+      </p>
+
+      <div class="code code--shell">
+        <div class="code__bar"><span class="code__label">bash</span></div>
+<pre><code>java -jar aem-analyser-cli.jar --fail-on ERROR   # fail on errors only
+java -jar aem-analyser-cli.jar --fail-on NONE    # report only, always exits 0</code></pre>
+      </div>
+    </section>
+
+    <section id="ci">
+      <h2>5 · Run it in CI</h2>
+
+      <p>
+        Call the goal directly in the pipeline: it reads sources and configuration without compiling
+        the project or needing an AEM instance, so the job stays short.
+      </p>
+
+      <div class="code">
+        <div class="code__bar"><span class="code__label">.github/workflows/quality.yml</span></div>
+<pre><code>name: Quality
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  analyse:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Analyse
+        run: |
+          mvn -B -ntp io.github.rohithv16:aem-analyser-maven-plugin:1.0.10:report \
+            -Daem-analyser.formats=SARIF,HTML \
+            -Daem-analyser.outputFile=target/aem-analyser
+
+      - name: Upload SARIF
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: target/aem-analyser/aem-analyser.sarif
+
+      - name: Upload dashboard
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: aem-analyser-report
+          path: target/aem-analyser/aem-analyser-report.html</code></pre>
+      </div>
+
+      <p class="muted">
+        For SonarQube, write the SONAR format instead and point <code>sonar.externalIssuesReportPaths</code>
+        at it:
+      </p>
+
+      <div class="code code--shell">
+        <div class="code__bar"><span class="code__label">bash</span></div>
+<pre><code>java -jar aem-analyser-cli.jar --format SONAR --output target/sonar
+sonar-scanner -Dsonar.externalIssuesReportPaths=target/sonar/sonar-aem-analyser-report.json</code></pre>
+      </div>
+    </section>
+
+    <section id="tune">
+      <h2>6 · Tune it</h2>
+
+      <p>Three things cover most needs: mute a rule, accept today’s findings, silence one line.</p>
+
+      <h3>Project configuration</h3>
+      <div class="code">
+        <div class="code__bar"><span class="code__label">.aem-analyser.yml · project root</span></div>
+<pre><code>rules:
+  AEM-DEAD-003B:
+    enabled: false
+  AEM-SEC-001:
+    severity: ERROR
+allowlists:
+  services:
+    - com.example.LegacyService
+  configPaths:
+    - ui.config/**/config.local/**</code></pre>
+      </div>
+
+      <h3>Accept what exists today, fail only on new findings</h3>
+      <div class="code code--shell">
+        <div class="code__bar"><span class="code__label">bash</span></div>
+<pre><code>java -jar aem-analyser-cli.jar --update-baseline
+java -jar aem-analyser-cli.jar --baseline .aem-analyser-baseline.json</code></pre>
+      </div>
+
+      <h3>Silence one line</h3>
+      <div class="code">
+        <div class="code__bar"><span class="code__label">java · htl</span></div>
+<pre><code>// aem-analyser-disable-next-line AEM-DEAD-001</code></pre>
+      </div>
+      <div class="code">
+        <div class="code__bar"><span class="code__label">html (HTL)</span></div>
+<pre><code>&lt;!-- aem-analyser-disable-next-line AEM-SEC-001 --&gt;</code></pre>
+      </div>
+
+      <p class="mt-2">
+        Every flag, format and configuration key is listed in the
+        <a href="{{ site.baseurl }}/reference/">CLI reference</a>.
+      </p>
+    </section>
+
+    <section id="troubleshooting">
+      <h2>Troubleshooting</h2>
+
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th scope="col">Symptom</th><th scope="col">Cause and fix</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><code>UnsupportedClassVersionError</code></td>
+              <td>The jar is built for Java 21 and an older JVM is on <code>PATH</code>. Point <code>JAVA_HOME</code> at a 21 JDK and rerun.</td>
+            </tr>
+            <tr>
+              <td>“No pom.xml found” or an empty report</td>
+              <td>You are outside the project. <code>cd</code> into the reactor or pass <code>--project-root ~/my-aem-project</code>.</td>
+            </tr>
+            <tr>
+              <td>Only part of the reactor is analysed</td>
+              <td>The run was limited to one module: either you ran the CLI inside a module that is not part of the reactor, or Maven was called with <code>-pl</code>. Run from the reactor root, or pass <code>--project-root</code>.</td>
+            </tr>
+            <tr>
+              <td>No coverage panel in the dashboard</td>
+              <td>No JaCoCo data was found. Run <code>mvn test</code> first, or add <code>--collect-coverage</code>.</td>
+            </tr>
+            <tr>
+              <td>Findings you expect are missing</td>
+              <td>Check for a baseline (<code>.aem-analyser-baseline.json</code>), a muted rule in <code>.aem-analyser.yml</code>, or an inline suppression comment. <code>--baseline-report</code> keeps suppressed findings visible at INFO.</td>
+            </tr>
+            <tr>
+              <td>Exit code 2</td>
+              <td>The analysis failed rather than found problems. Rerun with <code>--verbose</code>; diagnostics for skipped files also appear in the dashboard’s Run Health tab.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+</div>

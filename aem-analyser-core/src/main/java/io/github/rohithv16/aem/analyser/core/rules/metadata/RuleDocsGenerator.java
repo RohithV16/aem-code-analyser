@@ -1,55 +1,125 @@
 package io.github.rohithv16.aem.analyser.core.rules.metadata;
 
 import io.github.rohithv16.aem.analyser.core.model.report.RuleId;
-import io.github.rohithv16.aem.analyser.core.rules.RuleCatalog;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
- * Generates one Markdown documentation page per registered rule, so {@code RuleDescriptor.helpUri}
- * always resolves to real documentation.
+ * Generates the published "Issues and fixes" page: one anchored entry per rule, with what the rule
+ * detects, why it matters on AEM, and a before/after code example.
+ *
+ * <p>The page is generated rather than hand-written so a change to a rule's severity, description or
+ * remediation cannot leave the site describing the old behaviour, and so the HTML dashboard can link
+ * every finding to an anchor that is guaranteed to exist.</p>
  */
 public final class RuleDocsGenerator {
+
+    /** Public site root, used for the anchors the dashboard and SARIF {@code helpUri} point at. */
+    private static final String SITE_BASE = "https://rohithv16.github.io/aem-code-analyser";
+
+    private static final List<String> FAMILIES =
+            List.of("DEAD", "DUP", "QUAL", "PERF", "CLOUD", "SEC", "COMP");
+
+    private static final Map<String, String> FAMILY_TITLES = Map.of(
+            "DEAD", "Dead code",
+            "DUP", "Duplication",
+            "QUAL", "Quality and Cloud Manager parity",
+            "PERF", "Performance",
+            "CLOUD", "AEM as a Cloud Service",
+            "SEC", "Security",
+            "COMP", "Component compatibility");
+
+    private static final Map<String, String> FAMILY_BLURBS = Map.of(
+            "DEAD", "Code, configuration and content with no remaining consumer.",
+            "DUP", "Two things claiming the same request, PID, resource type or code block.",
+            "QUAL", "The checks Cloud Manager runs, plus the thread-safety rules it expects you to hold.",
+            "PERF", "Resource lifecycles and repository query cost.",
+            "CLOUD", "Patterns that break on AEM as a Cloud Service, including plaintext secrets.",
+            "SEC", "Output escaping and request-driven redirects.",
+            "COMP", "Deprecated Classic UI component definitions.");
+
+    /** Cloud Manager check ids quoted in a rule's short description, for example "(CQBP-75)". */
+    private static final Pattern CLOUD_MANAGER_ID =
+            Pattern.compile("\\(([A-Z]{2,}[A-Z0-9-]*[0-9]+|CQBP-ThreadSafety)\\)");
 
     private RuleDocsGenerator() {
     }
 
-    public static void writeAll(Path outputDirectory) throws IOException {
-        Files.createDirectories(outputDirectory);
-        for (RuleDescriptor rule : RuleRegistry.all()) {
-            Files.writeString(outputDirectory.resolve(rule.id() + ".md"), render(rule), StandardCharsets.UTF_8);
-        }
-        Files.writeString(outputDirectory.resolve("index.md"), renderIndex(RuleRegistry.all()),
-                StandardCharsets.UTF_8);
-    }
-
-    /** Family order used on the catalogue page, so the site reads like the README. */
-    private static final List<String> FAMILIES = List.of("DEAD", "DUP", "QUAL", "PERF", "CLOUD", "SEC", "COMP");
-
-    private static final Map<String, String> FAMILY_TITLES = new LinkedHashMap<>(Map.of(
-            "DEAD", "Dead code", "DUP", "Duplication", "QUAL", "Quality (Cloud Manager parity)",
-            "PERF", "Performance", "CLOUD", "AEM as a Cloud Service", "SEC", "Security",
-            "COMP", "Component compatibility"));
-
     private static String familyOf(String ruleId) {
-        // AEM-DEAD-002A -> DEAD
         String[] parts = ruleId.split("-");
         return parts.length >= 2 ? parts[1] : "OTHER";
     }
 
-    static String renderIndex(List<RuleDescriptor> rules) {
-        StringBuilder doc = new StringBuilder();
-        doc.append("---\nlayout: default\ntitle: Rule catalogue\n---\n\n");
-        doc.append("# Rule catalogue\n\n");
-        doc.append(rules.size()).append(" rule ids. Every page documents detection logic, the AEM as a ")
-                .append("Cloud Service impact and the remediation.\n\n");
-        doc.append("Run `aem-analyser --explain <RULE-ID>` for the same metadata in the terminal.\n\n");
+    /** @return the anchor the dashboard links to for this rule */
+    public static String anchorFor(String ruleId) {
+        return ruleId.toLowerCase(Locale.ROOT);
+    }
+
+    /** @return the public documentation URL for this rule */
+    public static String urlFor(String ruleId) {
+        return SITE_BASE + "/issues/#" + anchorFor(ruleId);
+    }
+
+    /**
+     * Writes {@code <docs>/issues/index.html}: the whole rule reference as one page with a stable
+     * anchor per rule.
+     *
+     * @param docsRoot the site root that contains {@code index.html} and {@code assets/}
+     */
+    public static void writeAll(Path docsRoot) throws IOException {
+        Path issues = docsRoot.resolve("issues");
+        Files.createDirectories(issues);
+        Files.writeString(issues.resolve("index.html"), renderPage(RuleRegistry.all()), StandardCharsets.UTF_8);
+    }
+
+    static String renderPage(List<RuleDescriptor> rules) {
+        StringBuilder html = new StringBuilder(96_000);
+
+        html.append("---\n");
+        html.append("layout: default\n");
+        html.append("nav: issues\n");
+        html.append("title: Issues and fixes\n");
+        html.append("description: Every AEM Code Analyser rule — what it detects, why it matters on ")
+                .append("AEM as a Cloud Service, and how to fix it with a code example.\n");
+        html.append("---\n\n");
+
+        html.append("<div class=\"shell docs\">\n");
+
+        html.append("  <div class=\"docs__main\">\n");
+
+        html.append("    <div class=\"issues-head\">\n");
+        html.append("      <h1>Issues and fixes</h1>\n");
+        html.append("      <p class=\"lede\">Every rule in the catalogue: what it detects, why it ")
+                .append("matters in an AEM project, and the fix with a before and after example. Every ")
+                .append("finding in the HTML dashboard links straight to its entry here.</p>\n");
+        html.append("      <div class=\"issue-tools\">\n");
+        html.append("        <label class=\"visually-hidden\" for=\"issueSearch\">Filter issues</label>\n");
+        html.append("        <input type=\"search\" id=\"issueSearch\" placeholder=\"Filter by id, name, ")
+                .append("tag or symptom…\" autocomplete=\"off\">\n");
+        html.append("        <button class=\"chip\" type=\"button\" data-family=\"all\" aria-pressed=\"true\">All ")
+                .append(rules.size()).append("</button>\n");
+        for (String family : FAMILIES) {
+            long count = rules.stream().filter(rule -> family.equals(familyOf(rule.id()))).count();
+            if (count == 0) {
+                continue;
+            }
+            html.append("        <button class=\"chip\" type=\"button\" data-family=\"").append(family)
+                    .append("\" aria-pressed=\"false\">").append(escape(shortFamily(family)))
+                    .append(" ").append(count).append("</button>\n");
+        }
+        html.append("        <span class=\"issue-count\" id=\"issueCount\" aria-live=\"polite\">")
+                .append(rules.size()).append(" of ").append(rules.size()).append(" issues</span>\n");
+        html.append("      </div>\n");
+        html.append("    </div>\n");
+
         for (String family : FAMILIES) {
             List<RuleDescriptor> inFamily = rules.stream()
                     .filter(rule -> family.equals(familyOf(rule.id())))
@@ -57,62 +127,238 @@ public final class RuleDocsGenerator {
             if (inFamily.isEmpty()) {
                 continue;
             }
-            doc.append("## ").append(FAMILY_TITLES.getOrDefault(family, family)).append("\n\n");
-            doc.append("| Rule | Severity | Summary |\n|---|---|---|\n");
+            html.append("\n    <section class=\"family\" id=\"family-")
+                    .append(family.toLowerCase(Locale.ROOT)).append("\">\n");
+            html.append("      <div class=\"family__head\">\n        <h2>")
+                    .append(escape(FAMILY_TITLES.get(family))).append("</h2>\n")
+                    .append("        <span>").append(inFamily.size())
+                    .append(inFamily.size() == 1 ? " issue" : " issues").append("</span>\n")
+                    .append("      </div>\n");
+            html.append("      <p class=\"muted\">")
+                    .append(escape(FAMILY_BLURBS.get(family))).append("</p>\n");
             for (RuleDescriptor rule : inFamily) {
-                doc.append("| [").append(rule.id()).append("](").append(rule.id()).append(".html) | ")
-                        .append(rule.defaultSeverity()).append(" | ")
-                        .append(rule.shortDescription() == null ? "" : rule.shortDescription().replace("|", "\\|"))
-                        .append(" |\n");
+                renderRule(html, rule, family);
             }
-            doc.append("\n");
+            html.append("    </section>\n");
         }
-        return doc.toString();
+
+        html.append("  </div>\n");
+        // Sidebar: family jumps plus every rule id, so a finding's id is one click away.
+        html.append("  <aside class=\"docs__aside\">\n");
+        html.append("    <p class=\"aside__title\">Families</p>\n    <ul>\n");
+        for (String family : FAMILIES) {
+            long count = rules.stream().filter(rule -> family.equals(familyOf(rule.id()))).count();
+            if (count == 0) {
+                continue;
+            }
+            html.append("      <li><a href=\"#family-").append(family.toLowerCase(Locale.ROOT)).append("\">")
+                    .append(escape(FAMILY_TITLES.get(family)))
+                    .append(" <span class=\"muted\">").append(count).append("</span></a></li>\n");
+        }
+        html.append("    </ul>\n");
+
+        html.append("    <p class=\"aside__title\">All rules</p>\n    <ul>\n");
+        for (String family : FAMILIES) {
+            rules.stream()
+                    .filter(rule -> family.equals(familyOf(rule.id())))
+                    .sorted(java.util.Comparator.comparing(RuleDescriptor::id))
+                    .forEach(rule -> html.append("      <li><a href=\"#").append(anchorFor(rule.id()))
+                            .append("\">").append(escape(rule.id())).append("</a></li>\n"));
+        }
+        html.append("    </ul>\n");
+        html.append("  </aside>\n");
+
+        html.append("</div>\n");
+        return html.toString();
+    }
+
+    private static String shortFamily(String family) {
+        return switch (family) {
+            case "DEAD" -> "Dead code";
+            case "DUP" -> "Duplication";
+            case "QUAL" -> "Quality";
+            case "PERF" -> "Performance";
+            case "CLOUD" -> "Cloud Service";
+            case "SEC" -> "Security";
+            case "COMP" -> "Components";
+            default -> family;
+        };
+    }
+
+    private static void renderRule(StringBuilder html, RuleDescriptor rule, String family) {
+        RuleFixCatalog.Fix fix = RuleFixCatalog.forRule(RuleId.valueOf(rule.id().replace('-', '_')));
+        String severityClass = switch (rule.defaultSeverity()) {
+            case ERROR -> "pill--error";
+            case WARNING -> "pill--warning";
+            case INFO -> "pill--info";
+        };
+        String cloudManagerId = cloudManagerId(rule.shortDescription());
+
+        html.append("\n      <article class=\"rule-card\" id=\"").append(anchorFor(rule.id())).append("\"")
+                .append(" data-family=\"").append(family).append("\"")
+                .append(" data-search=\"").append(escape(searchText(rule, fix, cloudManagerId))).append("\">\n");
+
+        html.append("        <header class=\"rule-card__head\">\n");
+        html.append("          <h3 class=\"rule-card__title\"><span class=\"rule-card__id\">")
+                .append(escape(rule.id())).append("</span><a class=\"rule-card__anchor\" href=\"#")
+                .append(anchorFor(rule.id())).append("\" aria-label=\"Link to ").append(escape(rule.id()))
+                .append("\">#</a><span class=\"rule-card__name\">").append(escape(rule.name()))
+                .append("</span></h3>\n");
+        html.append("          <span class=\"pill ").append(severityClass).append("\">")
+                .append(rule.defaultSeverity()).append("</span>\n");
+        html.append("          <span class=\"rule-card__meta\">\n");
+        html.append("            <span>").append(rule.effortMinutes()).append(" min fix</span>\n");
+        if (cloudManagerId != null) {
+            html.append("            <span>Cloud Manager ").append(escape(cloudManagerId)).append("</span>\n");
+        }
+        if (rule.cwe() != null) {
+            html.append("            <span>").append(escape(rule.cwe())).append("</span>\n");
+        }
+        if ("AEM-QUAL-006".equals(rule.id())) {
+            html.append("            <span>retired id</span>\n");
+        }
+        html.append("            <span>").append(typeLabel(rule.type())).append("</span>\n");
+        html.append("          </span>\n");
+        html.append("        </header>\n");
+
+        html.append("        <p class=\"rule-card__summary\">").append(escape(normalise(rule.shortDescription())))
+                .append("</p>\n");
+
+        if (fix.why() != null && !fix.why().isBlank()) {
+            html.append("        <h4>Why it matters</h4>\n        <p>")
+                    .append(escape(normalise(fix.why()))).append("</p>\n");
+        }
+
+        html.append("        <h4>How to fix it</h4>\n        <p>")
+                .append(escape(fixText(rule, fix))).append("</p>\n");
+
+        if (fix.hasBadExample() || fix.hasGoodExample()) {
+            html.append("        <div class=\"examples\">\n");
+            if (fix.hasBadExample()) {
+                html.append("          <div class=\"code code--bad\">\n")
+                        .append("            <div class=\"code__bar\"><span class=\"code__label\">")
+                        .append(escape(fix.badLang() == null ? "before" : fix.badLang() + " · before"))
+                        .append("</span></div>\n")
+                        .append("            <pre><code>").append(escape(fix.badCode())).append("</code></pre>\n")
+                        .append("          </div>\n");
+            }
+            if (fix.hasGoodExample()) {
+                html.append("          <div class=\"code code--good\">\n")
+                        .append("            <div class=\"code__bar\"><span class=\"code__label\">")
+                        .append(escape(fix.goodLang() == null ? "after" : fix.goodLang() + " · after"))
+                        .append("</span></div>\n")
+                        .append("            <pre><code>").append(escape(fix.goodCode())).append("</code></pre>\n")
+                        .append("          </div>\n");
+            }
+            html.append("        </div>\n");
+        }
+
+        html.append("        <p class=\"suppress\">Suppress one line: <code>")
+                .append(escape(suppressionComment(rule.id()))).append("</code>");
+        if (!rule.tags().isEmpty()) {
+            html.append(" · tags ").append(escape(String.join(", ", rule.tags())));
+        }
+        html.append(" · <code>--explain ").append(escape(rule.id())).append("</code></p>\n");
+
+        html.append("      </article>\n");
+    }
+
+    /** Issue types read as metadata chips, so they need a label rather than an enum constant. */
+    private static String typeLabel(RuleType type) {
+        return switch (type) {
+            case BUG -> "Bug";
+            case VULNERABILITY -> "Vulnerability";
+            case CODE_SMELL -> "Code smell";
+            case SECURITY_HOTSPOT -> "Security hotspot";
+        };
+    }
+
+    /** Curated steps win over the one-line registry remediation; they say the same thing in detail. */
+    private static String fixText(RuleDescriptor rule, RuleFixCatalog.Fix fix) {
+        String text = fix.steps() == null || fix.steps().isBlank() ? rule.remediation() : fix.steps();
+        return normalise(text);
+    }
+
+    /** The suppression comment that works for this rule's file type. */
+    private static String suppressionComment(String ruleId) {
+        boolean markup = ruleId.startsWith("AEM-SEC-001")
+                || ruleId.startsWith("AEM-COMP-001")
+                || ruleId.startsWith("AEM-DEAD-004")
+                || ruleId.startsWith("AEM-DEAD-005")
+                || ruleId.startsWith("AEM-CLOUD-002");
+        return markup
+                ? "<!-- aem-analyser-disable-next-line " + ruleId + " -->"
+                : "// aem-analyser-disable-next-line " + ruleId;
+    }
+
+    private static String cloudManagerId(String description) {
+        if (description == null) {
+            return null;
+        }
+        Matcher matcher = CLOUD_MANAGER_ID.matcher(description);
+        return matcher.find() ? matcher.group(1) : null;
+    }
+
+    private static String searchText(RuleDescriptor rule, RuleFixCatalog.Fix fix, String cloudManagerId) {
+        StringBuilder text = new StringBuilder();
+        text.append(rule.id()).append(' ').append(rule.name()).append(' ')
+                .append(normalise(rule.shortDescription())).append(' ')
+                .append(String.join(" ", rule.tags())).append(' ')
+                .append(rule.defaultSeverity()).append(' ')
+                .append(normalise(rule.remediation())).append(' ');
+        if (cloudManagerId != null) {
+            text.append(cloudManagerId).append(' ');
+        }
+        if (fix.why() != null) {
+            text.append(normalise(fix.why())).append(' ');
+        }
+        if (fix.steps() != null) {
+            text.append(normalise(fix.steps()));
+        }
+        return text.toString().toLowerCase(Locale.ROOT).replaceAll("\\s+", " ").trim();
     }
 
     /**
-     * Notes for rule ids that have no {@code RuleEvaluator} in {@link RuleCatalog}. Generated rather
-     * than hand-written so {@code --generate-rule-docs} reproduces the committed pages byte for byte.
+     * Turns Javadoc inline tags into plain prose. Rule text is written for {@code --explain} and
+     * {@code @ObjectClassDefinition} Javadoc, where {@code {@code x}} renders as code; the published
+     * page must not show the raw tag.
      */
-    private static final Map<String, String> PRODUCER_NOTES = Map.of(
-            RuleId.AEM_QUAL_006.id(),
-            "> **Retired as a producer.** This check is a strict subset of AEM-QUAL-004 and reported every\n"
-                    + "> resolver/session field twice with a different severity, so no rule evaluator is registered for\n"
-                    + "> this id any more. The ID is kept in `RuleId`/`RuleRegistry` so existing baselines and SARIF\n"
-                    + "> consumers keep working; AEM-QUAL-004 (ERROR) is now the single owner of the check.",
-            RuleId.AEM_DUP_010.id(),
-            "> **Produced by the duplication engine.** Findings for this id come from the PMD CPD scan\n"
-                    + "(`--max-duplication`), not from a `RuleEvaluator`, so it has no inline-suppression hook.");
-
-    static String render(RuleDescriptor rule) {
-        StringBuilder doc = new StringBuilder();
-        doc.append("---\nlayout: default\ntitle: ").append(rule.id()).append("\n---\n\n");
-        doc.append("# ").append(rule.id()).append(" — ").append(rule.name()).append("\n\n");
-        String note = PRODUCER_NOTES.get(rule.id());
-        if (note != null) {
-            doc.append(note).append("\n\n");
+    static String normalise(String value) {
+        if (value == null) {
+            return "";
         }
-        doc.append("| Property | Value |\n|---|---|\n");
+        return value
+                .replaceAll("\\{@code\\s+([^}]*)}", "$1")
+                .replaceAll("\\{@code\\s*}", "")
+                .replaceAll("\\{@link\\s+([^}]*)}", "$1")
+                .replaceAll("\\{@literal\\s+([^}]*)}", "$1")
+                .replace("<p>", "")
+                .replace("</p>", "")
+                .replaceAll("\\s+", " ")
+                .trim();
+    }
 
-        doc.append("| Severity | ").append(rule.defaultSeverity()).append(" |\n");
-        doc.append("| Type | ").append(rule.type()).append(" |\n");
-        doc.append("| Effort | ").append(rule.effortMinutes()).append(" minutes |\n");
-        doc.append("| Tags | ").append(String.join(", ", rule.tags())).append(" |\n");
-        if (rule.cwe() != null) {
-            doc.append("| CWE | ").append(rule.cwe()).append(" |\n");
+    /** HTML-escapes text so the generated page stays valid whatever a description contains. */
+    static String escape(String value) {
+        StringBuilder out = new StringBuilder(value.length() + 16);
+        for (int i = 0; i < value.length(); i++) {
+            char c = value.charAt(i);
+            switch (c) {
+                case '&' -> out.append("&amp;");
+                case '<' -> out.append("&lt;");
+                case '>' -> out.append("&gt;");
+                case '"' -> out.append("&quot;");
+                case '\'' -> out.append("&#39;");
+                default -> out.append(c);
+            }
         }
-        doc.append("\n## Description\n\n").append(rule.fullDescription()).append("\n\n");
-        doc.append("## Remediation\n\n").append(rule.remediation()).append("\n\n");
-        doc.append("## Configuration\n\n");
-        doc.append("Enable or disable this rule through the project configuration or baseline it with\n");
-        doc.append("`--update-baseline`. Inline suppression:\n\n");
-        doc.append("```java\n// aem-analyser-disable-next-line ").append(rule.id()).append("\n```\n");
-        return doc.toString();
+        return out.toString();
     }
 
     public static void main(String[] args) throws IOException {
-        Path output = args.length > 0 ? Path.of(args[0]) : Path.of("docs/rules");
-        writeAll(output);
-        System.out.println("Wrote " + RuleRegistry.all().size() + " rule pages to " + output);
+        Path docsRoot = args.length > 0 ? Path.of(args[0]) : Path.of("docs");
+        writeAll(docsRoot);
+        System.out.println("Wrote the issues reference (" + RuleRegistry.all().size() + " rules) to "
+                + docsRoot.resolve("issues"));
     }
 }

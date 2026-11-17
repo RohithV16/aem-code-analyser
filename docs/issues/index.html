@@ -1,0 +1,1084 @@
+---
+layout: default
+nav: issues
+title: Issues and fixes
+description: Every AEM Code Analyser rule — what it detects, why it matters on AEM as a Cloud Service, and how to fix it with a code example.
+---
+
+<div class="shell docs">
+  <div class="docs__main">
+    <div class="issues-head">
+      <h1>Issues and fixes</h1>
+      <p class="lede">Every rule in the catalogue: what it detects, why it matters in an AEM project, and the fix with a before and after example. Every finding in the HTML dashboard links straight to its entry here.</p>
+      <div class="issue-tools">
+        <label class="visually-hidden" for="issueSearch">Filter issues</label>
+        <input type="search" id="issueSearch" placeholder="Filter by id, name, tag or symptom…" autocomplete="off">
+        <button class="chip" type="button" data-family="all" aria-pressed="true">All 30</button>
+        <button class="chip" type="button" data-family="DEAD" aria-pressed="false">Dead code 8</button>
+        <button class="chip" type="button" data-family="DUP" aria-pressed="false">Duplication 4</button>
+        <button class="chip" type="button" data-family="QUAL" aria-pressed="false">Quality 6</button>
+        <button class="chip" type="button" data-family="PERF" aria-pressed="false">Performance 4</button>
+        <button class="chip" type="button" data-family="CLOUD" aria-pressed="false">Cloud Service 5</button>
+        <button class="chip" type="button" data-family="SEC" aria-pressed="false">Security 2</button>
+        <button class="chip" type="button" data-family="COMP" aria-pressed="false">Components 1</button>
+        <span class="issue-count" id="issueCount" aria-live="polite">30 of 30 issues</span>
+      </div>
+    </div>
+
+    <section class="family" id="family-dead">
+      <div class="family__head">
+        <h2>Dead code</h2>
+        <span>8 issues</span>
+      </div>
+      <p class="muted">Code, configuration and content with no remaining consumer.</p>
+
+      <article class="rule-card" id="aem-dead-001" data-family="DEAD" data-search="aem-dead-001 orphanedosgiconfiguration orphaned osgi configuration without matching component or platform pid. dead-code osgi error delete the orphaned config, or rename its file pid to match the component. a configuration file whose pid matches no component, no @objectclassdefinition and no platform factory pid never takes effect. at best it is dead weight in the content package; at worst it is a typo that silently stops the configuration you meant to ship, and the service starts with framework defaults on aem as a cloud service. either delete the file or rename it so its pid is the component&#39;s fully qualified class name (or a factory pid the component declares). verify with the configuration console that the service now reads your properties.">
+        <header class="rule-card__head">
+          <h3 class="rule-card__title"><span class="rule-card__id">AEM-DEAD-001</span><a class="rule-card__anchor" href="#aem-dead-001" aria-label="Link to AEM-DEAD-001">#</a><span class="rule-card__name">OrphanedOsgiConfiguration</span></h3>
+          <span class="pill pill--error">ERROR</span>
+          <span class="rule-card__meta">
+            <span>15 min fix</span>
+            <span>Bug</span>
+          </span>
+        </header>
+        <p class="rule-card__summary">Orphaned OSGi Configuration without matching component or platform PID.</p>
+        <h4>Why it matters</h4>
+        <p>A configuration file whose PID matches no component, no @ObjectClassDefinition and no platform factory PID never takes effect. At best it is dead weight in the content package; at worst it is a typo that silently stops the configuration you meant to ship, and the service starts with framework defaults on AEM as a Cloud Service.</p>
+        <h4>How to fix it</h4>
+        <p>Either delete the file or rename it so its PID is the component&#39;s fully qualified class name (or a factory PID the component declares). Verify with the Configuration console that the service now reads your properties.</p>
+        <div class="examples">
+          <div class="code code--bad">
+            <div class="code__bar"><span class="code__label">text · before</span></div>
+            <pre><code>ui.config/.../config/com.acme.OldSearchService.cfg.json
+# class was renamed to SearchService; nothing reads this PID</code></pre>
+          </div>
+          <div class="code code--good">
+            <div class="code__bar"><span class="code__label">text · after</span></div>
+            <pre><code>ui.config/.../config/com.acme.core.services.SearchService.cfg.json</code></pre>
+          </div>
+        </div>
+        <p class="suppress">Suppress one line: <code>// aem-analyser-disable-next-line AEM-DEAD-001</code> · tags dead-code, osgi · <code>--explain AEM-DEAD-001</code></p>
+      </article>
+
+      <article class="rule-card" id="aem-dead-002a" data-family="DEAD" data-search="aem-dead-002a ghostconfigurationproperty configuration property does not exist in target @objectclassdefinition. dead-code osgi warning remove the property, fix its spelling, or declare a matching @attributedefinition. a property that the component&#39;s @objectclassdefinition does not declare is dropped during binding. the configuration looks correct in the repository, so the symptom is an unexplained default value at runtime rather than a validation error. remove the property, correct its spelling, or add an @attributedefinition that declares it. configuration and ocd must describe the same set of properties.">
+        <header class="rule-card__head">
+          <h3 class="rule-card__title"><span class="rule-card__id">AEM-DEAD-002A</span><a class="rule-card__anchor" href="#aem-dead-002a" aria-label="Link to AEM-DEAD-002A">#</a><span class="rule-card__name">GhostConfigurationProperty</span></h3>
+          <span class="pill pill--warning">WARNING</span>
+          <span class="rule-card__meta">
+            <span>10 min fix</span>
+            <span>Code smell</span>
+          </span>
+        </header>
+        <p class="rule-card__summary">Configuration property does not exist in target @ObjectClassDefinition.</p>
+        <h4>Why it matters</h4>
+        <p>A property that the component&#39;s @ObjectClassDefinition does not declare is dropped during binding. The configuration looks correct in the repository, so the symptom is an unexplained default value at runtime rather than a validation error.</p>
+        <h4>How to fix it</h4>
+        <p>Remove the property, correct its spelling, or add an @AttributeDefinition that declares it. Configuration and OCD must describe the same set of properties.</p>
+        <div class="examples">
+          <div class="code code--bad">
+            <div class="code__bar"><span class="code__label">json · before</span></div>
+            <pre><code>{
+  &quot;serachPath&quot;: &quot;/content/dam&quot;
+}</code></pre>
+          </div>
+          <div class="code code--good">
+            <div class="code__bar"><span class="code__label">json · after</span></div>
+            <pre><code>{
+  &quot;searchPath&quot;: &quot;/content/dam&quot;
+}</code></pre>
+          </div>
+        </div>
+        <p class="suppress">Suppress one line: <code>// aem-analyser-disable-next-line AEM-DEAD-002A</code> · tags dead-code, osgi · <code>--explain AEM-DEAD-002A</code></p>
+      </article>
+
+      <article class="rule-card" id="aem-dead-002b" data-family="DEAD" data-search="aem-dead-002b unconsumedocdproperty ocd attribute method is never consumed by designating java component. dead-code osgi warning consume the attribute in code or delete it from the ocd. an ocd attribute that no code reads is a setting users can change with no effect. it usually survives a refactor that removed the code path but not the interface method. inject the configuration and read the attribute, or delete it from the @objectclassdefinition so the configuration console stops offering a dead switch.">
+        <header class="rule-card__head">
+          <h3 class="rule-card__title"><span class="rule-card__id">AEM-DEAD-002B</span><a class="rule-card__anchor" href="#aem-dead-002b" aria-label="Link to AEM-DEAD-002B">#</a><span class="rule-card__name">UnconsumedOcdProperty</span></h3>
+          <span class="pill pill--warning">WARNING</span>
+          <span class="rule-card__meta">
+            <span>10 min fix</span>
+            <span>Code smell</span>
+          </span>
+        </header>
+        <p class="rule-card__summary">OCD Attribute method is never consumed by designating Java component.</p>
+        <h4>Why it matters</h4>
+        <p>An OCD attribute that no code reads is a setting users can change with no effect. It usually survives a refactor that removed the code path but not the interface method.</p>
+        <h4>How to fix it</h4>
+        <p>Inject the configuration and read the attribute, or delete it from the @ObjectClassDefinition so the configuration console stops offering a dead switch.</p>
+        <div class="examples">
+          <div class="code code--bad">
+            <div class="code__bar"><span class="code__label">java · before</span></div>
+            <pre><code>@ObjectClassDefinition(name = &quot;Search Service&quot;)
+public @interface Config {
+
+    // nothing in the bundle calls this
+    int legacyTimeoutSeconds() default 30;
+}</code></pre>
+          </div>
+          <div class="code code--good">
+            <div class="code__bar"><span class="code__label">java · after</span></div>
+            <pre><code>@Activate
+void activate(Config config) {
+    this.timeout = Duration.ofSeconds(config.timeoutSeconds());
+}</code></pre>
+          </div>
+        </div>
+        <p class="suppress">Suppress one line: <code>// aem-analyser-disable-next-line AEM-DEAD-002B</code> · tags dead-code, osgi · <code>--explain AEM-DEAD-002B</code></p>
+      </article>
+
+      <article class="rule-card" id="aem-dead-003a" data-family="DEAD" data-search="aem-dead-003a unusedosgiservice osgi service has zero injections across bundles and is not a system entry point. dead-code osgi warning inject the service, delete it, or export its interface package. a registered osgi service that nothing injects and that no framework calls is code the build still compiles, tests and deploys. on aem as a cloud service it also keeps its dependencies and configuration alive. inject the service where it was meant to be used, drop the service = ... registration so the class becomes a plain component, or export its package when it is a deliberate api for other bundles.">
+        <header class="rule-card__head">
+          <h3 class="rule-card__title"><span class="rule-card__id">AEM-DEAD-003A</span><a class="rule-card__anchor" href="#aem-dead-003a" aria-label="Link to AEM-DEAD-003A">#</a><span class="rule-card__name">UnusedOsgiService</span></h3>
+          <span class="pill pill--warning">WARNING</span>
+          <span class="rule-card__meta">
+            <span>30 min fix</span>
+            <span>Bug</span>
+          </span>
+        </header>
+        <p class="rule-card__summary">OSGi Service has zero injections across bundles and is not a system entry point.</p>
+        <h4>Why it matters</h4>
+        <p>A registered OSGi service that nothing injects and that no framework calls is code the build still compiles, tests and deploys. On AEM as a Cloud Service it also keeps its dependencies and configuration alive.</p>
+        <h4>How to fix it</h4>
+        <p>Inject the service where it was meant to be used, drop the service = ... registration so the class becomes a plain component, or export its package when it is a deliberate API for other bundles.</p>
+        <div class="examples">
+          <div class="code code--bad">
+            <div class="code__bar"><span class="code__label">java · before</span></div>
+            <pre><code>@Component(service = LegacyImportService.class)
+public class LegacyImportService {
+    // no @Reference to this type anywhere in the reactor
+}</code></pre>
+          </div>
+          <div class="code code--good">
+            <div class="code__bar"><span class="code__label">java · after</span></div>
+            <pre><code>@Component
+public class ImportJobConsumer implements JobConsumer {
+    // used through the Sling Job API, not through an injected reference
+}</code></pre>
+          </div>
+        </div>
+        <p class="suppress">Suppress one line: <code>// aem-analyser-disable-next-line AEM-DEAD-003A</code> · tags dead-code, osgi · <code>--explain AEM-DEAD-003A</code></p>
+      </article>
+
+      <article class="rule-card" id="aem-dead-003b" data-family="DEAD" data-search="aem-dead-003b unusedslingmodel sling model has zero java adaptations and no resourcetype binding. dead-code osgi info bind the model to a resourcetype, adapt it somewhere, or delete it. a sling model that no template adapts from and that no resourcetype binds is never instantiated. it is often a model that survived the deletion of its component. bind it with @model(resourcetype = ...) so the component uses it, adapt it explicitly from htl with data-sly-use, or delete it.">
+        <header class="rule-card__head">
+          <h3 class="rule-card__title"><span class="rule-card__id">AEM-DEAD-003B</span><a class="rule-card__anchor" href="#aem-dead-003b" aria-label="Link to AEM-DEAD-003B">#</a><span class="rule-card__name">UnusedSlingModel</span></h3>
+          <span class="pill pill--info">INFO</span>
+          <span class="rule-card__meta">
+            <span>5 min fix</span>
+            <span>Code smell</span>
+          </span>
+        </header>
+        <p class="rule-card__summary">Sling Model has zero Java adaptations and no resourceType binding.</p>
+        <h4>Why it matters</h4>
+        <p>A Sling Model that no template adapts from and that no resourceType binds is never instantiated. It is often a model that survived the deletion of its component.</p>
+        <h4>How to fix it</h4>
+        <p>Bind it with @Model(resourceType = ...) so the component uses it, adapt it explicitly from HTL with data-sly-use, or delete it.</p>
+        <div class="examples">
+          <div class="code code--bad">
+            <div class="code__bar"><span class="code__label">java · before</span></div>
+            <pre><code>@Model(adaptables = Resource.class)
+public class TeaserModel { }</code></pre>
+          </div>
+          <div class="code code--good">
+            <div class="code__bar"><span class="code__label">java · after</span></div>
+            <pre><code>@Model(adaptables = Resource.class,
+       resourceType = &quot;acme/components/teaser&quot;)
+public class TeaserModel { }</code></pre>
+          </div>
+        </div>
+        <p class="suppress">Suppress one line: <code>// aem-analyser-disable-next-line AEM-DEAD-003B</code> · tags dead-code, osgi · <code>--explain AEM-DEAD-003B</code></p>
+      </article>
+
+      <article class="rule-card" id="aem-dead-003c" data-family="DEAD" data-search="aem-dead-003c inactivedelayedcomponent component provides no service interfaces and immediate = false. dead-code osgi warning set immediate = true, provide a service, or delete the component. with immediate = false and no service interface, an osgi component is delayed and nothing can ever obtain it, so its @activate never runs. any startup work it performs — schedulers, caches, listeners — silently does not happen. set immediate = true for components that must start with the bundle, or register a service interface so the component is created on first injection. delete it if neither is intended.">
+        <header class="rule-card__head">
+          <h3 class="rule-card__title"><span class="rule-card__id">AEM-DEAD-003C</span><a class="rule-card__anchor" href="#aem-dead-003c" aria-label="Link to AEM-DEAD-003C">#</a><span class="rule-card__name">InactiveDelayedComponent</span></h3>
+          <span class="pill pill--warning">WARNING</span>
+          <span class="rule-card__meta">
+            <span>10 min fix</span>
+            <span>Code smell</span>
+          </span>
+        </header>
+        <p class="rule-card__summary">Component provides no service interfaces and immediate = false.</p>
+        <h4>Why it matters</h4>
+        <p>With immediate = false and no service interface, an OSGi component is delayed and nothing can ever obtain it, so its @Activate never runs. Any startup work it performs — schedulers, caches, listeners — silently does not happen.</p>
+        <h4>How to fix it</h4>
+        <p>Set immediate = true for components that must start with the bundle, or register a service interface so the component is created on first injection. Delete it if neither is intended.</p>
+        <div class="examples">
+          <div class="code code--bad">
+            <div class="code__bar"><span class="code__label">java · before</span></div>
+            <pre><code>@Component(immediate = false)
+public class CacheWarmer {
+    @Activate
+    void activate() { /* never called */ }
+}</code></pre>
+          </div>
+          <div class="code code--good">
+            <div class="code__bar"><span class="code__label">java · after</span></div>
+            <pre><code>@Component(immediate = true)
+public class CacheWarmer {
+    @Activate
+    void activate() { warm(); }
+}</code></pre>
+          </div>
+        </div>
+        <p class="suppress">Suppress one line: <code>// aem-analyser-disable-next-line AEM-DEAD-003C</code> · tags dead-code, osgi · <code>--explain AEM-DEAD-003C</code></p>
+      </article>
+
+      <article class="rule-card" id="aem-dead-004" data-family="DEAD" data-search="aem-dead-004 brokenhtlreference htl template references non-existent java class or sling model. dead-code htl error correct the class name in the htl data-sly-use expression. an htl expression that names a class which does not exist fails at render time, not at build time, so the page breaks in the author or publish instance rather than in ci. it is usually a package move or a rename that missed the template. point data-sly-use at the current fully qualified class name, and confirm the class lives in a bundle the template&#39;s package can see.">
+        <header class="rule-card__head">
+          <h3 class="rule-card__title"><span class="rule-card__id">AEM-DEAD-004</span><a class="rule-card__anchor" href="#aem-dead-004" aria-label="Link to AEM-DEAD-004">#</a><span class="rule-card__name">BrokenHtlReference</span></h3>
+          <span class="pill pill--error">ERROR</span>
+          <span class="rule-card__meta">
+            <span>15 min fix</span>
+            <span>Bug</span>
+          </span>
+        </header>
+        <p class="rule-card__summary">HTL template references non-existent Java class or Sling Model.</p>
+        <h4>Why it matters</h4>
+        <p>An HTL expression that names a class which does not exist fails at render time, not at build time, so the page breaks in the author or publish instance rather than in CI. It is usually a package move or a rename that missed the template.</p>
+        <h4>How to fix it</h4>
+        <p>Point data-sly-use at the current fully qualified class name, and confirm the class lives in a bundle the template&#39;s package can see.</p>
+        <div class="examples">
+          <div class="code code--bad">
+            <div class="code__bar"><span class="code__label">html · before</span></div>
+            <pre><code>&lt;sly data-sly-use.model=&quot;com.acme.core.models.OldHeroModel&quot;/&gt;</code></pre>
+          </div>
+          <div class="code code--good">
+            <div class="code__bar"><span class="code__label">html · after</span></div>
+            <pre><code>&lt;sly data-sly-use.model=&quot;com.acme.core.models.HeroModel&quot;/&gt;</code></pre>
+          </div>
+        </div>
+        <p class="suppress">Suppress one line: <code>&lt;!-- aem-analyser-disable-next-line AEM-DEAD-004 --&gt;</code> · tags dead-code, htl · <code>--explain AEM-DEAD-004</code></p>
+      </article>
+
+      <article class="rule-card" id="aem-dead-005" data-family="DEAD" data-search="aem-dead-005 orphanedclientlibcategory a client library category is never referenced by an htl/jsp template or another client library. dead-code clientlib info reference the category from an htl/jsp template or another clientlib, or delete the clientlib. a client library no page, component or other clientlib includes is still built and deployed. dead clientlibs usually carry js and css that also hide unused configuration and third-party dependencies. reference the category from an htl template (data-sly-call with categories) or from another clientlib&#39;s categories dependency, or delete the clientlib folder.">
+        <header class="rule-card__head">
+          <h3 class="rule-card__title"><span class="rule-card__id">AEM-DEAD-005</span><a class="rule-card__anchor" href="#aem-dead-005" aria-label="Link to AEM-DEAD-005">#</a><span class="rule-card__name">OrphanedClientlibCategory</span></h3>
+          <span class="pill pill--info">INFO</span>
+          <span class="rule-card__meta">
+            <span>10 min fix</span>
+            <span>Code smell</span>
+          </span>
+        </header>
+        <p class="rule-card__summary">A client library category is never referenced by an HTL/JSP template or another client library.</p>
+        <h4>Why it matters</h4>
+        <p>A client library no page, component or other clientlib includes is still built and deployed. Dead clientlibs usually carry JS and CSS that also hide unused configuration and third-party dependencies.</p>
+        <h4>How to fix it</h4>
+        <p>Reference the category from an HTL template (data-sly-call with categories) or from another clientlib&#39;s categories dependency, or delete the clientlib folder.</p>
+        <div class="examples">
+          <div class="code code--bad">
+            <div class="code__bar"><span class="code__label">xml · before</span></div>
+            <pre><code>&lt;jcr:root ... categories=&quot;[acme.legacy.grid]&quot;/&gt;</code></pre>
+          </div>
+          <div class="code code--good">
+            <div class="code__bar"><span class="code__label">html · after</span></div>
+            <pre><code>&lt;sly data-sly-call=&quot;${clientlib.css @ categories=&#39;acme.legacy.grid&#39;}&quot;/&gt;</code></pre>
+          </div>
+        </div>
+        <p class="suppress">Suppress one line: <code>&lt;!-- aem-analyser-disable-next-line AEM-DEAD-005 --&gt;</code> · tags dead-code, clientlib · <code>--explain AEM-DEAD-005</code></p>
+      </article>
+    </section>
+
+    <section class="family" id="family-dup">
+      <div class="family__head">
+        <h2>Duplication</h2>
+        <span>4 issues</span>
+      </div>
+      <p class="muted">Two things claiming the same request, PID, resource type or code block.</p>
+
+      <article class="rule-card" id="aem-dup-001" data-family="DUP" data-search="aem-dup-001 duplicateservletendpoint multiple osgi servlets claim identical paths or resourcetypes/selectors/methods without ranking distinction. duplication error merge the servlets or add distinct selectors/resource types. two servlets that answer the same request make the response depend on registration order and service ranking. on a publish tier the result can differ between instances, which is the hardest class of bug to reproduce. merge the servlets, or give each one a distinct contract: a different resource type, selectors, extension or http method. reach for an explicit service.ranking only when one servlet must override a product servlet, and document why.">
+        <header class="rule-card__head">
+          <h3 class="rule-card__title"><span class="rule-card__id">AEM-DUP-001</span><a class="rule-card__anchor" href="#aem-dup-001" aria-label="Link to AEM-DUP-001">#</a><span class="rule-card__name">DuplicateServletEndpoint</span></h3>
+          <span class="pill pill--error">ERROR</span>
+          <span class="rule-card__meta">
+            <span>20 min fix</span>
+            <span>Bug</span>
+          </span>
+        </header>
+        <p class="rule-card__summary">Multiple OSGi servlets claim identical paths or resourceTypes/selectors/methods without ranking distinction.</p>
+        <h4>Why it matters</h4>
+        <p>Two servlets that answer the same request make the response depend on registration order and service ranking. On a publish tier the result can differ between instances, which is the hardest class of bug to reproduce.</p>
+        <h4>How to fix it</h4>
+        <p>Merge the servlets, or give each one a distinct contract: a different resource type, selectors, extension or HTTP method. Reach for an explicit service.ranking only when one servlet must override a product servlet, and document why.</p>
+        <div class="examples">
+          <div class="code code--bad">
+            <div class="code__bar"><span class="code__label">java · before</span></div>
+            <pre><code>@SlingServlet(paths = &quot;/bin/acme/search&quot;, methods = &quot;GET&quot;)
+public class SearchServlet extends SlingAllMethodsServlet { }
+
+@SlingServlet(paths = &quot;/bin/acme/search&quot;, methods = &quot;GET&quot;)
+public class SearchServletV2 extends SlingAllMethodsServlet { }</code></pre>
+          </div>
+          <div class="code code--good">
+            <div class="code__bar"><span class="code__label">java · after</span></div>
+            <pre><code>@SlingServlet(resourceTypes = &quot;acme/components/search&quot;,
+              selectors = &quot;results&quot;, extensions = &quot;json&quot;, methods = &quot;GET&quot;)
+public class SearchResultsServlet extends SlingAllMethodsServlet { }
+
+@SlingServlet(resourceTypes = &quot;acme/components/search&quot;,
+              selectors = &quot;suggest&quot;, extensions = &quot;json&quot;, methods = &quot;GET&quot;)
+public class SearchSuggestServlet extends SlingAllMethodsServlet { }</code></pre>
+          </div>
+        </div>
+        <p class="suppress">Suppress one line: <code>// aem-analyser-disable-next-line AEM-DUP-001</code> · tags duplication · <code>--explain AEM-DUP-001</code></p>
+      </article>
+
+      <article class="rule-card" id="aem-dup-002" data-family="DUP" data-search="aem-dup-002 duplicateosgiconfiguration conflicting or duplicate osgi configuration targeting the same pid in the same runmode context. duplication warning keep one config per pid and runmode; remove the duplicate. two files configuring the same pid in the same runmode context are both installed and the winner depends on install order. values then differ between a fresh install and an incremental one — the classic &quot;works on my instance&quot; configuration bug. keep exactly one file per pid and runmode context and merge the properties into it. split by runmode (config, config.author, config.publish) when the values genuinely differ.">
+        <header class="rule-card__head">
+          <h3 class="rule-card__title"><span class="rule-card__id">AEM-DUP-002</span><a class="rule-card__anchor" href="#aem-dup-002" aria-label="Link to AEM-DUP-002">#</a><span class="rule-card__name">DuplicateOsgiConfiguration</span></h3>
+          <span class="pill pill--warning">WARNING</span>
+          <span class="rule-card__meta">
+            <span>15 min fix</span>
+            <span>Code smell</span>
+          </span>
+        </header>
+        <p class="rule-card__summary">Conflicting or duplicate OSGi configuration targeting the same PID in the same runmode context.</p>
+        <h4>Why it matters</h4>
+        <p>Two files configuring the same PID in the same runmode context are both installed and the winner depends on install order. Values then differ between a fresh install and an incremental one — the classic &quot;works on my instance&quot; configuration bug.</p>
+        <h4>How to fix it</h4>
+        <p>Keep exactly one file per PID and runmode context and merge the properties into it. Split by runmode (config, config.author, config.publish) when the values genuinely differ.</p>
+        <div class="examples">
+          <div class="code code--bad">
+            <div class="code__bar"><span class="code__label">text · before</span></div>
+            <pre><code>ui.config/.../config/com.acme.SearchService.cfg.json         (limit = 100)
+ui.config/.../config/com.acme.core.SearchService.cfg.json    (limit = 250)</code></pre>
+          </div>
+          <div class="code code--good">
+            <div class="code__bar"><span class="code__label">text · after</span></div>
+            <pre><code>ui.config/.../config/com.acme.core.services.SearchService.cfg.json   (limit = 250)</code></pre>
+          </div>
+        </div>
+        <p class="suppress">Suppress one line: <code>// aem-analyser-disable-next-line AEM-DUP-002</code> · tags duplication · <code>--explain AEM-DUP-002</code></p>
+      </article>
+
+      <article class="rule-card" id="aem-dup-003" data-family="DUP" data-search="aem-dup-003 duplicateslingmodel multiple sling models bind to the exact same resourcetype and adapter interface without condition. duplication warning differentiate the resourcetype/adapters or merge the models. two sling models bound to the same resourcetype and adaptable means htl can resolve either one; the winner is undefined. exported json then differs depending on which model the model factory picked. keep one model per resource type, or separate them by selector, resource type or a condition, and let htl choose explicitly.">
+        <header class="rule-card__head">
+          <h3 class="rule-card__title"><span class="rule-card__id">AEM-DUP-003</span><a class="rule-card__anchor" href="#aem-dup-003" aria-label="Link to AEM-DUP-003">#</a><span class="rule-card__name">DuplicateSlingModel</span></h3>
+          <span class="pill pill--warning">WARNING</span>
+          <span class="rule-card__meta">
+            <span>15 min fix</span>
+            <span>Code smell</span>
+          </span>
+        </header>
+        <p class="rule-card__summary">Multiple Sling Models bind to the exact same resourceType and adapter interface without condition.</p>
+        <h4>Why it matters</h4>
+        <p>Two Sling Models bound to the same resourceType and adaptable means HTL can resolve either one; the winner is undefined. Exported JSON then differs depending on which model the model factory picked.</p>
+        <h4>How to fix it</h4>
+        <p>Keep one model per resource type, or separate them by selector, resource type or a condition, and let HTL choose explicitly.</p>
+        <div class="examples">
+          <div class="code code--bad">
+            <div class="code__bar"><span class="code__label">java · before</span></div>
+            <pre><code>@Model(adaptables = Resource.class, resourceType = &quot;acme/components/card&quot;)
+public class CardModel { }
+
+@Model(adaptables = Resource.class, resourceType = &quot;acme/components/card&quot;)
+public class CardViewModel { }</code></pre>
+          </div>
+          <div class="code code--good">
+            <div class="code__bar"><span class="code__label">java · after</span></div>
+            <pre><code>@Model(adaptables = Resource.class, resourceType = &quot;acme/components/card&quot;,
+       defaultInjectionStrategy = DefaultInjectionStrategy.OPTIONAL)
+public class CardModel { }
+
+@Model(adaptables = Resource.class, resourceType = &quot;acme/components/card/view&quot;)
+public class CardViewModel { }</code></pre>
+          </div>
+        </div>
+        <p class="suppress">Suppress one line: <code>// aem-analyser-disable-next-line AEM-DUP-003</code> · tags duplication · <code>--explain AEM-DUP-003</code></p>
+      </article>
+
+      <article class="rule-card" id="aem-dup-010" data-family="DUP" data-search="aem-dup-010 duplicatecodeblock duplicate java code block or method clone detected across repository classes. duplication warning extract the duplicated block into a shared helper. cloned code drifts: a fix applied to one copy silently misses the others, and every copy has to be re-tested. duplication across bundles is usually a missing shared module. extract the duplicated block into a helper or an interface in the bundle that already owns the concept, and have both call sites use it.">
+        <header class="rule-card__head">
+          <h3 class="rule-card__title"><span class="rule-card__id">AEM-DUP-010</span><a class="rule-card__anchor" href="#aem-dup-010" aria-label="Link to AEM-DUP-010">#</a><span class="rule-card__name">DuplicateCodeBlock</span></h3>
+          <span class="pill pill--warning">WARNING</span>
+          <span class="rule-card__meta">
+            <span>30 min fix</span>
+            <span>Code smell</span>
+          </span>
+        </header>
+        <p class="rule-card__summary">Duplicate Java code block or method clone detected across repository classes.</p>
+        <h4>Why it matters</h4>
+        <p>Cloned code drifts: a fix applied to one copy silently misses the others, and every copy has to be re-tested. Duplication across bundles is usually a missing shared module.</p>
+        <h4>How to fix it</h4>
+        <p>Extract the duplicated block into a helper or an interface in the bundle that already owns the concept, and have both call sites use it.</p>
+        <p class="suppress">Suppress one line: <code>// aem-analyser-disable-next-line AEM-DUP-010</code> · tags duplication · <code>--explain AEM-DUP-010</code></p>
+      </article>
+    </section>
+
+    <section class="family" id="family-qual">
+      <div class="family__head">
+        <h2>Quality and Cloud Manager parity</h2>
+        <span>6 issues</span>
+      </div>
+      <p class="muted">The checks Cloud Manager runs, plus the thread-safety rules it expects you to hold.</p>
+
+      <article class="rule-card" id="aem-qual-001" data-family="QUAL" data-search="aem-qual-001 pathboundservletregistration sling servlet registered using paths instead of resource types (cqbp-75). quality aem-cloud warning register the servlet by resourcetype instead of paths (cqbp-75). cqbp-75 cloud manager&#39;s cqbp-75 rejects path-bound servlets because they bypass sling&#39;s resource-centric security model and cannot be dispatched or cached like a resource. they also break the dispatcher rules teams rely on for /content urls. register the servlet by resourcetype and address it through a resource, with selectors and extensions for the variants. for a redirect or a download that genuinely has no resource, use a sling mapping and a filter instead of /bin paths.">
+        <header class="rule-card__head">
+          <h3 class="rule-card__title"><span class="rule-card__id">AEM-QUAL-001</span><a class="rule-card__anchor" href="#aem-qual-001" aria-label="Link to AEM-QUAL-001">#</a><span class="rule-card__name">PathBoundServletRegistration</span></h3>
+          <span class="pill pill--warning">WARNING</span>
+          <span class="rule-card__meta">
+            <span>15 min fix</span>
+            <span>Cloud Manager CQBP-75</span>
+            <span>Code smell</span>
+          </span>
+        </header>
+        <p class="rule-card__summary">Sling servlet registered using paths instead of resource types (CQBP-75).</p>
+        <h4>Why it matters</h4>
+        <p>Cloud Manager&#39;s CQBP-75 rejects path-bound servlets because they bypass Sling&#39;s resource-centric security model and cannot be dispatched or cached like a resource. They also break the dispatcher rules teams rely on for /content URLs.</p>
+        <h4>How to fix it</h4>
+        <p>Register the servlet by resourceType and address it through a resource, with selectors and extensions for the variants. For a redirect or a download that genuinely has no resource, use a Sling mapping and a filter instead of /bin paths.</p>
+        <div class="examples">
+          <div class="code code--bad">
+            <div class="code__bar"><span class="code__label">java · before</span></div>
+            <pre><code>@SlingServlet(paths = &quot;/bin/acme/products&quot;, methods = &quot;GET&quot;)
+public class ProductsServlet extends SlingAllMethodsServlet { }</code></pre>
+          </div>
+          <div class="code code--good">
+            <div class="code__bar"><span class="code__label">java · after</span></div>
+            <pre><code>@Component(service = Servlet.class, property = {
+        ServletResolverConstants.SLING_SERVLET_RESOURCE_TYPES + &quot;=acme/components/products&quot;,
+        ServletResolverConstants.SLING_SERVLET_SELECTORS + &quot;=list&quot;,
+        ServletResolverConstants.SLING_SERVLET_EXTENSIONS + &quot;=json&quot;
+})
+public class ProductsServlet extends SlingAllMethodsServlet { }</code></pre>
+          </div>
+        </div>
+        <p class="suppress">Suppress one line: <code>// aem-analyser-disable-next-line AEM-QUAL-001</code> · tags quality, aem-cloud · <code>--explain AEM-QUAL-001</code></p>
+      </article>
+
+      <article class="rule-card" id="aem-qual-002" data-family="QUAL" data-search="aem-qual-002 providertypeimplementation custom code implements or extends @providertype product interface (cqbp-84). quality aem-cloud error implement only consumer-facing apis; do not implement @providertype (cqbp-84). cqbp-84 implementing or extending a @providertype interface ties your bundle to product internals that aem as a cloud service upgrades without notice; cqbp-84 fails the build for exactly this reason. provider types are contracts you consume, not implement. depend on the interface and delegate to it instead of implementing it. when you need to decorate behaviour, wrap the product object or move the logic into your own service that takes the provider type as a dependency.">
+        <header class="rule-card__head">
+          <h3 class="rule-card__title"><span class="rule-card__id">AEM-QUAL-002</span><a class="rule-card__anchor" href="#aem-qual-002" aria-label="Link to AEM-QUAL-002">#</a><span class="rule-card__name">ProviderTypeImplementation</span></h3>
+          <span class="pill pill--error">ERROR</span>
+          <span class="rule-card__meta">
+            <span>30 min fix</span>
+            <span>Cloud Manager CQBP-84</span>
+            <span>Bug</span>
+          </span>
+        </header>
+        <p class="rule-card__summary">Custom code implements or extends @ProviderType product interface (CQBP-84).</p>
+        <h4>Why it matters</h4>
+        <p>Implementing or extending a @ProviderType interface ties your bundle to product internals that AEM as a Cloud Service upgrades without notice; CQBP-84 fails the build for exactly this reason. Provider types are contracts you consume, not implement.</p>
+        <h4>How to fix it</h4>
+        <p>Depend on the interface and delegate to it instead of implementing it. When you need to decorate behaviour, wrap the product object or move the logic into your own service that takes the provider type as a dependency.</p>
+        <div class="examples">
+          <div class="code code--bad">
+            <div class="code__bar"><span class="code__label">java · before</span></div>
+            <pre><code>public class CachedPage implements com.day.cq.wcm.api.Page {
+    // re-implements a provider type: breaks on upgrade
+}</code></pre>
+          </div>
+          <div class="code code--good">
+            <div class="code__bar"><span class="code__label">java · after</span></div>
+            <pre><code>@Component(service = PageTitleService.class)
+public class PageTitleService {
+
+    @Reference
+    private ResourceResolverFactory resolverFactory;
+
+    public String titleFor(String path) throws LoginException {
+        Map&lt;String, Object&gt; auth =
+                Map.of(ResourceResolverFactory.SUBSERVICE, &quot;title-read&quot;);
+        try (ResourceResolver resolver =
+                     resolverFactory.getServiceResourceResolver(auth)) {
+            PageManager pageManager = resolver.adaptTo(PageManager.class);
+            Page page = pageManager == null ? null : pageManager.getPage(path);
+            return page == null ? &quot;&quot; : page.getTitle();
+        }
+    }
+}</code></pre>
+          </div>
+        </div>
+        <p class="suppress">Suppress one line: <code>// aem-analyser-disable-next-line AEM-QUAL-002</code> · tags quality, aem-cloud · <code>--explain AEM-QUAL-002</code></p>
+      </article>
+
+      <article class="rule-card" id="aem-qual-003" data-family="QUAL" data-search="aem-qual-003 slingschedulerusage sling whiteboard scheduler used instead of sling scheduled jobs (amscore-554). quality aem-cloud warning use sling scheduled jobs instead of the whiteboard scheduler (amscore-554). amscore-554 amscore-554 flags the sling whiteboard scheduler. aem as a cloud service expects sling scheduled jobs, which are cluster-aware: a job runs once across the publish tier instead of once per instance, and it survives a restart. implement a jobconsumer for the topic and schedule the run through the sling job api instead of scheduler.addjob.">
+        <header class="rule-card__head">
+          <h3 class="rule-card__title"><span class="rule-card__id">AEM-QUAL-003</span><a class="rule-card__anchor" href="#aem-qual-003" aria-label="Link to AEM-QUAL-003">#</a><span class="rule-card__name">SlingSchedulerUsage</span></h3>
+          <span class="pill pill--warning">WARNING</span>
+          <span class="rule-card__meta">
+            <span>20 min fix</span>
+            <span>Cloud Manager AMSCORE-554</span>
+            <span>Security hotspot</span>
+          </span>
+        </header>
+        <p class="rule-card__summary">Sling whiteboard scheduler used instead of Sling Scheduled Jobs (AMSCORE-554).</p>
+        <h4>Why it matters</h4>
+        <p>AMSCORE-554 flags the Sling whiteboard scheduler. AEM as a Cloud Service expects Sling Scheduled Jobs, which are cluster-aware: a job runs once across the publish tier instead of once per instance, and it survives a restart.</p>
+        <h4>How to fix it</h4>
+        <p>Implement a JobConsumer for the topic and schedule the run through the Sling Job API instead of Scheduler.addJob.</p>
+        <div class="examples">
+          <div class="code code--bad">
+            <div class="code__bar"><span class="code__label">java · before</span></div>
+            <pre><code>scheduler.add(new ImportJob(), options);</code></pre>
+          </div>
+          <div class="code code--good">
+            <div class="code__bar"><span class="code__label">java · after</span></div>
+            <pre><code>@Component(service = JobConsumer.class, immediate = true,
+           property = JobConsumer.PROPERTY_TOPICS + &quot;=acme/import&quot;)
+public class ImportJobConsumer implements JobConsumer {
+
+    @Override
+    public JobResult process(Job job) {
+        return JobResult.OK;
+    }
+}</code></pre>
+          </div>
+        </div>
+        <p class="suppress">Suppress one line: <code>// aem-analyser-disable-next-line AEM-QUAL-003</code> · tags quality, aem-cloud · <code>--explain AEM-QUAL-003</code></p>
+      </article>
+
+      <article class="rule-card" id="aem-qual-004" data-family="QUAL" data-search="aem-qual-004 unsafecomponentstate non-thread-safe or session-bound object stored in osgi component field (aem-3). quality aem-cloud error do not store session-bound or non-thread-safe objects in component fields. aem-3 slinghttpservletrequest, resourceresolver and jcr session are bound to one thread and one request. stored in a component field, they leak across requests: closed resolvers are reused, sessions go stale after a restart, and the component is no longer thread-safe (cloud manager check aem-3). keep only immutable, thread-safe collaborators in fields. obtain request-scoped objects as parameters or from the request, and close them where they were created.">
+        <header class="rule-card__head">
+          <h3 class="rule-card__title"><span class="rule-card__id">AEM-QUAL-004</span><a class="rule-card__anchor" href="#aem-qual-004" aria-label="Link to AEM-QUAL-004">#</a><span class="rule-card__name">UnsafeComponentState</span></h3>
+          <span class="pill pill--error">ERROR</span>
+          <span class="rule-card__meta">
+            <span>20 min fix</span>
+            <span>Cloud Manager AEM-3</span>
+            <span>Bug</span>
+          </span>
+        </header>
+        <p class="rule-card__summary">Non-thread-safe or session-bound object stored in OSGi component field (AEM-3).</p>
+        <h4>Why it matters</h4>
+        <p>SlingHttpServletRequest, ResourceResolver and JCR Session are bound to one thread and one request. Stored in a component field, they leak across requests: closed resolvers are reused, sessions go stale after a restart, and the component is no longer thread-safe (Cloud Manager check AEM-3).</p>
+        <h4>How to fix it</h4>
+        <p>Keep only immutable, thread-safe collaborators in fields. Obtain request-scoped objects as parameters or from the request, and close them where they were created.</p>
+        <div class="examples">
+          <div class="code code--bad">
+            <div class="code__bar"><span class="code__label">java · before</span></div>
+            <pre><code>@Component(service = NavigationService.class)
+public class NavigationService {
+
+    private ResourceResolver resolver;   // one request&#39;s resolver, shared by all
+
+    @Activate
+    void activate(ResourceResolverFactory factory) { }
+}</code></pre>
+          </div>
+          <div class="code code--good">
+            <div class="code__bar"><span class="code__label">java · after</span></div>
+            <pre><code>@Component(service = NavigationService.class)
+public class NavigationService {
+
+    @Reference
+    private ResourceResolverFactory resolverFactory;
+
+    public List&lt;String&gt; paths(Resource resource) {
+        // the caller owns the request-scoped resolver
+        return collect(resource);
+    }
+}</code></pre>
+          </div>
+        </div>
+        <p class="suppress">Suppress one line: <code>// aem-analyser-disable-next-line AEM-QUAL-004</code> · tags quality, aem-cloud · <code>--explain AEM-QUAL-004</code></p>
+      </article>
+
+      <article class="rule-card" id="aem-qual-005" data-family="QUAL" data-search="aem-qual-005 administrativeaccessusage deprecated administrative login or resource resolver api used; rejected on aem as a cloud service. quality aem-cloud error use a dedicated service user with a mapped subservice (amscore-553). administrative logins and loginadministrative bypass every permission check and are rejected by aem as a cloud service. they also hide the real acls a feature needs. create a dedicated service user with a serviceusermapper mapping and request a service resource resolver for that subservice, then grant the service user exactly the permissions the feature needs.">
+        <header class="rule-card__head">
+          <h3 class="rule-card__title"><span class="rule-card__id">AEM-QUAL-005</span><a class="rule-card__anchor" href="#aem-qual-005" aria-label="Link to AEM-QUAL-005">#</a><span class="rule-card__name">AdministrativeAccessUsage</span></h3>
+          <span class="pill pill--error">ERROR</span>
+          <span class="rule-card__meta">
+            <span>25 min fix</span>
+            <span>CWE-798</span>
+            <span>Vulnerability</span>
+          </span>
+        </header>
+        <p class="rule-card__summary">Deprecated administrative login or resource resolver API used; rejected on AEM as a Cloud Service.</p>
+        <h4>Why it matters</h4>
+        <p>Administrative logins and loginAdministrative bypass every permission check and are rejected by AEM as a Cloud Service. They also hide the real ACLs a feature needs.</p>
+        <h4>How to fix it</h4>
+        <p>Create a dedicated service user with a ServiceUserMapper mapping and request a service resource resolver for that subservice, then grant the service user exactly the permissions the feature needs.</p>
+        <div class="examples">
+          <div class="code code--bad">
+            <div class="code__bar"><span class="code__label">java · before</span></div>
+            <pre><code>ResourceResolver resolver = resolverFactory.getAdministrativeResourceResolver(null);</code></pre>
+          </div>
+          <div class="code code--good">
+            <div class="code__bar"><span class="code__label">java · after</span></div>
+            <pre><code>Map&lt;String, Object&gt; authInfo =
+        Collections.singletonMap(ResourceResolverFactory.SUBSERVICE, &quot;search&quot;);
+try (ResourceResolver resolver =
+             resolverFactory.getServiceResourceResolver(authInfo)) {
+    // runs as the mapped service user, with its own ACLs
+}</code></pre>
+          </div>
+        </div>
+        <p class="suppress">Suppress one line: <code>// aem-analyser-disable-next-line AEM-QUAL-005</code> · tags quality, aem-cloud · <code>--explain AEM-QUAL-005</code></p>
+      </article>
+
+      <article class="rule-card" id="aem-qual-006" data-family="QUAL" data-search="aem-qual-006 resolverstoredincomponentfield osgi component stores a request-scoped resourceresolver or jcr session in an instance field. quality resource-lifecycle warning do not store request-scoped resolvers or sessions in component fields; obtain them per request and close them. storing a request-scoped resolver or session in an osgi component field keeps one request&#39;s state alive for every later request, which leaks resolvers and can serve stale content. obtain the resolver or session per request and close it in the same scope. the thread-safety owner for this check is aem-qual-004 (error); this id is retained so existing baselines and sarif consumers keep working.">
+        <header class="rule-card__head">
+          <h3 class="rule-card__title"><span class="rule-card__id">AEM-QUAL-006</span><a class="rule-card__anchor" href="#aem-qual-006" aria-label="Link to AEM-QUAL-006">#</a><span class="rule-card__name">ResolverStoredInComponentField</span></h3>
+          <span class="pill pill--warning">WARNING</span>
+          <span class="rule-card__meta">
+            <span>15 min fix</span>
+            <span>retired id</span>
+            <span>Code smell</span>
+          </span>
+        </header>
+        <p class="rule-card__summary">OSGi component stores a request-scoped ResourceResolver or JCR Session in an instance field.</p>
+        <h4>Why it matters</h4>
+        <p>Storing a request-scoped resolver or session in an OSGi component field keeps one request&#39;s state alive for every later request, which leaks resolvers and can serve stale content.</p>
+        <h4>How to fix it</h4>
+        <p>Obtain the resolver or session per request and close it in the same scope. The thread-safety owner for this check is AEM-QUAL-004 (ERROR); this id is retained so existing baselines and SARIF consumers keep working.</p>
+        <p class="suppress">Suppress one line: <code>// aem-analyser-disable-next-line AEM-QUAL-006</code> · tags quality, resource-lifecycle · <code>--explain AEM-QUAL-006</code></p>
+      </article>
+    </section>
+
+    <section class="family" id="family-perf">
+      <div class="family__head">
+        <h2>Performance</h2>
+        <span>4 issues</span>
+      </div>
+      <p class="muted">Resource lifecycles and repository query cost.</p>
+
+      <article class="rule-card" id="aem-perf-001" data-family="PERF" data-search="aem-perf-001 unclosedresourceresolver resourceresolver obtained via factory is not closed in try-with-resources or finally. performance error wrap the resolver in try-with-resources. a resolver obtained from the factory and never closed keeps its jcr session and its caches alive for the life of the jvm. aem as a cloud service logs leaked resolvers and eventually refuses new ones, so the instance degrades instead of failing fast. always obtain the resolver in a try-with-resources block, or close it in a finally block, and never hand it to another thread.">
+        <header class="rule-card__head">
+          <h3 class="rule-card__title"><span class="rule-card__id">AEM-PERF-001</span><a class="rule-card__anchor" href="#aem-perf-001" aria-label="Link to AEM-PERF-001">#</a><span class="rule-card__name">UnclosedResourceResolver</span></h3>
+          <span class="pill pill--error">ERROR</span>
+          <span class="rule-card__meta">
+            <span>30 min fix</span>
+            <span>Bug</span>
+          </span>
+        </header>
+        <p class="rule-card__summary">ResourceResolver obtained via factory is not closed in try-with-resources or finally.</p>
+        <h4>Why it matters</h4>
+        <p>A resolver obtained from the factory and never closed keeps its JCR session and its caches alive for the life of the JVM. AEM as a Cloud Service logs leaked resolvers and eventually refuses new ones, so the instance degrades instead of failing fast.</p>
+        <h4>How to fix it</h4>
+        <p>Always obtain the resolver in a try-with-resources block, or close it in a finally block, and never hand it to another thread.</p>
+        <div class="examples">
+          <div class="code code--bad">
+            <div class="code__bar"><span class="code__label">java · before</span></div>
+            <pre><code>ResourceResolver resolver = resolverFactory.getServiceResourceResolver(authInfo);
+Resource resource = resolver.getResource(path);
+return resource.adaptTo(ValueMap.class);</code></pre>
+          </div>
+          <div class="code code--good">
+            <div class="code__bar"><span class="code__label">java · after</span></div>
+            <pre><code>try (ResourceResolver resolver = resolverFactory.getServiceResourceResolver(authInfo)) {
+    Resource resource = resolver.getResource(path);
+    return resource == null ? Map.of() : resource.adaptTo(ValueMap.class);
+}</code></pre>
+          </div>
+        </div>
+        <p class="suppress">Suppress one line: <code>// aem-analyser-disable-next-line AEM-PERF-001</code> · tags performance · <code>--explain AEM-PERF-001</code></p>
+      </article>
+
+      <article class="rule-card" id="aem-perf-002" data-family="PERF" data-search="aem-perf-002 unclosedjcrsession jcr session obtained via repository login or adaptation is not logged out or closed. performance error close the owning resolver or call session.logout() in a finally block. a jcr session opened through repository.login() or adapted from a resolver must be logged out. an open session pins the observation queue and any pending changes, and on aem as a cloud service leaked sessions show up as repository connection pressure. close the session in a finally block, or avoid the session entirely: the resource resolver api covers almost every read and write a component needs.">
+        <header class="rule-card__head">
+          <h3 class="rule-card__title"><span class="rule-card__id">AEM-PERF-002</span><a class="rule-card__anchor" href="#aem-perf-002" aria-label="Link to AEM-PERF-002">#</a><span class="rule-card__name">UnclosedJcrSession</span></h3>
+          <span class="pill pill--error">ERROR</span>
+          <span class="rule-card__meta">
+            <span>30 min fix</span>
+            <span>Bug</span>
+          </span>
+        </header>
+        <p class="rule-card__summary">JCR Session obtained via repository login or adaptation is not logged out or closed.</p>
+        <h4>Why it matters</h4>
+        <p>A JCR Session opened through repository.login() or adapted from a resolver must be logged out. An open session pins the observation queue and any pending changes, and on AEM as a Cloud Service leaked sessions show up as repository connection pressure.</p>
+        <h4>How to fix it</h4>
+        <p>Close the session in a finally block, or avoid the session entirely: the resource resolver API covers almost every read and write a component needs.</p>
+        <div class="examples">
+          <div class="code code--bad">
+            <div class="code__bar"><span class="code__label">java · before</span></div>
+            <pre><code>Session session = resolver.adaptTo(Session.class);
+Node node = session.getNode(path);</code></pre>
+          </div>
+          <div class="code code--good">
+            <div class="code__bar"><span class="code__label">java · after</span></div>
+            <pre><code>try (ResourceResolver resolver = resolverFactory.getServiceResourceResolver(authInfo)) {
+    Resource resource = resolver.getResource(path);
+    if (resource != null) {
+        ValueMap properties = resource.adaptTo(ValueMap.class);
+    }
+}</code></pre>
+          </div>
+        </div>
+        <p class="suppress">Suppress one line: <code>// aem-analyser-disable-next-line AEM-PERF-002</code> · tags performance · <code>--explain AEM-PERF-002</code></p>
+      </article>
+
+      <article class="rule-card" id="aem-perf-003" data-family="PERF" data-search="aem-perf-003 oakquerytraversalrisk jcr-sql2 or xpath query lacks path or nodetype restriction, causing oak traversal errors. performance warning add a path or nodetype restriction to the query. a jcr-sql2 or xpath query with no path or node type restriction forces oak to walk every index it has. at scale that is the difference between a millisecond lookup and a traversal warning in the cloud service logs. add a path= or type= constraint (or isdescendantnode) so oak can use a property index, and confirm the index exists.">
+        <header class="rule-card__head">
+          <h3 class="rule-card__title"><span class="rule-card__id">AEM-PERF-003</span><a class="rule-card__anchor" href="#aem-perf-003" aria-label="Link to AEM-PERF-003">#</a><span class="rule-card__name">OakQueryTraversalRisk</span></h3>
+          <span class="pill pill--warning">WARNING</span>
+          <span class="rule-card__meta">
+            <span>25 min fix</span>
+            <span>CWE-400</span>
+            <span>Code smell</span>
+          </span>
+        </header>
+        <p class="rule-card__summary">JCR-SQL2 or XPath query lacks path or nodetype restriction, causing Oak traversal errors.</p>
+        <h4>Why it matters</h4>
+        <p>A JCR-SQL2 or XPath query with no path or node type restriction forces Oak to walk every index it has. At scale that is the difference between a millisecond lookup and a traversal warning in the Cloud Service logs.</p>
+        <h4>How to fix it</h4>
+        <p>Add a path= or type= constraint (or ISDESCENDANTNODE) so Oak can use a property index, and confirm the index exists.</p>
+        <div class="examples">
+          <div class="code code--bad">
+            <div class="code__bar"><span class="code__label">sql2 · before</span></div>
+            <pre><code>SELECT * FROM [nt:base] AS s
+WHERE [sling:resourceType] = &#39;acme/components/card&#39;</code></pre>
+          </div>
+          <div class="code code--good">
+            <div class="code__bar"><span class="code__label">sql2 · after</span></div>
+            <pre><code>SELECT * FROM [nt:base] AS s
+WHERE ISDESCENDANTNODE(s, &#39;/content/acme&#39;) AND [sling:resourceType] = &#39;acme/components/card&#39;</code></pre>
+          </div>
+        </div>
+        <p class="suppress">Suppress one line: <code>// aem-analyser-disable-next-line AEM-PERF-003</code> · tags performance · <code>--explain AEM-PERF-003</code></p>
+      </article>
+
+      <article class="rule-card" id="aem-perf-004" data-family="PERF" data-search="aem-perf-004 unboundedquery jcr/oak query has no limit and may scan an unbounded result set. performance query warning add a result limit (p.limit / query limit) to bound the query. an unbounded query result can be enormous on a content repository that grows daily. it is the usual cause of a slow component that only shows up in production. bound the result set with p.limit (or limit in jcr-sql2) and paginate with p.offset. report the total separately with p.guesstotal rather than materialising every hit.">
+        <header class="rule-card__head">
+          <h3 class="rule-card__title"><span class="rule-card__id">AEM-PERF-004</span><a class="rule-card__anchor" href="#aem-perf-004" aria-label="Link to AEM-PERF-004">#</a><span class="rule-card__name">UnboundedQuery</span></h3>
+          <span class="pill pill--warning">WARNING</span>
+          <span class="rule-card__meta">
+            <span>20 min fix</span>
+            <span>Code smell</span>
+          </span>
+        </header>
+        <p class="rule-card__summary">JCR/Oak query has no limit and may scan an unbounded result set.</p>
+        <h4>Why it matters</h4>
+        <p>An unbounded query result can be enormous on a content repository that grows daily. It is the usual cause of a slow component that only shows up in production.</p>
+        <h4>How to fix it</h4>
+        <p>Bound the result set with p.limit (or LIMIT in JCR-SQL2) and paginate with p.offset. Report the total separately with p.guessTotal rather than materialising every hit.</p>
+        <div class="examples">
+          <div class="code code--bad">
+            <div class="code__bar"><span class="code__label">java · before</span></div>
+            <pre><code>Map&lt;String, String&gt; params = Map.of(
+        &quot;path&quot;, &quot;/content/acme&quot;,
+        &quot;type&quot;, &quot;cq:Page&quot;,
+        &quot;property&quot;, &quot;jcr:content/sling:resourceType&quot;);</code></pre>
+          </div>
+          <div class="code code--good">
+            <div class="code__bar"><span class="code__label">java · after</span></div>
+            <pre><code>Map&lt;String, String&gt; params = new HashMap&lt;&gt;();
+params.put(&quot;path&quot;, &quot;/content/acme&quot;);
+params.put(&quot;type&quot;, &quot;cq:Page&quot;);
+params.put(&quot;p.limit&quot;, &quot;50&quot;);
+params.put(&quot;p.offset&quot;, String.valueOf(page * 50));
+params.put(&quot;p.guessTotal&quot;, &quot;1000&quot;);</code></pre>
+          </div>
+        </div>
+        <p class="suppress">Suppress one line: <code>// aem-analyser-disable-next-line AEM-PERF-004</code> · tags performance, query · <code>--explain AEM-PERF-004</code></p>
+      </article>
+    </section>
+
+    <section class="family" id="family-cloud">
+      <div class="family__head">
+        <h2>AEM as a Cloud Service</h2>
+        <span>5 issues</span>
+      </div>
+      <p class="muted">Patterns that break on AEM as a Cloud Service, including plaintext secrets.</p>
+
+      <article class="rule-card" id="aem-cloud-001" data-family="CLOUD" data-search="aem-cloud-001 hardcodedcloudsecret plaintext secret or password found in osgi configuration file. aem-cloud error move the secret to a cloud manager secret or $[secret:...] placeholder. a plaintext secret in a content package is readable by anyone with repository access, ends up in every environment&#39;s backup, and cannot be rotated without a code change. aem as a cloud service refuses to start a service with a secret that was not supplied through a secret variable. replace the value with a secret placeholder and define the variable in cloud manager (or in the local .env for the sdk). never commit the real value.">
+        <header class="rule-card__head">
+          <h3 class="rule-card__title"><span class="rule-card__id">AEM-CLOUD-001</span><a class="rule-card__anchor" href="#aem-cloud-001" aria-label="Link to AEM-CLOUD-001">#</a><span class="rule-card__name">HardcodedCloudSecret</span></h3>
+          <span class="pill pill--error">ERROR</span>
+          <span class="rule-card__meta">
+            <span>15 min fix</span>
+            <span>CWE-798</span>
+            <span>Vulnerability</span>
+          </span>
+        </header>
+        <p class="rule-card__summary">Plaintext secret or password found in OSGi configuration file.</p>
+        <h4>Why it matters</h4>
+        <p>A plaintext secret in a content package is readable by anyone with repository access, ends up in every environment&#39;s backup, and cannot be rotated without a code change. AEM as a Cloud Service refuses to start a service with a secret that was not supplied through a secret variable.</p>
+        <h4>How to fix it</h4>
+        <p>Replace the value with a secret placeholder and define the variable in Cloud Manager (or in the local .env for the SDK). Never commit the real value.</p>
+        <div class="examples">
+          <div class="code code--bad">
+            <div class="code__bar"><span class="code__label">json · before</span></div>
+            <pre><code>{
+  &quot;apiKey&quot;: &quot;sk_live_9f3ac1e8b0&quot;
+}</code></pre>
+          </div>
+          <div class="code code--good">
+            <div class="code__bar"><span class="code__label">json · after</span></div>
+            <pre><code>{
+  &quot;apiKey&quot;: &quot;$[secret:acme.apiKey]&quot;
+}</code></pre>
+          </div>
+        </div>
+        <p class="suppress">Suppress one line: <code>// aem-analyser-disable-next-line AEM-CLOUD-001</code> · tags aem-cloud · <code>--explain AEM-CLOUD-001</code></p>
+      </article>
+
+      <article class="rule-card" id="aem-cloud-002" data-family="CLOUD" data-search="aem-cloud-002 deprecatedjspusage legacy jsp file found in repository; aemaacs requires htl. aem-cloud warning migrate the jsp to htl. aem as a cloud service has no jsp support: a .jsp file is simply not rendered, so the page that uses it breaks after migration. jsps also bypass htl&#39;s contextual escaping. rewrite the jsp as an htl template with a sling model for the logic, then delete the jsp and any classic ui client libraries it depended on.">
+        <header class="rule-card__head">
+          <h3 class="rule-card__title"><span class="rule-card__id">AEM-CLOUD-002</span><a class="rule-card__anchor" href="#aem-cloud-002" aria-label="Link to AEM-CLOUD-002">#</a><span class="rule-card__name">DeprecatedJspUsage</span></h3>
+          <span class="pill pill--warning">WARNING</span>
+          <span class="rule-card__meta">
+            <span>30 min fix</span>
+            <span>Code smell</span>
+          </span>
+        </header>
+        <p class="rule-card__summary">Legacy JSP file found in repository; AEMaaCS requires HTL.</p>
+        <h4>Why it matters</h4>
+        <p>AEM as a Cloud Service has no JSP support: a .jsp file is simply not rendered, so the page that uses it breaks after migration. JSPs also bypass HTL&#39;s contextual escaping.</p>
+        <h4>How to fix it</h4>
+        <p>Rewrite the JSP as an HTL template with a Sling Model for the logic, then delete the JSP and any Classic UI client libraries it depended on.</p>
+        <div class="examples">
+          <div class="code code--bad">
+            <div class="code__bar"><span class="code__label">text · before</span></div>
+            <pre><code>ui.apps/src/main/content/jcr_root/apps/acme/components/hero/hero.jsp</code></pre>
+          </div>
+          <div class="code code--good">
+            <div class="code__bar"><span class="code__label">html · after</span></div>
+            <pre><code>ui.apps/src/main/content/jcr_root/apps/acme/components/hero/hero.html
+
+&lt;div class=&quot;hero&quot; data-sly-use.model=&quot;com.acme.core.models.HeroModel&quot;&gt;
+  &lt;h2&gt;${model.title}&lt;/h2&gt;
+&lt;/div&gt;</code></pre>
+          </div>
+        </div>
+        <p class="suppress">Suppress one line: <code>&lt;!-- aem-analyser-disable-next-line AEM-CLOUD-002 --&gt;</code> · tags aem-cloud · <code>--explain AEM-CLOUD-002</code></p>
+      </article>
+
+      <article class="rule-card" id="aem-cloud-003" data-family="CLOUD" data-search="aem-cloud-003 unmappedsubserviceuser java call to getserviceresourceresolver() has no matching serviceusermapperimpl.amended mapping or system user definition. aem-cloud error add a serviceusermapper mapping and declare the service user via repoinit. getserviceresourceresolver only works when a serviceusermapper mapping exists for the bundle&#39;s subservice and the service user exists in the repository. without the mapping the call fails at runtime with a loginexception, and the feature only breaks on the environment where the config is missing. declare the service user through repoinit and add the mapping in a configuration file for the serviceusermapperimpl.amended factory, then grant the acls the feature needs.">
+        <header class="rule-card__head">
+          <h3 class="rule-card__title"><span class="rule-card__id">AEM-CLOUD-003</span><a class="rule-card__anchor" href="#aem-cloud-003" aria-label="Link to AEM-CLOUD-003">#</a><span class="rule-card__name">UnmappedSubserviceUser</span></h3>
+          <span class="pill pill--error">ERROR</span>
+          <span class="rule-card__meta">
+            <span>25 min fix</span>
+            <span>Code smell</span>
+          </span>
+        </header>
+        <p class="rule-card__summary">Java call to getServiceResourceResolver() has no matching ServiceUserMapperImpl.amended mapping or system user definition.</p>
+        <h4>Why it matters</h4>
+        <p>getServiceResourceResolver only works when a ServiceUserMapper mapping exists for the bundle&#39;s subservice and the service user exists in the repository. Without the mapping the call fails at runtime with a LoginException, and the feature only breaks on the environment where the config is missing.</p>
+        <h4>How to fix it</h4>
+        <p>Declare the service user through repoinit and add the mapping in a configuration file for the ServiceUserMapperImpl.amended factory, then grant the ACLs the feature needs.</p>
+        <div class="examples">
+          <div class="code code--bad">
+            <div class="code__bar"><span class="code__label">text · before</span></div>
+            <pre><code>// Java asks for subservice &quot;search&quot; but no mapping ships
+resolverFactory.getServiceResourceResolver(
+        Map.of(ResourceResolverFactory.SUBSERVICE, &quot;search&quot;));</code></pre>
+          </div>
+          <div class="code code--good">
+            <div class="code__bar"><span class="code__label">text · after</span></div>
+            <pre><code>ui.config/.../config/org.apache.sling.serviceusermapping.impl.ServiceUserMapperImpl.amended-acme.cfg.json
+  { &quot;user.mapping&quot;: [ &quot;com.acme.core:search=acme-search-service&quot; ] }
+
+ui.config/.../config/org.apache.sling.jcr.repoinit.RepositoryInitializer-acme.cfg.json
+  { &quot;scripts&quot;: [ &quot;create service user acme-search-service with path /home/users/acme&quot; ] }</code></pre>
+          </div>
+        </div>
+        <p class="suppress">Suppress one line: <code>// aem-analyser-disable-next-line AEM-CLOUD-003</code> · tags aem-cloud · <code>--explain AEM-CLOUD-003</code></p>
+      </article>
+
+      <article class="rule-card" id="aem-cloud-004" data-family="CLOUD" data-search="aem-cloud-004 deprecatedaemapiusage java source imports or uses an api deprecated in aem as a cloud service (amscore-553). aem-cloud api warning replace the deprecated api with the supported aem as a cloud service equivalent. amscore-553 an api deprecated for aem as a cloud service is removed or unmaintained in the product version the environment runs. the code compiles today and fails on the next upgrade. replace the call with its supported equivalent (for example the sling resourceresolverfactory instead of the deprecated cq resolver helpers, and com.adobe.granite apis instead of classic ui ones). check the aem as a cloud service api reference for the replacement.">
+        <header class="rule-card__head">
+          <h3 class="rule-card__title"><span class="rule-card__id">AEM-CLOUD-004</span><a class="rule-card__anchor" href="#aem-cloud-004" aria-label="Link to AEM-CLOUD-004">#</a><span class="rule-card__name">DeprecatedAemApiUsage</span></h3>
+          <span class="pill pill--warning">WARNING</span>
+          <span class="rule-card__meta">
+            <span>20 min fix</span>
+            <span>Cloud Manager AMSCORE-553</span>
+            <span>Code smell</span>
+          </span>
+        </header>
+        <p class="rule-card__summary">Java source imports or uses an API deprecated in AEM as a Cloud Service (AMSCORE-553).</p>
+        <h4>Why it matters</h4>
+        <p>An API deprecated for AEM as a Cloud Service is removed or unmaintained in the product version the environment runs. The code compiles today and fails on the next upgrade.</p>
+        <h4>How to fix it</h4>
+        <p>Replace the call with its supported equivalent (for example the Sling ResourceResolverFactory instead of the deprecated CQ resolver helpers, and com.adobe.granite APIs instead of Classic UI ones). Check the AEM as a Cloud Service API reference for the replacement.</p>
+        <p class="suppress">Suppress one line: <code>// aem-analyser-disable-next-line AEM-CLOUD-004</code> · tags aem-cloud, api · <code>--explain AEM-CLOUD-004</code></p>
+      </article>
+
+      <article class="rule-card" id="aem-cloud-005" data-family="CLOUD" data-search="aem-cloud-005 invalidrunmodefolder osgi configuration lives in a runmode folder that is not a recognised aem runmode. aem-cloud api warning move the configuration to a valid runmode folder (config, config.author, config.publish, config.dev, ...) or delete it. only the documented runmodes are applied by aem as a cloud service. a configuration in an unrecognised folder is never activated, so the setting silently does not apply. move the file to a recognised folder — config, config.author, config.publish, config.dev, config.stage, config.prod — or delete it when the runmode no longer exists.">
+        <header class="rule-card__head">
+          <h3 class="rule-card__title"><span class="rule-card__id">AEM-CLOUD-005</span><a class="rule-card__anchor" href="#aem-cloud-005" aria-label="Link to AEM-CLOUD-005">#</a><span class="rule-card__name">InvalidRunmodeFolder</span></h3>
+          <span class="pill pill--warning">WARNING</span>
+          <span class="rule-card__meta">
+            <span>5 min fix</span>
+            <span>Code smell</span>
+          </span>
+        </header>
+        <p class="rule-card__summary">OSGi configuration lives in a runmode folder that is not a recognised AEM runmode.</p>
+        <h4>Why it matters</h4>
+        <p>Only the documented runmodes are applied by AEM as a Cloud Service. A configuration in an unrecognised folder is never activated, so the setting silently does not apply.</p>
+        <h4>How to fix it</h4>
+        <p>Move the file to a recognised folder — config, config.author, config.publish, config.dev, config.stage, config.prod — or delete it when the runmode no longer exists.</p>
+        <div class="examples">
+          <div class="code code--bad">
+            <div class="code__bar"><span class="code__label">text · before</span></div>
+            <pre><code>ui.config/.../config.author.dev.local/com.acme.SearchService.cfg.json</code></pre>
+          </div>
+          <div class="code code--good">
+            <div class="code__bar"><span class="code__label">text · after</span></div>
+            <pre><code>ui.config/.../config.author/com.acme.SearchService.cfg.json</code></pre>
+          </div>
+        </div>
+        <p class="suppress">Suppress one line: <code>// aem-analyser-disable-next-line AEM-CLOUD-005</code> · tags aem-cloud, api · <code>--explain AEM-CLOUD-005</code></p>
+      </article>
+    </section>
+
+    <section class="family" id="family-sec">
+      <div class="family__head">
+        <h2>Security</h2>
+        <span>2 issues</span>
+      </div>
+      <p class="muted">Output escaping and request-driven redirects.</p>
+
+      <article class="rule-card" id="aem-sec-001" data-family="SEC" data-search="aem-sec-001 unsafehtlcontextbypass htl expression uses @ context=&#39;unsafe&#39; bypassing xss protection. security xss error remove context=&#39;unsafe&#39; and use a properly escaped context. context=&#39;unsafe&#39; switches off htl&#39;s contextual escaping, and the expression is written into the page verbatim. with any author-controlled or request-derived value that is a stored xss hole (cwe-79) on a publish tier. drop unsafe and let htl pick the context from the surrounding markup. when you really must emit markup, use context=&#39;html&#39; and pass it through a sanitiser such as the granite xss api.">
+        <header class="rule-card__head">
+          <h3 class="rule-card__title"><span class="rule-card__id">AEM-SEC-001</span><a class="rule-card__anchor" href="#aem-sec-001" aria-label="Link to AEM-SEC-001">#</a><span class="rule-card__name">UnsafeHtlContextBypass</span></h3>
+          <span class="pill pill--error">ERROR</span>
+          <span class="rule-card__meta">
+            <span>20 min fix</span>
+            <span>CWE-79</span>
+            <span>Vulnerability</span>
+          </span>
+        </header>
+        <p class="rule-card__summary">HTL expression uses @ context=&#39;unsafe&#39; bypassing XSS protection.</p>
+        <h4>Why it matters</h4>
+        <p>context=&#39;unsafe&#39; switches off HTL&#39;s contextual escaping, and the expression is written into the page verbatim. With any author-controlled or request-derived value that is a stored XSS hole (CWE-79) on a publish tier.</p>
+        <h4>How to fix it</h4>
+        <p>Drop unsafe and let HTL pick the context from the surrounding markup. When you really must emit markup, use context=&#39;html&#39; and pass it through a sanitiser such as the Granite XSS API.</p>
+        <div class="examples">
+          <div class="code code--bad">
+            <div class="code__bar"><span class="code__label">html · before</span></div>
+            <pre><code>&lt;div class=&quot;footer&quot;&gt;${model.footerHtml @ context=&#39;unsafe&#39;}&lt;/div&gt;</code></pre>
+          </div>
+          <div class="code code--good">
+            <div class="code__bar"><span class="code__label">html · after</span></div>
+            <pre><code>&lt;div class=&quot;footer&quot;&gt;${model.footerHtml @ context=&#39;html&#39;}&lt;/div&gt;</code></pre>
+          </div>
+        </div>
+        <p class="suppress">Suppress one line: <code>&lt;!-- aem-analyser-disable-next-line AEM-SEC-001 --&gt;</code> · tags security, xss · <code>--explain AEM-SEC-001</code></p>
+      </article>
+
+      <article class="rule-card" id="aem-sec-002" data-family="SEC" data-search="aem-sec-002 openredirectorssrf user-controlled input flows into a redirect or outbound http request. security ssrf warning validate redirects and outbound urls against an allowlist; never pass request parameters directly. a request parameter that reaches sendredirect or an outbound http call lets an attacker choose the destination: an open redirect for phishing, or server-side request forgery against internal services (cwe-601). validate the destination against an allowlist of hosts or a fixed set of relative paths before redirecting, and never build an outbound url from unvalidated input.">
+        <header class="rule-card__head">
+          <h3 class="rule-card__title"><span class="rule-card__id">AEM-SEC-002</span><a class="rule-card__anchor" href="#aem-sec-002" aria-label="Link to AEM-SEC-002">#</a><span class="rule-card__name">OpenRedirectOrSsrf</span></h3>
+          <span class="pill pill--warning">WARNING</span>
+          <span class="rule-card__meta">
+            <span>25 min fix</span>
+            <span>Code smell</span>
+          </span>
+        </header>
+        <p class="rule-card__summary">User-controlled input flows into a redirect or outbound HTTP request.</p>
+        <h4>Why it matters</h4>
+        <p>A request parameter that reaches sendRedirect or an outbound HTTP call lets an attacker choose the destination: an open redirect for phishing, or server-side request forgery against internal services (CWE-601).</p>
+        <h4>How to fix it</h4>
+        <p>Validate the destination against an allowlist of hosts or a fixed set of relative paths before redirecting, and never build an outbound URL from unvalidated input.</p>
+        <div class="examples">
+          <div class="code code--bad">
+            <div class="code__bar"><span class="code__label">java · before</span></div>
+            <pre><code>String target = request.getParameter(&quot;next&quot;);
+response.sendRedirect(target);</code></pre>
+          </div>
+          <div class="code code--good">
+            <div class="code__bar"><span class="code__label">java · after</span></div>
+            <pre><code>String target = request.getParameter(&quot;next&quot;);
+if (target != null &amp;&amp; target.startsWith(&quot;/content/&quot;) &amp;&amp; !target.startsWith(&quot;//&quot;)) {
+    response.sendRedirect(response.encodeRedirectURL(target));
+} else {
+    response.sendRedirect(&quot;/content/acme/en.html&quot;);
+}</code></pre>
+          </div>
+        </div>
+        <p class="suppress">Suppress one line: <code>// aem-analyser-disable-next-line AEM-SEC-002</code> · tags security, ssrf · <code>--explain AEM-SEC-002</code></p>
+      </article>
+    </section>
+
+    <section class="family" id="family-comp">
+      <div class="family__head">
+        <h2>Component compatibility</h2>
+        <span>1 issue</span>
+      </div>
+      <p class="muted">Deprecated Classic UI component definitions.</p>
+
+      <article class="rule-card" id="aem-comp-001" data-family="COMP" data-search="aem-comp-001 deprecatedclassicuidialog component defines deprecated classic ui dialog.xml instead of granite ui _cq_dialog. quality classic-ui warning migrate dialog.xml to a granite ui _cq_dialog. classic ui dialog.xml is not read by the touch ui editor, so authors cannot edit the component in aem as a cloud service. it also drags in classic ui client libraries that are not available there. migrate the dialog to a granite ui _cq_dialog/.content.xml with sling:resourcetype=&quot;cq/gui/components/authoring/dialog&quot;, then delete dialog.xml and check each field&#39;s xtype has a granite equivalent.">
+        <header class="rule-card__head">
+          <h3 class="rule-card__title"><span class="rule-card__id">AEM-COMP-001</span><a class="rule-card__anchor" href="#aem-comp-001" aria-label="Link to AEM-COMP-001">#</a><span class="rule-card__name">DeprecatedClassicUiDialog</span></h3>
+          <span class="pill pill--warning">WARNING</span>
+          <span class="rule-card__meta">
+            <span>20 min fix</span>
+            <span>Code smell</span>
+          </span>
+        </header>
+        <p class="rule-card__summary">Component defines deprecated Classic UI dialog.xml instead of Granite UI _cq_dialog.</p>
+        <h4>Why it matters</h4>
+        <p>Classic UI dialog.xml is not read by the Touch UI editor, so authors cannot edit the component in AEM as a Cloud Service. It also drags in Classic UI client libraries that are not available there.</p>
+        <h4>How to fix it</h4>
+        <p>Migrate the dialog to a Granite UI _cq_dialog/.content.xml with sling:resourceType=&quot;cq/gui/components/authoring/dialog&quot;, then delete dialog.xml and check each field&#39;s xtype has a Granite equivalent.</p>
+        <div class="examples">
+          <div class="code code--bad">
+            <div class="code__bar"><span class="code__label">text · before</span></div>
+            <pre><code>acme/components/hero/dialog.xml
+  &lt;dialog jcr:primaryType=&quot;nt:unstructured&quot;&gt;
+    &lt;items jcr:primaryType=&quot;nt:unstructured&quot;&gt;
+      &lt;title jcr:primaryType=&quot;cq:Widget&quot; xtype=&quot;textfield&quot; fieldLabel=&quot;Title&quot;/&gt;
+    &lt;/items&gt;
+  &lt;/dialog&gt;</code></pre>
+          </div>
+          <div class="code code--good">
+            <div class="code__bar"><span class="code__label">xml · after</span></div>
+            <pre><code>acme/components/hero/_cq_dialog/.content.xml
+  &lt;jcr:root xmlns:sling=&quot;http://sling.apache.org/jcr/sling/1.0&quot;
+            xmlns:cq=&quot;http://www.day.com/jcr/cq/1.0&quot;
+            jcr:primaryType=&quot;nt:unstructured&quot;
+            jcr:title=&quot;Hero&quot;
+            sling:resourceType=&quot;cq/gui/components/authoring/dialog&quot;&gt;
+    &lt;content jcr:primaryType=&quot;nt:unstructured&quot;
+             sling:resourceType=&quot;granite/ui/components/coral/foundation/container&quot;&gt;
+      &lt;items jcr:primaryType=&quot;nt:unstructured&quot;&gt;
+        &lt;title jcr:primaryType=&quot;nt:unstructured&quot;
+               sling:resourceType=&quot;granite/ui/components/coral/foundation/form/textfield&quot;
+               fieldLabel=&quot;Title&quot;
+               name=&quot;./title&quot;/&gt;
+      &lt;/items&gt;
+    &lt;/content&gt;
+  &lt;/jcr:root&gt;</code></pre>
+          </div>
+        </div>
+        <p class="suppress">Suppress one line: <code>&lt;!-- aem-analyser-disable-next-line AEM-COMP-001 --&gt;</code> · tags quality, classic-ui · <code>--explain AEM-COMP-001</code></p>
+      </article>
+    </section>
+  </div>
+  <aside class="docs__aside">
+    <p class="aside__title">Families</p>
+    <ul>
+      <li><a href="#family-dead">Dead code <span class="muted">8</span></a></li>
+      <li><a href="#family-dup">Duplication <span class="muted">4</span></a></li>
+      <li><a href="#family-qual">Quality and Cloud Manager parity <span class="muted">6</span></a></li>
+      <li><a href="#family-perf">Performance <span class="muted">4</span></a></li>
+      <li><a href="#family-cloud">AEM as a Cloud Service <span class="muted">5</span></a></li>
+      <li><a href="#family-sec">Security <span class="muted">2</span></a></li>
+      <li><a href="#family-comp">Component compatibility <span class="muted">1</span></a></li>
+    </ul>
+    <p class="aside__title">All rules</p>
+    <ul>
+      <li><a href="#aem-dead-001">AEM-DEAD-001</a></li>
+      <li><a href="#aem-dead-002a">AEM-DEAD-002A</a></li>
+      <li><a href="#aem-dead-002b">AEM-DEAD-002B</a></li>
+      <li><a href="#aem-dead-003a">AEM-DEAD-003A</a></li>
+      <li><a href="#aem-dead-003b">AEM-DEAD-003B</a></li>
+      <li><a href="#aem-dead-003c">AEM-DEAD-003C</a></li>
+      <li><a href="#aem-dead-004">AEM-DEAD-004</a></li>
+      <li><a href="#aem-dead-005">AEM-DEAD-005</a></li>
+      <li><a href="#aem-dup-001">AEM-DUP-001</a></li>
+      <li><a href="#aem-dup-002">AEM-DUP-002</a></li>
+      <li><a href="#aem-dup-003">AEM-DUP-003</a></li>
+      <li><a href="#aem-dup-010">AEM-DUP-010</a></li>
+      <li><a href="#aem-qual-001">AEM-QUAL-001</a></li>
+      <li><a href="#aem-qual-002">AEM-QUAL-002</a></li>
+      <li><a href="#aem-qual-003">AEM-QUAL-003</a></li>
+      <li><a href="#aem-qual-004">AEM-QUAL-004</a></li>
+      <li><a href="#aem-qual-005">AEM-QUAL-005</a></li>
+      <li><a href="#aem-qual-006">AEM-QUAL-006</a></li>
+      <li><a href="#aem-perf-001">AEM-PERF-001</a></li>
+      <li><a href="#aem-perf-002">AEM-PERF-002</a></li>
+      <li><a href="#aem-perf-003">AEM-PERF-003</a></li>
+      <li><a href="#aem-perf-004">AEM-PERF-004</a></li>
+      <li><a href="#aem-cloud-001">AEM-CLOUD-001</a></li>
+      <li><a href="#aem-cloud-002">AEM-CLOUD-002</a></li>
+      <li><a href="#aem-cloud-003">AEM-CLOUD-003</a></li>
+      <li><a href="#aem-cloud-004">AEM-CLOUD-004</a></li>
+      <li><a href="#aem-cloud-005">AEM-CLOUD-005</a></li>
+      <li><a href="#aem-sec-001">AEM-SEC-001</a></li>
+      <li><a href="#aem-sec-002">AEM-SEC-002</a></li>
+      <li><a href="#aem-comp-001">AEM-COMP-001</a></li>
+    </ul>
+  </aside>
+</div>

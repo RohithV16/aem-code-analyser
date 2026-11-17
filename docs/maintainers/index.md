@@ -1,5 +1,5 @@
 ---
-layout: default
+layout: prose
 title: Maven Central publishing guide
 ---
 
@@ -261,7 +261,7 @@ Add the following 4 secrets:
 
 ### Step 4: Required POM Adjustments for Maven Central Compliance
 
-Maven Central enforces metadata, javadocs, sources, and GPG signatures. When ready to publish to Central, update the root [`pom.xml`](../pom.xml):
+Maven Central enforces metadata, javadocs, sources, and GPG signatures. When ready to publish to Central, update the root [`pom.xml`](https://github.com/RohithV16/aem-code-analyser/blob/main/pom.xml):
 
 #### 1. Metadata (Licenses, Developers, SCM)
 Add directly under `<description>` in root `pom.xml`:
@@ -369,7 +369,7 @@ Add a dedicated Maven profile `release-central` so everyday local builds and tes
 
 ### Step 5: Updating GitHub Actions Workflow (`release.yml`)
 
-When activating Maven Central publishing, update [`.github/workflows/release.yml`](../.github/workflows/release.yml):
+When activating Maven Central publishing, update [`.github/workflows/release.yml`](https://github.com/RohithV16/aem-code-analyser/blob/main/.github/workflows/release.yml):
 
 ```yaml
       - name: Import GPG Key

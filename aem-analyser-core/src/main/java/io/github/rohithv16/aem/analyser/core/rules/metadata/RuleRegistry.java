@@ -13,8 +13,12 @@ import java.util.Map;
  */
 public final class RuleRegistry {
 
+    /**
+     * The published issue reference. Anchors are the lower-cased rule id, so SARIF consumers and the
+     * HTML dashboard land on the same explanation the site shows.
+     */
     private static final String HELP_BASE =
-            "https://github.com/rohithv16/aem-code-analyser/blob/main/docs/rules/";
+            "https://rohithv16.github.io/aem-code-analyser/issues/#";
 
     private static final Map<String, RuleDescriptor> BY_ID = build();
 
@@ -120,7 +124,7 @@ public final class RuleRegistry {
                 rule.defaultLevel(),
                 rule.shortDescription(),
                 rule.shortDescription(),
-                HELP_BASE + rule.id() + ".md",
+                HELP_BASE + rule.id().toLowerCase(java.util.Locale.ROOT),
                 tags,
                 remediation(rule),
                 cwe,
