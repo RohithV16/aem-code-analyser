@@ -41,7 +41,7 @@ import java.util.Set;
         versionProvider = VersionProvider.class,
         description = "AEM Code Analyser — cross-boundary dead code, duplication and "
                 + "AEM as a Cloud Service analysis for Adobe Experience Manager projects.")
-public class AnalyserCli implements Runnable {
+public class AnalyserCli implements java.util.concurrent.Callable<Integer> {
 
     @Option(names = {"-p", "--project-root"},
             description = "Project (reactor) root. Default: the current directory, or the "
@@ -212,8 +212,24 @@ public class AnalyserCli implements Runnable {
     private final PrintWriter stdout = new PrintWriter(System.out, true, StandardCharsets.UTF_8);
 
     @Override
-    public void run() {
-        System.exit(execute());
+    public Integer call() {
+        return execute();
+    }
+
+    /**
+     * The process exit code is the command's return value: discarding it turned a usage error into a
+     * silent "gate passed" for any CI step that reads the status.
+     */
+    public static void main(String[] args) {
+        CommandLine commandLine = new CommandLine(new AnalyserCli());
+        // An uncaught crash is not a verdict on the code. Without this handler picocli returns 1,
+        // which is indistinguishable from a failed gate, so map it to the usage/analysis error code.
+        commandLine.setExecutionExceptionHandler((exception, cmd, parseResult) -> {
+            cmd.getErr().println("[ERROR] Internal error: " + exception);
+            exception.printStackTrace(cmd.getErr());
+            return 2;
+        });
+        System.exit(commandLine.execute(args));
     }
 
     int execute() {
@@ -1062,9 +1078,5 @@ public class AnalyserCli implements Runnable {
             return true;
         }
         return "INFO".equals(target) && (warnings > 0 || report.countBySeverity(Severity.INFO) > 0);
-    }
-
-    public static void main(String[] args) {
-        new CommandLine(new AnalyserCli()).execute(args);
     }
 }
