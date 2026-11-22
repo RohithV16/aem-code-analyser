@@ -149,7 +149,6 @@ def check_pairs(probes_run: dict, clean_run: dict, evidence_path: pathlib.Path,
               file=sys.stderr)
         failed = True
     return not failed
->>>>>>> feat/w3-tooling
 
 
 def main() -> int:

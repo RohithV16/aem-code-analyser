@@ -595,7 +595,9 @@ public class AnalyserCli implements java.util.concurrent.Callable<Integer> {
         stdout.print(script);
         stdout.flush();
         return EXIT_OK;
-        }
+    }
+
+    /**
      * Serves MCP over stdio until the client closes stdin. The project root and the effective
      * configuration are resolved exactly as an analysis run would resolve them, so {@code analyse}
      * and {@code explain_rule} answer with what the gate would use; {@code --severity} and
