@@ -11,6 +11,7 @@ description: Every flag, output format, exit code, configuration key and suppres
     <ul>
       <li><a href="#flags">Flags</a></li>
       <li><a href="#formats">Output formats</a></li>
+      <li><a href="#mcp">MCP server</a></li>
       <li><a href="#exit-codes">Exit codes</a></li>
       <li><a href="#configuration">Configuration file</a></li>
       <li><a href="#baseline">Baseline</a></li>
@@ -84,6 +85,7 @@ description: Every flag, output format, exit code, configuration key and suppres
             <tr><td class="mono nowrap">--import-map &lt;file&gt;</td><td class="mono">—</td><td>Map foreign rule ids to analyser ids, e.g. <code>java:S3649: AEM-QUAL-004</code>. Requires <code>--import-report</code>.</td></tr>
             <tr><td class="mono nowrap">--list-rules</td><td class="mono">—</td><td>Print the <em>effective</em> rule catalogue — disabled rules marked, overridden severities with provenance — then exit. Honours <code>--config</code> and <code>--severity</code>.</td></tr>
             <tr><td class="mono nowrap">--tag &lt;tag&gt;</td><td class="mono">—</td><td>With <code>--list-rules</code>: only rules carrying the tag (e.g. <code>osgi</code>, <code>security</code>, <code>performance</code>).</td></tr>
+            <tr><td class="mono nowrap">--mcp</td><td class="mono">off</td><td>Serve the Model Context Protocol on stdio: four read-only tools over the same rules and AnalysisReport the gate uses. stdout carries JSON-RPC frames only; logs go to stderr; EOF exits 0.</td></tr>
             <tr><td class="mono nowrap">--generate-rule-docs &lt;dir&gt;</td><td class="mono">—</td><td>Generate the issue reference into <code>&lt;dir&gt;/issues</code> and exit.</td></tr>
             <tr><td class="mono nowrap">--generate-completion &lt;shell&gt;</td><td class="mono">—</td><td>Print a completion script for <code>bash</code>, <code>zsh</code> or <code>fish</code> on stdout, then exit. An unknown shell is a usage error (exit 2).</td></tr>
             <tr><td class="mono nowrap">-v, --verbose</td><td class="mono">off</td><td>Print parse and scan diagnostics on <em>stderr</em>.</td></tr>
@@ -138,6 +140,49 @@ description: Every flag, output format, exit code, configuration key and suppres
           </tbody>
         </table>
       </div>
+    </section>
+
+    <section id="mcp">
+      <h2>MCP server</h2>
+      <p>
+        <code>aem-analyser --mcp</code> serves the Model Context Protocol on stdio, so an agent
+        already open in the editor (Claude Code, Cursor, Copilot) asks the analyser instead of
+        re-deriving AEM semantics. The tools answer from the same registry, the same
+        <code>AnalysisReport</code> and the same configuration layer the gate uses —
+        <code>--project-root</code>, <code>--config</code>, <code>--severity</code>,
+        <code>--sonar/--no-sonar</code> and <code>--no-cache</code> apply to the session.
+      </p>
+      <div class="code">
+        <div class="code__bar"><span class="code__label">.mcp.json</span></div>
+<pre><code>{
+  "mcpServers": {
+    "aem-analyser": {
+      "command": "java",
+      "args": ["-jar", "/path/to/aem-analyser-cli.jar", "--mcp",
+               "--project-root", "/path/to/aem-project"]
+    }
+  }
+}</code></pre>
+      </div>
+      <div class="table-wrap">
+        <table class="table--compact">
+          <thead><tr><th scope="col">Tool</th><th scope="col">Argument</th><th scope="col">Answers</th></tr></thead>
+          <tbody>
+            <tr><td class="mono">analyse</td><td class="mono">root (optional)</td><td>The compact finding list: <code>ruleId</code>, <code>severity</code>, <code>file</code>, <code>line</code>, <code>message</code>, <code>remediation</code> and the baseline <code>fingerprint</code>, plus per-severity counts. Defaults to the server's project root; another root is analysed with its own <code>.aem-analyser.yml</code>.</td></tr>
+            <tr><td class="mono">list_rules</td><td class="mono">tag (optional)</td><td>The rule catalogue — id, name, severity, type, tags, CWE, effort, one-line description — optionally filtered by tag. An unknown tag lists the known ones.</td></tr>
+            <tr><td class="mono">explain_rule</td><td class="mono">id</td><td>Full registry metadata for one rule: description, remediation, tags, CWE, effort and the documentation link. An unknown id is a JSON-RPC error, not an empty answer.</td></tr>
+            <tr><td class="mono">explain_finding</td><td class="mono">fingerprint</td><td>The finding and the rule that produced it. Uses the most recent <code>analyse</code>; with none in the session it analyses the server's project root once.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="muted">
+        Transport: one JSON-RPC 2.0 object per line (MCP revision <code>2025-06-18</code>, with
+        <code>2025-03-26</code> and <code>2024-11-05</code> accepted). <strong>stdout carries protocol
+        frames and nothing else</strong> — startup, analysis progress and errors go to stderr, which
+        <code>-q</code> silences. Unknown methods, unknown tools, unknown rule ids and malformed JSON
+        are answered with JSON-RPC error objects and the session keeps serving; closing stdin exits 0.
+        The tools are read-only: no report files are written and a non-zero exit is never a gate verdict.
+      </p>
     </section>
 
     <section id="exit-codes">

@@ -24,10 +24,7 @@ import sys
 # fixtures are named com.probe.*, dispatcher fixtures live under conf.d/ and
 # content-package fixtures are the META-INF/vault/filter.xml files.
 PROBE_PATH_MARKERS = ("com/probe/", "apps/probe/", "com.probe.", "conf.d/",
-<<<<<<< HEAD
                       "META-INF/vault/filter.xml", "zzprobe")
-=======
-                      "META-INF/vault/filter.xml")
 PAIR_OPTIONS = ("--clean", "--evidence", "--probes-root", "--clean-root")
 
 
