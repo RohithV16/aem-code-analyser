@@ -6,6 +6,7 @@ import io.github.rohithv16.aem.analyser.core.model.report.AnalysisReport;
 import io.github.rohithv16.aem.analyser.core.model.report.CodeMetrics;
 import io.github.rohithv16.aem.analyser.core.model.report.CoverageReport;
 import io.github.rohithv16.aem.analyser.core.model.report.DiagnosticKind;
+import io.github.rohithv16.aem.analyser.core.model.report.GateVerdict;
 import io.github.rohithv16.aem.analyser.core.model.report.Severity;
 import io.github.rohithv16.aem.analyser.core.model.report.Violation;
 import org.junit.jupiter.api.Test;
@@ -195,6 +196,21 @@ class HtmlReportExporterTest {
     private Violation violation(String ruleId, String message, int line) {
         return new Violation(ruleId, Severity.WARNING, null, message, "core/A.java",
                 new TextRegion(line, 1, line, 10), null, null, List.of());
+    }
+
+    @Test
+    void reportOnlyRunDoesNotClaimAFailedGate() {
+        Violation error = new Violation("AEM-DEAD-004", Severity.ERROR, null, "missing class",
+                "core/A.java", new TextRegion(3, 1, 3, 10), null, null, List.of());
+        AnalysisReport report = new AnalysisReport(Path.of("/workspace/project"), Map.of(),
+                List.of(error), 10)
+                .withGateVerdict(GateVerdict.notEnforced("report-only run (--fail-on NONE)"));
+
+        String html = new HtmlReportExporter().generateHtml(report);
+
+        assertTrue(html.contains("GATE NOT ENFORCED"), html);
+        assertFalse(html.contains("QUALITY GATE FAILED"),
+                "a report-only run must not print a failure the exit code does not signal");
     }
 
     @Test

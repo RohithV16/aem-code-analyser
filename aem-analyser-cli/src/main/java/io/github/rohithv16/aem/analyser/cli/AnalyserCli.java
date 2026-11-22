@@ -3,6 +3,7 @@ package io.github.rohithv16.aem.analyser.cli;
 import io.github.rohithv16.aem.analyser.core.api.AnalysisContext;
 import io.github.rohithv16.aem.analyser.core.api.AnalysisException;
 import io.github.rohithv16.aem.analyser.core.api.DefaultAemCodeAnalyser;
+import io.github.rohithv16.aem.analyser.core.export.ColorSupport;
 import io.github.rohithv16.aem.analyser.core.export.ConsoleReportFormatter;
 import io.github.rohithv16.aem.analyser.core.export.ExportException;
 import io.github.rohithv16.aem.analyser.core.export.HtmlReportExporter;
@@ -12,8 +13,10 @@ import io.github.rohithv16.aem.analyser.core.export.SonarReportExporter;
 import io.github.rohithv16.aem.analyser.core.fix.AutoFixEngine;
 import io.github.rohithv16.aem.analyser.core.git.GitDiffResolver;
 import io.github.rohithv16.aem.analyser.core.model.report.AnalysisReport;
+import io.github.rohithv16.aem.analyser.core.model.report.GateVerdict;
 import io.github.rohithv16.aem.analyser.core.model.report.Severity;
 import io.github.rohithv16.aem.analyser.core.model.report.Violation;
+import io.github.rohithv16.aem.analyser.core.rules.RuleCatalog;
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
@@ -41,7 +44,7 @@ import java.util.Set;
         versionProvider = VersionProvider.class,
         description = "AEM Code Analyser — cross-boundary dead code, duplication and "
                 + "AEM as a Cloud Service analysis for Adobe Experience Manager projects.")
-public class AnalyserCli implements Runnable {
+public class AnalyserCli implements java.util.concurrent.Callable<Integer> {
 
     @Option(names = {"-p", "--project-root"},
             description = "Project (reactor) root. Default: the current directory, or the "
@@ -66,7 +69,9 @@ public class AnalyserCli implements Runnable {
     private boolean noHtml;
 
     @Option(names = {"-o", "--output"},
-            description = "Output directory for SARIF/SONAR/HTML files. Default: ./target/aem-analyser")
+            description = "Output directory for SARIF/SONAR/HTML files, or a file path whose extension "
+                    + "selects the format written there (e.g. -o out/aem.sarif writes the SARIF report "
+                    + "to that file). Default: ./target/aem-analyser")
     private Path outputDirectory;
 
     @Option(names = {"-t", "--threads"},
@@ -204,6 +209,14 @@ public class AnalyserCli implements Runnable {
     }
 
     /**
+     * Colour is off unless standard output is a terminal: a redirected report must stay clean, and
+     * {@code --no-color} / {@code NO_COLOR} remain the explicit opt-outs.
+     */
+    boolean consoleColorEnabled() {
+        return !noColor && ColorSupport.enabled(ColorSupport.stdoutIsTerminal());
+    }
+
+    /**
      * Console channel of the tool. A CLI writes its report to standard output by design, so this is
      * deliberately not a logging framework: {@code --no-color}, report formats and CI annotations need
      * the raw stream, and levels or timestamps would corrupt machine-readable output.
@@ -212,8 +225,24 @@ public class AnalyserCli implements Runnable {
     private final PrintWriter stdout = new PrintWriter(System.out, true, StandardCharsets.UTF_8);
 
     @Override
-    public void run() {
-        System.exit(execute());
+    public Integer call() {
+        return execute();
+    }
+
+    /**
+     * The process exit code is the command's return value: discarding it turned a usage error into a
+     * silent "gate passed" for any CI step that reads the status.
+     */
+    public static void main(String[] args) {
+        CommandLine commandLine = new CommandLine(new AnalyserCli());
+        // An uncaught crash is not a verdict on the code. Without this handler picocli returns 1,
+        // which is indistinguishable from a failed gate, so map it to the usage/analysis error code.
+        commandLine.setExecutionExceptionHandler((exception, cmd, parseResult) -> {
+            cmd.getErr().println("[ERROR] Internal error: " + exception);
+            exception.printStackTrace(cmd.getErr());
+            return 2;
+        });
+        System.exit(commandLine.execute(args));
     }
 
     int execute() {
@@ -282,16 +311,40 @@ public class AnalyserCli implements Runnable {
         report = config.apply(report);
         report = applyBaseline(root, report);
         List<io.github.rohithv16.aem.analyser.core.history.RunSummary> history = applyHistory(report);
-        export(report, reportFormats, history);
+        // The gate is evaluated once, before anything renders: the console block, the dashboard and
+        // the exit code all have to describe the same run.
+        printQualityGate(report);
+        GateVerdict verdict = evaluateGate(report);
+        export(report.withGateVerdict(verdict), reportFormats, history);
         printDiagnostics(report);
-        return exitCode(report);
+        return verdict.exitCode();
     }
 
     private io.github.rohithv16.aem.analyser.core.config.AnalyserConfig loadConfig(Path root)
             throws IOException {
-        return configFile != null
+        io.github.rohithv16.aem.analyser.core.config.AnalyserConfig config = configFile != null
                 ? io.github.rohithv16.aem.analyser.core.config.AnalyserConfigLoader.load(configFile)
                 : io.github.rohithv16.aem.analyser.core.config.AnalyserConfigLoader.loadIfPresent(root);
+        warnRetiredRuleIds(config.rules().keySet(), "Configuration");
+        return config;
+    }
+
+    /**
+     * Warns when a configuration or baseline names a rule that no longer runs. Silently accepting the
+     * id lets a team believe a check is enabled or disabled when nothing emits it.
+     */
+    private void warnRetiredRuleIds(Set<String> ruleIds, String source) {
+        Set<String> warned = new java.util.TreeSet<>();
+        for (String ruleId : ruleIds) {
+            if (RuleCatalog.isRetired(ruleId) && warned.add(ruleId.strip().toUpperCase(Locale.ROOT))) {
+                stdout.println("[WARNING] " + source + " references retired rule '" + ruleId + "' — "
+                        + RuleCatalog.retirementNote(ruleId)
+                        + "; it produces no findings, so the entry has no effect.");
+            }
+        }
+        if (!warned.isEmpty()) {
+            stdout.println("[WARNING] Run --list-rules to see the active rule set.");
+        }
     }
 
     /** Applies command-line overrides and configured allowlists, then builds the analysis context. */
@@ -407,6 +460,11 @@ public class AnalyserCli implements Runnable {
         }
         io.github.rohithv16.aem.analyser.core.baseline.Baseline loaded =
                 io.github.rohithv16.aem.analyser.core.baseline.BaselineStore.load(path);
+        warnRetiredRuleIds(loaded.entries().stream()
+                .map(io.github.rohithv16.aem.analyser.core.baseline.BaselineEntry::ruleId)
+                .filter(java.util.Objects::nonNull)
+                .collect(java.util.stream.Collectors.toCollection(java.util.LinkedHashSet::new)),
+                "Baseline " + path.getFileName());
         int suppressed = (int) report.violations().stream()
                 .filter(v -> loaded.contains(io.github.rohithv16.aem.analyser.core.baseline.Fingerprint.of(v)))
                 .count();
@@ -432,10 +490,22 @@ public class AnalyserCli implements Runnable {
     void printRules(PrintWriter out) {
         out.println("AEM Code Analyser rules:");
         for (var rule : io.github.rohithv16.aem.analyser.core.rules.metadata.RuleRegistry.all()) {
-            out.printf("  %-16s %-8s %3dm  %s%n",
-                    rule.id(), rule.defaultSeverity(), rule.effortMinutes(), rule.shortDescription());
+            out.printf("  %-16s %-8s %3dm  %s",
+                    rule.id(), settledSeverity(rule.id(), rule.defaultSeverity()), rule.effortMinutes(),
+                    rule.shortDescription());
+            // A retired id must never read as a live rule: nothing can emit it, so a config entry
+            // that disables it changes nothing.
+            if (RuleCatalog.isRetired(rule.id())) {
+                out.print(" [" + RuleCatalog.retirementNote(rule.id()) + "]");
+            }
+            out.println();
         }
         out.flush();
+    }
+
+    /** Retired rules are labelled {@code RETIRED} instead of a severity they can no longer produce. */
+    private static String settledSeverity(String ruleId, Severity severity) {
+        return RuleCatalog.isRetired(ruleId) ? "RETIRED" : severity.name();
     }
 
     int printExplain(PrintWriter out, String ruleId) {
@@ -446,8 +516,14 @@ public class AnalyserCli implements Runnable {
             return 2;
         }
         var rule = descriptor.get();
+        boolean retired = RuleCatalog.isRetired(rule.id());
         out.println(rule.id() + " — " + rule.name());
-        out.println("  Severity:     " + rule.defaultSeverity());
+        out.println("  Severity:     " + (retired ? "RETIRED (was " + rule.defaultSeverity() + ")" : rule.defaultSeverity()));
+        if (retired) {
+            out.println("  State:        " + RuleCatalog.retirementNote(rule.id()));
+            out.println("                No rule evaluator produces this id; a configuration or baseline "
+                    + "entry that names it has no effect.");
+        }
         out.println("  Type:         " + rule.type());
         out.println("  Effort:       " + rule.effortMinutes() + " minutes");
         out.println("  Tags:         " + String.join(", ", rule.tags()));
@@ -650,7 +726,7 @@ public class AnalyserCli implements Runnable {
             throws IOException, ExportException {
         for (ReportFormat reportFormat : reportFormats) {
             switch (reportFormat) {
-                case CONSOLE -> new ConsoleReportFormatter(!noColor).export(report, stdout);
+                case CONSOLE -> new ConsoleReportFormatter(consoleColorEnabled()).export(report, stdout);
                 case SARIF -> {
                     Path target = outputTarget("aem-analyser.sarif");
                     try (var writer = Files.newBufferedWriter(target, StandardCharsets.UTF_8)) {
@@ -721,11 +797,53 @@ public class AnalyserCli implements Runnable {
         stdout.println("HTML report written to " + target);
     }
 
+    /**
+     * Resolves where one report file is written.
+     *
+     * <p>{@code -o} accepts either a directory or a file path. A path whose extension names a report
+     * format is written as that file; anything else is a directory, so {@code -o out} keeps working.
+     * When {@code -o} names a file for a <em>different</em> format (e.g. {@code -f SARIF,HTML}), the
+     * other reports go to the parent directory instead of fighting over one path.
+     */
     private Path outputTarget(String fileName) throws IOException {
-        Path target = outputDirectory != null ? outputDirectory
-                : Path.of("target/aem-analyser");
-        Path resolved = Files.createDirectories(target.toAbsolutePath().normalize());
-        return resolved.resolve(fileName);
+        Path base = (outputDirectory != null ? outputDirectory : Path.of("target/aem-analyser"))
+                .toAbsolutePath().normalize();
+        if (!looksLikeReportFile(base)) {
+            return Files.createDirectories(base).resolve(fileName);
+        }
+        Path parent = base.getParent();
+        if (parent != null) {
+            Files.createDirectories(parent);
+        }
+        if (extensionOf(base).equals(extensionOf(Path.of(fileName)))) {
+            return base;
+        }
+        return (parent != null ? parent : base).resolve(fileName);
+    }
+
+    /** Extensions a {@code -o} path may carry to be read as a file rather than a directory. */
+    private static final Set<String> REPORT_FILE_EXTENSIONS =
+            Set.of("sarif", "json", "html", "htm", "txt", "log");
+
+    /** True when an output path names a file: an existing file, or a known report extension. */
+    static boolean looksLikeReportFile(Path path) {
+        if (Files.isDirectory(path)) {
+            return false;
+        }
+        if (Files.isRegularFile(path)) {
+            return true;
+        }
+        return REPORT_FILE_EXTENSIONS.contains(extensionOf(path));
+    }
+
+    private static String extensionOf(Path path) {
+        Path name = path.getFileName();
+        if (name == null) {
+            return "";
+        }
+        String value = name.toString();
+        int dot = value.lastIndexOf('.');
+        return dot < 0 ? "" : value.substring(dot + 1).toLowerCase(Locale.ROOT);
     }
 
     private void runCoverageCollection(Path root) {
@@ -964,49 +1082,110 @@ public class AnalyserCli implements Runnable {
         return modules;
     }
 
+    /** The exit code the effective gate implies for this report. */
     int exitCode(AnalysisReport report) {
-        long errors = report.countBySeverity(Severity.ERROR);
-        long warnings = report.countBySeverity(Severity.WARNING);
-        boolean qualityGateFailed = !printQualityGate(report, warnings);
-
-        if (qualityGateFailed) {
-            return 1;
-        }
-        if (failOn != null && "NONE".equalsIgnoreCase(failOn.trim())) {
-            // Explicit report-only mode: thresholds above still gate, the implicit ERROR gate does not.
-            stdout.println("[INFO] --fail-on NONE: report-only run; exiting 0 despite "
-                    + errors + " error-severity finding(s).");
-            return 0;
-        }
-        if (errors > 0) {
-            return 1;
-        }
-        if (failOnExceeded(report, warnings)) {
-            return 1;
-        }
-        if (failOnWarning && warnings > 0) {
-            return 1;
-        }
-        return 0;
+        return evaluateGate(report).exitCode();
     }
 
     /**
-     * Prints the quality-gate block when at least one threshold is configured.
+     * Computes the single verdict for this run from the <em>effective</em> gate: the implicit error
+     * gate (unless report-only), {@code --fail-on}, {@code --fail-on-warning} and the coverage /
+     * duplication / warning thresholds.
      *
-     * @return {@code true} when every configured threshold passed
+     * <p>Every renderer prints this verdict and the process exit code is derived from it, so the
+     * console block, the dashboard and the build result cannot disagree.
      */
-    private boolean printQualityGate(AnalysisReport report, long warnings) {
+    GateVerdict evaluateGate(AnalysisReport report) {
+        long errors = report.countBySeverity(Severity.ERROR);
+        long warnings = report.countBySeverity(Severity.WARNING);
+        long infos = report.countBySeverity(Severity.INFO);
+        boolean reportOnly = failOn != null && "NONE".equalsIgnoreCase(failOn.trim());
+
+        List<String> failures = new ArrayList<>();
+        addThresholdFailures(report, warnings, failures);
+        if (!reportOnly) {
+            if (errors > 0) {
+                failures.add(errors + " error-severity finding" + (errors == 1 ? "" : "s") + " detected.");
+            } else if (failOnExceeded(report, warnings)) {
+                failures.add("findings at or above --fail-on "
+                        + failOn.trim().toUpperCase(Locale.ROOT) + " detected.");
+            } else if (failOnWarning && warnings > 0) {
+                failures.add(warnings + " warning(s) detected and --fail-on-warning is set.");
+            }
+        }
+        if (!failures.isEmpty()) {
+            return GateVerdict.failed(String.join(" ", failures));
+        }
+        if (report.violations().isEmpty()) {
+            return GateVerdict.passed();
+        }
+        if (reportOnly) {
+            return GateVerdict.notEnforced(reportOnlyReason(errors, warnings, infos));
+        }
+        return GateVerdict.passedWithWarnings(
+                warnings + " warning(s), " + infos + " info message(s).");
+    }
+
+    /** Threshold breaches, all of which gate even in {@code --fail-on NONE} report-only mode. */
+    private void addThresholdFailures(AnalysisReport report, long warnings, List<String> failures) {
+        if (maxWarnings != null && warnings > maxWarnings) {
+            failures.add(warnings + " warning(s) exceed --max-warnings " + maxWarnings + ".");
+        }
+        if (maxDuplication != null) {
+            double duplication = report.codeMetrics() != null
+                    ? report.codeMetrics().duplicationPercent()
+                    : 0.0;
+            if (duplication > maxDuplication) {
+                failures.add(String.format(Locale.ROOT,
+                        "duplication %.1f%% exceeds --max-duplication %.1f%%.",
+                        duplication, maxDuplication));
+            }
+        }
+        if (minCoverage != null) {
+            var coverage = report.coverageReport();
+            if (coverage == null || !coverage.present()) {
+                // A threshold of 0 means "measure but do not gate".
+                if (minCoverage > 0) {
+                    failures.add(String.format(Locale.ROOT,
+                            "no line coverage data found, --min-coverage %.1f%% is not met.",
+                            minCoverage));
+                }
+            } else if (coverage.lineCoveragePercent() < minCoverage) {
+                failures.add(String.format(Locale.ROOT,
+                        "line coverage %.1f%% is below --min-coverage %.1f%%.",
+                        coverage.lineCoveragePercent(), minCoverage));
+            }
+        }
+    }
+
+    private static String reportOnlyReason(long errors, long warnings, long infos) {
+        List<String> parts = new ArrayList<>();
+        if (errors > 0) {
+            parts.add(errors + " error-severity finding" + (errors == 1 ? "" : "s"));
+        }
+        if (warnings > 0) {
+            parts.add(warnings + " warning" + (warnings == 1 ? "" : "s"));
+        }
+        if (errors == 0 && warnings == 0) {
+            parts.add(infos + " info message" + (infos == 1 ? "" : "s"));
+        }
+        parts.add("report-only run (--fail-on NONE).");
+        return String.join(", ", parts);
+    }
+
+    /** Prints the configured quality-gate thresholds and whether each one passed. */
+    private void printQualityGate(AnalysisReport report) {
         if (minCoverage == null && maxDuplication == null && maxWarnings == null) {
-            return true;
+            return;
         }
         stdout.println(SEPARATOR);
         stdout.println(" QUALITY GATE VERIFICATION");
         stdout.println(SEPARATOR);
-        boolean passed = checkMaxWarnings(warnings);
-        passed &= checkDuplication(report);
-        passed &= checkLineCoverage(report);
+        long warnings = report.countBySeverity(Severity.WARNING);
+        checkMaxWarnings(warnings);
+        checkDuplication(report);
+        checkLineCoverage(report);
         stdout.println(SEPARATOR);
-        return passed;
     }
 
     private boolean checkMaxWarnings(long warnings) {
@@ -1062,9 +1241,5 @@ public class AnalyserCli implements Runnable {
             return true;
         }
         return "INFO".equals(target) && (warnings > 0 || report.countBySeverity(Severity.INFO) > 0);
-    }
-
-    public static void main(String[] args) {
-        new CommandLine(new AnalyserCli()).execute(args);
     }
 }

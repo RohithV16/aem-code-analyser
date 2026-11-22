@@ -96,9 +96,19 @@ public final class SonarReportExporter implements ReportExporter {
         };
     }
 
+    /**
+     * SonarQube's Generic Issue Import format only accepts {@code BUG}, {@code VULNERABILITY} and
+     * {@code CODE_SMELL}. {@code SECURITY_HOTSPOT} exists in our model (AEM-QUAL-003) but external
+     * issues cannot be hotspots, so it is transported as a vulnerability. Mapping the model type
+     * verbatim produced a file Sonar either drops the issue from or rejects outright.
+     */
     private String issueType(String ruleId) {
-        return io.github.rohithv16.aem.analyser.core.rules.metadata.RuleRegistry
-                .get(ruleId).type().name();
+        return switch (io.github.rohithv16.aem.analyser.core.rules.metadata.RuleRegistry
+                .get(ruleId).type()) {
+            case BUG -> "BUG";
+            case CODE_SMELL -> "CODE_SMELL";
+            case VULNERABILITY, SECURITY_HOTSPOT -> "VULNERABILITY";
+        };
     }
 
     private int effortMinutes(String ruleId) {

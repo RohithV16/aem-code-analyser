@@ -140,8 +140,15 @@ class AemCloudAndSecRulesTest {
                 "config.local is not deployed by Cloud Manager");
     }
 
+    /**
+     * Regression test for issue #66: a {@code data-sly-element} attribute elsewhere on the same
+     * template line used to downgrade the finding to WARNING, because the rule tested the whole
+     * line with {@code snippet().contains("data-sly-element")}. The unsafe expression here is an
+     * attribute value, not the element name, so nothing about it is element-name validated: the
+     * finding must stay at the rule's ERROR level.
+     */
     @Test
-    void testAemSec001_dataSlyElementIsWarning() {
+    void testAemSec001_dataSlyElementDoesNotDowngradeToWarning() {
         Path htlPath = root.resolve("ui.apps/components/tag/tag.html");
         HtlUnsafeContextFinding finding = new HtlUnsafeContextFinding(
                 htlPath, 4, 18,
@@ -158,8 +165,32 @@ class AemCloudAndSecRulesTest {
         List<Violation> violations = new AemSec001Rule().evaluate(ctx);
 
         assertEquals(1, violations.size());
-        assertEquals(Severity.WARNING, violations.get(0).severity(),
-                "data-sly-element cannot inject markup, so this is not an ERROR");
+        assertEquals(Severity.ERROR, violations.get(0).severity(),
+                "data-sly-element on the same line must not downgrade the rule's ERROR level");
+        assertEquals(RuleId.AEM_SEC_001.defaultLevel(), violations.get(0).severity());
+    }
+
+    /** Regression test for issue #66: the unsafe expression is in the element body, not its name. */
+    @Test
+    void testAemSec001_elementBodyUnsafeWithStaticDataSlyElementIsError() {
+        Path htlPath = root.resolve("ui.apps/components/hero/hero.html");
+        HtlUnsafeContextFinding finding = new HtlUnsafeContextFinding(
+                htlPath, 1, 29,
+                "<div data-sly-element=\"div\">${properties.body @ context='unsafe'}</div>");
+
+        ReferenceGraphBuilder.GraphBuildResult buildResult = new ReferenceGraphBuilder.GraphBuildResult(
+                new ReferenceGraph(), Collections.emptySet(), Collections.emptySet(),
+                Collections.emptyMap(), Collections.emptyMap(),
+                Collections.emptyMap(), Collections.emptyMap(), List.of(), List.of(), List.of(), List.of(),
+                null);
+
+        RuleContext ctx = new RuleContext(new ReferenceGraph(), buildResult, Set.of(), null, Set.of(), root,
+                List.of(), List.of(), List.of(finding));
+        List<Violation> violations = new AemSec001Rule().evaluate(ctx);
+
+        assertEquals(1, violations.size());
+        assertEquals(Severity.ERROR, violations.get(0).severity(),
+                "an inert data-sly-element must not silence a stored-XSS sink in the element body");
     }
 
     @Test

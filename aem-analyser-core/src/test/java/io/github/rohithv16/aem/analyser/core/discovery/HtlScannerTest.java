@@ -69,6 +69,40 @@ class HtlScannerTest {
     }
 
     @Test
+    void testExtractsExpressionOptionForm(@TempDir Path tempDir) throws IOException {
+        Files.writeString(tempDir.resolve("options.html"), """
+                <sly data-sly-use.card="${'com.example.core.models.CardModel' @ sku='ABC-123'}" />
+                <sly data-sly-use.single='${"com.example.core.models.SingleModel"}' />
+                """);
+
+        List<HtlUsage> usages = new HtlScanner().scanDirectory(tempDir);
+
+        assertEquals(2, usages.size());
+        assertTrue(usages.stream().anyMatch(u -> "com.example.core.models.CardModel".equals(u.target())
+                        && "card".equals(u.identifier()) && u.isJavaClass()),
+                () -> "Option syntax must yield the bare class name: " + usages);
+        assertTrue(usages.stream().anyMatch(u -> "com.example.core.models.SingleModel".equals(u.target())
+                        && u.isJavaClass()),
+                () -> "Literal expression must stay supported: " + usages);
+    }
+
+    @Test
+    void testClassifiesDynamicAndResourceTargets(@TempDir Path tempDir) throws IOException {
+        Files.writeString(tempDir.resolve("kinds.html"), """
+                <sly data-sly-use.dyn="${component.modelClass}" />
+                <sly data-sly-use.data="data.json" />
+                <sly data-sly-use.template="core/wcm/components/commons/v1/templates.html" />
+                """);
+
+        List<HtlUsage> usages = new HtlScanner().scanDirectory(tempDir);
+
+        assertEquals(3, usages.size());
+        assertTrue(usages.stream().anyMatch(u -> "dyn".equals(u.identifier()) && u.isUnresolved()));
+        assertTrue(usages.stream().anyMatch(u -> "data".equals(u.identifier()) && u.isResource()));
+        assertTrue(usages.stream().anyMatch(u -> "template".equals(u.identifier()) && u.isResource()));
+    }
+
+    @Test
     void testDetectsUnsafeContext(@TempDir Path tempDir) throws IOException {
         String htlContent = """
                 <div>

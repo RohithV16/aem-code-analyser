@@ -97,6 +97,10 @@ public final class RuleRegistry {
         };
         String cwe = switch (rule) {
             case AEM_SEC_001 -> "CWE-79";
+            // The rule covers both weaknesses it is named for: an open redirect (CWE-601) when the
+            // request-controlled value reaches sendRedirect, and SSRF (CWE-918) when it reaches an
+            // outbound URL. A single strength class would mislabel half of its findings.
+            case AEM_SEC_002 -> "CWE-601, CWE-918";
             case AEM_CLOUD_001, AEM_QUAL_005 -> "CWE-798";
             case AEM_PERF_003 -> "CWE-400";
             default -> null;
