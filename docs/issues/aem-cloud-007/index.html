@@ -1,0 +1,58 @@
+---
+layout: default
+nav: issues
+title: "AEM-CLOUD-007 OverlappingContentPackageFilter — A content-package filter root is shared across modules, uses replace …"
+description: "AEM-CLOUD-007 (WARNING): A content-package filter root is shared across modules, uses replace on a shared root, or points at a platform path."
+rule_id: "AEM-CLOUD-007"
+rule_family: "CLOUD"
+rule_family_title: "AEM as a Cloud Service"
+rule_severity: "WARNING"
+rule_tags: "aem-cloud, content-package"
+---
+
+<div class="shell docs">
+  <div class="docs__main">
+    <p class="muted"><a href="../">← All 35 rules</a></p>
+    <div class="issues-head">
+      <h1><span class="rule-card__id">AEM-CLOUD-007</span> OverlappingContentPackageFilter</h1>
+      <p class="lede">A content-package filter root is shared across modules, uses replace on a shared root, or points at a platform path.</p>
+      <p class="muted"><span class="pill pill--warning">WARNING</span> · 20 min fix · Code smell · <a href="../#family-cloud">AEM as a Cloud Service</a></p>
+    </div>
+
+    <article class="rule-card rule-card--page" id="aem-cloud-007" data-family="CLOUD">
+        <p class="rule-card__summary">A content-package filter root is shared across modules, uses replace on a shared root, or points at a platform path.</p>
+        <h2>Why it matters</h2>
+        <p>Filter roots decide which repository paths a package installs. When two modules filter the same root, the package installed last wins, so content from the other package silently disappears in the deployed environment — and the build, the package manager and both modules&#39; own tests all still pass. mode=&quot;replace&quot; on a shared root makes that deletion explicit. A root at /apps, /content/dam or under /libs ships content the project does not own.</p>
+        <h2>How to fix it</h2>
+        <p>Give each content module a disjoint root under the project namespace. Where a root genuinely must be shared, use mode=&quot;merge&quot; and include only the paths the module owns instead of the platform root itself.</p>
+        <div class="examples">
+          <div class="code code--bad">
+            <div class="code__bar"><span class="code__label">json · before</span></div>
+            <pre><code>&lt;!-- ui.apps/src/main/content/META-INF/vault/filter.xml --&gt;
+&lt;workspaceFilter version=&quot;1.0&quot;&gt;
+    &lt;filter root=&quot;/content/acme&quot; mode=&quot;replace&quot;/&gt;
+&lt;/workspaceFilter&gt;
+
+&lt;!-- ui.content/src/main/content/META-INF/vault/filter.xml --&gt;
+&lt;workspaceFilter version=&quot;1.0&quot;&gt;
+    &lt;filter root=&quot;/content/acme&quot; mode=&quot;merge&quot;/&gt;
+&lt;/workspaceFilter&gt;</code></pre>
+          </div>
+          <div class="code code--good">
+            <div class="code__bar"><span class="code__label">json · after</span></div>
+            <pre><code>&lt;!-- ui.apps/src/main/content/META-INF/vault/filter.xml --&gt;
+&lt;workspaceFilter version=&quot;1.0&quot;&gt;
+    &lt;filter root=&quot;/apps/acme/components&quot;/&gt;
+&lt;/workspaceFilter&gt;
+
+&lt;!-- ui.content/src/main/content/META-INF/vault/filter.xml --&gt;
+&lt;workspaceFilter version=&quot;1.0&quot;&gt;
+    &lt;filter root=&quot;/content/acme&quot; mode=&quot;merge&quot;/&gt;
+&lt;/workspaceFilter&gt;</code></pre>
+          </div>
+        </div>
+        <p class="suppress">Suppress one line: <code>// aem-analyser-disable-next-line AEM-CLOUD-007</code> · tags aem-cloud, content-package · <code>--explain AEM-CLOUD-007</code></p>
+    </article>
+    <p class="muted">Every rule in the catalogue, with what it detects and how to fix it: <a href="../">all 35 rules</a>. Suppress a single line with <code>// aem-analyser-disable-next-line AEM-CLOUD-007</code>.</p>
+  </div>
+</div>

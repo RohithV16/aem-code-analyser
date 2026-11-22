@@ -553,6 +553,38 @@ public final class RuleFixCatalog {
                         ServerName "www.acme.com"
                         DocumentRoot "${DOCROOT}"
                     </VirtualHost>""");
+            case AEM_CLOUD_007 -> new Fix(
+                    """
+                    Filter roots decide which repository paths a package installs. When two modules \
+                    filter the same root, the package installed last wins, so content from the other \
+                    package silently disappears in the deployed environment — and the build, the \
+                    package manager and both modules' own tests all still pass. {@code mode="replace"} \
+                    on a shared root makes that deletion explicit. A root at {@code /apps}, {@code \
+                    /content/dam} or under {@code /libs} ships content the project does not own.""",
+                    """
+                    Give each content module a disjoint root under the project namespace. Where a root \
+                    genuinely must be shared, use {@code mode="merge"} and include only the paths the \
+                    module owns instead of the platform root itself.""",
+                    "json", """
+                    <!-- ui.apps/src/main/content/META-INF/vault/filter.xml -->
+                    <workspaceFilter version="1.0">
+                        <filter root="/content/acme" mode="replace"/>
+                    </workspaceFilter>
+
+                    <!-- ui.content/src/main/content/META-INF/vault/filter.xml -->
+                    <workspaceFilter version="1.0">
+                        <filter root="/content/acme" mode="merge"/>
+                    </workspaceFilter>""",
+                    "json", """
+                    <!-- ui.apps/src/main/content/META-INF/vault/filter.xml -->
+                    <workspaceFilter version="1.0">
+                        <filter root="/apps/acme/components"/>
+                    </workspaceFilter>
+
+                    <!-- ui.content/src/main/content/META-INF/vault/filter.xml -->
+                    <workspaceFilter version="1.0">
+                        <filter root="/content/acme" mode="merge"/>
+                    </workspaceFilter>""");
             case AEM_SEC_001 -> new Fix(
                     """
                     {@code context='unsafe'} switches off HTL's contextual escaping, and the expression is \

@@ -13,15 +13,15 @@ description: Every AEM Code Analyser rule — what it detects, why it matters on
       <div class="issue-tools">
         <label class="visually-hidden" for="issueSearch">Filter issues</label>
         <input type="search" id="issueSearch" placeholder="Filter by id, name, tag or symptom…" autocomplete="off">
-        <button class="chip" type="button" data-family="all" aria-pressed="true">All 34</button>
+        <button class="chip" type="button" data-family="all" aria-pressed="true">All 35</button>
         <button class="chip" type="button" data-family="DEAD" aria-pressed="false">Dead code 9</button>
         <button class="chip" type="button" data-family="DUP" aria-pressed="false">Duplication 4</button>
         <button class="chip" type="button" data-family="QUAL" aria-pressed="false">Quality 7</button>
         <button class="chip" type="button" data-family="PERF" aria-pressed="false">Performance 4</button>
-        <button class="chip" type="button" data-family="CLOUD" aria-pressed="false">Cloud Service 6</button>
+        <button class="chip" type="button" data-family="CLOUD" aria-pressed="false">Cloud Service 7</button>
         <button class="chip" type="button" data-family="SEC" aria-pressed="false">Security 2</button>
         <button class="chip" type="button" data-family="COMP" aria-pressed="false">Components 2</button>
-        <span class="issue-count" id="issueCount" aria-live="polite">34 of 34 issues</span>
+        <span class="issue-count" id="issueCount" aria-live="polite">35 of 35 issues</span>
       </div>
     </div>
 
@@ -831,7 +831,7 @@ params.put(&quot;p.guessTotal&quot;, &quot;1000&quot;);</code></pre>
     <section class="family" id="family-cloud">
       <div class="family__head">
         <h2>AEM as a Cloud Service</h2>
-        <span>6 issues</span>
+        <span>7 issues</span>
       </div>
       <p class="muted">Patterns that break on AEM as a Cloud Service, including plaintext secrets.</p>
 
@@ -1011,6 +1011,49 @@ Include conf.d/includes/cache.conf
         </div>
         <p class="suppress">Suppress one line: <code>// aem-analyser-disable-next-line AEM-CLOUD-006</code> · tags aem-cloud, dispatcher · <code>--explain AEM-CLOUD-006</code></p>
       </article>
+
+      <article class="rule-card" id="aem-cloud-007" data-family="CLOUD" data-search="aem-cloud-007 overlappingcontentpackagefilter a content-package filter root is shared across modules, uses replace on a shared root, or points at a platform path. aem-cloud content-package warning give each content module a disjoint filter root; use mode=&quot;merge&quot; on anything shared and filter the project&#39;s own subtree instead of a platform root. filter roots decide which repository paths a package installs. when two modules filter the same root, the package installed last wins, so content from the other package silently disappears in the deployed environment — and the build, the package manager and both modules&#39; own tests all still pass. mode=&quot;replace&quot; on a shared root makes that deletion explicit. a root at /apps, /content/dam or under /libs ships content the project does not own. give each content module a disjoint root under the project namespace. where a root genuinely must be shared, use mode=&quot;merge&quot; and include only the paths the module owns instead of the platform root itself.">
+        <header class="rule-card__head">
+          <h3 class="rule-card__title"><a class="rule-card__permalink" href="aem-cloud-007/" aria-label="Open the AEM-CLOUD-007 reference page"><span class="rule-card__id">AEM-CLOUD-007</span></a><a class="rule-card__anchor" href="#aem-cloud-007" aria-label="Link to AEM-CLOUD-007">#</a><span class="rule-card__name">OverlappingContentPackageFilter</span></h3>
+          <span class="pill pill--warning">WARNING</span>
+          <span class="rule-card__meta">
+            <span>20 min fix</span>
+            <span>Code smell</span>
+          </span>
+        </header>
+        <p class="rule-card__summary">A content-package filter root is shared across modules, uses replace on a shared root, or points at a platform path.</p>
+        <h4>Why it matters</h4>
+        <p>Filter roots decide which repository paths a package installs. When two modules filter the same root, the package installed last wins, so content from the other package silently disappears in the deployed environment — and the build, the package manager and both modules&#39; own tests all still pass. mode=&quot;replace&quot; on a shared root makes that deletion explicit. A root at /apps, /content/dam or under /libs ships content the project does not own.</p>
+        <h4>How to fix it</h4>
+        <p>Give each content module a disjoint root under the project namespace. Where a root genuinely must be shared, use mode=&quot;merge&quot; and include only the paths the module owns instead of the platform root itself.</p>
+        <div class="examples">
+          <div class="code code--bad">
+            <div class="code__bar"><span class="code__label">json · before</span></div>
+            <pre><code>&lt;!-- ui.apps/src/main/content/META-INF/vault/filter.xml --&gt;
+&lt;workspaceFilter version=&quot;1.0&quot;&gt;
+    &lt;filter root=&quot;/content/acme&quot; mode=&quot;replace&quot;/&gt;
+&lt;/workspaceFilter&gt;
+
+&lt;!-- ui.content/src/main/content/META-INF/vault/filter.xml --&gt;
+&lt;workspaceFilter version=&quot;1.0&quot;&gt;
+    &lt;filter root=&quot;/content/acme&quot; mode=&quot;merge&quot;/&gt;
+&lt;/workspaceFilter&gt;</code></pre>
+          </div>
+          <div class="code code--good">
+            <div class="code__bar"><span class="code__label">json · after</span></div>
+            <pre><code>&lt;!-- ui.apps/src/main/content/META-INF/vault/filter.xml --&gt;
+&lt;workspaceFilter version=&quot;1.0&quot;&gt;
+    &lt;filter root=&quot;/apps/acme/components&quot;/&gt;
+&lt;/workspaceFilter&gt;
+
+&lt;!-- ui.content/src/main/content/META-INF/vault/filter.xml --&gt;
+&lt;workspaceFilter version=&quot;1.0&quot;&gt;
+    &lt;filter root=&quot;/content/acme&quot; mode=&quot;merge&quot;/&gt;
+&lt;/workspaceFilter&gt;</code></pre>
+          </div>
+        </div>
+        <p class="suppress">Suppress one line: <code>// aem-analyser-disable-next-line AEM-CLOUD-007</code> · tags aem-cloud, content-package · <code>--explain AEM-CLOUD-007</code></p>
+      </article>
     </section>
 
     <section class="family" id="family-sec">
@@ -1174,7 +1217,7 @@ if (target != null &amp;&amp; target.startsWith(&quot;/content/&quot;) &amp;&amp
       <li><a href="#family-dup">Duplication <span class="muted">4</span></a></li>
       <li><a href="#family-qual">Quality and Cloud Manager parity <span class="muted">7</span></a></li>
       <li><a href="#family-perf">Performance <span class="muted">4</span></a></li>
-      <li><a href="#family-cloud">AEM as a Cloud Service <span class="muted">6</span></a></li>
+      <li><a href="#family-cloud">AEM as a Cloud Service <span class="muted">7</span></a></li>
       <li><a href="#family-sec">Security <span class="muted">2</span></a></li>
       <li><a href="#family-comp">Component compatibility <span class="muted">2</span></a></li>
     </ul>
@@ -1210,6 +1253,7 @@ if (target != null &amp;&amp; target.startsWith(&quot;/content/&quot;) &amp;&amp
       <li><a href="#aem-cloud-004">AEM-CLOUD-004</a></li>
       <li><a href="#aem-cloud-005">AEM-CLOUD-005</a></li>
       <li><a href="#aem-cloud-006">AEM-CLOUD-006</a></li>
+      <li><a href="#aem-cloud-007">AEM-CLOUD-007</a></li>
       <li><a href="#aem-sec-001">AEM-SEC-001</a></li>
       <li><a href="#aem-sec-002">AEM-SEC-002</a></li>
       <li><a href="#aem-comp-001">AEM-COMP-001</a></li>
