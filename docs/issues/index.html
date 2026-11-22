@@ -13,15 +13,15 @@ description: Every AEM Code Analyser rule — what it detects, why it matters on
       <div class="issue-tools">
         <label class="visually-hidden" for="issueSearch">Filter issues</label>
         <input type="search" id="issueSearch" placeholder="Filter by id, name, tag or symptom…" autocomplete="off">
-        <button class="chip" type="button" data-family="all" aria-pressed="true">All 36</button>
+        <button class="chip" type="button" data-family="all" aria-pressed="true">All 37</button>
         <button class="chip" type="button" data-family="DEAD" aria-pressed="false">Dead code 9</button>
         <button class="chip" type="button" data-family="DUP" aria-pressed="false">Duplication 4</button>
         <button class="chip" type="button" data-family="QUAL" aria-pressed="false">Quality 7</button>
         <button class="chip" type="button" data-family="PERF" aria-pressed="false">Performance 4</button>
-        <button class="chip" type="button" data-family="CLOUD" aria-pressed="false">Cloud Service 8</button>
+        <button class="chip" type="button" data-family="CLOUD" aria-pressed="false">Cloud Service 9</button>
         <button class="chip" type="button" data-family="SEC" aria-pressed="false">Security 2</button>
         <button class="chip" type="button" data-family="COMP" aria-pressed="false">Components 2</button>
-        <span class="issue-count" id="issueCount" aria-live="polite">36 of 36 issues</span>
+        <span class="issue-count" id="issueCount" aria-live="polite">37 of 37 issues</span>
       </div>
     </div>
 
@@ -831,7 +831,7 @@ params.put(&quot;p.guessTotal&quot;, &quot;1000&quot;);</code></pre>
     <section class="family" id="family-cloud">
       <div class="family__head">
         <h2>AEM as a Cloud Service</h2>
-        <span>8 issues</span>
+        <span>9 issues</span>
       </div>
       <p class="muted">Patterns that break on AEM as a Cloud Service, including plaintext secrets.</p>
 
@@ -1090,6 +1090,59 @@ state.put(&quot;lastRun&quot;, System.currentTimeMillis());</code></pre>
         </div>
         <p class="suppress">Suppress one line: <code>// aem-analyser-disable-next-line AEM-CLOUD-008</code> · tags aem-cloud, immutable-path · <code>--explain AEM-CLOUD-008</code></p>
       </article>
+
+      <article class="rule-card" id="aem-cloud-009" data-family="CLOUD" data-search="aem-cloud-009 unreachabledeployablemodule a reactor module ships content or a bundle the all container never installs, or a bundle is embedded outside /install. aem-cloud content-package build warning embed the module in the all container (with an .../install target for bundles), or remove it from the reactor; keep the container free of its own jcr_root. aem as a cloud service deploys one package per application: the container module (usually all) embeds and installs every other package, and must carry no content of its own. a module added to the reactor but never to &lt;embeddeds&gt; still builds and still passes the pipeline - the deployment simply does not contain it, and an author discovers the missing dialog weeks later. a bundle embedded outside an .../install path is worse: it travels inside the container and is never installed or started, so every component it declares stays absent with no error. add the module to the container&#39;s &lt;embeddeds&gt; under an install path, follow structure packages through &lt;repositorystructurepackages&gt;, and move any content out of the container. remove modules from the reactor when they are no longer deployed.">
+        <header class="rule-card__head">
+          <h3 class="rule-card__title"><a class="rule-card__permalink" href="aem-cloud-009/" aria-label="Open the AEM-CLOUD-009 reference page"><span class="rule-card__id">AEM-CLOUD-009</span></a><a class="rule-card__anchor" href="#aem-cloud-009" aria-label="Link to AEM-CLOUD-009">#</a><span class="rule-card__name">UnreachableDeployableModule</span></h3>
+          <span class="pill pill--warning">WARNING</span>
+          <span class="rule-card__meta">
+            <span>20 min fix</span>
+            <span>Bug</span>
+          </span>
+        </header>
+        <p class="rule-card__summary">A reactor module ships content or a bundle the all container never installs, or a bundle is embedded outside /install.</p>
+        <h4>Why it matters</h4>
+        <p>AEM as a Cloud Service deploys one package per application: the container module (usually all) embeds and installs every other package, and must carry no content of its own. A module added to the reactor but never to &lt;embeddeds&gt; still builds and still passes the pipeline - the deployment simply does not contain it, and an author discovers the missing dialog weeks later. A bundle embedded outside an .../install path is worse: it travels inside the container and is never installed or started, so every component it declares stays absent with no error.</p>
+        <h4>How to fix it</h4>
+        <p>Add the module to the container&#39;s &lt;embeddeds&gt; under an install path, follow structure packages through &lt;repositoryStructurePackages&gt;, and move any content out of the container. Remove modules from the reactor when they are no longer deployed.</p>
+        <div class="examples">
+          <div class="code code--bad">
+            <div class="code__bar"><span class="code__label">xml · before</span></div>
+            <pre><code>&lt;!-- all/pom.xml --&gt;
+&lt;embeddeds&gt;
+    &lt;embedded&gt;
+        &lt;groupId&gt;com.acme&lt;/groupId&gt;
+        &lt;artifactId&gt;acme.ui.content2&lt;/artifactId&gt;
+        &lt;type&gt;zip&lt;/type&gt;
+        &lt;target&gt;/apps/acme-packages/content/install&lt;/target&gt;
+    &lt;/embedded&gt;
+    &lt;embedded&gt;
+        &lt;groupId&gt;com.acme&lt;/groupId&gt;
+        &lt;artifactId&gt;acme.core&lt;/artifactId&gt;
+        &lt;target&gt;/apps/acme-packages/application&lt;/target&gt; &lt;!-- no /install --&gt;
+    &lt;/embedded&gt;
+&lt;/embeddeds&gt;</code></pre>
+          </div>
+          <div class="code code--good">
+            <div class="code__bar"><span class="code__label">xml · after</span></div>
+            <pre><code>&lt;!-- all/pom.xml --&gt;
+&lt;embeddeds&gt;
+    &lt;embedded&gt;
+        &lt;groupId&gt;com.acme&lt;/groupId&gt;
+        &lt;artifactId&gt;acme.ui.content2&lt;/artifactId&gt;
+        &lt;type&gt;zip&lt;/type&gt;
+        &lt;target&gt;/apps/acme-packages/content/install&lt;/target&gt;
+    &lt;/embedded&gt;
+    &lt;embedded&gt;
+        &lt;groupId&gt;com.acme&lt;/groupId&gt;
+        &lt;artifactId&gt;acme.core&lt;/artifactId&gt;
+        &lt;target&gt;/apps/acme-packages/application/install&lt;/target&gt;
+    &lt;/embedded&gt;
+&lt;/embeddeds&gt;</code></pre>
+          </div>
+        </div>
+        <p class="suppress">Suppress one line: <code>// aem-analyser-disable-next-line AEM-CLOUD-009</code> · tags aem-cloud, content-package, build · <code>--explain AEM-CLOUD-009</code></p>
+      </article>
     </section>
 
     <section class="family" id="family-sec">
@@ -1253,7 +1306,7 @@ if (target != null &amp;&amp; target.startsWith(&quot;/content/&quot;) &amp;&amp
       <li><a href="#family-dup">Duplication <span class="muted">4</span></a></li>
       <li><a href="#family-qual">Quality and Cloud Manager parity <span class="muted">7</span></a></li>
       <li><a href="#family-perf">Performance <span class="muted">4</span></a></li>
-      <li><a href="#family-cloud">AEM as a Cloud Service <span class="muted">8</span></a></li>
+      <li><a href="#family-cloud">AEM as a Cloud Service <span class="muted">9</span></a></li>
       <li><a href="#family-sec">Security <span class="muted">2</span></a></li>
       <li><a href="#family-comp">Component compatibility <span class="muted">2</span></a></li>
     </ul>
@@ -1291,6 +1344,7 @@ if (target != null &amp;&amp; target.startsWith(&quot;/content/&quot;) &amp;&amp
       <li><a href="#aem-cloud-006">AEM-CLOUD-006</a></li>
       <li><a href="#aem-cloud-007">AEM-CLOUD-007</a></li>
       <li><a href="#aem-cloud-008">AEM-CLOUD-008</a></li>
+      <li><a href="#aem-cloud-009">AEM-CLOUD-009</a></li>
       <li><a href="#aem-sec-001">AEM-SEC-001</a></li>
       <li><a href="#aem-sec-002">AEM-SEC-002</a></li>
       <li><a href="#aem-comp-001">AEM-COMP-001</a></li>

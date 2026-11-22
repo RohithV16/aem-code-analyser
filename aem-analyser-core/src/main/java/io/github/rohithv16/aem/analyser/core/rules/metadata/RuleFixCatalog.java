@@ -368,6 +368,49 @@ public final class RuleFixCatalog {
                     ValueMap state =
                         resolver.getResource("/var/acme/config").adaptTo(ModifiableValueMap.class);
                     state.put("lastRun", System.currentTimeMillis());""");
+            case AEM_CLOUD_009 -> new Fix(
+                    """
+                    AEM as a Cloud Service deploys one package per application: the container module \
+                    (usually all) embeds and installs every other package, and must carry no content of \
+                    its own. A module added to the reactor but never to <embeddeds> still builds and \
+                    still passes the pipeline - the deployment simply does not contain it, and an author \
+                    discovers the missing dialog weeks later. A bundle embedded outside an .../install \
+                    path is worse: it travels inside the container and is never installed or started, so \
+                    every component it declares stays absent with no error.""",
+                    """
+                    Add the module to the container's <embeddeds> under an install path, follow structure \
+                    packages through <repositoryStructurePackages>, and move any content out of the \
+                    container. Remove modules from the reactor when they are no longer deployed.""",
+                    "xml", """
+                    <!-- all/pom.xml -->
+                    <embeddeds>
+                        <embedded>
+                            <groupId>com.acme</groupId>
+                            <artifactId>acme.ui.content2</artifactId>
+                            <type>zip</type>
+                            <target>/apps/acme-packages/content/install</target>
+                        </embedded>
+                        <embedded>
+                            <groupId>com.acme</groupId>
+                            <artifactId>acme.core</artifactId>
+                            <target>/apps/acme-packages/application</target> <!-- no /install -->
+                        </embedded>
+                    </embeddeds>""",
+                    "xml", """
+                    <!-- all/pom.xml -->
+                    <embeddeds>
+                        <embedded>
+                            <groupId>com.acme</groupId>
+                            <artifactId>acme.ui.content2</artifactId>
+                            <type>zip</type>
+                            <target>/apps/acme-packages/content/install</target>
+                        </embedded>
+                        <embedded>
+                            <groupId>com.acme</groupId>
+                            <artifactId>acme.core</artifactId>
+                            <target>/apps/acme-packages/application/install</target>
+                        </embedded>
+                    </embeddeds>""");
             case AEM_QUAL_006 -> new Fix(
                     """
                     Storing a request-scoped resolver or session in an OSGi component field keeps one \
