@@ -17,6 +17,8 @@ import java.util.Locale;
  * @param targetPid        the OSGi PID concerned, if any
  * @param remediation      actionable remediation step
  * @param relatedLocations secondary locations (related Java classes etc.)
+ * @param acceptance       why the finding was accepted (baseline entry, inline directive) or
+ *                         {@link AcceptanceOrigin#NONE} when it still counts against the gate
  */
 public record Violation(
         String ruleId,
@@ -27,7 +29,26 @@ public record Violation(
         TextRegion region,
         String targetPid,
         String remediation,
-        List<RelatedLocation> relatedLocations) {
+        List<RelatedLocation> relatedLocations,
+        AcceptanceOrigin acceptance) {
+
+    /**
+     * Creates an actionable finding. Rule implementations and tests keep using this shape; acceptance
+     * is annotated later by {@link io.github.rohithv16.aem.analyser.core.baseline.BaselineFilter} or
+     * {@link io.github.rohithv16.aem.analyser.core.baseline.InlineSuppressions}, not by the rules.
+     */
+    public Violation(String ruleId,
+                     Severity severity,
+                     String subtype,
+                     String message,
+                     String filePath,
+                     TextRegion region,
+                     String targetPid,
+                     String remediation,
+                     List<RelatedLocation> relatedLocations) {
+        this(ruleId, severity, subtype, message, filePath, region, targetPid, remediation,
+                relatedLocations, AcceptanceOrigin.NONE);
+    }
 
     public Violation {
         if (region == null) {
@@ -37,6 +58,19 @@ public record Violation(
         if (subtype != null) {
             subtype = subtype.toUpperCase(Locale.ROOT);
         }
+        if (acceptance == null) {
+            acceptance = AcceptanceOrigin.NONE;
+        }
+    }
+
+    /** Marks this finding as accepted without changing its severity, message or location. */
+    public Violation withAcceptance(AcceptanceOrigin origin) {
+        return new Violation(ruleId, severity, subtype, message, filePath, region, targetPid,
+                remediation, relatedLocations, origin);
+    }
+
+    public boolean isAccepted() {
+        return acceptance.isAccepted();
     }
 
     public RuleId rule() {

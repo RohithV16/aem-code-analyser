@@ -7,7 +7,14 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Removes findings already accepted in a baseline.
+ * Annotates findings already accepted in a baseline instead of deleting them.
+ *
+ * <p>Accepted findings leave {@link AnalysisReport#violations()} — the gate, the console summary and
+ * therefore the exit code keep counting only actionable findings — and move to
+ * {@link AnalysisReport#acceptedViolations()} carrying
+ * {@link io.github.rohithv16.aem.analyser.core.model.report.AcceptanceOrigin#BASELINE}. SARIF then
+ * exports them as suppressed results at their real level, so an uploaded report reads "36 exist, 36
+ * accepted" instead of "0 problems".
  */
 public final class BaselineFilter {
 
@@ -19,8 +26,10 @@ public final class BaselineFilter {
     }
 
     /**
-     * @param keepSuppressed when true, accepted findings are retained at INFO with a
-     *                       {@code SUPPRESSED_BY_BASELINE} subtype instead of being removed
+     * @param keepSuppressed legacy {@code --baseline-report} mode: additionally re-adds accepted
+     *                       findings to {@link AnalysisReport#violations()} at INFO so renderers that
+     *                       cannot express a suppression still list them. The gate-visible list then
+     *                       contains them, exactly as before this change.
      */
     public static AnalysisReport filter(AnalysisReport report, Baseline baseline, boolean keepSuppressed) {
         if (baseline == null || baseline.entries().isEmpty()) {
@@ -46,6 +55,13 @@ public final class BaselineFilter {
                 filtered.add(violation);
             }
         }
+        List<Violation> accepted = new java.util.ArrayList<>(report.acceptedViolations());
+        for (Violation violation : suppressed) {
+            // Annotate, never rewrite: severity, subtype, message, region and fingerprint stay the
+            // ones the rule produced, so the export still shows where and how bad the finding is.
+            accepted.add(violation.withAcceptance(
+                    io.github.rohithv16.aem.analyser.core.model.report.AcceptanceOrigin.BASELINE));
+        }
         if (keepSuppressed) {
             for (Violation violation : suppressed) {
                 filtered.add(new Violation(
@@ -57,10 +73,11 @@ public final class BaselineFilter {
                         violation.region(),
                         violation.targetPid(),
                         violation.remediation(),
-                        violation.relatedLocations()));
+                        violation.relatedLocations(),
+                        io.github.rohithv16.aem.analyser.core.model.report.AcceptanceOrigin.BASELINE));
             }
         }
-        return report.withViolations(filtered);
+        return report.withViolations(filtered).withAcceptedViolations(accepted);
     }
 
     public static int suppressedCount(AnalysisReport before, AnalysisReport after) {

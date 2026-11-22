@@ -40,10 +40,34 @@ public final class InlineSuppressions {
         if (violations == null || violations.isEmpty()) {
             return violations;
         }
-        java.util.Map<Path, List<String>> cache = new java.util.HashMap<>();
-        return violations.stream()
-                .filter(violation -> !isSuppressed(projectRoot, violation, cache))
+        return annotate(projectRoot, violations).stream()
+                .filter(violation -> !violation.isAccepted())
                 .toList();
+    }
+
+    /**
+     * Returns the report's findings with inline-suppressed entries marked
+     * {@link io.github.rohithv16.aem.analyser.core.model.report.AcceptanceOrigin#INLINE} instead of
+     * removed. The caller splits accepted from actionable findings, so the gate counts stay identical
+     * while exporters can still show the waiver (SARIF {@code suppressions}).
+     */
+    public static List<Violation> annotate(Path projectRoot, List<Violation> violations) {
+        if (violations == null || violations.isEmpty()) {
+            return violations;
+        }
+        java.util.Map<Path, List<String>> cache = new java.util.HashMap<>();
+        List<Violation> annotated = new java.util.ArrayList<>(violations.size());
+        for (Violation violation : violations) {
+            // Never overwrite an acceptance recorded earlier (a baseline entry): the first, most
+            // specific waiver wins and the justification stays truthful.
+            if (violation.isAccepted() || !isSuppressed(projectRoot, violation, cache)) {
+                annotated.add(violation);
+            } else {
+                annotated.add(violation.withAcceptance(
+                        io.github.rohithv16.aem.analyser.core.model.report.AcceptanceOrigin.INLINE));
+            }
+        }
+        return annotated;
     }
 
     private static boolean isSuppressed(Path projectRoot, Violation violation,

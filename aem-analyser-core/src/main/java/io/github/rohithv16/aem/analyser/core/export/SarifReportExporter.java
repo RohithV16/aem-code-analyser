@@ -46,41 +46,16 @@ public final class SarifReportExporter implements ReportExporter {
 
         List<Map<String, Object>> results = new ArrayList<>();
         for (Violation violation : report.violations()) {
-            if (!ruleIndexes.containsKey(violation.ruleId())) {
-                var descriptor = io.github.rohithv16.aem.analyser.core.rules.metadata.RuleRegistry
-                        .get(violation.ruleId());
-                ruleIndexes.put(violation.ruleId(), ruleDefinitions.size());
-                ruleDefinitions.add(ruleDefinition(descriptor));
+            // Accepted findings reach violations() only in the legacy --baseline-report mode, where
+            // an INFO copy is kept for renderers without suppression support; SARIF emits the
+            // untouched, real-level copy from acceptedViolations() instead of both.
+            if (violation.isAccepted()) {
+                continue;
             }
-            Map<String, Object> result = new LinkedHashMap<>();
-            result.put("ruleId", violation.ruleId());
-            result.put("ruleIndex", ruleIndexes.get(violation.ruleId()));
-            result.put("level", sarifLevel(violation.severity()));
-            StringBuilder messageText = new StringBuilder(violation.message());
-            violation.remediationOpt().ifPresent(r -> messageText.append(" Remediation: ").append(r));
-            result.put("message", ordered("text", messageText.toString()));
-            Map<String, Object> properties = new LinkedHashMap<>();
-            properties.put("subtype", violation.subtype());
-            violation.targetPidOpt().ifPresent(pid -> properties.put("targetPid", pid));
-            result.put("properties", properties);
-            // Stable identity so GitHub code scanning tracks the same alert across unrelated edits.
-            result.put("partialFingerprints", ordered("aemAnalyserFingerprint/v1",
-                    io.github.rohithv16.aem.analyser.core.baseline.Fingerprint.of(violation)));
-            result.put("locations", List.of(location(violation.filePath(), violation.region())));
-            if (!violation.relatedLocations().isEmpty()) {
-                List<Map<String, Object>> related = new ArrayList<>();
-                int id = 1;
-                for (RelatedLocation relatedLocation : violation.relatedLocations()) {
-                    Map<String, Object> entry = new LinkedHashMap<>();
-                    entry.put("id", id++);
-                    entry.put("physicalLocation", physicalLocation(relatedLocation.filePath(), relatedLocation.region()));
-                    entry.put("message", ordered("text",
-                            relatedLocation.message()));
-                    related.add(entry);
-                }
-                result.put("relatedLocations", related);
-            }
-            results.add(result);
+            results.add(result(violation, ruleIndexes, ruleDefinitions, false));
+        }
+        for (Violation violation : report.acceptedViolations()) {
+            results.add(result(violation, ruleIndexes, ruleDefinitions, true));
         }
 
         Map<String, Object> driver = new LinkedHashMap<>();
@@ -124,6 +99,75 @@ public final class SarifReportExporter implements ReportExporter {
         } catch (IOException e) {
             throw new ExportException("Failed to serialize SARIF report: " + e.getMessage(), e);
         }
+    }
+
+    /**
+     * Builds one {@code results[]} entry. An accepted finding keeps its real {@code level}, message,
+     * subtype and region and additionally carries {@code baselineState} plus an accepted
+     * {@code suppressions[]} entry, so a consumer shows "exists, accepted" instead of either a
+     * reopened alert or no finding at all.
+     */
+    private Map<String, Object> result(Violation violation,
+                                       Map<String, Integer> ruleIndexes,
+                                       List<Map<String, Object>> ruleDefinitions,
+                                       boolean accepted) {
+        if (!ruleIndexes.containsKey(violation.ruleId())) {
+            var descriptor = io.github.rohithv16.aem.analyser.core.rules.metadata.RuleRegistry
+                    .get(violation.ruleId());
+            ruleIndexes.put(violation.ruleId(), ruleDefinitions.size());
+            ruleDefinitions.add(ruleDefinition(descriptor));
+        }
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("ruleId", violation.ruleId());
+        result.put("ruleIndex", ruleIndexes.get(violation.ruleId()));
+        result.put("level", sarifLevel(violation.severity()));
+        StringBuilder messageText = new StringBuilder(violation.message());
+        violation.remediationOpt().ifPresent(r -> messageText.append(" Remediation: ").append(r));
+        result.put("message", ordered("text", messageText.toString()));
+        Map<String, Object> properties = new LinkedHashMap<>();
+        properties.put("subtype", violation.subtype());
+        violation.targetPidOpt().ifPresent(pid -> properties.put("targetPid", pid));
+        result.put("properties", properties);
+        // Stable identity so GitHub code scanning tracks the same alert across unrelated edits.
+        result.put("partialFingerprints", ordered("aemAnalyserFingerprint/v1",
+                io.github.rohithv16.aem.analyser.core.baseline.Fingerprint.of(violation)));
+        result.put("locations", List.of(location(violation.filePath(), violation.region())));
+        if (!violation.relatedLocations().isEmpty()) {
+            List<Map<String, Object>> related = new ArrayList<>();
+            int id = 1;
+            for (RelatedLocation relatedLocation : violation.relatedLocations()) {
+                Map<String, Object> entry = new LinkedHashMap<>();
+                entry.put("id", id++);
+                entry.put("physicalLocation", physicalLocation(relatedLocation.filePath(), relatedLocation.region()));
+                entry.put("message", ordered("text",
+                        relatedLocation.message()));
+                related.add(entry);
+            }
+            result.put("relatedLocations", related);
+        }
+        if (accepted) {
+            // "unchanged" is the SARIF baseline state for a finding the baseline already contains;
+            // the suppression then carries where the waiver came from, so the audit trail lives in
+            // the artefact instead of one console line.
+            result.put("baselineState", "unchanged");
+            result.put("suppressions", List.of(suppression(violation)));
+        }
+        return result;
+    }
+
+    private Map<String, Object> suppression(Violation violation) {
+        if (violation.acceptance()
+                == io.github.rohithv16.aem.analyser.core.model.report.AcceptanceOrigin.BASELINE) {
+            return ordered(
+                    "kind", "external",
+                    "status", "accepted",
+                    "justification", "baseline:" + io.github.rohithv16.aem.analyser.core.baseline
+                            .Fingerprint.of(violation));
+        }
+        return ordered(
+                "kind", "inSource",
+                "status", "accepted",
+                "justification", "aem-analyser-disable directive");
     }
 
     private Map<String, Object> ruleDefinition(RuleDescriptor rule) {

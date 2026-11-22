@@ -129,15 +129,25 @@ public final class DefaultAemCodeAnalyser implements AemCodeAnalyser {
                     .thenComparing(v -> v.region().startLine())
                     .thenComparing(Violation::ruleId));
             violations = deduplicate(violations);
+            // Annotate inline directives instead of dropping the findings: the actionable list is
+            // split off below so gate counts and the exit code stay identical, while the accepted
+            // ones stay in the report for exporters that can express a suppression (#17).
             violations = io.github.rohithv16.aem.analyser.core.baseline.InlineSuppressions
-                    .filter(context.projectRoot(), violations);
+                    .annotate(context.projectRoot(), violations);
+            List<Violation> acceptedByDirective = violations.stream()
+                    .filter(Violation::isAccepted)
+                    .toList();
+            if (!acceptedByDirective.isEmpty()) {
+                violations = violations.stream().filter(v -> !v.isAccepted()).toList();
+            }
 
             var coverageEngine = new io.github.rohithv16.aem.analyser.core.discovery.CoverageDiscoveryEngine();
             var coverageReport = coverageEngine.discover(context.projectRoot(), discoveryResult.modules());
 
             long durationMillis = (System.nanoTime() - start) / 1_000_000;
             return new AnalysisReport(context.projectRoot(), scanStatistics(discoveryResult, buildResult, htlUsages.size(), cqComponents.size()),
-                    violations, durationMillis, coverageReport, codeMetrics, diagnostics.diagnostics());
+                    violations, durationMillis, coverageReport, codeMetrics, diagnostics.diagnostics())
+                    .withAcceptedViolations(acceptedByDirective);
         } catch (IOException | RuntimeException e) {
             throw new AnalysisException("Analysis failed: " + e.getMessage(), e);
         }
