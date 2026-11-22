@@ -30,6 +30,14 @@ All notable changes to this project are documented here. The format follows
   generated rule catalogue (`docs/rules/`), which the site links to instead of repeating 30 rows on
   the landing page.
 
+### Fixed
+
+- `aem-analyser.failOn=NONE` is report-only in the Maven plugin, as it already was in the CLI: the
+  severity gates are skipped and only `minCoverage`, `maxDuplication` and `maxWarnings` can still
+  fail the build. Any other unsupported value is now rejected with the accepted set instead of being
+  silently ignored. The failure message names the rule ids that actually fired instead of always
+  blaming `AEM-DEAD`.
+
 ## [1.0.8] — 2026-11-16
 
 ### Changed
