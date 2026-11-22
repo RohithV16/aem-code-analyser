@@ -8,6 +8,8 @@ import io.github.rohithv16.aem.analyser.core.rules.impl.AemCloud004Rule;
 import io.github.rohithv16.aem.analyser.core.rules.impl.AemCloud005Rule;
 import io.github.rohithv16.aem.analyser.core.rules.impl.AemCloud006Rule;
 import io.github.rohithv16.aem.analyser.core.rules.impl.AemCloud007Rule;
+import io.github.rohithv16.aem.analyser.core.rules.impl.AemA11y001Rule;
+import io.github.rohithv16.aem.analyser.core.rules.impl.AemA11y002Rule;
 import io.github.rohithv16.aem.analyser.core.rules.impl.AemComp001Rule;
 import io.github.rohithv16.aem.analyser.core.rules.impl.AemComp002Rule;
 import io.github.rohithv16.aem.analyser.core.rules.impl.AemDead001Rule;
@@ -19,6 +21,7 @@ import io.github.rohithv16.aem.analyser.core.rules.impl.AemDead003CRule;
 import io.github.rohithv16.aem.analyser.core.rules.impl.AemDead004Rule;
 import io.github.rohithv16.aem.analyser.core.rules.impl.AemDead005Rule;
 import io.github.rohithv16.aem.analyser.core.rules.impl.AemDead007Rule;
+import io.github.rohithv16.aem.analyser.core.rules.impl.AemDead006Rule;
 import io.github.rohithv16.aem.analyser.core.rules.impl.AemDup001Rule;
 import io.github.rohithv16.aem.analyser.core.rules.impl.AemDup002Rule;
 import io.github.rohithv16.aem.analyser.core.rules.impl.AemDup003Rule;
@@ -32,6 +35,7 @@ import io.github.rohithv16.aem.analyser.core.rules.impl.AemQual003Rule;
 import io.github.rohithv16.aem.analyser.core.rules.impl.AemQual004Rule;
 import io.github.rohithv16.aem.analyser.core.rules.impl.AemQual005Rule;
 import io.github.rohithv16.aem.analyser.core.rules.impl.AemQual008Rule;
+import io.github.rohithv16.aem.analyser.core.rules.impl.AemQual007Rule;
 import io.github.rohithv16.aem.analyser.core.rules.impl.AemSec001Rule;
 import io.github.rohithv16.aem.analyser.core.rules.impl.AemSec002Rule;
 
@@ -114,6 +118,7 @@ public final class RuleCatalog {
             new AemDead003CRule(),
             new AemDead004Rule(),
             new AemDead005Rule(),
+            new AemDead006Rule(),
             new AemDead007Rule(),
             new AemComp001Rule(),
             new AemComp002Rule(),
@@ -125,6 +130,7 @@ public final class RuleCatalog {
             new AemQual003Rule(),
             new AemQual004Rule(),
             new AemQual005Rule(),
+            new AemQual007Rule(),
             new AemQual008Rule(),
             new AemPerf001Rule(),
             new AemPerf002Rule(),
@@ -138,7 +144,9 @@ public final class RuleCatalog {
             new AemCloud006Rule(),
             new AemCloud007Rule(),
             new AemSec001Rule(),
-            new AemSec002Rule()));
+            new AemSec002Rule(),
+            new AemA11y001Rule(),
+            new AemA11y002Rule()));
 
     private RuleCatalog() {
     }

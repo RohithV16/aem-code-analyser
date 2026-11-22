@@ -32,7 +32,7 @@ public final class RuleDocsGenerator {
     private static final String SITE_BASE = "https://rohithv16.github.io/aem-code-analyser";
 
     private static final List<String> FAMILIES =
-            List.of("DEAD", "DUP", "QUAL", "PERF", "CLOUD", "SEC", "COMP");
+            List.of("DEAD", "DUP", "QUAL", "PERF", "CLOUD", "SEC", "COMP", "A11Y");
 
     private static final Map<String, String> FAMILY_TITLES = Map.of(
             "DEAD", "Dead code",
@@ -41,7 +41,8 @@ public final class RuleDocsGenerator {
             "PERF", "Performance",
             "CLOUD", "AEM as a Cloud Service",
             "SEC", "Security",
-            "COMP", "Component compatibility");
+            "COMP", "Component compatibility",
+            "A11Y", "Accessibility");
 
     private static final Map<String, String> FAMILY_BLURBS = Map.of(
             "DEAD", "Code, configuration and content with no remaining consumer.",
@@ -50,7 +51,8 @@ public final class RuleDocsGenerator {
             "PERF", "Resource lifecycles and repository query cost.",
             "CLOUD", "Patterns that break on AEM as a Cloud Service, including plaintext secrets.",
             "SEC", "Output escaping and request-driven redirects.",
-            "COMP", "Deprecated Classic UI component definitions.");
+            "COMP", "Deprecated Classic UI component definitions.",
+            "A11Y", "WCAG defects visible in the HTL markup, before a page is rendered.");
 
     /** Meta descriptions longer than this are truncated on a word boundary; search results cut them. */
     private static final int DESCRIPTION_LIMIT = 158;

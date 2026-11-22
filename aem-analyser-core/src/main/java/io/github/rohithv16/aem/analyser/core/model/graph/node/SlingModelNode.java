@@ -5,6 +5,7 @@ import io.github.rohithv16.aem.analyser.core.model.graph.SourceLocation;
 
 import java.nio.file.Path;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
@@ -15,6 +16,34 @@ public final class SlingModelNode extends JavaClassNode {
 
     public enum DefaultInjectionStrategy { OPTIONAL, REQUIRED }
 
+    /**
+     * One injection point on a model.
+     *
+     * @param name        field name
+     * @param typeName    resolved type (element type for a container), e.g.
+     *                    {@code org.apache.sling.api.SlingHttpServletRequest}
+     * @param optional    true when a failed injection leaves the field null instead of failing
+     *                    instantiation ({@code @Optional}, {@code @Default}, an explicit OPTIONAL
+     *                    strategy, or a model-wide OPTIONAL default)
+     * @param annotations simple names of the annotations on the field
+     * @param viaValue    {@code @Via.value()} (a bean property or child-resource name), or null
+     * @param viaType     simple name of {@code @Via.type()} (BeanProperty, ChildResource, ...), or null
+     * @param line        1-based line of the field
+     * @param column      1-based column of the field
+     */
+    public record InjectedField(String name, String typeName, boolean optional,
+                                Set<String> annotations, String viaValue, String viaType,
+                                int line, int column) {
+
+        public InjectedField {
+            annotations = annotations == null ? Set.of() : Set.copyOf(annotations);
+        }
+
+        public boolean hasAnnotation(String simpleName) {
+            return simpleName != null && annotations.contains(simpleName);
+        }
+    }
+
     private final Set<String> adaptables;
     private final Set<String> adapters;
     private final String resourceType;
@@ -23,6 +52,7 @@ public final class SlingModelNode extends JavaClassNode {
     private final boolean nested;
     private final Set<String> referencedTypes;
     private final boolean exported;
+    private final List<InjectedField> injectedFields;
 
     public SlingModelNode(String fqn,
                           Set<ModifierKind> modifiers,
@@ -86,6 +116,26 @@ public final class SlingModelNode extends JavaClassNode {
                           boolean nested,
                           Set<String> referencedTypes,
                           boolean exported) {
+        this(fqn, modifiers, superClass, interfaces, filePath, sourceLocation, adaptables, adapters,
+                resourceType, defaultInjectionStrategy, injectedServices, nested, referencedTypes,
+                exported, List.of());
+    }
+
+    public SlingModelNode(String fqn,
+                          Set<ModifierKind> modifiers,
+                          String superClass,
+                          Set<String> interfaces,
+                          Path filePath,
+                          SourceLocation sourceLocation,
+                          Set<String> adaptables,
+                          Set<String> adapters,
+                          String resourceType,
+                          DefaultInjectionStrategy defaultInjectionStrategy,
+                          Set<String> injectedServices,
+                          boolean nested,
+                          Set<String> referencedTypes,
+                          boolean exported,
+                          List<InjectedField> injectedFields) {
         super(fqn, Kind.CLASS, modifiers, superClass, interfaces, filePath, sourceLocation);
         this.adaptables = new LinkedHashSet<>(adaptables);
         this.adapters = new LinkedHashSet<>(adapters);
@@ -95,6 +145,7 @@ public final class SlingModelNode extends JavaClassNode {
         this.nested = nested;
         this.referencedTypes = new LinkedHashSet<>(referencedTypes);
         this.exported = exported;
+        this.injectedFields = injectedFields == null ? List.of() : List.copyOf(injectedFields);
     }
 
     @Override
@@ -142,5 +193,10 @@ public final class SlingModelNode extends JavaClassNode {
     /** {@code @Exporter} models are consumed by Sling's exporter framework, not by adaptTo(). */
     public boolean isExported() {
         return exported;
+    }
+
+    /** Every annotated injection point on the model, in declaration order. */
+    public List<InjectedField> getInjectedFields() {
+        return injectedFields;
     }
 }

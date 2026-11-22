@@ -102,7 +102,12 @@ final class ParseCacheCodec {
     record SlingModelDto(JavaClassDto base, List<String> adaptables, List<String> adapters,
                          String resourceType, String defaultInjectionStrategy,
                          List<String> injectedServices, boolean nested, List<String> referencedTypes,
-                         boolean exported) {
+                         boolean exported, List<InjectedFieldDto> injectedFields) {
+    }
+
+    record InjectedFieldDto(String name, String typeName, boolean optional,
+                            List<String> annotations, String viaValue, String viaType,
+                            LocationDto location) {
     }
 
     record PendingConsumptionDto(String componentFqn, String ocdTypeName, String methodName,
@@ -342,7 +347,13 @@ final class ParseCacheCodec {
         return new SlingModelDto(classDto(node), List.copyOf(node.getAdaptables()),
                 List.copyOf(node.getAdapters()), node.getResourceType().orElse(null),
                 name(node.getDefaultInjectionStrategy()), List.copyOf(node.getInjectedServices()),
-                node.isNested(), List.copyOf(node.getReferencedTypes()), node.isExported());
+                node.isNested(), List.copyOf(node.getReferencedTypes()), node.isExported(),
+                node.getInjectedFields().stream()
+                        .map(field -> new InjectedFieldDto(field.name(), field.typeName(),
+                                field.optional(), List.copyOf(field.annotations()),
+                                field.viaValue(), field.viaType(),
+                                new LocationDto(null, field.line(), field.column())))
+                        .toList());
     }
 
     private static SlingModelNode slingModelNode(SlingModelDto dto, Path filePath) {
@@ -353,7 +364,14 @@ final class ParseCacheCodec {
                 dto.resourceType(),
                 SlingModelNode.DefaultInjectionStrategy.valueOf(dto.defaultInjectionStrategy()),
                 new LinkedHashSet<>(dto.injectedServices()), dto.nested(),
-                new LinkedHashSet<>(dto.referencedTypes()), dto.exported());
+                new LinkedHashSet<>(dto.referencedTypes()), dto.exported(),
+                dto.injectedFields() == null ? List.of() : dto.injectedFields().stream()
+                        .map(field -> new SlingModelNode.InjectedField(field.name(), field.typeName(),
+                                field.optional(), new LinkedHashSet<>(field.annotations()),
+                                field.viaValue(), field.viaType(),
+                                field.location() == null ? 1 : field.location().line(),
+                                field.location() == null ? 1 : field.location().column()))
+                        .toList());
     }
 
     private static PendingConsumptionDto consumptionDto(PendingConsumption p) {

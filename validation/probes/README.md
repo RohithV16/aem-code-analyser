@@ -48,6 +48,7 @@ This tests the probes in the target’s real module layout and Maven profile con
 | AEM-DEAD-004 | HTL `data-sly-use.missing="com.probe.DoesNotExist"` |
 | AEM-DEAD-005 | clientlib category `probe.orphan` is never referenced |
 | AEM-DEAD-007 | `components/zzprobe/inc/broken.html` includes a missing template |
+| AEM-DEAD-006 | `components/zzprobe/i18n-broken.html` uses `probe.missing.key`, absent from `i18n/en.json` |
 | AEM-DUP-001 | two servlets register `/bin/probe` |
 | AEM-DUP-002 | `com.probe.DupPid` in both `.cfg.json` and `.config` |
 | AEM-DUP-003 | two models claim `resourceType="probe/dup"` with the same adapter |
@@ -59,6 +60,7 @@ This tests the probes in the target’s real module layout and Maven profile con
 | AEM-QUAL-005 | `getAdministrativeResourceResolver(null)` |
 | AEM-QUAL-006 | component field of type `ResourceResolver` |
 | AEM-QUAL-008 | `UnprovidedReferenceProbe` references a project interface no component registers |
+| AEM-QUAL-007 | `RequestInjectionProbe` is `adaptables = Resource.class` but injects a `SlingHttpServletRequest` |
 | AEM-PERF-001 | factory resolver acquired and never closed |
 | AEM-PERF-002 | `repository.login(...)` session never closed |
 | AEM-PERF-003 | `select * from nt:base` without `where` |
@@ -72,6 +74,8 @@ This tests the probes in the target’s real module layout and Maven profile con
 | AEM-CLOUD-007 | `ui.content` and `content.extra` both filter `/content/probe`; `ui.content` uses `mode="replace"` |
 | AEM-SEC-001 | HTL `context='unsafe'` |
 | AEM-SEC-002 | `sendRedirect(request.getParameter("next"))` |
+| AEM-A11Y-001 | `components/zzprobe/a11y-broken.html` has an `<img>` with no alt |
+| AEM-A11Y-002 | the same template has an icon-only anchor with no href |
 
 ## Adding a probe
 

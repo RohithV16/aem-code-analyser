@@ -7,8 +7,10 @@ import com.github.javaparser.ast.body.TypeDeclaration;
 import com.github.javaparser.ast.expr.AnnotationExpr;
 
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -62,11 +64,11 @@ public final class SlingModelVisitor {
         }
 
         String strategyValue = AnnotationUtils.memberValue(annotation, "defaultInjectionStrategy")
-                .orElse(null);
+                .orElse("REQUIRED");
         SlingModelNode.DefaultInjectionStrategy strategy =
-                strategyValue != null && strategyValue.endsWith("REQUIRED")
-                        ? SlingModelNode.DefaultInjectionStrategy.REQUIRED
-                        : SlingModelNode.DefaultInjectionStrategy.OPTIONAL;
+                strategyValue.endsWith("OPTIONAL")
+                        ? SlingModelNode.DefaultInjectionStrategy.OPTIONAL
+                        : SlingModelNode.DefaultInjectionStrategy.REQUIRED;
 
         String resourceType = AnnotationUtils.findAnnotation(type.getAnnotations(), "ResourceType")
                 .flatMap(a -> AnnotationUtils.memberValue(a, "value"))
@@ -74,7 +76,34 @@ public final class SlingModelVisitor {
                 .orElse(null);
 
         Set<String> injectedServices = new LinkedHashSet<>();
+        List<SlingModelNode.InjectedField> injectedFields = new ArrayList<>();
         for (FieldDeclaration field : type.getFields()) {
+            Set<String> fieldAnnotations = field.getAnnotations().stream()
+                    .map(a -> a.getName().getIdentifier())
+                    .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
+            boolean optional = !fieldAnnotations.contains("Required")
+                    && (fieldAnnotations.contains("Optional")
+                    || fieldAnnotations.contains("Default")
+                    || annotationOptional(field, "SlingObject")
+                    || annotationOptional(field, "RequestAttribute")
+                    || injectionStrategyOptional(field)
+                    || strategy == SlingModelNode.DefaultInjectionStrategy.OPTIONAL);
+            String viaValue = AnnotationUtils.findAnnotation(field.getAnnotations(), "Via")
+                    .flatMap(via -> AnnotationUtils.memberValue(via, "value"))
+                    .orElse(null);
+            String viaType = AnnotationUtils.findAnnotation(field.getAnnotations(), "Via")
+                    .flatMap(via -> AnnotationUtils.memberValue(via, "type"))
+                    .map(SlingModelVisitor::simpleName)
+                    .orElse(null);
+            for (var variable : field.getVariables()) {
+                String fieldType = AnnotationUtils.resolveTypeName(
+                        AnnotationUtils.elementType(variable.getType().asString()),
+                        packageName, imports, localTypes);
+                var location = MetatypeOcdVisitor.sourceLocation(variable, filePath);
+                injectedFields.add(new SlingModelNode.InjectedField(
+                        variable.getNameAsString(), fieldType, optional, fieldAnnotations,
+                        viaValue, viaType, location.line(), location.column()));
+            }
             if (AnnotationUtils.hasAnnotation(field.getAnnotations(), "OSGiService")) {
                 field.getVariables().forEach(variable ->
                         injectedServices.add(AnnotationUtils.resolveTypeName(
@@ -123,7 +152,35 @@ public final class SlingModelVisitor {
                 filePath,
                 MetatypeOcdVisitor.sourceLocation(type, filePath),
                 adaptables, adapters, resourceType, strategy, injectedServices, type.isNestedType(),
-                referencedTypes, exported));
+                referencedTypes, exported, injectedFields));
+    }
+
+    /**
+     * True when the annotation itself marks the injection optional: {@code optional = true} on
+     * {@code @SlingObject}/{@code @RequestAttribute}, or {@code injectionStrategy = OPTIONAL}.
+     */
+    private static boolean annotationOptional(FieldDeclaration field, String annotationName) {
+        return AnnotationUtils.findAnnotation(field.getAnnotations(), annotationName)
+                .map(annotation -> "true".equalsIgnoreCase(
+                                AnnotationUtils.memberValue(annotation, "optional").orElse(""))
+                        || AnnotationUtils.memberValue(annotation, "injectionStrategy")
+                        .map(value -> value.endsWith("OPTIONAL")).orElse(false))
+                .orElse(false);
+    }
+
+    /** {@code @ValueMapValue(injectionStrategy = OPTIONAL)} and friends. */
+    private static boolean injectionStrategyOptional(FieldDeclaration field) {
+        return field.getAnnotations().stream()
+                .anyMatch(annotation -> AnnotationUtils.memberValue(annotation, "injectionStrategy")
+                        .map(value -> value.endsWith("OPTIONAL")).orElse(false));
+    }
+
+    private static String simpleName(String typeName) {
+        if (typeName == null) {
+            return null;
+        }
+        int dot = typeName.lastIndexOf('.');
+        return dot >= 0 ? typeName.substring(dot + 1) : typeName;
     }
 
     private void addReferencedType(String rawType, String packageName, Map<String, String> imports,

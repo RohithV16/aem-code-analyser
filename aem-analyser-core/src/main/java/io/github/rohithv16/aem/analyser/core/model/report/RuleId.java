@@ -108,6 +108,18 @@ public enum RuleId {
             Severity.ERROR),
     AEM_DEAD_007("AEM-DEAD-007", "BrokenHtlInclude",
             "HTL data-sly-include target is missing or forms an include cycle.",
+            Severity.WARNING),
+    AEM_A11Y_001("AEM-A11Y-001", "ImageWithoutAlt",
+            "HTL img element has no alt attribute or data-sly-attribute.alt fallback (WCAG 1.1.1).",
+            Severity.WARNING),
+    AEM_A11Y_002("AEM-A11Y-002", "LinkWithoutAccessibleName",
+            "HTL anchor has no href/data-sly-attribute.href, or no accessible name for icon-only content (WCAG 2.4.4).",
+            Severity.WARNING),
+    AEM_DEAD_006("AEM-DEAD-006", "MissingTranslationKey",
+            "Translation key used by a template or model has no entry in the baseline (en) dictionary.",
+            Severity.WARNING),
+    AEM_QUAL_007("AEM-QUAL-007", "UnregistrableSlingModel",
+            "Sling Model injects a request-only type or @RequestAttribute without declaring a request adaptable.",
             Severity.WARNING);
 
     private final String id;
