@@ -7,6 +7,7 @@ import io.github.rohithv16.aem.analyser.core.export.ColorSupport;
 import io.github.rohithv16.aem.analyser.core.export.ConsoleReportFormatter;
 import io.github.rohithv16.aem.analyser.core.export.ExportException;
 import io.github.rohithv16.aem.analyser.core.export.HtmlReportExporter;
+import io.github.rohithv16.aem.analyser.core.export.JsonReportExporter;
 import io.github.rohithv16.aem.analyser.core.export.ReportFormat;
 import io.github.rohithv16.aem.analyser.core.export.SarifReportExporter;
 import io.github.rohithv16.aem.analyser.core.export.SonarReportExporter;
@@ -56,7 +57,7 @@ public class AnalyserCli implements java.util.concurrent.Callable<Integer> {
     private Path positionalProjectRoot;
 
     @Option(names = {"-f", "--format"}, split = ",",
-            description = "Output formats (comma-separated): CONSOLE, SARIF, SONAR, HTML, GITHUB, GITLAB, AZURE. "
+            description = "Output formats (comma-separated): CONSOLE, JSON, SARIF, SONAR, HTML, GITHUB, GITLAB, AZURE. "
                     + "Default: CONSOLE (the HTML dashboard is also generated unless --no-html).")
     private List<String> formats = List.of("CONSOLE");
 
@@ -539,6 +540,10 @@ public class AnalyserCli implements java.util.concurrent.Callable<Integer> {
         return 0;
     }
 
+    /** Canonical, human-facing list of format names, used by every error message. */
+    static final String SUPPORTED_FORMATS =
+            "CONSOLE, JSON, SARIF, SONAR, HTML, GITHUB, GITLAB, AZURE";
+
     List<ReportFormat> parseFormats() {
         List<ReportFormat> parsed = new ArrayList<>();
         for (String format : formats) {
@@ -551,12 +556,12 @@ public class AnalyserCli implements java.util.concurrent.Callable<Integer> {
                 }
             } catch (IllegalArgumentException e) {
                 throw new IllegalArgumentException("Unknown report format '" + format
-                        + "'. Supported formats: CONSOLE, SARIF, SONAR, HTML, GITHUB, GITLAB, AZURE.");
+                        + "'. Supported formats: " + SUPPORTED_FORMATS + ".");
             }
         }
         if (parsed.isEmpty()) {
             throw new IllegalArgumentException("No report format configured. "
-                    + "Supported formats: CONSOLE, SARIF, SONAR, HTML, GITHUB, GITLAB, AZURE.");
+                    + "Supported formats: " + SUPPORTED_FORMATS + ".");
         }
         // --no-html is an explicit escalation: it wins even when HTML was requested via -f HTML.
         if (noHtml) {
@@ -742,6 +747,13 @@ public class AnalyserCli implements java.util.concurrent.Callable<Integer> {
                     stdout.println("SonarQube report written to " + target);
                 }
                 case HTML -> writeHtmlReport(report, history, htmlTarget());
+                case JSON -> {
+                    Path target = outputTarget("aem-analyser-report.json");
+                    try (var writer = Files.newBufferedWriter(target, StandardCharsets.UTF_8)) {
+                        new JsonReportExporter().export(report, writer);
+                    }
+                    stdout.println("JSON report written to " + target);
+                }
                 case GITHUB -> {
                     Path target = outputTarget("github-annotations.txt");
                     try (var writer = Files.newBufferedWriter(target, StandardCharsets.UTF_8)) {

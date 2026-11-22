@@ -26,6 +26,11 @@ All notable changes to this project are documented here. The format follows
 
 ### Added
 
+- **`-f JSON`** writes `aem-analyser-report.json`, the neutral machine-readable report: a
+  `schemaVersion`, the tool version, per-severity counts, each finding with its stable
+  `fingerprint` and full rule metadata. Consumers that are not GitHub/GitLab/Azure/Sonar no longer
+  have to scrape console text or a SARIF document. Byte-identical across runs over the same tree.
+
 - **First Maven Central release (1.0.10).** `io.github.rohithv16:aem-code-analyser`,
   `aem-analyser-core` and `aem-analyser-maven-plugin` are published with sources, javadoc and GPG
   signatures, so the plugin needs no repository entry and no token. Verified by resolving both the

@@ -10,5 +10,7 @@ public enum ReportFormat {
     HTML,
     GITHUB,
     GITLAB,
-    AZURE
+    AZURE,
+    /** Neutral machine-readable document (#36): {@code aem-analyser-report.json}. */
+    JSON
 }
