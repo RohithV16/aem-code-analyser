@@ -44,11 +44,14 @@ public final class AemDead004Rule implements RuleEvaluator {
         }
 
         for (HtlUsage usage : context.htlUsages()) {
+            // Only a Java use-API target can be missing from project classes. Resource targets
+            // (data.json, nav.js, templates.html) and dynamic expressions (${component.modelClass})
+            // are valid HTL and are not class references at all.
             if (!usage.isJavaClass()) {
                 continue;
             }
             String className = usage.javaClassName();
-            if (isPlatformClass(className)) {
+            if (className == null || isPlatformClass(className)) {
                 continue;
             }
 
