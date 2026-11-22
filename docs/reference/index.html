@@ -48,9 +48,9 @@ description: Every flag, output format, exit code, configuration key and suppres
           <tbody>
             <tr><td class="mono nowrap">[project-root]</td><td class="mono">current dir</td><td>Shorthand for <code>--project-root</code>.</td></tr>
             <tr><td class="mono nowrap">-p, --project-root &lt;dir&gt;</td><td class="mono">current dir</td><td>Project or reactor root. A module directory resolves up to the reactor that owns it.</td></tr>
-            <tr><td class="mono nowrap">-f, --format &lt;list&gt;</td><td class="mono">CONSOLE</td><td>Comma-separated: <code>CONSOLE</code>, <code>JSON</code>, <code>SARIF</code>, <code>SONAR</code>, <code>HTML</code>, <code>GITHUB</code>, <code>GITLAB</code>, <code>AZURE</code>.</td></tr>
+            <tr><td class="mono nowrap">-f, --format &lt;list&gt;</td><td class="mono">CONSOLE</td><td>Comma-separated: <code>CONSOLE</code>, <code>TEXT</code>, <code>JSON</code>, <code>SARIF</code>, <code>SONAR</code>, <code>HTML</code>, <code>GITHUB</code>, <code>GITLAB</code>, <code>AZURE</code>.</td></tr>
             <tr><td class="mono nowrap">--html [path], --html-report</td><td class="mono">on</td><td>Write the HTML dashboard. <code>--no-html</code> turns it off for one run.</td></tr>
-            <tr><td class="mono nowrap">-o, --output &lt;dir&gt;</td><td class="mono">target/aem-analyser</td><td>Directory for the file-based reports (SARIF, SONAR, JSON, HTML and CI annotation files).</td></tr>
+            <tr><td class="mono nowrap">-o, --output &lt;dir&gt;</td><td class="mono">target/aem-analyser</td><td>Directory for the file-based reports (SARIF, SONAR, JSON, TEXT, HTML and CI annotation files).</td></tr>
             <tr><td class="mono nowrap">--fail-on &lt;severity&gt;</td><td class="mono">—</td><td><code>ERROR</code>, <code>WARNING</code>, <code>INFO</code> or <code>NONE</code>. Without it, any ERROR finding already fails the run.</td></tr>
             <tr><td class="mono nowrap">-w, --fail-on-warning</td><td class="mono">off</td><td>Also fail when warnings exist. Ignored by <code>--fail-on NONE</code>.</td></tr>
             <tr><td class="mono nowrap">--min-coverage &lt;percent&gt;</td><td class="mono">—</td><td>Quality gate: minimum line coverage.</td></tr>
@@ -90,14 +90,19 @@ description: Every flag, output format, exit code, configuration key and suppres
       <h2>Output formats</h2>
       <p>
         Formats combine: pass a comma-separated list to <code>--format</code>. Only
-        <code>CONSOLE</code> writes to stdout; every other format is a file under
-        <code>--output</code> (default <code>target/aem-analyser</code>).
+        <code>CONSOLE</code> and <code>TEXT</code> write to stdout; every other format is a file
+        under <code>--output</code> (default <code>target/aem-analyser</code>).
       </p>
       <div class="table-wrap">
         <table class="table--compact">
           <thead><tr><th scope="col">Format</th><th scope="col">File</th><th scope="col">Consumer</th></tr></thead>
           <tbody>
             <tr><td class="mono">CONSOLE</td><td>stdout (plugin: <span class="mono">aem-analyser-report.txt</span>)</td><td>Terminal and build log</td></tr>
+            <tr><td class="mono">TEXT</td><td class="mono">aem-analyser.txt</td><td>
+              One <code>file:line:col: E AEM-RULE message</code> line per finding — vim
+              <code>:cfile</code>/<code>:make</code>, Emacs <code>compilation-mode</code>, VS Code's
+              <code>$gcc</code> problem matcher, <code>grep</code>. Also echoed to stdout.
+            </td></tr>
             <tr><td class="mono">JSON</td><td class="mono">aem-analyser-report.json</td><td>
               Neutral machine-readable document: <code>schemaVersion</code>, tool version, per-severity
               counts, every finding with its <code>fingerprint</code> and rule metadata. Dashboards,

@@ -12,5 +12,7 @@ public enum ReportFormat {
     GITLAB,
     AZURE,
     /** Neutral machine-readable document (#36): {@code aem-analyser-report.json}. */
-    JSON
+    JSON,
+    /** Compiler-style one line per finding (#53): {@code aem-analyser.txt}. */
+    TEXT
 }

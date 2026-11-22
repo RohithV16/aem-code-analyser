@@ -11,6 +11,7 @@ import io.github.rohithv16.aem.analyser.core.export.JsonReportExporter;
 import io.github.rohithv16.aem.analyser.core.export.ReportFormat;
 import io.github.rohithv16.aem.analyser.core.export.SarifReportExporter;
 import io.github.rohithv16.aem.analyser.core.export.SonarReportExporter;
+import io.github.rohithv16.aem.analyser.core.export.TextReportExporter;
 import io.github.rohithv16.aem.analyser.core.fix.AutoFixEngine;
 import io.github.rohithv16.aem.analyser.core.git.GitDiffResolver;
 import io.github.rohithv16.aem.analyser.core.model.report.AnalysisReport;
@@ -57,7 +58,7 @@ public class AnalyserCli implements java.util.concurrent.Callable<Integer> {
     private Path positionalProjectRoot;
 
     @Option(names = {"-f", "--format"}, split = ",",
-            description = "Output formats (comma-separated): CONSOLE, JSON, SARIF, SONAR, HTML, GITHUB, GITLAB, AZURE. "
+            description = "Output formats (comma-separated): CONSOLE, TEXT, JSON, SARIF, SONAR, HTML, GITHUB, GITLAB, AZURE. "
                     + "Default: CONSOLE (the HTML dashboard is also generated unless --no-html).")
     private List<String> formats = List.of("CONSOLE");
 
@@ -542,7 +543,7 @@ public class AnalyserCli implements java.util.concurrent.Callable<Integer> {
 
     /** Canonical, human-facing list of format names, used by every error message. */
     static final String SUPPORTED_FORMATS =
-            "CONSOLE, JSON, SARIF, SONAR, HTML, GITHUB, GITLAB, AZURE";
+            "CONSOLE, TEXT, JSON, SARIF, SONAR, HTML, GITHUB, GITLAB, AZURE";
 
     List<ReportFormat> parseFormats() {
         List<ReportFormat> parsed = new ArrayList<>();
@@ -753,6 +754,22 @@ public class AnalyserCli implements java.util.concurrent.Callable<Integer> {
                         new JsonReportExporter().export(report, writer);
                     }
                     stdout.println("JSON report written to " + target);
+                }
+                case TEXT -> {
+                    // The file is what :make / :cfile consume; the same lines go to stdout so a pipe
+                    // or a captured build log works without reading the artefact.
+                    var text = new java.io.StringWriter();
+                    new TextReportExporter().export(report, text);
+                    String content = text.toString();
+                    Path target = outputTarget("aem-analyser.txt");
+                    try (var writer = Files.newBufferedWriter(target, StandardCharsets.UTF_8)) {
+                        writer.write(content);
+                    }
+                    if (!content.isEmpty()) {
+                        stdout.print(content);
+                        stdout.flush();
+                    }
+                    stdout.println("Text report written to " + target);
                 }
                 case GITHUB -> {
                     Path target = outputTarget("github-annotations.txt");

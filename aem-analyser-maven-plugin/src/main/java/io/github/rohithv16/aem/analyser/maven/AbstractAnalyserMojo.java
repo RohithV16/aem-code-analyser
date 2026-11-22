@@ -39,7 +39,7 @@ public abstract class AbstractAnalyserMojo extends AbstractMojo {
 
     /** Canonical, human-facing list of format names, used by every error message. */
     private static final String SUPPORTED_FORMATS =
-            "CONSOLE, JSON, SARIF, SONAR, HTML, GITHUB, GITLAB, AZURE";
+            "CONSOLE, TEXT, JSON, SARIF, SONAR, HTML, GITHUB, GITLAB, AZURE";
 
     /** Explicit project root override. */
     @Parameter(property = "aem-analyser.projectRoot")
@@ -88,7 +88,7 @@ public abstract class AbstractAnalyserMojo extends AbstractMojo {
     @Parameter(property = "aem-analyser.sonarRules", defaultValue = "default")
     protected String sonarRules;
 
-    /** Comma-separated report formats: CONSOLE, JSON, SARIF, SONAR, HTML, GITHUB, GITLAB, AZURE. */
+    /** Comma-separated report formats: CONSOLE, TEXT, JSON, SARIF, SONAR, HTML, GITHUB, GITLAB, AZURE. */
     @Parameter(property = "aem-analyser.formats", alias = "format")
     protected String formats;
 
@@ -426,6 +426,7 @@ public abstract class AbstractAnalyserMojo extends AbstractMojo {
             case GITLAB -> "gitlab-code-quality.json";
             case AZURE -> "azure-pipelines.log";
             case JSON -> "aem-analyser-report.json";
+            case TEXT -> "aem-analyser.txt";
         };
     }
 
@@ -439,6 +440,7 @@ public abstract class AbstractAnalyserMojo extends AbstractMojo {
             case GITLAB -> new io.github.rohithv16.aem.analyser.core.export.GitLabCodeQualityExporter();
             case AZURE -> new io.github.rohithv16.aem.analyser.core.export.AzurePipelinesExporter();
             case JSON -> new io.github.rohithv16.aem.analyser.core.export.JsonReportExporter();
+            case TEXT -> new io.github.rohithv16.aem.analyser.core.export.TextReportExporter();
         };
     }
 
