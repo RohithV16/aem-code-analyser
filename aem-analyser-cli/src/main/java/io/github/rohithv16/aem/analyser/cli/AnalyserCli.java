@@ -15,6 +15,7 @@ import io.github.rohithv16.aem.analyser.core.git.GitDiffResolver;
 import io.github.rohithv16.aem.analyser.core.model.report.AnalysisReport;
 import io.github.rohithv16.aem.analyser.core.model.report.Severity;
 import io.github.rohithv16.aem.analyser.core.model.report.Violation;
+import io.github.rohithv16.aem.analyser.core.rules.RuleCatalog;
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
@@ -316,9 +317,29 @@ public class AnalyserCli implements java.util.concurrent.Callable<Integer> {
 
     private io.github.rohithv16.aem.analyser.core.config.AnalyserConfig loadConfig(Path root)
             throws IOException {
-        return configFile != null
+        io.github.rohithv16.aem.analyser.core.config.AnalyserConfig config = configFile != null
                 ? io.github.rohithv16.aem.analyser.core.config.AnalyserConfigLoader.load(configFile)
                 : io.github.rohithv16.aem.analyser.core.config.AnalyserConfigLoader.loadIfPresent(root);
+        warnRetiredRuleIds(config.rules().keySet(), "Configuration");
+        return config;
+    }
+
+    /**
+     * Warns when a configuration or baseline names a rule that no longer runs. Silently accepting the
+     * id lets a team believe a check is enabled or disabled when nothing emits it.
+     */
+    private void warnRetiredRuleIds(Set<String> ruleIds, String source) {
+        Set<String> warned = new java.util.TreeSet<>();
+        for (String ruleId : ruleIds) {
+            if (RuleCatalog.isRetired(ruleId) && warned.add(ruleId.strip().toUpperCase(Locale.ROOT))) {
+                stdout.println("[WARNING] " + source + " references retired rule '" + ruleId + "' — "
+                        + RuleCatalog.retirementNote(ruleId)
+                        + "; it produces no findings, so the entry has no effect.");
+            }
+        }
+        if (!warned.isEmpty()) {
+            stdout.println("[WARNING] Run --list-rules to see the active rule set.");
+        }
     }
 
     /** Applies command-line overrides and configured allowlists, then builds the analysis context. */
@@ -434,6 +455,11 @@ public class AnalyserCli implements java.util.concurrent.Callable<Integer> {
         }
         io.github.rohithv16.aem.analyser.core.baseline.Baseline loaded =
                 io.github.rohithv16.aem.analyser.core.baseline.BaselineStore.load(path);
+        warnRetiredRuleIds(loaded.entries().stream()
+                .map(io.github.rohithv16.aem.analyser.core.baseline.BaselineEntry::ruleId)
+                .filter(java.util.Objects::nonNull)
+                .collect(java.util.stream.Collectors.toCollection(java.util.LinkedHashSet::new)),
+                "Baseline " + path.getFileName());
         int suppressed = (int) report.violations().stream()
                 .filter(v -> loaded.contains(io.github.rohithv16.aem.analyser.core.baseline.Fingerprint.of(v)))
                 .count();
@@ -459,10 +485,22 @@ public class AnalyserCli implements java.util.concurrent.Callable<Integer> {
     void printRules(PrintWriter out) {
         out.println("AEM Code Analyser rules:");
         for (var rule : io.github.rohithv16.aem.analyser.core.rules.metadata.RuleRegistry.all()) {
-            out.printf("  %-16s %-8s %3dm  %s%n",
-                    rule.id(), rule.defaultSeverity(), rule.effortMinutes(), rule.shortDescription());
+            out.printf("  %-16s %-8s %3dm  %s",
+                    rule.id(), settledSeverity(rule.id(), rule.defaultSeverity()), rule.effortMinutes(),
+                    rule.shortDescription());
+            // A retired id must never read as a live rule: nothing can emit it, so a config entry
+            // that disables it changes nothing.
+            if (RuleCatalog.isRetired(rule.id())) {
+                out.print(" [" + RuleCatalog.retirementNote(rule.id()) + "]");
+            }
+            out.println();
         }
         out.flush();
+    }
+
+    /** Retired rules are labelled {@code RETIRED} instead of a severity they can no longer produce. */
+    private static String settledSeverity(String ruleId, Severity severity) {
+        return RuleCatalog.isRetired(ruleId) ? "RETIRED" : severity.name();
     }
 
     int printExplain(PrintWriter out, String ruleId) {
@@ -473,8 +511,14 @@ public class AnalyserCli implements java.util.concurrent.Callable<Integer> {
             return 2;
         }
         var rule = descriptor.get();
+        boolean retired = RuleCatalog.isRetired(rule.id());
         out.println(rule.id() + " — " + rule.name());
-        out.println("  Severity:     " + rule.defaultSeverity());
+        out.println("  Severity:     " + (retired ? "RETIRED (was " + rule.defaultSeverity() + ")" : rule.defaultSeverity()));
+        if (retired) {
+            out.println("  State:        " + RuleCatalog.retirementNote(rule.id()));
+            out.println("                No rule evaluator produces this id; a configuration or baseline "
+                    + "entry that names it has no effect.");
+        }
         out.println("  Type:         " + rule.type());
         out.println("  Effort:       " + rule.effortMinutes() + " minutes");
         out.println("  Tags:         " + String.join(", ", rule.tags()));
