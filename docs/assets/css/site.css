@@ -1916,6 +1916,39 @@ th .mono {
 
 /* -------------------------------------------------------------- utilities */
 
+.not-found {
+  padding-top: 4rem;
+  padding-bottom: 5rem;
+}
+
+.not-found__search {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 1.6rem 0 0.6rem;
+}
+
+.not-found__search input {
+  flex: 1 1 18rem;
+  min-width: 0;
+  padding: 0.55rem 0.7rem;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.95rem;
+}
+
+.not-found__families,
+.not-found__pages {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 1.2rem;
+  list-style: none;
+  padding: 0;
+}
+
 .visually-hidden {
   position: absolute;
   width: 1px;
