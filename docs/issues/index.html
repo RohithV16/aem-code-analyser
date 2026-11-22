@@ -13,15 +13,15 @@ description: Every AEM Code Analyser rule — what it detects, why it matters on
       <div class="issue-tools">
         <label class="visually-hidden" for="issueSearch">Filter issues</label>
         <input type="search" id="issueSearch" placeholder="Filter by id, name, tag or symptom…" autocomplete="off">
-        <button class="chip" type="button" data-family="all" aria-pressed="true">All 35</button>
+        <button class="chip" type="button" data-family="all" aria-pressed="true">All 36</button>
         <button class="chip" type="button" data-family="DEAD" aria-pressed="false">Dead code 9</button>
         <button class="chip" type="button" data-family="DUP" aria-pressed="false">Duplication 4</button>
         <button class="chip" type="button" data-family="QUAL" aria-pressed="false">Quality 7</button>
         <button class="chip" type="button" data-family="PERF" aria-pressed="false">Performance 4</button>
-        <button class="chip" type="button" data-family="CLOUD" aria-pressed="false">Cloud Service 7</button>
+        <button class="chip" type="button" data-family="CLOUD" aria-pressed="false">Cloud Service 8</button>
         <button class="chip" type="button" data-family="SEC" aria-pressed="false">Security 2</button>
         <button class="chip" type="button" data-family="COMP" aria-pressed="false">Components 2</button>
-        <span class="issue-count" id="issueCount" aria-live="polite">35 of 35 issues</span>
+        <span class="issue-count" id="issueCount" aria-live="polite">36 of 36 issues</span>
       </div>
     </div>
 
@@ -831,7 +831,7 @@ params.put(&quot;p.guessTotal&quot;, &quot;1000&quot;);</code></pre>
     <section class="family" id="family-cloud">
       <div class="family__head">
         <h2>AEM as a Cloud Service</h2>
-        <span>7 issues</span>
+        <span>8 issues</span>
       </div>
       <p class="muted">Patterns that break on AEM as a Cloud Service, including plaintext secrets.</p>
 
@@ -1054,6 +1054,42 @@ Include conf.d/includes/cache.conf
         </div>
         <p class="suppress">Suppress one line: <code>// aem-analyser-disable-next-line AEM-CLOUD-007</code> · tags aem-cloud, content-package · <code>--explain AEM-CLOUD-007</code></p>
       </article>
+
+      <article class="rule-card" id="aem-cloud-008" data-family="CLOUD" data-search="aem-cloud-008 immutablepathwrite java writes to /apps or /libs at runtime, an area aem as a cloud service keeps immutable. aem-cloud immutable-path error ship the node as content in a content package instead of writing it at runtime, or keep runtime state under a mutable path such as /var or /conf. in aem as a cloud service the repository structure is decided at build time by the packages a deployment installs; /apps and /libs are immutable and &quot;any attempt to change an immutable area at runtime fails&quot;. code that wrote configuration, labels or counters into /apps for years on 6.5 keeps compiling and deploying, then throws accessdeniedexception (or silently drops the write) at the first request. move the node into the content package so it is installed with the release, or keep runtime state under a mutable path (/var, /conf, /content) that the service user is allowed to modify.">
+        <header class="rule-card__head">
+          <h3 class="rule-card__title"><a class="rule-card__permalink" href="aem-cloud-008/" aria-label="Open the AEM-CLOUD-008 reference page"><span class="rule-card__id">AEM-CLOUD-008</span></a><a class="rule-card__anchor" href="#aem-cloud-008" aria-label="Link to AEM-CLOUD-008">#</a><span class="rule-card__name">ImmutablePathWrite</span></h3>
+          <span class="pill pill--error">ERROR</span>
+          <span class="rule-card__meta">
+            <span>15 min fix</span>
+            <span>Bug</span>
+          </span>
+        </header>
+        <p class="rule-card__summary">Java writes to /apps or /libs at runtime, an area AEM as a Cloud Service keeps immutable.</p>
+        <h4>Why it matters</h4>
+        <p>In AEM as a Cloud Service the repository structure is decided at build time by the packages a deployment installs; /apps and /libs are immutable and &quot;any attempt to change an immutable area at runtime fails&quot;. Code that wrote configuration, labels or counters into /apps for years on 6.5 keeps compiling and deploying, then throws AccessDeniedException (or silently drops the write) at the first request.</p>
+        <h4>How to fix it</h4>
+        <p>Move the node into the content package so it is installed with the release, or keep runtime state under a mutable path (/var, /conf, /content) that the service user is allowed to modify.</p>
+        <div class="examples">
+          <div class="code code--bad">
+            <div class="code__bar"><span class="code__label">java · before</span></div>
+            <pre><code>ValueMap config =
+    resolver.getResource(&quot;/apps/acme/config&quot;).adaptTo(ModifiableValueMap.class);
+config.put(&quot;lastRun&quot;, System.currentTimeMillis());</code></pre>
+          </div>
+          <div class="code code--good">
+            <div class="code__bar"><span class="code__label">java · after</span></div>
+            <pre><code>// ui.content/src/main/content/jcr_root/apps/acme/config/.content.xml
+&lt;jcr:root xmlns:sling=&quot;http://sling.apache.org/jcr/sling/1.0&quot;
+          jcr:primaryType=&quot;sling:Folder&quot;/&gt;
+
+// Java: runtime state belongs under a mutable path
+ValueMap state =
+    resolver.getResource(&quot;/var/acme/config&quot;).adaptTo(ModifiableValueMap.class);
+state.put(&quot;lastRun&quot;, System.currentTimeMillis());</code></pre>
+          </div>
+        </div>
+        <p class="suppress">Suppress one line: <code>// aem-analyser-disable-next-line AEM-CLOUD-008</code> · tags aem-cloud, immutable-path · <code>--explain AEM-CLOUD-008</code></p>
+      </article>
     </section>
 
     <section class="family" id="family-sec">
@@ -1217,7 +1253,7 @@ if (target != null &amp;&amp; target.startsWith(&quot;/content/&quot;) &amp;&amp
       <li><a href="#family-dup">Duplication <span class="muted">4</span></a></li>
       <li><a href="#family-qual">Quality and Cloud Manager parity <span class="muted">7</span></a></li>
       <li><a href="#family-perf">Performance <span class="muted">4</span></a></li>
-      <li><a href="#family-cloud">AEM as a Cloud Service <span class="muted">7</span></a></li>
+      <li><a href="#family-cloud">AEM as a Cloud Service <span class="muted">8</span></a></li>
       <li><a href="#family-sec">Security <span class="muted">2</span></a></li>
       <li><a href="#family-comp">Component compatibility <span class="muted">2</span></a></li>
     </ul>
@@ -1254,6 +1290,7 @@ if (target != null &amp;&amp; target.startsWith(&quot;/content/&quot;) &amp;&amp
       <li><a href="#aem-cloud-005">AEM-CLOUD-005</a></li>
       <li><a href="#aem-cloud-006">AEM-CLOUD-006</a></li>
       <li><a href="#aem-cloud-007">AEM-CLOUD-007</a></li>
+      <li><a href="#aem-cloud-008">AEM-CLOUD-008</a></li>
       <li><a href="#aem-sec-001">AEM-SEC-001</a></li>
       <li><a href="#aem-sec-002">AEM-SEC-002</a></li>
       <li><a href="#aem-comp-001">AEM-COMP-001</a></li>

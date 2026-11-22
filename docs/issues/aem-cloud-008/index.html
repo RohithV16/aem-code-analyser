@@ -1,0 +1,51 @@
+---
+layout: default
+nav: issues
+title: "AEM-CLOUD-008 ImmutablePathWrite — Java writes to /apps or /libs at runtime, an area AEM as a Cloud Service keeps …"
+description: "AEM-CLOUD-008 (ERROR): Java writes to /apps or /libs at runtime, an area AEM as a Cloud Service keeps immutable."
+rule_id: "AEM-CLOUD-008"
+rule_family: "CLOUD"
+rule_family_title: "AEM as a Cloud Service"
+rule_severity: "ERROR"
+rule_tags: "aem-cloud, immutable-path"
+---
+
+<div class="shell docs">
+  <div class="docs__main">
+    <p class="muted"><a href="../">← All 36 rules</a></p>
+    <div class="issues-head">
+      <h1><span class="rule-card__id">AEM-CLOUD-008</span> ImmutablePathWrite</h1>
+      <p class="lede">Java writes to /apps or /libs at runtime, an area AEM as a Cloud Service keeps immutable.</p>
+      <p class="muted"><span class="pill pill--error">ERROR</span> · 15 min fix · Bug · <a href="../#family-cloud">AEM as a Cloud Service</a></p>
+    </div>
+
+    <article class="rule-card rule-card--page" id="aem-cloud-008" data-family="CLOUD">
+        <p class="rule-card__summary">Java writes to /apps or /libs at runtime, an area AEM as a Cloud Service keeps immutable.</p>
+        <h2>Why it matters</h2>
+        <p>In AEM as a Cloud Service the repository structure is decided at build time by the packages a deployment installs; /apps and /libs are immutable and &quot;any attempt to change an immutable area at runtime fails&quot;. Code that wrote configuration, labels or counters into /apps for years on 6.5 keeps compiling and deploying, then throws AccessDeniedException (or silently drops the write) at the first request.</p>
+        <h2>How to fix it</h2>
+        <p>Move the node into the content package so it is installed with the release, or keep runtime state under a mutable path (/var, /conf, /content) that the service user is allowed to modify.</p>
+        <div class="examples">
+          <div class="code code--bad">
+            <div class="code__bar"><span class="code__label">java · before</span></div>
+            <pre><code>ValueMap config =
+    resolver.getResource(&quot;/apps/acme/config&quot;).adaptTo(ModifiableValueMap.class);
+config.put(&quot;lastRun&quot;, System.currentTimeMillis());</code></pre>
+          </div>
+          <div class="code code--good">
+            <div class="code__bar"><span class="code__label">java · after</span></div>
+            <pre><code>// ui.content/src/main/content/jcr_root/apps/acme/config/.content.xml
+&lt;jcr:root xmlns:sling=&quot;http://sling.apache.org/jcr/sling/1.0&quot;
+          jcr:primaryType=&quot;sling:Folder&quot;/&gt;
+
+// Java: runtime state belongs under a mutable path
+ValueMap state =
+    resolver.getResource(&quot;/var/acme/config&quot;).adaptTo(ModifiableValueMap.class);
+state.put(&quot;lastRun&quot;, System.currentTimeMillis());</code></pre>
+          </div>
+        </div>
+        <p class="suppress">Suppress one line: <code>// aem-analyser-disable-next-line AEM-CLOUD-008</code> · tags aem-cloud, immutable-path · <code>--explain AEM-CLOUD-008</code></p>
+    </article>
+    <p class="muted">Every rule in the catalogue, with what it detects and how to fix it: <a href="../">all 36 rules</a>. Suppress a single line with <code>// aem-analyser-disable-next-line AEM-CLOUD-008</code>.</p>
+  </div>
+</div>

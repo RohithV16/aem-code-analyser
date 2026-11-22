@@ -344,6 +344,30 @@ public final class RuleFixCatalog {
                                  resolverFactory.getServiceResourceResolver(authInfo)) {
                         // runs as the mapped service user, with its own ACLs
                     }""");
+            case AEM_CLOUD_008 -> new Fix(
+                    """
+                    In AEM as a Cloud Service the repository structure is decided at build time by the \
+                    packages a deployment installs; /apps and /libs are immutable and "any attempt to \
+                    change an immutable area at runtime fails". Code that wrote configuration, labels or \
+                    counters into /apps for years on 6.5 keeps compiling and deploying, then throws \
+                    AccessDeniedException (or silently drops the write) at the first request.""",
+                    """
+                    Move the node into the content package so it is installed with the release, or keep \
+                    runtime state under a mutable path (/var, /conf, /content) that the service user is \
+                    allowed to modify.""",
+                    "java", """
+                    ValueMap config =
+                        resolver.getResource("/apps/acme/config").adaptTo(ModifiableValueMap.class);
+                    config.put("lastRun", System.currentTimeMillis());""",
+                    "java", """
+                    // ui.content/src/main/content/jcr_root/apps/acme/config/.content.xml
+                    <jcr:root xmlns:sling="http://sling.apache.org/jcr/sling/1.0"
+                              jcr:primaryType="sling:Folder"/>
+
+                    // Java: runtime state belongs under a mutable path
+                    ValueMap state =
+                        resolver.getResource("/var/acme/config").adaptTo(ModifiableValueMap.class);
+                    state.put("lastRun", System.currentTimeMillis());""");
             case AEM_QUAL_006 -> new Fix(
                     """
                     Storing a request-scoped resolver or session in an OSGi component field keeps one \
