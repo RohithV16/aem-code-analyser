@@ -89,6 +89,24 @@ curl -LO "$HOST/releases/latest/download/aem-analyser-cli.jar"</code></pre>
             One self-contained jar. It can live anywhere — put it in the project, in
             <code>~/tools</code>, wherever you keep it.
           </p>
+          <div class="callout">
+            <p>
+              <strong>Prefer an <code>aem-analyser</code> command?</strong> The installer checks the
+              jar against the release's <code>SHA256SUMS.txt</code> first, then writes a launcher to
+              <code>~/.local/bin</code>:
+            </p>
+            <div class="code code--shell">
+              <div class="code__bar"><span class="code__label">bash</span></div>
+<pre><code>curl -fsSLO https://raw.githubusercontent.com/RohithV16/aem-code-analyser/main/install.sh
+sh install.sh
+aem-analyser --version</code></pre>
+            </div>
+            <p class="muted">
+              Pin a release with <code>--version 1.0.10</code>, install elsewhere with
+              <code>--prefix /usr/local</code>. Below, every <code>java -jar aem-analyser-cli.jar</code>
+              is the same run as <code>aem-analyser</code>.
+            </p>
+          </div>
         </li>
 
         <li>

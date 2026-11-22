@@ -22,16 +22,28 @@ scripts/run-from-source.sh ~/my-aem-project
 The script builds once (Maven, Java 21) and then analyses the path you gave it. Later runs reuse the
 build and start instantly. Leave the path out to analyse the directory you are standing in.
 
-### 2 · Or download the jar
+### 2 · Or install the CLI
+
+```bash
+curl -fsSLO https://raw.githubusercontent.com/RohithV16/aem-code-analyser/main/install.sh
+sh install.sh                 # newest release; --version 1.0.10 pins one
+cd ~/my-aem-project && aem-analyser .
+```
+
+The installer checks the jar against the release's own `SHA256SUMS.txt` before installing anything,
+puts it under `~/.local/share/aem-analyser/<version>/` and writes `~/.local/bin/aem-analyser`
+(`--prefix` to install elsewhere). The launcher honours `JAVA_HOME` and needs Java 21.
+
+Prefer no installer? The jar is a single file:
 
 ```bash
 curl -LO https://github.com/RohithV16/aem-code-analyser/releases/latest/download/aem-analyser-cli.jar
 cd ~/my-aem-project && java -jar aem-analyser-cli.jar
 ```
 
-Self-contained; all it needs is Java 21. Run it inside the project and it finds everything by itself.
-Every run prints a console report and writes an HTML dashboard to `target/aem-analyser/` by default
-(`--no-html` skips the dashboard).
+Either way it is self-contained and needs nothing but Java 21. Run it inside the project and it finds
+everything by itself. Every run prints a console report and writes an HTML dashboard to
+`target/aem-analyser/` by default (`--no-html` skips the dashboard).
 
 ### 3 · Or wire it into the build
 
@@ -92,7 +104,8 @@ java -jar aem-analyser-cli.jar --baseline .aem-analyser-baseline.json
 java -jar aem-analyser-cli.jar --explain AEM-DEAD-001     # one rule's rationale
 ```
 
-A shell alias keeps it short: `alias aem-analyser="java -jar /path/to/aem-analyser-cli.jar"`.
+A shell alias keeps it short: `alias aem-analyser="java -jar /path/to/aem-analyser-cli.jar"` — or
+install it once ([route 2](#2--or-install-the-cli)) and every flag above reads `aem-analyser --no-html`.
 
 ## CLI options reference
 
