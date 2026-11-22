@@ -1,1038 +1,926 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="light">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="generator" content="AEM Code Analyser v1.0.11-SNAPSHOT">
-<title>AEM Code Analyser — 10 findings</title>
-<script>(function(){try{var t=localStorage.getItem('aem-analyser-theme')||(window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
+<title>AEM Code Analyser — Enterprise Quality Dashboard</title>
 <style>
 :root {
-  color-scheme: light;
-  --paper: #fbfbf9; --surface: #ffffff; --surface-2: #f5f6f3;
-  --ink: #0e1417; --ink-2: #33424b; --muted: #5f7079;
-  --line: #e3e5e1; --line-strong: #cbd0cb;
-  --accent: #0a6a63; --accent-soft: #e6f1ef;
-  --err: #b42318; --err-soft: #fdecea;
-  --warn: #b54708; --warn-soft: #fdf3e5;
-  --info: #175cd3; --info-soft: #eaf1fd;
-  --ok: #067647; --ok-soft: #e7f6ec;
-  --code-bg: #0f1719; --code-ink: #dfe7e6;
-  --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  --radius: 10px; --radius-sm: 6px;
-  --shadow: 0 1px 2px rgba(14,20,23,.05), 0 10px 26px -20px rgba(14,20,23,.5);
+    --bg-primary: #f8fafc;
+    --bg-card: #ffffff;
+    --text-primary: #0f172a;
+    --text-secondary: #475569;
+    --border: #e2e8f0;
+    --accent: #2563eb;
+    --accent-light: #eff6ff;
+    --danger: #dc2626;
+    --danger-bg: #fef2f2;
+    --danger-border: #fecaca;
+    --warning: #d97706;
+    --warning-bg: #fffbeb;
+    --warning-border: #fde68a;
+    --info: #0284c7;
+    --info-bg: #f0f9ff;
+    --info-border: #bae6fd;
+    --success: #16a34a;
+    --success-bg: #f0fdf4;
+    --success-border: #bbf7d0;
 }
-[data-theme="dark"] {
-  color-scheme: dark;
-  --paper: #0b1013; --surface: #10181b; --surface-2: #0e1619;
-  --ink: #e9efee; --ink-2: #c2cfcd; --muted: #8b9a99;
-  --line: #1f2c2f; --line-strong: #2c3d40;
-  --accent: #57c9bd; --accent-soft: #122a29;
-  --err: #ff9d92; --err-soft: #2a1512;
-  --warn: #f2b268; --warn-soft: #2a1e10;
-  --info: #93b9ff; --info-soft: #101f38;
-  --ok: #6fd39a; --ok-soft: #0e2418;
-  --code-bg: #0a1013; --code-ink: #d7e2e0;
-}
-* { box-sizing: border-box; }
-html { -webkit-text-size-adjust: 100%; }
-body { margin: 0; background: var(--paper); color: var(--ink);
-       font: 15px/1.55 var(--sans); -webkit-font-smoothing: antialiased; }
-h2 { font-size: .98rem; font-weight: 600; margin: 0; letter-spacing: -.01em; }
-h3 { font-size: .72rem; font-family: var(--mono); text-transform: uppercase;
-     letter-spacing: .08em; color: var(--muted); font-weight: 500; margin: 0; }
-p { margin: 0 0 .6rem; }
-a { color: var(--accent); text-underline-offset: 2px; }
-a:hover { text-decoration-thickness: 2px; }
-:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 3px; }
-.mono, code, .loc, .rule-code, .kpi__label, .kpi__note { font-family: var(--mono); }
-.muted { color: var(--muted); }
-.small { font-size: .8rem; }
-.visually-hidden { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
-                   overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
-.skip { position: absolute; left: -9999px; top: 0; background: var(--ink); color: var(--paper);
-        padding: .5rem .8rem; z-index: 99; }
-.skip:focus { left: 0; }
-.noscript { margin: 0; padding: .7rem 1.2rem; background: var(--warn-soft); color: var(--warn);
-            border-bottom: 1px solid var(--line); font-size: .85rem; }
+* { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+body { background: var(--bg-primary); color: var(--text-primary); padding: 2rem; line-height: 1.5; }
+.container { max-width: 1400px; margin: 0 auto; }
+header { display: flex; justify-content: space-between; align-items: center; background: var(--bg-card); padding: 1.5rem 2rem; border-radius: 12px; border: 1px solid var(--border); box-shadow: 0 1px 3px rgba(0,0,0,0.05); margin-bottom: 1.5rem; }
+.header-title h1 { font-size: 1.5rem; font-weight: 700; color: #1e293b; display: flex; align-items: center; gap: 0.5rem; }
+.header-title p { color: var(--text-secondary); font-size: 0.875rem; margin-top: 0.25rem; }
+.status-badge { padding: 0.5rem 1rem; border-radius: 9999px; font-weight: 700; font-size: 0.875rem; text-transform: uppercase; letter-spacing: 0.05em; }
+.badge-danger { background: var(--danger-bg); color: var(--danger); border: 1px solid var(--danger-border); }
+.badge-warning { background: var(--warning-bg); color: var(--warning); border: 1px solid var(--warning-border); }
+.badge-success { background: var(--success-bg); color: var(--success); border: 1px solid var(--success-border); }
 
-.top { border-bottom: 1px solid var(--line); background: var(--surface); }
-.top__inner { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;
-              padding: .85rem clamp(1rem, 3vw, 2rem) .5rem; max-width: 1440px; margin: 0 auto; }
-.brand { display: flex; align-items: center; gap: .55rem; font-weight: 600; letter-spacing: -.01em; }
-.brand__mark { display: grid; place-items: center; width: 26px; height: 26px; border-radius: 5px;
-               background: var(--ink); color: var(--paper); font-family: var(--mono);
-               font-size: .6rem; letter-spacing: -.03em; }
-[data-theme="dark"] .brand__mark { background: var(--accent); color: #06201f; }
-.brand__title { font-size: 1rem; font-weight: 600; margin: 0; letter-spacing: -.01em; }
-.brand__version { font-size: .7rem; color: var(--muted); border: 1px solid var(--line);
-                  border-radius: 999px; padding: .02rem .4rem; }
-.top__actions { margin-left: auto; display: flex; align-items: center; gap: .5rem; }
-.verdict { font-family: var(--mono); font-size: .68rem; font-weight: 500; letter-spacing: .04em;
-           padding: .3rem .55rem; border-radius: 5px; border: 1px solid transparent;
-           white-space: nowrap; }
-.verdict--fail { background: var(--err-soft); color: var(--err); border-color: var(--err); }
-.verdict--warn { background: var(--warn-soft); color: var(--warn); border-color: var(--warn); }
-.verdict--pass { background: var(--ok-soft); color: var(--ok); border-color: var(--ok); }
-.icon { display: grid; place-items: center; width: 30px; height: 30px; border-radius: var(--radius-sm);
-        border: 1px solid var(--line); background: var(--surface); color: var(--ink-2);
-        cursor: pointer; }
-.icon:hover { border-color: var(--line-strong); color: var(--ink); }
-.top__meta { display: flex; flex-wrap: wrap; gap: .3rem 1.1rem;
-             padding: 0 clamp(1rem, 3vw, 2rem) .7rem; max-width: 1440px; margin: 0 auto;
-             font-size: .74rem; color: var(--muted); }
-.top__meta .mono { font-size: .72rem; color: var(--ink-2); }
+.kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
+.kpi-card { background: var(--bg-card); padding: 1.25rem; border-radius: 10px; border: 1px solid var(--border); box-shadow: 0 1px 2px rgba(0,0,0,0.04); }
+.kpi-card .label { font-size: 0.75rem; font-weight: 600; text-transform: uppercase; color: var(--text-secondary); letter-spacing: 0.05em; }
+.kpi-card .value { font-size: 1.75rem; font-weight: 700; margin-top: 0.25rem; }
+.kpi-card.err .value { color: var(--danger); }
+.kpi-card.warn .value { color: var(--warning); }
+.kpi-card.info .value { color: var(--info); }
+.kpi-card.cov .value { color: #0d9488; }
+.kpi-card.dup .value { color: #7c3aed; }
+.kpi-card.accepted .value { color: #0d9488; }
 
-.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(128px, 1fr)); gap: 1px;
-        background: var(--line); border-bottom: 1px solid var(--line); }
-.kpi { background: var(--surface); padding: .8rem clamp(.7rem, 2vw, 1.2rem); }
-.kpi__label { font-size: .64rem; letter-spacing: .08em; text-transform: uppercase;
-              color: var(--muted); }
-.kpi__value { font-size: 1.45rem; font-weight: 600; letter-spacing: -.03em; margin-top: .1rem;
-              font-variant-numeric: tabular-nums; }
-.kpi__note { font-size: .68rem; color: var(--muted); }
-.kpi--error .kpi__value { color: var(--err); }
-.kpi--warn .kpi__value { color: var(--warn); }
-.kpi--info .kpi__value { color: var(--info); }
+.nav-tabs { display: flex; gap: 0.5rem; margin-bottom: 1.5rem; border-bottom: 1px solid var(--border); padding-bottom: 0.5rem; }
+.tab-btn { padding: 0.6rem 1.2rem; border-radius: 8px; font-weight: 600; font-size: 0.875rem; border: 1px solid transparent; background: transparent; cursor: pointer; color: var(--text-secondary); transition: all 0.2s ease; }
+.tab-btn:hover { background: #e2e8f0; color: var(--text-primary); }
+.tab-btn.active { background: var(--accent); color: #fff; }
 
-.tabbar { display: flex; gap: .1rem; overflow-x: auto; padding: .4rem clamp(1rem, 3vw, 2rem) 0;
-          border-bottom: 1px solid var(--line); background: var(--surface-2);
-          scrollbar-width: thin; }
-.tab { font: inherit; font-size: .82rem; font-weight: 500; color: var(--muted);
-       background: transparent; border: 0; border-bottom: 2px solid transparent;
-       padding: .55rem .7rem; cursor: pointer; white-space: nowrap; }
-.tab:hover { color: var(--ink); }
-.tab.is-active { color: var(--ink); border-bottom-color: var(--accent); }
-.tab-panel { display: none; padding: clamp(1rem, 2.5vw, 1.5rem) clamp(1rem, 3vw, 2rem) 2rem;
-             max-width: 1440px; margin: 0 auto; }
-.tab-panel.is-active { display: block; }
+.tab-content { display: none; }
+.tab-content.active { display: block; }
 
-.panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);
-         box-shadow: var(--shadow); margin-bottom: 1.1rem; overflow: hidden; }
-.panel__head { display: flex; flex-wrap: wrap; align-items: baseline; gap: .2rem .8rem;
-               padding: .8rem 1rem; border-bottom: 1px solid var(--line); }
-.panel__hint { margin: 0; font-size: .76rem; color: var(--muted); }
-.count { font-family: var(--mono); font-size: .72rem; color: var(--muted);
-         border: 1px solid var(--line); border-radius: 999px; padding: 0 .4rem; margin-left: .2rem; }
+.section { background: var(--bg-card); border-radius: 12px; border: 1px solid var(--border); box-shadow: 0 1px 3px rgba(0,0,0,0.05); margin-bottom: 1.5rem; overflow: hidden; }
+.section-header { padding: 1rem 1.5rem; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; background: #fafafa; }
+.section-header h2 { font-size: 1.125rem; font-weight: 600; color: #1e293b; }
 
-.toolbar { display: flex; flex-wrap: wrap; gap: .5rem .6rem; align-items: center;
-           padding: .7rem 1rem; border-bottom: 1px solid var(--line); background: var(--surface-2);
-           position: sticky; top: 0; z-index: 5; }
-.search { flex: 1 1 240px; min-height: 32px; padding: .35rem .6rem; font: inherit; font-size: .82rem;
-          color: var(--ink); background: var(--surface); border: 1px solid var(--line-strong);
-          border-radius: var(--radius-sm); }
-.chips { display: flex; gap: .25rem; flex-wrap: wrap; }
-.chip { font: inherit; font-family: var(--mono); font-size: .7rem; color: var(--ink-2);
-        background: var(--surface); border: 1px solid var(--line-strong); border-radius: 999px;
-        padding: .2rem .5rem; cursor: pointer; }
-.chip span { color: var(--muted); }
-.chip:hover { border-color: var(--ink-2); color: var(--ink); }
-.chip.is-active { background: var(--ink); border-color: var(--ink); color: var(--paper); }
-.chip.is-active span { color: inherit; opacity: .7; }
-.field { display: flex; align-items: center; gap: .3rem; font-size: .76rem; color: var(--muted); }
-.field select { font: inherit; font-size: .76rem; color: var(--ink); background: var(--surface);
-                border: 1px solid var(--line-strong); border-radius: var(--radius-sm);
-                padding: .22rem .3rem; }
-.tools { display: flex; gap: .3rem; flex-wrap: wrap; }
-.btn { font: inherit; font-family: var(--mono); font-size: .7rem; color: var(--ink-2);
-       background: var(--surface); border: 1px solid var(--line-strong);
-       border-radius: var(--radius-sm); padding: .28rem .5rem; cursor: pointer; }
-.btn:hover { border-color: var(--ink-2); color: var(--ink); }
-.result-count { margin-left: auto; font-family: var(--mono); font-size: .72rem; color: var(--muted); }
+.controls { padding: 1rem 1.5rem; border-bottom: 1px solid var(--border); display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: center; background: #fff; }
+.search-box { flex: 1; min-width: 250px; padding: 0.5rem 0.75rem; border: 1px solid var(--border); border-radius: 6px; font-size: 0.875rem; }
+.search-box:focus { outline: 2px solid var(--accent); border-color: transparent; }
+.filter-btn { padding: 0.4rem 0.8rem; border-radius: 6px; font-size: 0.8125rem; font-weight: 500; border: 1px solid var(--border); background: #f8fafc; cursor: pointer; transition: all 0.15s ease; }
+.filter-btn:hover { background: #e2e8f0; }
+.filter-btn.active { background: #0f172a; color: #fff; border-color: #0f172a; }
 
-.table-scroll { overflow-x: auto; }
-table { width: 100%; border-collapse: collapse; font-size: .84rem; }
-thead th { text-align: left; font-family: var(--mono); font-size: .64rem; letter-spacing: .07em;
-           text-transform: uppercase; color: var(--muted); font-weight: 500; padding: .55rem .8rem;
-           background: var(--surface-2); border-bottom: 1px solid var(--line); white-space: nowrap; }
-tbody td { padding: .6rem .8rem; border-bottom: 1px solid var(--line); vertical-align: top; }
-tbody tr:last-child td { border-bottom: 0; }
-tbody tr:hover { background: color-mix(in srgb, var(--surface-2) 65%, transparent); }
-.compact tbody td { padding: .45rem .8rem; }
-.num { text-align: right; font-variant-numeric: tabular-nums; font-family: var(--mono);
-       font-size: .78rem; }
-th.sev { width: 96px; }
-th.rule { width: 172px; }
-th.sortable { cursor: pointer; user-select: none; }
+table { width: 100%; border-collapse: collapse; text-align: left; font-size: 0.875rem; }
+th { background: #f8fafc; padding: 0.75rem 1rem; font-weight: 600; color: var(--text-secondary); border-bottom: 1px solid var(--border); text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.05em; }
+td { padding: 0.875rem 1rem; border-bottom: 1px solid var(--border); vertical-align: top; }
+tr:hover { background: #f8fafc; }
+
+.pill { display: inline-block; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; }
+.pill-error { background: var(--danger-bg); color: var(--danger); border: 1px solid var(--danger-border); }
+.pill-warning { background: var(--warning-bg); color: var(--warning); border: 1px solid var(--warning-border); }
+.pill-info { background: var(--info-bg); color: var(--info); border: 1px solid var(--info-border); }
+
+.code-loc { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 0.8125rem; color: #0284c7; }
+.snippet { background: #0f172a; color: #e2e8f0; padding: 0.75rem; border-radius: 6px; overflow-x: auto; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 0.75rem; line-height: 1.45; margin-top: 0.5rem; white-space: pre; }
+details summary { cursor: pointer; color: #0284c7; font-size: 0.8125rem; }
+.rule-code { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-weight: 600; color: #334155; }
+.remediation { margin-top: 0.35rem; font-size: 0.8125rem; color: var(--text-secondary); background: #f1f5f9; padding: 0.4rem 0.6rem; border-radius: 4px; border-left: 3px solid var(--accent); }
+
+.details-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem; padding: 1.5rem; }
+.stat-box { background: #f8fafc; padding: 1rem; border-radius: 8px; border: 1px solid var(--border); }
+.stat-box h4 { font-size: 0.8125rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 0.5rem; text-transform: uppercase; }
+.stat-box ul { list-style: none; }
+.stat-box li { display: flex; justify-content: space-between; padding: 0.25rem 0; font-size: 0.875rem; border-bottom: 1px dashed var(--border); }
+.stat-box li:last-child { border-bottom: none; }
+
+.chart-bar-container { margin-top: 0.5rem; background: #e2e8f0; border-radius: 9999px; height: 12px; overflow: hidden; display: flex; }
+.chart-bar-err { background: var(--danger); }
+.chart-bar-warn { background: var(--warning); }
+.chart-bar-info { background: var(--info); }
+
+.header-actions { display: flex; align-items: center; gap: 0.75rem; }
+.btn { display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.45rem 0.8rem; border-radius: 6px; border: 1px solid var(--border); background: var(--bg-card); color: var(--text-primary); font-size: 0.8125rem; font-weight: 600; cursor: pointer; transition: background 0.15s ease, border-color 0.15s ease; }
+.btn:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-light); }
+.btn:focus-visible, .filter-btn:focus-visible, .tab-btn:focus-visible, select:focus-visible, input:focus-visible, th.sortable:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.btn-ghost { border-color: transparent; background: transparent; font-size: 1rem; padding: 0.35rem 0.5rem; }
+
+.toolbar { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; padding: 1rem 1.5rem; border-bottom: 1px solid var(--border); background: #fafafa; }
+.toolbar label { font-size: 0.8125rem; color: var(--text-secondary); display: flex; align-items: center; gap: 0.35rem; }
+.toolbar select { padding: 0.4rem 0.5rem; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-card); color: var(--text-primary); font-size: 0.8125rem; }
+.result-count { margin-left: auto; font-size: 0.8125rem; color: var(--text-secondary); font-weight: 600; }
+th.sortable { cursor: pointer; user-select: none; white-space: nowrap; }
 th.sortable:hover { color: var(--accent); }
-th[aria-sort="ascending"] .sort-indicator::after { content: " \2191"; }
-th[aria-sort="descending"] .sort-indicator::after { content: " \2193"; }
-th[aria-sort="ascending"], th[aria-sort="descending"] { color: var(--ink); }
-
-.pill { display: inline-block; font-family: var(--mono); font-size: .63rem; font-weight: 500;
-        letter-spacing: .03em; text-transform: uppercase; padding: .1rem .36rem;
-        border-radius: 4px; border: 1px solid transparent; }
-.pill--error { color: var(--err); background: var(--err-soft); border-color: var(--err); }
-.pill--warning { color: var(--warn); background: var(--warn-soft); border-color: var(--warn); }
-.pill--info { color: var(--info); background: var(--info-soft); border-color: var(--info); }
-.rule-code { font-size: .76rem; color: var(--accent); text-decoration: none; }
-.rule-code:hover { text-decoration: underline; }
-.permalink { margin-left: .3rem; font-size: .72rem; color: var(--muted); text-decoration: none;
-             opacity: .6; }
-.permalink:hover { opacity: 1; color: var(--accent); }
-.loc { font-size: .76rem; color: var(--ink-2); word-break: break-word; }
-.finding { margin: 0 0 .3rem; font-weight: 500; }
-.fix { margin: 0 0 .3rem; font-size: .8rem; color: var(--ink-2); background: var(--surface-2);
-       border-radius: 4px; padding: .3rem .5rem; }
-.fix strong { font-family: var(--mono); font-size: .64rem; text-transform: uppercase;
-              letter-spacing: .06em; color: var(--muted); margin-right: .4rem; }
-.related { margin: 0 0 .2rem; font-size: .74rem; color: var(--muted); }
-.fix-link { font-size: .74rem; color: var(--accent); text-decoration: none; }
-.fix-link:hover { text-decoration: underline; }
+th[aria-sort="ascending"] .sort-indicator::after { content: " ▲"; font-size: 0.65rem; }
+th[aria-sort="descending"] .sort-indicator::after { content: " ▼"; font-size: 0.65rem; }
+tr.group-row td { background: #eef2f7; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.03em; color: #334155; padding: 0.5rem 1rem; text-transform: uppercase; }
+.group-count { display: inline-block; margin-left: 0.4rem; padding: 0 0.4rem; border-radius: 9999px; background: #cbd5e1; color: #0f172a; font-size: 0.6875rem; }
 tr:target { outline: 2px solid var(--accent); outline-offset: -2px; }
-tr.group-row td { background: var(--surface-2); font-family: var(--mono); font-size: .68rem;
-                  letter-spacing: .05em; text-transform: uppercase; color: var(--ink-2); }
-.group-count { margin-left: .4rem; padding: 0 .4rem; border-radius: 999px;
-               background: var(--line-strong); color: var(--paper); font-size: .62rem; }
-.empty-row td { padding: 0; }
-.empty { display: flex; gap: .7rem; align-items: flex-start; padding: 1.1rem 1rem;
-         font-size: .86rem; color: var(--ink-2); }
-.empty__mark { display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%;
-               background: var(--ok-soft); color: var(--ok); font-size: .8rem; flex: none; }
-.omitted-row td { text-align: center; font-size: .76rem; color: var(--muted); padding: 1rem; }
+.permalink { text-decoration: none; color: var(--text-secondary); margin-left: 0.35rem; opacity: 0.55; font-size: 0.75rem; }
+.permalink:hover, .permalink:focus { opacity: 1; color: var(--accent); }
+.noscript-note { background: var(--warning-bg); border: 1px solid var(--warning-border); color: var(--warning); padding: 0.75rem 1rem; border-radius: 8px; margin-bottom: 1rem; font-size: 0.875rem; }
+.empty-state { padding: 1.5rem; text-align: center; color: var(--text-secondary); font-size: 0.875rem; }
+.note { padding: 1rem 1.5rem; color: var(--text-secondary); font-size: 0.8125rem; border-bottom: 1px solid var(--border); background: #fafafa; }
 
-.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(212px, 1fr)); gap: 1px;
-        background: var(--line); }
-.stat { background: var(--surface); padding: .9rem 1rem; }
-.stat__big { font-size: 1.7rem; font-weight: 600; letter-spacing: -.03em;
-             font-variant-numeric: tabular-nums; }
-.kv { list-style: none; margin: .4rem 0 0; padding: 0; }
-.kv li { display: flex; justify-content: space-between; gap: .8rem; padding: .2rem 0;
-         font-size: .8rem; border-bottom: 1px dashed var(--line); }
-.kv li:last-child { border-bottom: 0; }
-.kv span { color: var(--muted); }
-.kv strong { font-weight: 600; font-variant-numeric: tabular-nums; }
-.t-error { color: var(--err); } .t-warn { color: var(--warn); } .t-info { color: var(--info); }
-.bar { display: flex; height: 8px; border-radius: 999px; overflow: hidden; background: var(--line);
-       margin: .5rem 0 .2rem; }
-.bar--error { background: var(--err); } .bar--warn { background: var(--warn); }
-.bar--info { background: var(--info); }
+#toast { position: fixed; right: 1.5rem; bottom: 1.5rem; background: #0f172a; color: #f8fafc; padding: 0.7rem 1rem; border-radius: 8px; font-size: 0.8125rem; font-weight: 600; opacity: 0; transform: translateY(0.5rem); transition: opacity 0.2s ease, transform 0.2s ease; pointer-events: none; z-index: 50; }
+#toast.show { opacity: 1; transform: translateY(0); }
 
-.snippet { margin: .3rem 0 0; padding: .5rem .6rem; background: var(--code-bg); color: var(--code-ink);
-           border-radius: 4px; font-family: var(--mono); font-size: .7rem; line-height: 1.5;
-           overflow-x: auto; white-space: pre; }
-details summary { cursor: pointer; font-size: .76rem; color: var(--accent); }
-.callout { margin: 0 1rem 1rem; padding: .6rem .8rem; border-radius: var(--radius-sm);
-           border: 1px solid var(--line); background: var(--surface-2); font-size: .82rem; }
-.callout p:last-child { margin-bottom: 0; }
-
-.foot { display: flex; flex-wrap: wrap; gap: .4rem 1.4rem; justify-content: space-between;
-        padding: 1rem clamp(1rem, 3vw, 2rem) 2rem; max-width: 1440px; margin: 0 auto;
-        font-size: .74rem; color: var(--muted); }
-.foot .mono { font-size: .7rem; }
-#toast { position: fixed; right: 1rem; bottom: 1rem; background: var(--ink); color: var(--paper);
-         padding: .55rem .8rem; border-radius: var(--radius-sm); font-size: .78rem;
-         font-weight: 500; opacity: 0; transform: translateY(.4rem);
-         transition: opacity .18s ease, transform .18s ease; pointer-events: none; z-index: 60; }
-#toast.show { opacity: 1; transform: none; }
-
-@media (max-width: 760px) {
-  /* The tab strip scrolls: give it a fade and trailing room so the cut is obviously a scroll. */
-  .tabbar {
-    scroll-snap-type: x proximity;
-    padding-right: 2.5rem;
-    mask-image: linear-gradient(to right, #000 92%, transparent 100%);
-    -webkit-mask-image: linear-gradient(to right, #000 92%, transparent 100%);
-  }
-  .tab { scroll-snap-align: start; }
-  .toolbar { position: static; }
-  .result-count { margin-left: 0; width: 100%; }
-  table, thead, tbody, tr, td { display: block; }
-  thead { display: none; }
-  tbody tr.violation-row { border: 1px solid var(--line); border-radius: var(--radius-sm);
-                           margin: .6rem; padding: .5rem .6rem; background: var(--surface); }
-  tbody tr.violation-row td { border: 0; padding: .22rem 0; }
-  tbody td[data-label]::before { content: attr(data-label); display: block; font-family: var(--mono);
-                                 font-size: .6rem; letter-spacing: .07em;
-                                 text-transform: uppercase; color: var(--muted); }
-  tbody tr.group-row { border: 0; margin: .5rem .6rem 0; }
-  tbody tr.group-row td { border-radius: 4px; padding: .3rem .5rem; }
-  .omitted-row td, .empty-row td { text-align: left; }
-  .grid { grid-template-columns: 1fr; }
+[data-theme="dark"] {
+    --bg-primary: #0b1220;
+    --bg-card: #111a2c;
+    --text-primary: #e2e8f0;
+    --text-secondary: #94a3b8;
+    --border: #273449;
+    --accent: #60a5fa;
+    --accent-light: #17233a;
+    --danger-bg: #2a1518;
+    --danger-border: #7f1d1d;
+    --warning-bg: #2a1f0d;
+    --warning-border: #78350f;
+    --info-bg: #0c2233;
+    --info-border: #0c4a6e;
+    --success-bg: #0d2417;
+    --success-border: #14532d;
 }
+[data-theme="dark"] .section-header, [data-theme="dark"] .toolbar, [data-theme="dark"] .note { background: #0f1828; }
+[data-theme="dark"] .stat-box, [data-theme="dark"] .remediation, [data-theme="dark"] .group-row td { background: #17233a; }
+[data-theme="dark"] tr:hover { background: #16213a; }
+[data-theme="dark"] .header-title h1, [data-theme="dark"] .rule-code,
+[data-theme="dark"] .section-header h2 { color: #e2e8f0; }
+[data-theme="dark"] th { background: #0f1828; color: #94a3b8; }
+[data-theme="dark"] .search-box,
+[data-theme="dark"] .filter-btn,
+[data-theme="dark"] .toolbar select { background: #0f1828; color: var(--text-primary); border-color: var(--border); }
+[data-theme="dark"] .filter-btn:hover { background: #17233a; }
+[data-theme="dark"] .filter-btn.active { background: var(--accent); color: #06121f; border-color: var(--accent); }
+[data-theme="dark"] .code-loc, [data-theme="dark"] details summary { color: #38bdf8; }
+[data-theme="dark"] .chart-bar-container { background: #273449; }
+[data-theme="dark"] .group-count { background: #334155; color: #e2e8f0; }
+[data-theme="dark"] .snippet { background: #020617; }
 
-@media (prefers-reduced-motion: reduce) {
-  * { transition-duration: .001ms !important; animation-duration: .001ms !important; }
+@media (max-width: 720px) {
+    body { padding: 1rem; }
+    header { flex-direction: column; align-items: flex-start; gap: 1rem; }
+    .toolbar { padding: 1rem; }
+    .nav-tabs { flex-wrap: wrap; }
+    .result-count { margin-left: 0; width: 100%; }
 }
 @media print {
-  body { background: #fff; color: #000; }
-  .top, .kpis, .panel, .foot { box-shadow: none; }
-  .tabbar, .toolbar, .top__actions, .permalink, .fix-link, #toast, .skip {
-    display: none !important;
-  }
-  .tab-panel { display: block !important; page-break-inside: avoid; }
-  .panel { page-break-inside: avoid; border-color: #999; }
-  a { color: #000; text-decoration: none; }
-  .snippet, .fix { background: #fff; color: #000; border: 1px solid #ccc; }
+    body { background: #fff; color: #000; padding: 0; }
+    .container { max-width: none; }
+    .nav-tabs, .toolbar, .controls, .header-actions, .permalink, #toast, .noscript-note { display: none !important; }
+    .tab-content { display: block !important; }
+    .section { box-shadow: none; border-color: #ccc; page-break-inside: avoid; }
+    .kpi-grid { grid-template-columns: repeat(3, 1fr); }
+    a { color: #000; text-decoration: none; }
+    tr { page-break-inside: avoid; }
 }
+
+footer { text-align: center; color: var(--text-secondary); font-size: 0.8125rem; margin-top: 2rem; }
 </style>
 </head>
 <body>
-<a class="skip" href="#main">Skip to findings</a>
-<noscript><style>.tab-panel{display:block !important} .tabbar{display:none !important}</style><p class="noscript">JavaScript is disabled: every section is shown expanded, but search, filters and exports are unavailable.</p></noscript>
-<header class="top">
-  <div class="top__inner">
-    <div class="brand">
-      <span class="brand__mark" aria-hidden="true">AEM</span>
-      <h1 class="brand__title">AEM Code Analyser</h1>
-      <span class="brand__version mono">v1.0.11-SNAPSHOT</span>
-    </div>
-    <div class="top__actions">
-      <span class="verdict verdict--fail">QUALITY GATE FAILED (4 Errors)</span>
-      <button id="themeToggle" class="icon" type="button" aria-label="Toggle dark mode" aria-pressed="false"><svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><path d="M13.2 9.6A5.6 5.6 0 0 1 6.4 2.8a5.6 5.6 0 1 0 6.8 6.8Z" stroke-linejoin="round"/></svg></button>
-    </div>
+<div class="container">
+<noscript><style>.tab-content{display:block !important;} .nav-tabs{display:none !important;}</style><p class="noscript-note">JavaScript is disabled: every section is shown expanded, but filtering, sorting and exports are unavailable.</p></noscript>
+<header>
+  <div class="header-title">
+    <h1>⚡ AEM Code Analyser</h1>
+    <p>Project Root: <code>validation/reactor</code> &bull; Generated: 2026-11-22 09:10:20 IST &bull; Duration: 0.60s &bull; Tool: v1.0.10</p>
   </div>
-  <div class="top__meta">
-    <span class="mono">validation/reactor</span><span>Generated 2026-11-17 09:56:39 IST</span><span>Analysis 0.52s</span><span>10 scan metrics</span>
+  <div class="header-actions">
+    <button id="themeToggle" class="btn btn-ghost" type="button" aria-label="Toggle dark mode" title="Toggle dark mode">🌙</button>
+    <span class="status-badge badge-danger">QUALITY GATE FAILED (4 Errors)</span>
   </div>
 </header>
-<main id="main" tabindex="-1">
-<section class="kpis" aria-label="Summary">
-  <div class="kpi kpi--total">
-    <div class="kpi__label">Findings</div>
-    <div class="kpi__value">10</div>
-    <div class="kpi__note">active, baseline excluded</div>
+<div class="kpi-grid">
+  <div class="kpi-card">
+    <div class="label">Total Violations</div>
+    <div class="value">10</div>
   </div>
-  <div class="kpi kpi--error">
-    <div class="kpi__label">Errors</div>
-    <div class="kpi__value">4</div>
-    <div class="kpi__note">fail the gate</div>
+  <div class="kpi-card err">
+    <div class="label">Errors</div>
+    <div class="value">4</div>
   </div>
-  <div class="kpi kpi--warn">
-    <div class="kpi__label">Warnings</div>
-    <div class="kpi__value">5</div>
-    <div class="kpi__note">need review</div>
+  <div class="kpi-card warn">
+    <div class="label">Warnings</div>
+    <div class="value">5</div>
   </div>
-  <div class="kpi kpi--info">
-    <div class="kpi__label">Info</div>
-    <div class="kpi__value">1</div>
-    <div class="kpi__note">advisory</div>
+  <div class="kpi-card info">
+    <div class="label">Info</div>
+    <div class="value">1</div>
   </div>
-  <div class="kpi kpi--muted">
-    <div class="kpi__label">Duplication</div>
-    <div class="kpi__value">0.0%</div>
-    <div class="kpi__note">0 lines · 0 blocks</div>
+  <div class="kpi-card dup">
+    <div class="label">Code Duplication</div>
+    <div class="value">0.0%</div>
+    <div style="font-size:0.75rem;color:var(--text-secondary);margin-top:2px;">0 lines / 0 classes</div>
   </div>
-</section>
-<nav class="tabbar" role="tablist" aria-label="Report sections">
-  <button class="tab is-active" id="tabbtn-violations" role="tab" data-tab="tab-violations" aria-controls="tab-violations" aria-selected="true" tabindex="0">Violations Explorer (10)</button>
-  <button class="tab" id="tabbtn-overview" role="tab" data-tab="tab-overview" aria-controls="tab-overview" aria-selected="false" tabindex="-1">Overview</button>
-  <button class="tab" id="tabbtn-health" role="tab" data-tab="tab-health" aria-controls="tab-health" aria-selected="false" tabindex="-1">Run Health (0)</button>
-  <button class="tab" id="tabbtn-duplication" role="tab" data-tab="tab-duplication" aria-controls="tab-duplication" aria-selected="false" tabindex="-1">Duplication</button>
-  <button class="tab" id="tabbtn-coverage" role="tab" data-tab="tab-coverage" aria-controls="tab-coverage" aria-selected="false" tabindex="-1">Coverage</button>
-  <button class="tab" id="tabbtn-autofix" role="tab" data-tab="tab-autofix" aria-controls="tab-autofix" aria-selected="false" tabindex="-1">Auto-fix</button>
-</nav>
-<section id="tab-violations" class="tab-panel is-active" role="tabpanel" aria-labelledby="tabbtn-violations" tabindex="0">
-  <div class="panel">
-    <div class="panel__head">
-      <h2>Active findings <span class="count">10</span></h2>
-      <p class="panel__hint">Every rule links to its explanation and fix.</p>
-    </div>
-    <div class="toolbar" role="toolbar" aria-label="Finding filters">
-      <input type="search" id="searchInput" class="search" placeholder="Search file, rule, message or keyword" aria-label="Search findings">
-      <div class="chips" role="group" aria-label="Severity">
-        <button class="chip is-active" type="button" data-filter="all">All</button>
-        <button class="chip" type="button" data-filter="ERROR">Errors</button>
-        <button class="chip" type="button" data-filter="WARNING">Warnings</button>
-        <button class="chip" type="button" data-filter="INFO">Info</button>
-      </div>
-      <div class="chips" role="group" aria-label="Family">
-        <button class="chip" type="button" data-category="DEAD">Dead code <span>3</span></button>
-        <button class="chip" type="button" data-category="DUP">Duplicates <span>2</span></button>
-        <button class="chip" type="button" data-category="QUAL">Quality <span>3</span></button>
-        <button class="chip" type="button" data-category="CLOUD">Cloud service <span>1</span></button>
-        <button class="chip" type="button" data-category="SEC">Security <span>1</span></button>
-      </div>
-      <label class="field" for="groupBy">Group
-        <select id="groupBy">
-          <option value="none">None</option>
-          <option value="rule">Rule</option>
-          <option value="file">File</option>
-        </select>
-      </label>
-      <div class="tools">
-        <button id="resetFilters" class="btn" type="button">Reset</button>
-        <button id="exportCsv" class="btn" type="button">CSV</button>
-        <button id="exportJson" class="btn" type="button">JSON</button>
-        <button id="copyMarkdown" class="btn" type="button">Copy summary</button>
-        <button id="copyLink" class="btn" type="button">Copy link</button>
-      </div>
-      <span id="resultCount" class="result-count" aria-live="polite"></span>
-    </div>
-    <div class="table-scroll">
+  <div class="kpi-card">
+    <div class="label">Test Coverage</div>
+    <div class="value" style="font-size:1.1rem;color:var(--text-secondary);margin-top:0.5rem;">N/A</div>
+    <div style="font-size:0.75rem;color:var(--text-secondary);margin-top:2px;">Run with --collect-coverage</div>
+  </div>
+</div>
+<div class="nav-tabs" role="tablist" aria-label="Report sections">
+  <button class="tab-btn active" role="tab" aria-selected="true" aria-controls="tab-violations" id="tabbtn-violations" data-tab="tab-violations">Violations Explorer (10)</button>
+  <button class="tab-btn" role="tab" aria-selected="false" aria-controls="tab-overview" id="tabbtn-overview" data-tab="tab-overview">Overview & Topology</button>
+  <button class="tab-btn" role="tab" aria-selected="false" aria-controls="tab-health" id="tabbtn-health" data-tab="tab-health">Run Health (0)</button>
+  <button class="tab-btn" role="tab" aria-selected="false" aria-controls="tab-duplication" id="tabbtn-duplication" data-tab="tab-duplication">Duplication Breakdown</button>
+  <button class="tab-btn" role="tab" aria-selected="false" aria-controls="tab-coverage" id="tabbtn-coverage" data-tab="tab-coverage">Test Coverage</button>
+  <button class="tab-btn" role="tab" aria-selected="false" aria-controls="tab-autofix" id="tabbtn-autofix" data-tab="tab-autofix">Auto-Fix (--fix)</button>
+</div>
+<div id="tab-violations" class="tab-content active" role="tabpanel" aria-labelledby="tabbtn-violations">
+<div class="section">
+  <div class="section-header">
+    <h2>Active Violations (10)</h2>
+  </div>
+  <div class="toolbar" role="toolbar" aria-label="Finding filters">
+    <input type="text" id="searchInput" class="search-box" placeholder="Search by file, rule, message, or keyword..." aria-label="Search findings">
+    <button class="filter-btn active" data-filter="all">All</button>
+    <button class="filter-btn" data-filter="ERROR">Errors Only</button>
+    <button class="filter-btn" data-filter="WARNING">Warnings Only</button>
+    <button class="filter-btn" data-filter="INFO">Info Only</button>
+    <button class="filter-btn" data-category="PERF">Session Leaks (0)</button>
+    <button class="filter-btn" data-category="CLOUD">Cloud Service (1)</button>
+    <button class="filter-btn" data-category="SEC">Security (1)</button>
+    <button class="filter-btn" data-category="DEAD">Dead Code (3)</button>
+    <button class="filter-btn" data-category="DUP">Duplicates (2)</button>
+    <button class="filter-btn" data-category="SONAR">Sonar Java (0)</button>
+    <label for="groupBy">Group by
+      <select id="groupBy">
+        <option value="none">None</option>
+        <option value="rule">Rule</option>
+        <option value="file">File</option>
+      </select>
+    </label>
+    <button id="resetFilters" class="btn" type="button">Reset</button>
+    <button id="exportCsv" class="btn" type="button">CSV</button>
+    <button id="exportJson" class="btn" type="button">JSON</button>
+    <button id="copyMarkdown" class="btn" type="button">Copy summary</button>
+    <button id="copyLink" class="btn" type="button">Copy link</button>
+    <span id="resultCount" class="result-count" aria-live="polite"></span>
+  </div>
+  <div style="overflow-x:auto;">
     <table id="violationsTable">
       <thead>
         <tr>
-          <th scope="col" class="sortable sev" data-sort="severity" tabindex="0">Severity <span class="sort-indicator"></span></th>
-          <th scope="col" class="sortable rule" data-sort="rule" tabindex="0">Rule <span class="sort-indicator"></span></th>
-          <th scope="col" class="sortable" data-sort="path" tabindex="0">Location <span class="sort-indicator"></span></th>
-          <th scope="col">Finding and fix</th>
+          <th scope="col" class="sortable" data-sort="severity" tabindex="0" style="width:110px;">Severity <span class="sort-indicator"></span></th>
+          <th scope="col" class="sortable" data-sort="rule" tabindex="0" style="width:160px;">Rule <span class="sort-indicator"></span></th>
+          <th scope="col" class="sortable" data-sort="path" tabindex="0">File Location <span class="sort-indicator"></span></th>
+          <th scope="col" data-sort="line">Issue & Remediation</th>
         </tr>
       </thead>
       <tbody>
         <tr class="violation-row" id="f-1" data-severity="ERROR" data-category="DUP" data-rule="AEM-DUP-001" data-path="bundle/src/main/java/com/acme/servlet/ThreeServlet.java" data-line="4" data-message="Servlet &#x27;com.acme.servlet.ThreeServlet&#x27; conflicts with &#x27;com.acme.servlet.OneServlet&#x27;: both claim sling.servlet.paths = &#x27;/bin/acme/dup&#x27; with identical service.ranking (0)." data-remediation="Differentiate servlet paths or assign explicit service.ranking to define precedence.">
-          <td data-label="Severity"><span class="pill pill--error">ERROR</span></td>
-          <td data-label="Rule"><a class="rule-code" href="https://rohithv16.github.io/aem-code-analyser/issues/#aem-dup-001" target="_blank" rel="noopener" title="What AEM-DUP-001 means and how to fix it">AEM-DUP-001 ↗</a><a class="permalink" href="#f-1" title="Link to this finding" aria-label="Link to this finding">#</a></td>
-          <td data-label="Location"><span class="loc">bundle/<wbr>src/<wbr>main/<wbr>java/<wbr>com/<wbr>acme/<wbr>servlet/<wbr>ThreeServlet.<wbr>java:4</span></td>
-          <td data-label="Finding">
-            <p class="finding">Servlet &#x27;com.acme.servlet.ThreeServlet&#x27; conflicts with &#x27;com.acme.servlet.OneServlet&#x27;: both claim sling.servlet.paths = &#x27;/bin/acme/dup&#x27; with identical service.ranking (0).</p>
-            <p class="fix"><strong>Fix</strong>Differentiate servlet paths or assign explicit service.ranking to define precedence.</p>
-            <p class="related">Related: <span class="loc">bundle/src/main/java/com/acme/servlet/OneServlet.java:4</span> </p>
-            <a class="fix-link" href="https://rohithv16.github.io/aem-code-analyser/issues/#aem-dup-001" target="_blank" rel="noopener">Read the fix for AEM-DUP-001 ↗</a>
+          <td><span class="pill pill-error">ERROR</span></td>
+          <td><span class="rule-code">AEM-DUP-001</span><a class="permalink" href="#f-1" title="Link to this finding" aria-label="Link to this finding">#</a></td>
+          <td><span class="code-loc">bundle/src/main/java/com/acme/servlet/ThreeServlet.java:4</span></td>
+          <td>
+            <div><strong>Servlet &#x27;com.acme.servlet.ThreeServlet&#x27; conflicts with &#x27;com.acme.servlet.OneServlet&#x27;: both claim sling.servlet.paths = &#x27;/bin/acme/dup&#x27; with identical service.ranking (0).</strong></div>
+            <div class="remediation">💡 <strong>Remediation:</strong> Differentiate servlet paths or assign explicit service.ranking to define precedence.</div>
+            <div style="font-size:0.75rem;color:var(--text-secondary);margin-top:0.25rem;">Related: <span class="code-loc">bundle/src/main/java/com/acme/servlet/OneServlet.java:4</span> </div>
           </td>
         </tr>
         <tr class="violation-row" id="f-2" data-severity="ERROR" data-category="DUP" data-rule="AEM-DUP-001" data-path="bundle/src/main/java/com/acme/servlet/TwoServlet.java" data-line="4" data-message="Servlet &#x27;com.acme.servlet.TwoServlet&#x27; conflicts with &#x27;com.acme.servlet.OneServlet&#x27;: both claim sling.servlet.paths = &#x27;/bin/acme/dup&#x27; with identical service.ranking (0)." data-remediation="Differentiate servlet paths or assign explicit service.ranking to define precedence.">
-          <td data-label="Severity"><span class="pill pill--error">ERROR</span></td>
-          <td data-label="Rule"><a class="rule-code" href="https://rohithv16.github.io/aem-code-analyser/issues/#aem-dup-001" target="_blank" rel="noopener" title="What AEM-DUP-001 means and how to fix it">AEM-DUP-001 ↗</a><a class="permalink" href="#f-2" title="Link to this finding" aria-label="Link to this finding">#</a></td>
-          <td data-label="Location"><span class="loc">bundle/<wbr>src/<wbr>main/<wbr>java/<wbr>com/<wbr>acme/<wbr>servlet/<wbr>TwoServlet.<wbr>java:4</span></td>
-          <td data-label="Finding">
-            <p class="finding">Servlet &#x27;com.acme.servlet.TwoServlet&#x27; conflicts with &#x27;com.acme.servlet.OneServlet&#x27;: both claim sling.servlet.paths = &#x27;/bin/acme/dup&#x27; with identical service.ranking (0).</p>
-            <p class="fix"><strong>Fix</strong>Differentiate servlet paths or assign explicit service.ranking to define precedence.</p>
-            <p class="related">Related: <span class="loc">bundle/src/main/java/com/acme/servlet/OneServlet.java:4</span> </p>
-            <a class="fix-link" href="https://rohithv16.github.io/aem-code-analyser/issues/#aem-dup-001" target="_blank" rel="noopener">Read the fix for AEM-DUP-001 ↗</a>
+          <td><span class="pill pill-error">ERROR</span></td>
+          <td><span class="rule-code">AEM-DUP-001</span><a class="permalink" href="#f-2" title="Link to this finding" aria-label="Link to this finding">#</a></td>
+          <td><span class="code-loc">bundle/src/main/java/com/acme/servlet/TwoServlet.java:4</span></td>
+          <td>
+            <div><strong>Servlet &#x27;com.acme.servlet.TwoServlet&#x27; conflicts with &#x27;com.acme.servlet.OneServlet&#x27;: both claim sling.servlet.paths = &#x27;/bin/acme/dup&#x27; with identical service.ranking (0).</strong></div>
+            <div class="remediation">💡 <strong>Remediation:</strong> Differentiate servlet paths or assign explicit service.ranking to define precedence.</div>
+            <div style="font-size:0.75rem;color:var(--text-secondary);margin-top:0.25rem;">Related: <span class="code-loc">bundle/src/main/java/com/acme/servlet/OneServlet.java:4</span> </div>
           </td>
         </tr>
         <tr class="violation-row" id="f-3" data-severity="ERROR" data-category="DEAD" data-rule="AEM-DEAD-001" data-path="ui.config/src/main/content/jcr_root/apps/acme/osgiconfig/config.author/com.acme.config.Ghost.cfg.json" data-line="1" data-message="Orphaned OSGi Configuration: No matching component, OCD-named binding, platform service or external dependency found for PID &#x27;com.acme.config.Ghost&#x27;." data-remediation="Delete the configuration file, or rename it to the PID of the component that must consume these properties.">
-          <td data-label="Severity"><span class="pill pill--error">ERROR</span></td>
-          <td data-label="Rule"><a class="rule-code" href="https://rohithv16.github.io/aem-code-analyser/issues/#aem-dead-001" target="_blank" rel="noopener" title="What AEM-DEAD-001 means and how to fix it">AEM-DEAD-001 ↗</a><a class="permalink" href="#f-3" title="Link to this finding" aria-label="Link to this finding">#</a></td>
-          <td data-label="Location"><span class="loc">ui.<wbr>config/<wbr>src/<wbr>main/<wbr>content/<wbr>jcr_root/<wbr>apps/<wbr>acme/<wbr>osgiconfig/<wbr>config.<wbr>author/<wbr>com.<wbr>acme.<wbr>config.<wbr>Ghost.<wbr>cfg.<wbr>json:1</span></td>
-          <td data-label="Finding">
-            <p class="finding">Orphaned OSGi Configuration: No matching component, OCD-named binding, platform service or external dependency found for PID &#x27;com.acme.config.Ghost&#x27;.</p>
-            <p class="fix"><strong>Fix</strong>Delete the configuration file, or rename it to the PID of the component that must consume these properties.</p>
-            <a class="fix-link" href="https://rohithv16.github.io/aem-code-analyser/issues/#aem-dead-001" target="_blank" rel="noopener">Read the fix for AEM-DEAD-001 ↗</a>
+          <td><span class="pill pill-error">ERROR</span></td>
+          <td><span class="rule-code">AEM-DEAD-001</span><a class="permalink" href="#f-3" title="Link to this finding" aria-label="Link to this finding">#</a></td>
+          <td><span class="code-loc">ui.config/src/main/content/jcr_root/apps/acme/osgiconfig/config.author/com.acme.config.Ghost.cfg.json:1</span></td>
+          <td>
+            <div><strong>Orphaned OSGi Configuration: No matching component, OCD-named binding, platform service or external dependency found for PID &#x27;com.acme.config.Ghost&#x27;.</strong></div>
+            <div class="remediation">💡 <strong>Remediation:</strong> Delete the configuration file, or rename it to the PID of the component that must consume these properties.</div>
           </td>
         </tr>
         <tr class="violation-row" id="f-4" data-severity="ERROR" data-category="DEAD" data-rule="AEM-DEAD-001" data-path="ui.config/src/main/content/jcr_root/apps/acme/osgiconfig/config.author/com.acme.config.My-Service.cfg.json" data-line="1" data-message="Orphaned OSGi Configuration: No matching component, OCD-named binding, platform service or external dependency found for PID &#x27;com.acme.config.My-Service&#x27;." data-remediation="Delete the configuration file, or rename it to the PID of the component that must consume these properties.">
-          <td data-label="Severity"><span class="pill pill--error">ERROR</span></td>
-          <td data-label="Rule"><a class="rule-code" href="https://rohithv16.github.io/aem-code-analyser/issues/#aem-dead-001" target="_blank" rel="noopener" title="What AEM-DEAD-001 means and how to fix it">AEM-DEAD-001 ↗</a><a class="permalink" href="#f-4" title="Link to this finding" aria-label="Link to this finding">#</a></td>
-          <td data-label="Location"><span class="loc">ui.<wbr>config/<wbr>src/<wbr>main/<wbr>content/<wbr>jcr_root/<wbr>apps/<wbr>acme/<wbr>osgiconfig/<wbr>config.<wbr>author/<wbr>com.<wbr>acme.<wbr>config.<wbr>My-Service.<wbr>cfg.<wbr>json:1</span></td>
-          <td data-label="Finding">
-            <p class="finding">Orphaned OSGi Configuration: No matching component, OCD-named binding, platform service or external dependency found for PID &#x27;com.acme.config.My-Service&#x27;.</p>
-            <p class="fix"><strong>Fix</strong>Delete the configuration file, or rename it to the PID of the component that must consume these properties.</p>
-            <a class="fix-link" href="https://rohithv16.github.io/aem-code-analyser/issues/#aem-dead-001" target="_blank" rel="noopener">Read the fix for AEM-DEAD-001 ↗</a>
+          <td><span class="pill pill-error">ERROR</span></td>
+          <td><span class="rule-code">AEM-DEAD-001</span><a class="permalink" href="#f-4" title="Link to this finding" aria-label="Link to this finding">#</a></td>
+          <td><span class="code-loc">ui.config/src/main/content/jcr_root/apps/acme/osgiconfig/config.author/com.acme.config.My-Service.cfg.json:1</span></td>
+          <td>
+            <div><strong>Orphaned OSGi Configuration: No matching component, OCD-named binding, platform service or external dependency found for PID &#x27;com.acme.config.My-Service&#x27;.</strong></div>
+            <div class="remediation">💡 <strong>Remediation:</strong> Delete the configuration file, or rename it to the PID of the component that must consume these properties.</div>
           </td>
         </tr>
         <tr class="violation-row" id="f-5" data-severity="WARNING" data-category="QUAL" data-rule="AEM-QUAL-001" data-path="bundle/src/main/java/com/acme/servlet/OneServlet.java" data-line="4" data-message="Servlet &#x27;com.acme.servlet.OneServlet&#x27; is registered with absolute path(s) &#x27;/bin/acme/dup&#x27;. Cloud Manager rule CQBP-75 requires registering servlets by resourceType (&#x27;sling.servlet.resourceTypes&#x27;)." data-remediation="Bind servlet using &#x27;sling.servlet.resourceTypes&#x27; instead of &#x27;sling.servlet.paths&#x27; to ensure JCR ACL enforcement, vanity path resolution, and cacheability.">
-          <td data-label="Severity"><span class="pill pill--warning">WARNING</span></td>
-          <td data-label="Rule"><a class="rule-code" href="https://rohithv16.github.io/aem-code-analyser/issues/#aem-qual-001" target="_blank" rel="noopener" title="What AEM-QUAL-001 means and how to fix it">AEM-QUAL-001 ↗</a><a class="permalink" href="#f-5" title="Link to this finding" aria-label="Link to this finding">#</a></td>
-          <td data-label="Location"><span class="loc">bundle/<wbr>src/<wbr>main/<wbr>java/<wbr>com/<wbr>acme/<wbr>servlet/<wbr>OneServlet.<wbr>java:4</span></td>
-          <td data-label="Finding">
-            <p class="finding">Servlet &#x27;com.acme.servlet.OneServlet&#x27; is registered with absolute path(s) &#x27;/bin/acme/dup&#x27;. Cloud Manager rule CQBP-75 requires registering servlets by resourceType (&#x27;sling.servlet.resourceTypes&#x27;).</p>
-            <p class="fix"><strong>Fix</strong>Bind servlet using &#x27;sling.servlet.resourceTypes&#x27; instead of &#x27;sling.servlet.paths&#x27; to ensure JCR ACL enforcement, vanity path resolution, and cacheability.</p>
-            <a class="fix-link" href="https://rohithv16.github.io/aem-code-analyser/issues/#aem-qual-001" target="_blank" rel="noopener">Read the fix for AEM-QUAL-001 ↗</a>
+          <td><span class="pill pill-warning">WARNING</span></td>
+          <td><span class="rule-code">AEM-QUAL-001</span><a class="permalink" href="#f-5" title="Link to this finding" aria-label="Link to this finding">#</a></td>
+          <td><span class="code-loc">bundle/src/main/java/com/acme/servlet/OneServlet.java:4</span></td>
+          <td>
+            <div><strong>Servlet &#x27;com.acme.servlet.OneServlet&#x27; is registered with absolute path(s) &#x27;/bin/acme/dup&#x27;. Cloud Manager rule CQBP-75 requires registering servlets by resourceType (&#x27;sling.servlet.resourceTypes&#x27;).</strong></div>
+            <div class="remediation">💡 <strong>Remediation:</strong> Bind servlet using &#x27;sling.servlet.resourceTypes&#x27; instead of &#x27;sling.servlet.paths&#x27; to ensure JCR ACL enforcement, vanity path resolution, and cacheability.</div>
           </td>
         </tr>
         <tr class="violation-row" id="f-6" data-severity="WARNING" data-category="SEC" data-rule="AEM-SEC-002" data-path="bundle/src/main/java/com/acme/servlet/Redirects.java" data-line="13" data-message="Redirect target is not a constant and may be user-controlled." data-remediation="Validate the target against an allowlist and never pass request parameters directly into redirects or outbound HTTP clients.">
-          <td data-label="Severity"><span class="pill pill--warning">WARNING</span></td>
-          <td data-label="Rule"><a class="rule-code" href="https://rohithv16.github.io/aem-code-analyser/issues/#aem-sec-002" target="_blank" rel="noopener" title="What AEM-SEC-002 means and how to fix it">AEM-SEC-002 ↗</a><a class="permalink" href="#f-6" title="Link to this finding" aria-label="Link to this finding">#</a></td>
-          <td data-label="Location"><span class="loc">bundle/<wbr>src/<wbr>main/<wbr>java/<wbr>com/<wbr>acme/<wbr>servlet/<wbr>Redirects.<wbr>java:13</span></td>
-          <td data-label="Finding">
-            <p class="finding">Redirect target is not a constant and may be user-controlled.</p>
-            <p class="fix"><strong>Fix</strong>Validate the target against an allowlist and never pass request parameters directly into redirects or outbound HTTP clients.</p>
-            <a class="fix-link" href="https://rohithv16.github.io/aem-code-analyser/issues/#aem-sec-002" target="_blank" rel="noopener">Read the fix for AEM-SEC-002 ↗</a>
+          <td><span class="pill pill-warning">WARNING</span></td>
+          <td><span class="rule-code">AEM-SEC-002</span><a class="permalink" href="#f-6" title="Link to this finding" aria-label="Link to this finding">#</a></td>
+          <td><span class="code-loc">bundle/src/main/java/com/acme/servlet/Redirects.java:13</span></td>
+          <td>
+            <div><strong>Redirect target is not a constant and may be user-controlled.</strong></div>
+            <div class="remediation">💡 <strong>Remediation:</strong> Validate the target against an allowlist and never pass request parameters directly into redirects or outbound HTTP clients.</div>
           </td>
         </tr>
         <tr class="violation-row" id="f-7" data-severity="WARNING" data-category="QUAL" data-rule="AEM-QUAL-001" data-path="bundle/src/main/java/com/acme/servlet/ThreeServlet.java" data-line="4" data-message="Servlet &#x27;com.acme.servlet.ThreeServlet&#x27; is registered with absolute path(s) &#x27;/bin/acme/dup&#x27;. Cloud Manager rule CQBP-75 requires registering servlets by resourceType (&#x27;sling.servlet.resourceTypes&#x27;)." data-remediation="Bind servlet using &#x27;sling.servlet.resourceTypes&#x27; instead of &#x27;sling.servlet.paths&#x27; to ensure JCR ACL enforcement, vanity path resolution, and cacheability.">
-          <td data-label="Severity"><span class="pill pill--warning">WARNING</span></td>
-          <td data-label="Rule"><a class="rule-code" href="https://rohithv16.github.io/aem-code-analyser/issues/#aem-qual-001" target="_blank" rel="noopener" title="What AEM-QUAL-001 means and how to fix it">AEM-QUAL-001 ↗</a><a class="permalink" href="#f-7" title="Link to this finding" aria-label="Link to this finding">#</a></td>
-          <td data-label="Location"><span class="loc">bundle/<wbr>src/<wbr>main/<wbr>java/<wbr>com/<wbr>acme/<wbr>servlet/<wbr>ThreeServlet.<wbr>java:4</span></td>
-          <td data-label="Finding">
-            <p class="finding">Servlet &#x27;com.acme.servlet.ThreeServlet&#x27; is registered with absolute path(s) &#x27;/bin/acme/dup&#x27;. Cloud Manager rule CQBP-75 requires registering servlets by resourceType (&#x27;sling.servlet.resourceTypes&#x27;).</p>
-            <p class="fix"><strong>Fix</strong>Bind servlet using &#x27;sling.servlet.resourceTypes&#x27; instead of &#x27;sling.servlet.paths&#x27; to ensure JCR ACL enforcement, vanity path resolution, and cacheability.</p>
-            <a class="fix-link" href="https://rohithv16.github.io/aem-code-analyser/issues/#aem-qual-001" target="_blank" rel="noopener">Read the fix for AEM-QUAL-001 ↗</a>
+          <td><span class="pill pill-warning">WARNING</span></td>
+          <td><span class="rule-code">AEM-QUAL-001</span><a class="permalink" href="#f-7" title="Link to this finding" aria-label="Link to this finding">#</a></td>
+          <td><span class="code-loc">bundle/src/main/java/com/acme/servlet/ThreeServlet.java:4</span></td>
+          <td>
+            <div><strong>Servlet &#x27;com.acme.servlet.ThreeServlet&#x27; is registered with absolute path(s) &#x27;/bin/acme/dup&#x27;. Cloud Manager rule CQBP-75 requires registering servlets by resourceType (&#x27;sling.servlet.resourceTypes&#x27;).</strong></div>
+            <div class="remediation">💡 <strong>Remediation:</strong> Bind servlet using &#x27;sling.servlet.resourceTypes&#x27; instead of &#x27;sling.servlet.paths&#x27; to ensure JCR ACL enforcement, vanity path resolution, and cacheability.</div>
           </td>
         </tr>
         <tr class="violation-row" id="f-8" data-severity="WARNING" data-category="QUAL" data-rule="AEM-QUAL-001" data-path="bundle/src/main/java/com/acme/servlet/TwoServlet.java" data-line="4" data-message="Servlet &#x27;com.acme.servlet.TwoServlet&#x27; is registered with absolute path(s) &#x27;/bin/acme/dup&#x27;. Cloud Manager rule CQBP-75 requires registering servlets by resourceType (&#x27;sling.servlet.resourceTypes&#x27;)." data-remediation="Bind servlet using &#x27;sling.servlet.resourceTypes&#x27; instead of &#x27;sling.servlet.paths&#x27; to ensure JCR ACL enforcement, vanity path resolution, and cacheability.">
-          <td data-label="Severity"><span class="pill pill--warning">WARNING</span></td>
-          <td data-label="Rule"><a class="rule-code" href="https://rohithv16.github.io/aem-code-analyser/issues/#aem-qual-001" target="_blank" rel="noopener" title="What AEM-QUAL-001 means and how to fix it">AEM-QUAL-001 ↗</a><a class="permalink" href="#f-8" title="Link to this finding" aria-label="Link to this finding">#</a></td>
-          <td data-label="Location"><span class="loc">bundle/<wbr>src/<wbr>main/<wbr>java/<wbr>com/<wbr>acme/<wbr>servlet/<wbr>TwoServlet.<wbr>java:4</span></td>
-          <td data-label="Finding">
-            <p class="finding">Servlet &#x27;com.acme.servlet.TwoServlet&#x27; is registered with absolute path(s) &#x27;/bin/acme/dup&#x27;. Cloud Manager rule CQBP-75 requires registering servlets by resourceType (&#x27;sling.servlet.resourceTypes&#x27;).</p>
-            <p class="fix"><strong>Fix</strong>Bind servlet using &#x27;sling.servlet.resourceTypes&#x27; instead of &#x27;sling.servlet.paths&#x27; to ensure JCR ACL enforcement, vanity path resolution, and cacheability.</p>
-            <a class="fix-link" href="https://rohithv16.github.io/aem-code-analyser/issues/#aem-qual-001" target="_blank" rel="noopener">Read the fix for AEM-QUAL-001 ↗</a>
+          <td><span class="pill pill-warning">WARNING</span></td>
+          <td><span class="rule-code">AEM-QUAL-001</span><a class="permalink" href="#f-8" title="Link to this finding" aria-label="Link to this finding">#</a></td>
+          <td><span class="code-loc">bundle/src/main/java/com/acme/servlet/TwoServlet.java:4</span></td>
+          <td>
+            <div><strong>Servlet &#x27;com.acme.servlet.TwoServlet&#x27; is registered with absolute path(s) &#x27;/bin/acme/dup&#x27;. Cloud Manager rule CQBP-75 requires registering servlets by resourceType (&#x27;sling.servlet.resourceTypes&#x27;).</strong></div>
+            <div class="remediation">💡 <strong>Remediation:</strong> Bind servlet using &#x27;sling.servlet.resourceTypes&#x27; instead of &#x27;sling.servlet.paths&#x27; to ensure JCR ACL enforcement, vanity path resolution, and cacheability.</div>
           </td>
         </tr>
         <tr class="violation-row" id="f-9" data-severity="WARNING" data-category="CLOUD" data-rule="AEM-CLOUD-003" data-path="ui.config/src/main/content/jcr_root/apps/acme/osgiconfig/config.author/org.apache.sling.serviceusermapping.impl.ServiceUserMapperImpl.amended-acme.cfg.json" data-line="1" data-message="Service user &#x27;acme-user&#x27; mapped for subservice &#x27;sub&#x27; in ServiceUserMapperImpl.amended is not declared in any repoinit script, JCR rep:SystemUser package, or ACL configuration." data-remediation="Declare the system user via repoinit (&#x27;create service user acme-user&#x27;) or JCR rep:SystemUser package before deployment.">
-          <td data-label="Severity"><span class="pill pill--warning">WARNING</span></td>
-          <td data-label="Rule"><a class="rule-code" href="https://rohithv16.github.io/aem-code-analyser/issues/#aem-cloud-003" target="_blank" rel="noopener" title="What AEM-CLOUD-003 means and how to fix it">AEM-CLOUD-003 ↗</a><a class="permalink" href="#f-9" title="Link to this finding" aria-label="Link to this finding">#</a></td>
-          <td data-label="Location"><span class="loc">ui.<wbr>config/<wbr>src/<wbr>main/<wbr>content/<wbr>jcr_root/<wbr>apps/<wbr>acme/<wbr>osgiconfig/<wbr>config.<wbr>author/<wbr>org.<wbr>apache.<wbr>sling.<wbr>serviceusermapping.<wbr>impl.<wbr>ServiceUserMapperImpl.<wbr>amended-acme.<wbr>cfg.<wbr>json:1</span></td>
-          <td data-label="Finding">
-            <p class="finding">Service user &#x27;acme-user&#x27; mapped for subservice &#x27;sub&#x27; in ServiceUserMapperImpl.amended is not declared in any repoinit script, JCR rep:SystemUser package, or ACL configuration.</p>
-            <p class="fix"><strong>Fix</strong>Declare the system user via repoinit (&#x27;create service user acme-user&#x27;) or JCR rep:SystemUser package before deployment.</p>
-            <a class="fix-link" href="https://rohithv16.github.io/aem-code-analyser/issues/#aem-cloud-003" target="_blank" rel="noopener">Read the fix for AEM-CLOUD-003 ↗</a>
+          <td><span class="pill pill-warning">WARNING</span></td>
+          <td><span class="rule-code">AEM-CLOUD-003</span><a class="permalink" href="#f-9" title="Link to this finding" aria-label="Link to this finding">#</a></td>
+          <td><span class="code-loc">ui.config/src/main/content/jcr_root/apps/acme/osgiconfig/config.author/org.apache.sling.serviceusermapping.impl.ServiceUserMapperImpl.amended-acme.cfg.json:1</span></td>
+          <td>
+            <div><strong>Service user &#x27;acme-user&#x27; mapped for subservice &#x27;sub&#x27; in ServiceUserMapperImpl.amended is not declared in any repoinit script, JCR rep:SystemUser package, or ACL configuration.</strong></div>
+            <div class="remediation">💡 <strong>Remediation:</strong> Declare the system user via repoinit (&#x27;create service user acme-user&#x27;) or JCR rep:SystemUser package before deployment.</div>
           </td>
         </tr>
         <tr class="violation-row" id="f-10" data-severity="INFO" data-category="DEAD" data-rule="AEM-DEAD-005" data-path="ui.apps/src/main/content/jcr_root/apps/acme/components/widget/clientlibs/orphan/.content.xml" data-line="1" data-message="Client library category &#x27;acmeorphanlib&#x27; is never referenced by a template or another client library." data-remediation="Reference the category from an HTL/JSP template (clientlib call) or delete the client library.">
-          <td data-label="Severity"><span class="pill pill--info">INFO</span></td>
-          <td data-label="Rule"><a class="rule-code" href="https://rohithv16.github.io/aem-code-analyser/issues/#aem-dead-005" target="_blank" rel="noopener" title="What AEM-DEAD-005 means and how to fix it">AEM-DEAD-005 ↗</a><a class="permalink" href="#f-10" title="Link to this finding" aria-label="Link to this finding">#</a></td>
-          <td data-label="Location"><span class="loc">ui.<wbr>apps/<wbr>src/<wbr>main/<wbr>content/<wbr>jcr_root/<wbr>apps/<wbr>acme/<wbr>components/<wbr>widget/<wbr>clientlibs/<wbr>orphan/<wbr>.<wbr>content.<wbr>xml:1</span></td>
-          <td data-label="Finding">
-            <p class="finding">Client library category &#x27;acmeorphanlib&#x27; is never referenced by a template or another client library.</p>
-            <p class="fix"><strong>Fix</strong>Reference the category from an HTL/JSP template (clientlib call) or delete the client library.</p>
-            <a class="fix-link" href="https://rohithv16.github.io/aem-code-analyser/issues/#aem-dead-005" target="_blank" rel="noopener">Read the fix for AEM-DEAD-005 ↗</a>
+          <td><span class="pill pill-info">INFO</span></td>
+          <td><span class="rule-code">AEM-DEAD-005</span><a class="permalink" href="#f-10" title="Link to this finding" aria-label="Link to this finding">#</a></td>
+          <td><span class="code-loc">ui.apps/src/main/content/jcr_root/apps/acme/components/widget/clientlibs/orphan/.content.xml:1</span></td>
+          <td>
+            <div><strong>Client library category &#x27;acmeorphanlib&#x27; is never referenced by a template or another client library.</strong></div>
+            <div class="remediation">💡 <strong>Remediation:</strong> Reference the category from an HTL/JSP template (clientlib call) or delete the client library.</div>
           </td>
         </tr>
       </tbody>
     </table>
-    </div>
   </div>
-</section>
-<section id="tab-overview" class="tab-panel" role="tabpanel" aria-labelledby="tabbtn-overview" tabindex="0">
-  <div class="panel">
-    <div class="panel__head">
-      <h2>Rules in this report</h2>
-      <p class="panel__hint">Ordered by number of findings.</p>
-    </div>
-    <div class="table-scroll"><table class="compact">
-      <thead><tr><th scope="col">Rule</th><th scope="col">Findings</th><th scope="col">Worst severity</th><th scope="col">Fix</th></tr></thead>
-      <tbody>
-        <tr><td><a class="rule-code" href="https://rohithv16.github.io/aem-code-analyser/issues/#aem-qual-001" target="_blank" rel="noopener">AEM-QUAL-001</a></td><td class="num">3</td><td><span class="pill pill--warning">WARNING</span></td><td><a href="https://rohithv16.github.io/aem-code-analyser/issues/#aem-qual-001" target="_blank" rel="noopener">Open fix guide ↗</a></td></tr>
-        <tr><td><a class="rule-code" href="https://rohithv16.github.io/aem-code-analyser/issues/#aem-dup-001" target="_blank" rel="noopener">AEM-DUP-001</a></td><td class="num">2</td><td><span class="pill pill--error">ERROR</span></td><td><a href="https://rohithv16.github.io/aem-code-analyser/issues/#aem-dup-001" target="_blank" rel="noopener">Open fix guide ↗</a></td></tr>
-        <tr><td><a class="rule-code" href="https://rohithv16.github.io/aem-code-analyser/issues/#aem-dead-001" target="_blank" rel="noopener">AEM-DEAD-001</a></td><td class="num">2</td><td><span class="pill pill--error">ERROR</span></td><td><a href="https://rohithv16.github.io/aem-code-analyser/issues/#aem-dead-001" target="_blank" rel="noopener">Open fix guide ↗</a></td></tr>
-        <tr><td><a class="rule-code" href="https://rohithv16.github.io/aem-code-analyser/issues/#aem-sec-002" target="_blank" rel="noopener">AEM-SEC-002</a></td><td class="num">1</td><td><span class="pill pill--warning">WARNING</span></td><td><a href="https://rohithv16.github.io/aem-code-analyser/issues/#aem-sec-002" target="_blank" rel="noopener">Open fix guide ↗</a></td></tr>
-        <tr><td><a class="rule-code" href="https://rohithv16.github.io/aem-code-analyser/issues/#aem-dead-005" target="_blank" rel="noopener">AEM-DEAD-005</a></td><td class="num">1</td><td><span class="pill pill--info">INFO</span></td><td><a href="https://rohithv16.github.io/aem-code-analyser/issues/#aem-dead-005" target="_blank" rel="noopener">Open fix guide ↗</a></td></tr>
-        <tr><td><a class="rule-code" href="https://rohithv16.github.io/aem-code-analyser/issues/#aem-cloud-003" target="_blank" rel="noopener">AEM-CLOUD-003</a></td><td class="num">1</td><td><span class="pill pill--warning">WARNING</span></td><td><a href="https://rohithv16.github.io/aem-code-analyser/issues/#aem-cloud-003" target="_blank" rel="noopener">Open fix guide ↗</a></td></tr>
-      </tbody>
-    </table></div>
+</div>
+</div>
+<div id="tab-overview" class="tab-content" role="tabpanel" aria-labelledby="tabbtn-overview">
+<div class="section">
+  <div class="section-header">
+    <h2>Architecture & Quality Overview</h2>
   </div>
-  <div class="panel">
-    <div class="panel__head"><h2>Distribution and scan facts</h2></div>
-    <div class="grid">
-      <div class="stat">
-        <h3>Severity</h3>
-        <div class="bar" role="img" aria-label="Severity distribution"><span class="bar--error" style="width:40.000%"></span><span class="bar--warn" style="width:50.000%"></span><span class="bar--info" style="width:10.000%"></span></div>
-        <ul class="kv">
-          <li><span>Errors</span><strong class="t-error">4</strong></li>
-          <li><span>Warnings</span><strong class="t-warn">5</strong></li>
-          <li><span>Info</span><strong class="t-info">1</strong></li>
-        </ul>
+  <div class="details-grid">
+    <div class="stat-box">
+      <h4>Severity Distribution</h4>
+      <div class="chart-bar-container">
+        <div class="chart-bar-err" style="width:40.0%;"></div>
+        <div class="chart-bar-warn" style="width:50.0%;"></div>
+        <div class="chart-bar-info" style="width:10.0%;"></div>
       </div>
-      <div class="stat">
-        <h3>Repository</h3>
-        <ul class="kv">
-          <li><span>bundles</span><strong>0</strong></li>
-          <li><span>cloudConfigs</span><strong>0</strong></li>
-          <li><span>codeBlocks</span><strong>0</strong></li>
-          <li><span>components</span><strong>8</strong></li>
-          <li><span>cqComponents</span><strong>0</strong></li>
-          <li><span>edges</span><strong>7</strong></li>
-          <li><span>htlUsages</span><strong>0</strong></li>
-          <li><span>modules</span><strong>4</strong></li>
-          <li><span>osgiConfigs</span><strong>4</strong></li>
-          <li><span>slingModels</span><strong>0</strong></li>
-        </ul>
-      </div>
-      <div class="stat">
-        <h3>Code metrics</h3>
-        <ul class="kv">
-          <li><span>Java classes</span><strong>12</strong></li>
-          <li><span>Lines of code</span><strong>68</strong></li>
-          <li><span>Duplicate blocks</span><strong>0</strong></li>
-          <li><span>Duplicated lines</span><strong>0</strong></li>
-        </ul>
-      </div>
+      <ul style="margin-top:1rem;">
+        <li><span>Errors</span><strong style="color:var(--danger);">4</strong></li>
+        <li><span>Warnings</span><strong style="color:var(--warning);">5</strong></li>
+        <li><span>Info</span><strong style="color:var(--info);">1</strong></li>
+      </ul>
+    </div>
+    <div class="stat-box">
+      <h4>Repository Topology</h4>
+      <ul>
+        <li><span>bundles</span><strong>0</strong></li>
+        <li><span>cloudConfigs</span><strong>0</strong></li>
+        <li><span>codeBlocks</span><strong>0</strong></li>
+        <li><span>components</span><strong>8</strong></li>
+        <li><span>cqComponents</span><strong>0</strong></li>
+        <li><span>edges</span><strong>7</strong></li>
+        <li><span>htlUsages</span><strong>0</strong></li>
+        <li><span>modules</span><strong>4</strong></li>
+        <li><span>osgiConfigs</span><strong>4</strong></li>
+        <li><span>slingModels</span><strong>0</strong></li>
+      </ul>
+    </div>
+    <div class="stat-box">
+      <h4>Codebase Metrics</h4>
+      <ul>
+        <li><span>Total Java Classes</span><strong>12</strong></li>
+        <li><span>Total Java Lines</span><strong>68</strong></li>
+        <li><span>Duplicate Method Blocks</span><strong>0</strong></li>
+        <li><span>Total Duplicated Lines</span><strong>0</strong></li>
+      </ul>
     </div>
   </div>
-</section>
-<section id="tab-health" class="tab-panel" role="tabpanel" aria-labelledby="tabbtn-health" tabindex="0">
-  <div class="panel">
-    <div class="panel__head">
-      <h2>Run Diagnostics (0)</h2>
-      <p class="panel__hint">Non-fatal problems: a reported file was skipped or only partially analysed.</p>
-    </div>
-    <div class="empty"><span class="empty__mark">✓</span><div>No parser or scan diagnostics: every discovered file was analysed.</div></div>
+</div>
+</div>
+<div id="tab-health" class="tab-content" role="tabpanel" aria-labelledby="tabbtn-health">
+<div class="section">
+  <div class="section-header">
+    <h2>Run Diagnostics (0)</h2>
   </div>
-  <div class="panel">
-    <div class="panel__head">
-      <h2>Accepted by Baseline <span class="count">0</span></h2>
-      <p class="panel__hint">Frozen in <span class="mono">.aem-analyser-baseline.json</span> and excluded from totals and exit codes.</p>
-    </div>
-    <div class="empty"><span class="empty__mark">·</span><div>No findings are suppressed by a baseline.</div></div>
+  <div class="empty-state">No parser or scan diagnostics: every discovered file was analysed.</div>
+</div>
+<div class="section">
+  <div class="section-header">
+    <h2>Accepted by Baseline (0)</h2>
   </div>
-</section>
-<section id="tab-duplication" class="tab-panel" role="tabpanel" aria-labelledby="tabbtn-duplication" tabindex="0">
-  <div class="panel">
-    <div class="panel__head">
-      <h2>Classes with duplicated code <span class="count">0</span></h2>
-      <p class="panel__hint">From the embedded PMD CPD scan.</p>
-    </div>
-    <div class="table-scroll"><table class="compact">
-      <thead><tr><th scope="col">Class</th><th scope="col">File</th><th scope="col">Duplicated lines</th><th scope="col">Share of class</th></tr></thead>
+  <div class="empty-state">No findings are suppressed by a baseline.</div>
+</div>
+</div>
+<div id="tab-duplication" class="tab-content" role="tabpanel" aria-labelledby="tabbtn-duplication">
+<div class="section">
+  <div class="section-header">
+    <h2>PMD CPD Duplication Breakdown (0 Classes)</h2>
+  </div>
+  <div style="overflow-x:auto;">
+    <table>
+      <thead>
+        <tr>
+          <th>Class Name</th>
+          <th style="width:180px;">Duplicate Lines</th>
+          <th style="width:180px;">Class Duplication %</th>
+        </tr>
+      </thead>
       <tbody>
-        <tr><td colspan="4" class="muted">No duplicated code clones detected.</td></tr>
+        <tr><td colspan="3" style="text-align:center;padding:2rem;color:var(--success);">Zero duplicated code clones detected!</td></tr>
       </tbody>
-    </table></div>
+    </table>
   </div>
-</section>
-<section id="tab-coverage" class="tab-panel" role="tabpanel" aria-labelledby="tabbtn-coverage" tabindex="0">
-  <div class="panel">
-    <div class="panel__head"><h2>JaCoCo coverage</h2></div>
-    <div class="empty"><span class="empty__mark">·</span><div>No JaCoCo coverage file was detected in the standard target directories. Run with <span class="mono">--collect-coverage</span> to execute unit tests and generate coverage data.</div></div>
+</div>
+</div>
+<div id="tab-coverage" class="tab-content" role="tabpanel" aria-labelledby="tabbtn-coverage">
+<div class="section">
+  <div class="section-header">
+    <h2>JaCoCo Test Coverage Status</h2>
   </div>
-</section>
-<section id="tab-autofix" class="tab-panel" role="tabpanel" aria-labelledby="tabbtn-autofix" tabindex="0">
-  <div class="panel">
-    <div class="panel__head">
-      <h2>Safe automated fixes</h2>
-      <p class="panel__hint">Deterministic repairs that <span class="mono">--fix</span> applies in place.</p>
-    </div>
-    <div class="table-scroll"><table class="compact">
-      <thead><tr><th scope="col">SonarJava rule</th><th scope="col">What it rewrites</th></tr></thead>
-      <tbody>
-        <tr><td class="mono">java:S1128</td><td>Removes redundant duplicate import statements, keeping package and class layout intact.</td></tr>
-        <tr><td class="mono">java:S1125</td><td>Drops redundant <span class="mono">== true</span> and <span class="mono">== false</span> comparisons.</td></tr>
-        <tr><td class="mono">java:S4719</td><td>Replaces the literal <span class="mono">&quot;UTF-8&quot;</span> in <span class="mono">.getBytes()</span> with <span class="mono">StandardCharsets.UTF_8</span> and adds the import.</td></tr>
-      </tbody>
-    </table></div>
-    <div class="callout">
-      <p><strong>Preview first.</strong> <span class="mono">--fix-dry-run</span> prints the diff without touching files; <span class="mono">--fix</span> writes it.</p>
+  <div class="details-grid">
+    <div class="stat-box" style="grid-column: 1 / -1; padding: 2rem; text-align: center;">
+      <p style="color:var(--text-secondary);font-size:1rem;">No JaCoCo coverage file was detected in standard target directories.<br>Run with <code>--collect-coverage</code> to execute unit tests and generate coverage artifacts automatically.</p>
     </div>
   </div>
-</section>
-</main>
-<footer class="foot">
-  <span>Generated by AEM Code Analyser <span class="mono">v1.0.11-SNAPSHOT</span></span>
-  <span>Rule explanations and fixes: <a href="https://rohithv16.github.io/aem-code-analyser/issues/#" target="_blank" rel="noopener">issue reference</a></span>
-  <span class="mono">2026-11-17 09:56:39 IST</span>
+</div>
+</div>
+<div id="tab-autofix" class="tab-content" role="tabpanel" aria-labelledby="tabbtn-autofix">
+<div class="section">
+  <div class="section-header">
+    <h2>Safe Automated Remediation Engine (--fix)</h2>
+  </div>
+  <div style="padding:1.5rem;">
+    <p style="margin-bottom:1rem;color:var(--text-secondary);">The analyzer includes an integrated auto-fix engine capable of safely resolving deterministic code smells in place:</p>
+    <ul style="margin-left:1.5rem;color:var(--text-primary);line-height:1.8;">
+      <li><strong>java:S1128 (Duplicate Imports):</strong> Automatically detects and removes redundant duplicate import statements while preserving package and class layout.</li>
+      <li><strong>java:S1125 (Boolean Literals):</strong> Cleans up redundant <code>== true</code> and <code>== false</code> comparisons.</li>
+      <li><strong>java:S4719 (StandardCharsets):</strong> Replaces literal <code>"UTF-8"</code> in <code>.getBytes()</code> with <code>StandardCharsets.UTF_8</code> and inserts necessary imports.</li>
+    </ul>
+    <div style="margin-top:1.5rem;background:#f1f5f9;padding:1rem;border-radius:8px;border-left:4px solid var(--accent);">
+      <p>💡 <strong>Usage:</strong> Run <code>aem-analyser --fix</code> to apply safe repairs, or <code>aem-analyser --fix-dry-run</code> to preview changes without modifying files.</p>
+    </div>
+  </div>
+</div>
+</div>
+<footer>
+  <p>Generated by AEM Code Analyser v1.0.10 &bull; Zero-config Inner-loop Engine &bull; Strictly <code>io.github.rohithv16</code></p>
 </footer>
 <div id="toast" role="status" aria-live="polite"></div>
 <script>
 (function () {
-  'use strict';
+    'use strict';
 
-  var root = document.documentElement;
-  var themeToggle = document.getElementById('themeToggle');
-  var toast = document.getElementById('toast');
-  var searchInput = document.getElementById('searchInput');
-  var filterButtons = Array.prototype.slice.call(document.querySelectorAll('.chip'));
-  var tabButtons = Array.prototype.slice.call(document.querySelectorAll('.tab'));
-  var tabPanels = Array.prototype.slice.call(document.querySelectorAll('.tab-panel'));
-  var groupBy = document.getElementById('groupBy');
-  var resultCount = document.getElementById('resultCount');
-  var table = document.getElementById('violationsTable');
-  var tbody = table ? table.querySelector('tbody') : null;
+    var root = document.documentElement;
+    var themeToggle = document.getElementById('themeToggle');
+    var toast = document.getElementById('toast');
+    var searchInput = document.getElementById('searchInput');
+    var filterButtons = Array.prototype.slice.call(document.querySelectorAll('.filter-btn'));
+    var tabButtons = Array.prototype.slice.call(document.querySelectorAll('.tab-btn'));
+    var tabContents = Array.prototype.slice.call(document.querySelectorAll('.tab-content'));
+    var groupBy = document.getElementById('groupBy');
+    var resultCount = document.getElementById('resultCount');
+    var table = document.getElementById('violationsTable');
+    var tbody = table ? table.querySelector('tbody') : null;
 
-  var activeFilter = 'all';
-  var activeCategory = null;
-  var groupMode = 'none';
-  var sortKey = 'severity';
-  var sortDir = 'asc';
-  var activeTab = 'tab-violations';
+    var activeFilter = 'all';
+    var activeCategory = null;
+    var groupMode = 'none';
+    var sortKey = 'severity';
+    var sortDir = 'asc';
+    var activeTab = 'tab-violations';
 
-  function showToast(message) {
-    if (!toast) return;
-    toast.textContent = message;
-    toast.classList.add('show');
-    window.setTimeout(function () { toast.classList.remove('show'); }, 1700);
-  }
-
-  function store(key, value) {
-    try { localStorage.setItem(key, value); } catch (e) { }
-  }
-  function read(key) {
-    try { return localStorage.getItem(key); } catch (e) { return null; }
-  }
-
-  function applyTheme(value) {
-    root.setAttribute('data-theme', value);
-    if (themeToggle) {
-      themeToggle.setAttribute('aria-pressed', value === 'dark' ? 'true' : 'false');
-      themeToggle.setAttribute('aria-label',
-        value === 'dark' ? 'Switch to light mode' : 'Switch to dark mode');
+    function showToast(message) {
+        if (!toast) return;
+        toast.textContent = message;
+        toast.classList.add('show');
+        window.setTimeout(function () { toast.classList.remove('show'); }, 1800);
     }
-  }
-  var initialTheme = read('aem-analyser-theme');
-  if (!initialTheme) {
-    initialTheme = window.matchMedia
-      && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-  }
-  applyTheme(initialTheme);
-  if (themeToggle) {
-    themeToggle.addEventListener('click', function () {
-      var next = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
-      applyTheme(next);
-      store('aem-analyser-theme', next);
-    });
-  }
 
-  function activateTab(id, focus) {
-    var found = false;
-    tabButtons.forEach(function (button) {
-      var selected = button.getAttribute('data-tab') === id;
-      button.classList.toggle('is-active', selected);
-      button.setAttribute('aria-selected', selected ? 'true' : 'false');
-      button.tabIndex = selected ? 0 : -1;
-      if (selected && focus) button.focus();
-      found = found || selected;
-    });
-    if (!found) {
-      if (!'tab-violations'.equals(id)) {
-        activateTab('tab-violations', focus);
-        return;
-      }
-      id = 'tab-violations';
+    // --- Theme -------------------------------------------------
+    function readTheme() {
+        try { return localStorage.getItem('aem-analyser-theme'); } catch (e) { return null; }
     }
-    tabPanels.forEach(function (panel) {
-      panel.classList.toggle('is-active', panel.id === id);
-    });
-    activeTab = id;
-  }
-
-  tabButtons.forEach(function (button, index) {
-    button.addEventListener('click', function () {
-      activateTab(button.getAttribute('data-tab'), false);
-      syncHash();
-    });
-    button.addEventListener('keydown', function (event) {
-      var next = null;
-      if (event.key === 'ArrowRight') next = (index + 1) % tabButtons.length;
-      if (event.key === 'ArrowLeft') next = (index - 1 + tabButtons.length) % tabButtons.length;
-      if (event.key === 'Home') next = 0;
-      if (event.key === 'End') next = tabButtons.length - 1;
-      if (next !== null) {
-        event.preventDefault();
-        activateTab(tabButtons[next].getAttribute('data-tab'), true);
-        syncHash();
-      }
-    });
-  });
-
-  function rows() {
-    return tbody ? Array.prototype.slice.call(tbody.querySelectorAll('tr.violation-row')) : [];
-  }
-
-  function matches(row) {
-    var severity = row.getAttribute('data-severity');
-    var category = row.getAttribute('data-category');
-    var query = searchInput ? searchInput.value.toLowerCase().trim() : '';
-    if (activeFilter !== 'all' && severity !== activeFilter) return false;
-    if (activeCategory && category !== activeCategory) return false;
-    if (query && row.textContent.toLowerCase().indexOf(query) === -1) return false;
-    return true;
-  }
-
-  function updateCount() {
-    if (!resultCount) return;
-    var list = rows();
-    var visible = list.filter(function (row) { return !row.hidden; }).length;
-    resultCount.textContent = visible + ' of ' + list.length + (list.length === 1 ? ' finding shown' : ' findings shown');
-  }
-
-  function rebuildGroups() {
-    if (!tbody) return;
-    Array.prototype.slice.call(tbody.querySelectorAll('tr.group-row'))
-      .forEach(function (row) { row.remove(); });
-    if (groupMode === 'none') return;
-
-    var currentKey = null;
-    var header = null;
-    var count = 0;
-    rows().forEach(function (row) {
-      var key = groupMode === 'rule'
-        ? row.getAttribute('data-rule')
-        : row.getAttribute('data-path');
-      if (key !== currentKey) {
-        if (header) header.querySelector('.group-count').textContent = count;
-        header = document.createElement('tr');
-        header.className = 'group-row';
-        var cell = document.createElement('td');
-        cell.colSpan = 4;
-        var label = document.createElement('span');
-        label.textContent = key;
-        var badge = document.createElement('span');
-        badge.className = 'group-count';
-        badge.textContent = '0';
-        cell.appendChild(label);
-        cell.appendChild(badge);
-        header.appendChild(cell);
-        count = 0;
-        currentKey = key;
-        row.parentNode.insertBefore(header, row);
-      }
-      if (!row.hidden) count++;
-    });
-    if (header) header.querySelector('.group-count').textContent = count;
-    Array.prototype.slice.call(tbody.querySelectorAll('tr.group-row')).forEach(function (row) {
-      if (row.querySelector('.group-count').textContent === '0') row.hidden = true;
-    });
-  }
-
-  function applyFilters() {
-    if (!tbody) return;
-    rows().forEach(function (row) { row.hidden = !matches(row); });
-    rebuildGroups();
-    updateCount();
-    syncHash();
-  }
-
-  function severityRank(value) {
-    return value === 'ERROR' ? 0 : value === 'WARNING' ? 1 : 2;
-  }
-
-  function updateSortIndicators() {
-    if (!table) return;
-    Array.prototype.slice.call(table.querySelectorAll('th.sortable')).forEach(function (th) {
-      var active = th.getAttribute('data-sort') === sortKey;
-      th.setAttribute('aria-sort', active
-        ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none');
-    });
-  }
-
-  function sortRows(key, direction) {
-    if (!tbody) return;
-    sortKey = key;
-    sortDir = direction;
-    var list = rows();
-    list.sort(function (a, b) {
-      var left, right;
-      if (key === 'severity') {
-        left = severityRank(a.getAttribute('data-severity'));
-        right = severityRank(b.getAttribute('data-severity'));
-      } else if (key === 'rule') {
-        left = a.getAttribute('data-rule');
-        right = b.getAttribute('data-rule');
-      } else if (key === 'line') {
-        left = Number(a.getAttribute('data-line'));
-        right = Number(b.getAttribute('data-line'));
-      } else {
-        left = a.getAttribute('data-path').toLowerCase();
-        right = b.getAttribute('data-path').toLowerCase();
-      }
-      if (left < right) return direction === 'asc' ? -1 : 1;
-      if (left > right) return direction === 'asc' ? 1 : -1;
-      var aTie = a.getAttribute('data-rule') + a.getAttribute('data-path')
-        + a.getAttribute('data-line');
-      var bTie = b.getAttribute('data-rule') + b.getAttribute('data-path')
-        + b.getAttribute('data-line');
-      return aTie < bTie ? -1 : (aTie > bTie ? 1 : 0);
-    });
-    var omitted = tbody.querySelector('tr.omitted-row');
-    list.forEach(function (row) { tbody.insertBefore(row, omitted || null); });
-    updateSortIndicators();
-    rebuildGroups();
-    syncHash();
-  }
-
-  if (table) {
-    Array.prototype.slice.call(table.querySelectorAll('th.sortable')).forEach(function (th) {
-      function trigger() {
-        var key = th.getAttribute('data-sort');
-        sortRows(key, key === sortKey && sortDir === 'asc' ? 'desc' : 'asc');
-      }
-      th.addEventListener('click', trigger);
-      th.addEventListener('keydown', function (event) {
-        if (event.key === 'Enter' || event.key === ' ') {
-          event.preventDefault();
-          trigger();
+    function storeTheme(value) {
+        try { localStorage.setItem('aem-analyser-theme', value); } catch (e) { /* ignore */ }
+    }
+    function applyTheme(value) {
+        root.setAttribute('data-theme', value);
+        if (themeToggle) {
+            themeToggle.textContent = value === 'dark' ? '\u2600\uFE0F' : '\uD83C\uDF19';
+            themeToggle.setAttribute('aria-pressed', value === 'dark' ? 'true' : 'false');
         }
-      });
-    });
-  }
-
-  filterButtons.forEach(function (button) {
-    button.addEventListener('click', function () {
-      if (!button.getAttribute('data-filter') && !button.getAttribute('data-category')) return;
-      filterButtons.forEach(function (other) { other.classList.remove('is-active'); });
-      button.classList.add('is-active');
-      if (button.getAttribute('data-filter')) {
-        activeFilter = button.getAttribute('data-filter');
-        activeCategory = null;
-      } else {
-        activeFilter = 'all';
-        activeCategory = button.getAttribute('data-category');
-      }
-      applyFilters();
-    });
-  });
-
-  if (searchInput) searchInput.addEventListener('input', applyFilters);
-  if (groupBy) {
-    groupBy.addEventListener('change', function () {
-      groupMode = groupBy.value;
-      rebuildGroups();
-      updateCount();
-      syncHash();
-    });
-  }
-
-  var reset = document.getElementById('resetFilters');
-  if (reset) {
-    reset.addEventListener('click', function () {
-      if (searchInput) searchInput.value = '';
-      activeFilter = 'all';
-      activeCategory = null;
-      groupMode = 'none';
-      if (groupBy) groupBy.value = 'none';
-      filterButtons.forEach(function (button) {
-        button.classList.toggle('is-active', button.getAttribute('data-filter') === 'all');
-      });
-      sortRows('severity', 'asc');
-      applyFilters();
-    });
-  }
-
-  function visibleData() {
-    return rows().filter(function (row) { return !row.hidden; }).map(function (row) {
-      return {
-        severity: row.getAttribute('data-severity'),
-        rule: row.getAttribute('data-rule'),
-        file: row.getAttribute('data-path'),
-        line: Number(row.getAttribute('data-line')),
-        message: row.getAttribute('data-message'),
-        remediation: row.getAttribute('data-remediation')
-      };
-    });
-  }
-
-  function download(name, mime, text) {
-    var blob = new Blob([text], { type: mime });
-    var link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = name;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    window.setTimeout(function () { URL.revokeObjectURL(link.href); }, 1000);
-  }
-
-  function csvCell(value) {
-    var text = String(value == null ? '' : value);
-    if (/^[=+\-@\t\r]/.test(text)) text = "'" + text;
-    return '"' + text.replace(/"/g, '""') + '"';
-  }
-
-  function toCsv(data) {
-    var lines = ['Severity,Rule,File,Line,Message,Remediation'];
-    data.forEach(function (item) {
-      lines.push([item.severity, item.rule, item.file, item.line, item.message,
-        item.remediation].map(csvCell).join(','));
-    });
-    return lines.join('\r\n');
-  }
-
-  function markdownSummary(data) {
-    var counts = { ERROR: 0, WARNING: 0, INFO: 0 };
-    data.forEach(function (item) { counts[item.severity] = (counts[item.severity] || 0) + 1; });
-    var out = ['## AEM Code Analyser summary', '',
-      '- Findings shown: ' + data.length,
-      '- Errors: ' + counts.ERROR,
-      '- Warnings: ' + counts.WARNING,
-      '- Info: ' + counts.INFO, '',
-      '| Severity | Rule | Location | Issue |', '|---|---|---|---|'];
-    data.slice(0, 50).forEach(function (item) {
-      var issue = String(item.message).split('|').join(' / ');
-      out.push('| ' + item.severity + ' | ' + item.rule + ' | ' + item.file + ':' + item.line
-        + ' | ' + issue + ' |');
-    });
-    if (data.length > 50) {
-      out.push('', '_' + (data.length - 50) + ' more finding(s) omitted._');
     }
-    return out.join('\n');
-  }
-
-  function fallbackCopy(text) {
-    var area = document.createElement('textarea');
-    area.value = text;
-    area.setAttribute('readonly', '');
-    area.style.position = 'fixed';
-    area.style.opacity = '0';
-    document.body.appendChild(area);
-    area.select();
-    try {
-      document.execCommand('copy');
-      showToast('Copied to clipboard');
-    } catch (e) {
-      showToast('Copy failed');
+    var initialTheme = readTheme();
+    if (!initialTheme) {
+        initialTheme = window.matchMedia
+            && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
     }
-    document.body.removeChild(area);
-  }
-
-  function copyText(text) {
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(text).then(function () {
-        showToast('Copied to clipboard');
-      }, function () { fallbackCopy(text); });
-    } else {
-      fallbackCopy(text);
+    applyTheme(initialTheme);
+    if (themeToggle) {
+        themeToggle.addEventListener('click', function () {
+            var next = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+            applyTheme(next);
+            storeTheme(next);
+        });
     }
-  }
 
-  var exportCsv = document.getElementById('exportCsv');
-  if (exportCsv) {
-    exportCsv.addEventListener('click', function () {
-      download('aem-analyser-findings.csv', 'text/csv', toCsv(visibleData()));
+    // --- Tabs --------------------------------------------------
+    function activateTab(id, focus) {
+        var found = false;
+        tabButtons.forEach(function (btn) {
+            var selected = btn.getAttribute('data-tab') === id;
+            btn.classList.toggle('active', selected);
+            btn.setAttribute('aria-selected', selected ? 'true' : 'false');
+            btn.setAttribute('tabindex', selected ? '0' : '-1');
+            if (selected && focus) btn.focus();
+            found = found || selected;
+        });
+        if (!found) id = 'tab-violations';
+        tabContents.forEach(function (content) {
+            content.classList.toggle('active', content.id === id);
+        });
+        activeTab = id;
+    }
+
+    tabButtons.forEach(function (btn, index) {
+        btn.addEventListener('click', function () {
+            activateTab(btn.getAttribute('data-tab'), false);
+            syncHash();
+        });
+        btn.addEventListener('keydown', function (event) {
+            var next = null;
+            if (event.key === 'ArrowRight') next = (index + 1) % tabButtons.length;
+            if (event.key === 'ArrowLeft') next = (index - 1 + tabButtons.length) % tabButtons.length;
+            if (event.key === 'Home') next = 0;
+            if (event.key === 'End') next = tabButtons.length - 1;
+            if (next !== null) {
+                event.preventDefault();
+                activateTab(tabButtons[next].getAttribute('data-tab'), true);
+                syncHash();
+            }
+        });
     });
-  }
-  var exportJson = document.getElementById('exportJson');
-  if (exportJson) {
-    exportJson.addEventListener('click', function () {
-      download('aem-analyser-findings.json', 'application/json',
-        JSON.stringify(visibleData(), null, 2));
-    });
-  }
-  var copyMarkdown = document.getElementById('copyMarkdown');
-  if (copyMarkdown) {
-    copyMarkdown.addEventListener('click', function () {
-      copyText(markdownSummary(visibleData()));
-    });
-  }
-  var copyLink = document.getElementById('copyLink');
-  if (copyLink) {
-    copyLink.addEventListener('click', function () { copyText(window.location.href); });
-  }
 
-  function syncHash() {
-    if (!window.history || !window.history.replaceState) return;
-    var params = new URLSearchParams();
-    if (activeTab !== 'tab-violations') params.set('tab', activeTab);
-    if (searchInput && searchInput.value.trim()) params.set('q', searchInput.value.trim());
-    if (activeFilter !== 'all') params.set('severity', activeFilter);
-    if (activeCategory) params.set('category', activeCategory);
-    if (groupMode !== 'none') params.set('group', groupMode);
-    if (sortKey !== 'severity' || sortDir !== 'asc') {
-      params.set('sort', sortKey + ':' + sortDir);
+    // --- Rows, filtering and grouping ---------------------------
+    function rows() {
+        return Array.prototype.slice.call(tbody.querySelectorAll('tr.violation-row'));
     }
-    var next = params.toString();
-    window.history.replaceState(null, '',
-      next ? '#' + next : window.location.pathname + window.location.search);
-  }
 
-  function restoreFromHash() {
-    var hash = window.location.hash || '';
-    if (/^#f-[0-9]+$/.test(hash)) {
-      activateTab('tab-violations', false);
-      return;
+    function matches(row) {
+        var severity = row.getAttribute('data-severity');
+        var category = row.getAttribute('data-category');
+        var query = searchInput ? searchInput.value.toLowerCase().trim() : '';
+        if (activeFilter !== 'all' && severity !== activeFilter) return false;
+        if (activeCategory && category !== activeCategory) return false;
+        if (query && row.textContent.toLowerCase().indexOf(query) === -1) return false;
+        return true;
     }
-    var params = new URLSearchParams(hash.replace(/^#/, ''));
-    if (params.get('tab')) activateTab(params.get('tab'), false);
-    if (searchInput && params.get('q')) searchInput.value = params.get('q');
-    if (params.get('severity')) activeFilter = params.get('severity');
-    if (params.get('category')) activeCategory = params.get('category');
-    if (params.get('group')) {
-      groupMode = params.get('group');
-      if (groupBy) groupBy.value = groupMode;
+
+    function updateCount() {
+        if (!resultCount) return;
+        var list = rows();
+        var visible = list.filter(function (row) { return !row.hidden; }).length;
+        resultCount.textContent = visible + ' of ' + list.length + ' finding(s) shown';
     }
-    var sort = params.get('sort');
-    if (sort) {
-      var parts = sort.split(':');
-      sortKey = parts[0] || 'severity';
-      sortDir = parts[1] === 'desc' ? 'desc' : 'asc';
+
+    function rebuildGroups() {
+        if (!tbody) return;
+        Array.prototype.slice.call(tbody.querySelectorAll('tr.group-row'))
+            .forEach(function (row) { row.remove(); });
+        if (groupMode === 'none') return;
+
+        var currentKey = null;
+        var header = null;
+        var count = 0;
+
+        rows().forEach(function (row) {
+            var key = groupMode === 'rule'
+                ? row.getAttribute('data-rule')
+                : row.getAttribute('data-path');
+            if (key !== currentKey) {
+                if (header) header.querySelector('.group-count').textContent = count;
+                header = document.createElement('tr');
+                header.className = 'group-row';
+                var cell = document.createElement('td');
+                cell.colSpan = 4;
+                var label = document.createElement('span');
+                label.className = 'group-label';
+                label.textContent = key;
+                var badge = document.createElement('span');
+                badge.className = 'group-count';
+                badge.textContent = '0';
+                cell.appendChild(label);
+                cell.appendChild(badge);
+                header.appendChild(cell);
+                count = 0;
+                currentKey = key;
+                row.parentNode.insertBefore(header, row);
+            }
+            if (!row.hidden) count++;
+        });
+        if (header) header.querySelector('.group-count').textContent = count;
+        Array.prototype.slice.call(tbody.querySelectorAll('tr.group-row'))
+            .forEach(function (row) {
+                if (row.querySelector('.group-count').textContent === '0') row.hidden = true;
+            });
     }
-    filterButtons.forEach(function (button) {
-      var isAll = button.getAttribute('data-filter') === activeFilter && !activeCategory;
-      var isCategory = activeCategory
-        && button.getAttribute('data-category') === activeCategory;
-      button.classList.toggle('is-active', Boolean(isAll || isCategory));
+
+    function applyFilters() {
+        if (!tbody) return;
+        rows().forEach(function (row) { row.hidden = !matches(row); });
+        rebuildGroups();
+        updateCount();
+        syncHash();
+    }
+
+    // --- Sorting ------------------------------------------------
+    function severityRank(value) {
+        return value === 'ERROR' ? 0 : value === 'WARNING' ? 1 : 2;
+    }
+
+    function updateSortIndicators() {
+        if (!table) return;
+        Array.prototype.slice.call(table.querySelectorAll('th.sortable')).forEach(function (th) {
+            var active = th.getAttribute('data-sort') === sortKey;
+            th.setAttribute('aria-sort', active
+                ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none');
+        });
+    }
+
+    function sortRows(key, direction) {
+        if (!tbody) return;
+        sortKey = key;
+        sortDir = direction;
+        var list = rows();
+        list.sort(function (a, b) {
+            var left;
+            var right;
+            if (key === 'severity') {
+                left = severityRank(a.getAttribute('data-severity'));
+                right = severityRank(b.getAttribute('data-severity'));
+            } else if (key === 'rule') {
+                left = a.getAttribute('data-rule');
+                right = b.getAttribute('data-rule');
+            } else if (key === 'line') {
+                left = Number(a.getAttribute('data-line'));
+                right = Number(b.getAttribute('data-line'));
+            } else {
+                left = a.getAttribute('data-path').toLowerCase();
+                right = b.getAttribute('data-path').toLowerCase();
+            }
+            if (left < right) return direction === 'asc' ? -1 : 1;
+            if (left > right) return direction === 'asc' ? 1 : -1;
+            var aTie = a.getAttribute('data-rule') + a.getAttribute('data-path')
+                + a.getAttribute('data-line');
+            var bTie = b.getAttribute('data-rule') + b.getAttribute('data-path')
+                + b.getAttribute('data-line');
+            return aTie < bTie ? -1 : (aTie > bTie ? 1 : 0);
+        });
+        var omitted = tbody.querySelector('tr.omitted-row');
+        list.forEach(function (row) { tbody.insertBefore(row, omitted || null); });
+        updateSortIndicators();
+        rebuildGroups();
+        syncHash();
+    }
+
+    if (table) {
+        Array.prototype.slice.call(table.querySelectorAll('th.sortable')).forEach(function (th) {
+            function trigger() {
+                var key = th.getAttribute('data-sort');
+                sortRows(key, key === sortKey && sortDir === 'asc' ? 'desc' : 'asc');
+            }
+            th.addEventListener('click', trigger);
+            th.addEventListener('keydown', function (event) {
+                if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    trigger();
+                }
+            });
+        });
+    }
+
+    filterButtons.forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            filterButtons.forEach(function (other) { other.classList.remove('active'); });
+            btn.classList.add('active');
+            if (btn.getAttribute('data-filter')) {
+                activeFilter = btn.getAttribute('data-filter');
+                activeCategory = null;
+            } else if (btn.getAttribute('data-category')) {
+                activeFilter = 'all';
+                activeCategory = btn.getAttribute('data-category');
+            }
+            applyFilters();
+        });
     });
-    sortRows(sortKey, sortDir);
-    applyFilters();
-  }
 
-  updateSortIndicators();
-  restoreFromHash();
-  updateCount();
+    if (searchInput) searchInput.addEventListener('input', applyFilters);
+    if (groupBy) {
+        groupBy.addEventListener('change', function () {
+            groupMode = groupBy.value;
+            rebuildGroups();
+            updateCount();
+            syncHash();
+        });
+    }
+
+    var reset = document.getElementById('resetFilters');
+    if (reset) {
+        reset.addEventListener('click', function () {
+            if (searchInput) searchInput.value = '';
+            activeFilter = 'all';
+            activeCategory = null;
+            groupMode = 'none';
+            if (groupBy) groupBy.value = 'none';
+            filterButtons.forEach(function (btn) {
+                btn.classList.toggle('active',
+                    btn.getAttribute('data-filter') === 'all');
+            });
+            sortRows('severity', 'asc');
+            applyFilters();
+        });
+    }
+
+    // --- Export and sharing -------------------------------------
+    function visibleData() {
+        return rows().filter(function (row) { return !row.hidden; }).map(function (row) {
+            return {
+                severity: row.getAttribute('data-severity'),
+                rule: row.getAttribute('data-rule'),
+                file: row.getAttribute('data-path'),
+                line: Number(row.getAttribute('data-line')),
+                message: row.getAttribute('data-message'),
+                remediation: row.getAttribute('data-remediation')
+            };
+        });
+    }
+
+    function download(name, mime, text) {
+        var blob = new Blob([text], { type: mime });
+        var link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = name;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.setTimeout(function () { URL.revokeObjectURL(link.href); }, 1000);
+    }
+
+    function csvCell(value) {
+        return '"' + String(value == null ? '' : value).replace(/"/g, '""') + '"';
+    }
+
+    function toCsv(data) {
+        var lines = ['Severity,Rule,File,Line,Message,Remediation'];
+        data.forEach(function (item) {
+            lines.push([item.severity, item.rule, item.file, item.line,
+                item.message, item.remediation].map(csvCell).join(','));
+        });
+        return lines.join('\r\n');
+    }
+
+    function markdownSummary(data) {
+        var counts = { ERROR: 0, WARNING: 0, INFO: 0 };
+        data.forEach(function (item) { counts[item.severity] = (counts[item.severity] || 0) + 1; });
+        var out = ['## AEM Code Analyser summary', '',
+            '- Findings shown: ' + data.length,
+            '- Errors: ' + counts.ERROR,
+            '- Warnings: ' + counts.WARNING,
+            '- Info: ' + counts.INFO, '',
+            '| Severity | Rule | Location | Issue |', '|---|---|---|---|'];
+        data.slice(0, 50).forEach(function (item) {
+            var issue = String(item.message).split('|').join(' / ');
+            out.push('| ' + item.severity + ' | ' + item.rule + ' | ' + item.file + ':'
+                + item.line + ' | ' + issue + ' |');
+        });
+        if (data.length > 50) {
+            out.push('', '_' + (data.length - 50) + ' more finding(s) omitted._');
+        }
+        return out.join('\n');
+    }
+
+    function fallbackCopy(text) {
+        var area = document.createElement('textarea');
+        area.value = text;
+        area.setAttribute('readonly', '');
+        area.style.position = 'fixed';
+        area.style.opacity = '0';
+        document.body.appendChild(area);
+        area.select();
+        try {
+            document.execCommand('copy');
+            showToast('Copied to clipboard');
+        } catch (e) {
+            showToast('Copy failed');
+        }
+        document.body.removeChild(area);
+    }
+
+    function copyText(text) {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(text).then(function () {
+                showToast('Copied to clipboard');
+            }, function () {
+                fallbackCopy(text);
+            });
+        } else {
+            fallbackCopy(text);
+        }
+    }
+
+    var exportCsv = document.getElementById('exportCsv');
+    if (exportCsv) {
+        exportCsv.addEventListener('click', function () {
+            download('aem-analyser-findings.csv', 'text/csv', toCsv(visibleData()));
+        });
+    }
+    var exportJson = document.getElementById('exportJson');
+    if (exportJson) {
+        exportJson.addEventListener('click', function () {
+            download('aem-analyser-findings.json', 'application/json',
+                JSON.stringify(visibleData(), null, 2));
+        });
+    }
+    var copyMarkdown = document.getElementById('copyMarkdown');
+    if (copyMarkdown) {
+        copyMarkdown.addEventListener('click', function () {
+            copyText(markdownSummary(visibleData()));
+        });
+    }
+    var copyLink = document.getElementById('copyLink');
+    if (copyLink) {
+        copyLink.addEventListener('click', function () {
+            copyText(window.location.href);
+        });
+    }
+
+    // --- URL state ----------------------------------------------
+    function syncHash() {
+        var params = new URLSearchParams();
+        if (activeTab !== 'tab-violations') params.set('tab', activeTab);
+        if (searchInput && searchInput.value.trim()) params.set('q', searchInput.value.trim());
+        if (activeFilter !== 'all') params.set('severity', activeFilter);
+        if (activeCategory) params.set('category', activeCategory);
+        if (groupMode !== 'none') params.set('group', groupMode);
+        if (sortKey !== 'severity' || sortDir !== 'asc') {
+            params.set('sort', sortKey + ':' + sortDir);
+        }
+        var next = params.toString();
+        if (window.history && window.history.replaceState) {
+            window.history.replaceState(null, '',
+                next ? '#' + next : window.location.pathname + window.location.search);
+        }
+    }
+
+    function restoreFromHash() {
+        var hash = window.location.hash || '';
+        if (new RegExp('^#f-[0-9]+$').test(hash)) {
+            activateTab('tab-violations', false);
+            return;
+        }
+        var params = new URLSearchParams(hash.replace(/^#/, ''));
+        var tab = params.get('tab');
+        if (tab) activateTab(tab, false);
+        if (searchInput && params.get('q')) searchInput.value = params.get('q');
+        if (params.get('severity')) activeFilter = params.get('severity');
+        if (params.get('category')) activeCategory = params.get('category');
+        if (params.get('group')) {
+            groupMode = params.get('group');
+            if (groupBy) groupBy.value = groupMode;
+        }
+        var sort = params.get('sort');
+        if (sort) {
+            var parts = sort.split(':');
+            sortKey = parts[0] || 'severity';
+            sortDir = parts[1] === 'desc' ? 'desc' : 'asc';
+        }
+        filterButtons.forEach(function (btn) {
+            var isAll = btn.getAttribute('data-filter') === activeFilter && !activeCategory;
+            var isCategory = activeCategory
+                && btn.getAttribute('data-category') === activeCategory;
+            btn.classList.toggle('active', Boolean(isAll || isCategory));
+        });
+        sortRows(sortKey, sortDir);
+        applyFilters();
+    }
+
+    updateSortIndicators();
+    restoreFromHash();
+    updateCount();
 })();
 </script>
+</div>
 </body>
 </html>

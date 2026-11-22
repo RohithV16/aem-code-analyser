@@ -1046,8 +1046,13 @@ th .mono {
   padding: 0.45rem 0.7rem;
 }
 
+/* The flags table is the widest block on /reference/. Fixed 30/22/48 columns plus `nowrap`
+   cells sized it to 400px inside a 373px container, so a 375px phone scrolled the whole page
+   sideways. Auto layout with wrapping cells lets every column shrink to the container, and the
+   max-width guard keeps the table itself inside it. */
 .docs__main table.flags {
-  table-layout: fixed;
+  table-layout: auto;
+  max-width: 100%;
 }
 
 .docs__main table.flags th:nth-child(1) { width: 30%; }
@@ -1055,17 +1060,87 @@ th .mono {
 .docs__main table.flags th:nth-child(3) { width: 48%; }
 
 .docs__main table.flags td code {
-  white-space: nowrap;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .docs__main table.flags td:nth-child(1),
 .docs__main table.flags td:nth-child(2) {
-  overflow-wrap: normal;
+  overflow-wrap: anywhere;
   word-break: break-word;
 }
 
-.docs__main table.flags td:nth-child(2) {
-  white-space: nowrap;
+/* Phone widths: three columns at 375px split `-p, --project-root <dir>` mid-hyphen, so each flag
+   is stacked instead - name, default, description - while the table stays one table for assistive
+   technology. */
+@media (max-width: 640px) {
+  .docs__main table.flags,
+  .docs__main table.flags tbody,
+  .docs__main table.flags tr,
+  .docs__main table.flags td {
+    display: block;
+    width: auto;
+  }
+
+  .docs__main table.flags thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+
+  .docs__main table.flags tr {
+    padding: 0.7rem 0.8rem;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .docs__main table.flags tr:last-child {
+    border-bottom: 0;
+  }
+
+  .docs__main table.flags td,
+  .docs__main table.flags td.mono,
+  .docs__main table.flags td.nowrap,
+  .docs__main table.flags code {
+    padding: 0;
+    border-bottom: 0;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+
+  .docs__main table.flags td:nth-child(1) {
+    font-weight: 500;
+    margin-bottom: 0.15rem;
+  }
+
+  .docs__main table.flags td:nth-child(2) {
+    margin-bottom: 0.4rem;
+  }
+
+  .docs__main table.flags td:nth-child(2)::before {
+    content: "default ";
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+}
+
+/* `text-wrap: pretty` keeps a paragraph's last line from being a single word, and on a narrow
+   line it can leave an unbreakable inline <code> token hanging past the line box - a document
+   level horizontal scrollbar with nothing else visibly wrong. Wrap normally on phones. */
+@media (max-width: 640px) {
+  .docs__main p,
+  .docs__main li,
+  .docs__main td,
+  .docs__main th,
+  .prose p,
+  .prose li {
+    text-wrap: wrap;
+  }
 }
 
 /* ------------------------------------------------------------------ callouts */

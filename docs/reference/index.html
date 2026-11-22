@@ -216,7 +216,7 @@ java -jar aem-analyser-cli.jar --baseline .aem-analyser-baseline.json --baseline
           <tbody>
             <tr><td class="mono">formats</td><td class="mono">SARIF,SONAR</td><td>Comma-separated formats for <code>report</code>; <code>check</code> defaults to <code>CONSOLE</code>.</td></tr>
             <tr><td class="mono">outputFile</td><td class="mono">${project.build.directory}</td><td>Output directory, or the file itself when exactly one format is configured.</td></tr>
-            <tr><td class="mono">failOn</td><td class="mono">unset</td><td>Severity threshold for the <code>check</code> goal; unset means any ERROR fails.</td></tr>
+            <tr><td class="mono">failOn</td><td class="mono">unset</td><td>Severity threshold for the <code>check</code> goal: <code>NONE</code>, <code>ERROR</code>, <code>WARNING</code> or <code>INFO</code>. <code>NONE</code> is report-only — the severity gates are skipped and only <code>minCoverage</code>, <code>maxDuplication</code> and <code>maxWarnings</code> can still fail the build. Any other value is rejected. Unset means any ERROR fails.</td></tr>
             <tr><td class="mono">failOnError</td><td class="mono">true</td><td>Fail when at least one ERROR finding exists (the default gate).</td></tr>
             <tr><td class="mono">failOnWarning</td><td class="mono">false</td><td>Also fail when WARNING findings exist.</td></tr>
             <tr><td class="mono">projectRoot</td><td class="mono">reactor root</td><td>Analyse a different directory.</td></tr>

@@ -106,6 +106,9 @@ jobs:
       - name: Validation reactor produces exactly the expected findings
         run: scripts/run-reactor-validation.sh
 
+      - name: Published demo is stamped with the released version
+        run: scripts/build-demo-report.sh --check
+
   quality:
     name: Quality report
     if: github.event_name != 'workflow_dispatch'
@@ -227,6 +230,11 @@ jobs:
 
       - name: Build and package
         run: mvn clean package --batch-mode
+
+      # The demo is proof of the product, so it is rebuilt from the jar this release just built and
+      # committed below: it can never name a version that was not published.
+      - name: Regenerate the published demo from the released jar
+        run: scripts/build-demo-report.sh aem-analyser-cli/target/aem-analyser-cli.jar
 
       - name: Generate Checksums
         shell: bash
