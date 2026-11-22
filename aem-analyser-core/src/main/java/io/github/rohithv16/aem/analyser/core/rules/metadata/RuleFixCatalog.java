@@ -344,6 +344,133 @@ public final class RuleFixCatalog {
                                  resolverFactory.getServiceResourceResolver(authInfo)) {
                         // runs as the mapped service user, with its own ACLs
                     }""");
+            case AEM_CLOUD_008 -> new Fix(
+                    """
+                    In AEM as a Cloud Service the repository structure is decided at build time by the \
+                    packages a deployment installs; /apps and /libs are immutable and "any attempt to \
+                    change an immutable area at runtime fails". Code that wrote configuration, labels or \
+                    counters into /apps for years on 6.5 keeps compiling and deploying, then throws \
+                    AccessDeniedException (or silently drops the write) at the first request.""",
+                    """
+                    Move the node into the content package so it is installed with the release, or keep \
+                    runtime state under a mutable path (/var, /conf, /content) that the service user is \
+                    allowed to modify.""",
+                    "java", """
+                    ValueMap config =
+                        resolver.getResource("/apps/acme/config").adaptTo(ModifiableValueMap.class);
+                    config.put("lastRun", System.currentTimeMillis());""",
+                    "java", """
+                    // ui.content/src/main/content/jcr_root/apps/acme/config/.content.xml
+                    <jcr:root xmlns:sling="http://sling.apache.org/jcr/sling/1.0"
+                              jcr:primaryType="sling:Folder"/>
+
+                    // Java: runtime state belongs under a mutable path
+                    ValueMap state =
+                        resolver.getResource("/var/acme/config").adaptTo(ModifiableValueMap.class);
+                    state.put("lastRun", System.currentTimeMillis());""");
+            case AEM_CLOUD_009 -> new Fix(
+                    """
+                    AEM as a Cloud Service deploys one package per application: the container module \
+                    (usually all) embeds and installs every other package, and must carry no content of \
+                    its own. A module added to the reactor but never to <embeddeds> still builds and \
+                    still passes the pipeline - the deployment simply does not contain it, and an author \
+                    discovers the missing dialog weeks later. A bundle embedded outside an .../install \
+                    path is worse: it travels inside the container and is never installed or started, so \
+                    every component it declares stays absent with no error.""",
+                    """
+                    Add the module to the container's <embeddeds> under an install path, follow structure \
+                    packages through <repositoryStructurePackages>, and move any content out of the \
+                    container. Remove modules from the reactor when they are no longer deployed.""",
+                    "xml", """
+                    <!-- all/pom.xml -->
+                    <embeddeds>
+                        <embedded>
+                            <groupId>com.acme</groupId>
+                            <artifactId>acme.ui.content2</artifactId>
+                            <type>zip</type>
+                            <target>/apps/acme-packages/content/install</target>
+                        </embedded>
+                        <embedded>
+                            <groupId>com.acme</groupId>
+                            <artifactId>acme.core</artifactId>
+                            <target>/apps/acme-packages/application</target> <!-- no /install -->
+                        </embedded>
+                    </embeddeds>""",
+                    "xml", """
+                    <!-- all/pom.xml -->
+                    <embeddeds>
+                        <embedded>
+                            <groupId>com.acme</groupId>
+                            <artifactId>acme.ui.content2</artifactId>
+                            <type>zip</type>
+                            <target>/apps/acme-packages/content/install</target>
+                        </embedded>
+                        <embedded>
+                            <groupId>com.acme</groupId>
+                            <artifactId>acme.core</artifactId>
+                            <target>/apps/acme-packages/application/install</target>
+                        </embedded>
+                    </embeddeds>""");
+            case AEM_CLOUD_010 -> new Fix(
+                    """
+                    Cloud publishing does not use replication agents. Content is distributed through Sling \
+                    Content Distribution to an Adobe-hosted pipeline service, so an agent shipped under \
+                    /etc/replication, an OSGi config for com.day.cq.replication.impl.* or a Sling \
+                    distribution agent, and a custom TransportHandler configure nothing at all. Unlike \
+                    every other Cloud difference this one produces no error: the agent reports idle, the \
+                    activation request "succeeds", and the published page never appears.""",
+                    """
+                    Delete the agent content and the transport configuration from the package, and replace \
+                    a custom TransportHandler / ContentBuilder / ReplicationPreprocessor with the standard \
+                    replication API or a workflow step that Cloud runs.""",
+                    "xml", """
+                    <!-- ui.apps/src/main/content/jcr_root/etc/replication/agents.author/publish/.content.xml -->
+                    <jcr:root xmlns:cq="http://www.day.com/jcr/cq/1.0"
+                              jcr:primaryType="cq:Page">
+                        <jcr:content
+                            transportUri="http://localhost:4503/bin/receive?service=com.day.cq.replication.impl.transport.HttpTransportHandle"
+                            serializeAsXML="{Boolean}true"/>
+                    </jcr:root>""",
+                    "java", """
+                    @Component(service = TransportHandler.class)
+                    public class LegacyTransport implements TransportHandler {
+                        // never invoked on AEM as a Cloud Service
+                    }""");
+            case AEM_WF_001 -> new Fix(
+                    """
+                    A workflow launcher references its model by path and a PROCESS step references its \
+                    class by name; both are plain strings in .content.xml. Rename the model or move the \
+                    class and nothing complains at deploy time - the launcher simply never starts, and \
+                    the workflow that "stopped running weeks ago" is the first symptom. Cloud Manager and \
+                    the AEM Analyzer do not inspect workflow content at all.""",
+                    """
+                    Point cq:workflowModel at a model the project ships (or at an existing out-of-the-box \
+                    model), and update the PROCESS step to the class that now implements it. Grep the \
+                    model path and the class name across the package before renaming either.""",
+                    "xml", """
+                    <!-- conf/global/settings/workflow/launcher/acme-publish/.content.xml -->
+                    <jcr:root xmlns:cq="http://www.day.com/jcr/cq/1.0"
+                              jcr:primaryType="cq:WorkflowLauncher"
+                              cq:workflowModel="/var/workflow/models/acme-missing"
+                              glob="/content/acme/.*/jcr:content"/>
+
+                    <!-- conf/global/settings/workflow/models/acme-publish/.content.xml -->
+                    <jcr:root jcr:primaryType="cq:WorkflowModel">
+                        <node0 jcr:primaryType="cq:WorkflowNode" type="PROCESS"
+                               process="com.acme.steps.Gone"/>
+                    </jcr:root>""",
+                    "xml", """
+                    <!-- launcher points at the model that exists -->
+                    <jcr:root xmlns:cq="http://www.day.com/jcr/cq/1.0"
+                              jcr:primaryType="cq:WorkflowLauncher"
+                              cq:workflowModel="/var/workflow/models/acme-publish"
+                              glob="/content/acme/.*/jcr:content"/>
+
+                    <!-- step names a class the bundle declares -->
+                    <jcr:root jcr:primaryType="cq:WorkflowModel">
+                        <node0 jcr:primaryType="cq:WorkflowNode" type="PROCESS"
+                               process="com.acme.steps.PublishStep"/>
+                    </jcr:root>""");
             case AEM_QUAL_006 -> new Fix(
                     """
                     Storing a request-scoped resolver or session in an OSGi component field keeps one \

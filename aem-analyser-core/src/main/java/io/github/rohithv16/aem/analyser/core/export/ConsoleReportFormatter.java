@@ -342,6 +342,10 @@ public final class ConsoleReportFormatter implements ReportExporter {
                 case AEM_CLOUD_005 -> "Invalid Runmode Folder (AEMaaCS)";
                 case AEM_CLOUD_006 -> "Broken Dispatcher Configuration (AEMaaCS)";
                 case AEM_CLOUD_007 -> "Overlapping Content-Package Filter Root (AEMaaCS)";
+                case AEM_CLOUD_008 -> "Runtime Write to Immutable /apps or /libs (AEMaaCS)";
+                case AEM_CLOUD_009 -> "Deployable Module Never Reaches the all Container (AEMaaCS)";
+                case AEM_CLOUD_010 -> "Legacy Replication Agent or Transport Handler (AEMaaCS)";
+                case AEM_WF_001 -> "Unresolved Workflow Model or Process Class";
                 case AEM_QUAL_006 -> "Resolver/Session Stored in Component Field";
                 case AEM_DEAD_005 -> "Orphaned Clientlib Category";
                 case AEM_SEC_002 -> "Open Redirect / SSRF";

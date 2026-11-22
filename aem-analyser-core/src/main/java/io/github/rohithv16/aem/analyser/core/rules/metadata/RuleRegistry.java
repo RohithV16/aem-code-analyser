@@ -76,7 +76,8 @@ public final class RuleRegistry {
             case AEM_DEAD_001, AEM_DEAD_004, AEM_DUP_001, AEM_QUAL_002, AEM_QUAL_004,
                  AEM_PERF_001, AEM_PERF_002, AEM_DEAD_003A,
                  AEM_COMP_002, AEM_QUAL_008, AEM_DEAD_007,
-                 AEM_A11Y_001, AEM_A11Y_002 -> RuleType.BUG;
+                 AEM_A11Y_001, AEM_A11Y_002, AEM_CLOUD_008, AEM_CLOUD_009, AEM_CLOUD_010,
+                 AEM_WF_001 -> RuleType.BUG;
             case AEM_DEAD_006 -> RuleType.BUG;
             case AEM_QUAL_007 -> RuleType.BUG;
             case AEM_QUAL_005, AEM_CLOUD_001, AEM_SEC_001 -> RuleType.VULNERABILITY;
@@ -96,6 +97,10 @@ public final class RuleRegistry {
             case AEM_CLOUD_005 -> 5;
             case AEM_CLOUD_006 -> 20;
             case AEM_CLOUD_007 -> 20;
+            case AEM_CLOUD_008 -> 15;
+            case AEM_CLOUD_009 -> 20;
+            case AEM_CLOUD_010 -> 15;
+            case AEM_WF_001 -> 15;
             case AEM_QUAL_006 -> 15;
             case AEM_DEAD_005 -> 10;
             case AEM_SEC_002 -> 25;
@@ -129,6 +134,10 @@ public final class RuleRegistry {
             case AEM_CLOUD_004, AEM_CLOUD_005 -> List.of("aem-cloud", "api");
             case AEM_CLOUD_006 -> List.of("aem-cloud", "dispatcher");
             case AEM_CLOUD_007 -> List.of("aem-cloud", "content-package");
+            case AEM_CLOUD_008 -> List.of("aem-cloud", "immutable-path");
+            case AEM_CLOUD_009 -> List.of("aem-cloud", "content-package", "build");
+            case AEM_CLOUD_010 -> List.of("aem-cloud", "replication");
+            case AEM_WF_001 -> List.of("workflow", "content");
             case AEM_SEC_001 -> List.of("security", "xss");
             case AEM_QUAL_006 -> List.of("quality", "resource-lifecycle");
             case AEM_DEAD_005 -> List.of("dead-code", "clientlib");
@@ -211,6 +220,10 @@ public final class RuleRegistry {
             case AEM_CLOUD_004 -> "Replace the deprecated API with the supported AEM as a Cloud Service equivalent.";
             case AEM_CLOUD_005 -> "Move the configuration to a valid runmode folder (config, config.author, config.publish, config.dev, ...) or delete it.";
             case AEM_CLOUD_006 -> "Create the missing include file, give each virtual host a distinct ServerName and a DocumentRoot, and split a monolithic dispatcher.any into conf.dispatcher.d and conf.d.";
+            case AEM_WF_001 -> "Point the launcher at a model the project ships (or an existing out-of-the-box model), and the PROCESS step at a class that exists in a bundle the project deploys.";
+            case AEM_CLOUD_010 -> "Remove replication agent content and transport configuration from the package, and replace a custom TransportHandler with the standard replication API or a workflow step.";
+            case AEM_CLOUD_009 -> "Embed the module in the all container (with an .../install target for bundles), or remove it from the reactor; keep the container free of its own jcr_root.";
+            case AEM_CLOUD_008 -> "Ship the node as content in a content package instead of writing it at runtime, or keep runtime state under a mutable path such as /var or /conf.";
             case AEM_CLOUD_007 -> "Give each content module a disjoint filter root; use mode=\"merge\" on anything shared and filter the project's own subtree instead of a platform root.";
             case AEM_QUAL_006 -> "Do not store request-scoped resolvers or sessions in component fields; obtain them per request and close them.";
             case AEM_DEAD_005 -> "Reference the category from an HTL/JSP template or another clientlib, or delete the clientlib.";

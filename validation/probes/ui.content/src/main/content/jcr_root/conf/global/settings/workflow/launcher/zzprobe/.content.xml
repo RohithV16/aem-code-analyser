@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Probe for AEM-WF-001: the launcher starts a model that ships nowhere. -->
+<jcr:root xmlns:jcr="http://www.jcp.org/jcr/1.0" xmlns:cq="http://www.day.com/jcr/cq/1.0"
+          jcr:primaryType="cq:WorkflowLauncher"
+          cq:workflowModel="/var/workflow/models/probe-missing"
+          glob="/content/probe/.*/jcr:content"
+          eventType="NodeAdded"/>

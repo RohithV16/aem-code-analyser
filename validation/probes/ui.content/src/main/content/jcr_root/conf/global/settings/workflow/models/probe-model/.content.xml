@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Probe for AEM-WF-001: the PROCESS step names a class no bundle declares. -->
+<jcr:root xmlns:jcr="http://www.jcp.org/jcr/1.0" xmlns:cq="http://www.day.com/jcr/cq/1.0"
+          jcr:primaryType="cq:WorkflowModel"
+          jcr:title="Probe workflow">
+    <metaData jcr:primaryType="nt:unstructured"/>
+    <node0 jcr:primaryType="cq:WorkflowNode" type="PROCESS"
+           process="com.probe.steps.Gone" title="Missing process"/>
+</jcr:root>

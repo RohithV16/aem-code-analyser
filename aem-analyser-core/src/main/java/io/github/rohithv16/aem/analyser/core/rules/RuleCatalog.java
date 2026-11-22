@@ -10,6 +10,9 @@ import io.github.rohithv16.aem.analyser.core.rules.impl.AemCloud006Rule;
 import io.github.rohithv16.aem.analyser.core.rules.impl.AemCloud007Rule;
 import io.github.rohithv16.aem.analyser.core.rules.impl.AemA11y001Rule;
 import io.github.rohithv16.aem.analyser.core.rules.impl.AemA11y002Rule;
+import io.github.rohithv16.aem.analyser.core.rules.impl.AemCloud008Rule;
+import io.github.rohithv16.aem.analyser.core.rules.impl.AemCloud009Rule;
+import io.github.rohithv16.aem.analyser.core.rules.impl.AemCloud010Rule;
 import io.github.rohithv16.aem.analyser.core.rules.impl.AemComp001Rule;
 import io.github.rohithv16.aem.analyser.core.rules.impl.AemComp002Rule;
 import io.github.rohithv16.aem.analyser.core.rules.impl.AemDead001Rule;
@@ -36,6 +39,7 @@ import io.github.rohithv16.aem.analyser.core.rules.impl.AemQual004Rule;
 import io.github.rohithv16.aem.analyser.core.rules.impl.AemQual005Rule;
 import io.github.rohithv16.aem.analyser.core.rules.impl.AemQual008Rule;
 import io.github.rohithv16.aem.analyser.core.rules.impl.AemQual007Rule;
+import io.github.rohithv16.aem.analyser.core.rules.impl.AemWf001Rule;
 import io.github.rohithv16.aem.analyser.core.rules.impl.AemSec001Rule;
 import io.github.rohithv16.aem.analyser.core.rules.impl.AemSec002Rule;
 
@@ -143,8 +147,12 @@ public final class RuleCatalog {
             new AemCloud005Rule(),
             new AemCloud006Rule(),
             new AemCloud007Rule(),
+            new AemCloud008Rule(),
+            new AemCloud009Rule(),
+            new AemCloud010Rule(),
             new AemSec001Rule(),
             new AemSec002Rule(),
+            new AemWf001Rule(),
             new AemA11y001Rule(),
             new AemA11y002Rule()));
 

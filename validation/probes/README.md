@@ -72,6 +72,10 @@ This tests the probes in the target’s real module layout and Maven profile con
 | AEM-CLOUD-005 | config under `config.foo` |
 | AEM-CLOUD-006 | dispatcher vhost includes a missing file, duplicates `ServerName`, omits `DocumentRoot`; legacy `src/dispatcher.any` |
 | AEM-CLOUD-007 | `ui.content` and `content.extra` both filter `/content/probe`; `ui.content` uses `mode="replace"` |
+| AEM-CLOUD-008 | `ProbeImmutablePathWrite` writes `/apps/probe/config` and `/libs/probe/settings` at runtime |
+| AEM-CLOUD-009 | `all/pom.xml` embeds `probe.core` outside an `/install` path, and `zzprobe.content` is in the reactor but not in `all` |
+| AEM-CLOUD-010 | `etc/replication/agents.author/zzprobe` ships a `transportUri`, and `ProbeTransportHandler` implements `com.day.cq.replication.TransportHandler` |
+| AEM-WF-001 | launcher `zzprobe` starts `/var/workflow/models/probe-missing`, and `probe-model` runs `com.probe.steps.Gone` |
 | AEM-SEC-001 | HTL `context='unsafe'` |
 | AEM-SEC-002 | `sendRedirect(request.getParameter("next"))` |
 | AEM-A11Y-001 | `components/zzprobe/a11y-broken.html` has an `<img>` with no alt |
