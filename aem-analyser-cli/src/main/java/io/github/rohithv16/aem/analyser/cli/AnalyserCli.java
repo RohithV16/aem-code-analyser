@@ -4,6 +4,7 @@ import io.github.rohithv16.aem.analyser.core.api.AnalysisContext;
 import io.github.rohithv16.aem.analyser.core.api.AnalysisException;
 import io.github.rohithv16.aem.analyser.core.api.DefaultAemCodeAnalyser;
 import io.github.rohithv16.aem.analyser.core.export.ColorSupport;
+import io.github.rohithv16.aem.analyser.core.export.ConsoleGroupBy;
 import io.github.rohithv16.aem.analyser.core.export.ConsoleReportFormatter;
 import io.github.rohithv16.aem.analyser.core.export.ExportException;
 import io.github.rohithv16.aem.analyser.core.export.HtmlReportExporter;
@@ -100,9 +101,23 @@ public class AnalyserCli implements java.util.concurrent.Callable<Integer> {
     @Option(names = {"--no-color"}, description = "Disable ANSI colors in console output.")
     private boolean noColor;
 
+    @Option(names = {"--group-by"},
+            description = "Group console findings: FILE, RULE or NONE (default). Grouped output is one "
+                    + "line per finding under a count per file or rule.")
+    private String groupByOption;
+
+    @Option(names = {"--report-epoch"}, paramLabel = "UNIX_SECONDS",
+            description = "Fixed report timestamp in Unix seconds (also read from SOURCE_DATE_EPOCH). "
+                    + "Reports then omit the wall-clock duration, so the same tree produces identical bytes.")
+    private String reportEpochOption;
+
     @Option(names = {"-v", "--verbose"},
             description = "Print structured analysis diagnostics (unparseable files, skipped trees).")
     private boolean verbose;
+
+    @Option(names = {"--debug"},
+            description = "Print stack traces for internal failures (never printed by default).")
+    private boolean debug;
 
     @Option(names = {"--ignored-services"}, split = ",",
             description = "Service implementation class names to whitelist (never flagged unused).")
@@ -219,6 +234,55 @@ public class AnalyserCli implements java.util.concurrent.Callable<Integer> {
         return !noColor && ColorSupport.enabled(ColorSupport.stdoutIsTerminal());
     }
 
+    /** How the console lists findings, as requested by {@code --group-by}. */
+    ConsoleGroupBy consoleGroupBy() {
+        return ConsoleGroupBy.parse(groupByOption);
+    }
+
+    /** The environment variable honoured when {@code --report-epoch} is absent. */
+    static final String SOURCE_DATE_EPOCH = "SOURCE_DATE_EPOCH";
+
+    /**
+     * The fixed clock for this run, or {@code null} for a live one.
+     *
+     * <p>{@code --report-epoch} wins; {@code SOURCE_DATE_EPOCH} is the build-tool convention and is
+     * honoured when the flag is absent, so a reproducible build needs no analyser-specific flag.
+     * The clock reports UTC: a timestamp formatted in the machine's local zone would make the bytes
+     * depend on where the build ran.</p>
+     *
+     * @throws IllegalArgumentException for a value that is not a whole, non-negative Unix second
+     */
+    java.time.Clock reportClock() {
+        String raw = reportEpochOption != null ? reportEpochOption : System.getenv(SOURCE_DATE_EPOCH);
+        if (raw == null || raw.isBlank()) {
+            return null;
+        }
+        // A String option (not a Long) so a malformed value is our one-line usage error instead of
+        // picocli's converter message on stderr.
+        String source = reportEpochOption != null ? "--report-epoch" : SOURCE_DATE_EPOCH;
+        long epoch = parseEpoch(raw, source);
+        try {
+            return java.time.Clock.fixed(java.time.Instant.ofEpochSecond(epoch), java.time.ZoneOffset.UTC);
+        } catch (java.time.DateTimeException e) {
+            throw new IllegalArgumentException(source + " " + epoch
+                    + " is outside the range of representable dates (expected a Unix timestamp in seconds).");
+        }
+    }
+
+    static long parseEpoch(String raw, String source) {
+        long epoch;
+        try {
+            epoch = Long.parseLong(raw.strip());
+        } catch (NumberFormatException e) {
+            throw new IllegalArgumentException(source + " must be a Unix timestamp in whole seconds, got '"
+                    + raw + "'.");
+        }
+        if (epoch < 0) {
+            throw new IllegalArgumentException(source + " must be 0 or greater, got " + epoch + ".");
+        }
+        return epoch;
+    }
+
     /**
      * Console channel of the tool. A CLI writes its report to standard output by design, so this is
      * deliberately not a logging framework: {@code --no-color}, report formats and CI annotations need
@@ -233,19 +297,54 @@ public class AnalyserCli implements java.util.concurrent.Callable<Integer> {
     }
 
     /**
+     * Documented exit codes. They are distinct on purpose: a CI step must be able to tell "your code
+     * failed the gate" from "you invoked the tool wrongly" from "the tool itself broke".
+     */
+    static final int EXIT_OK = 0;
+
+    /** The analyser ran and the gate failed. */
+    static final int EXIT_GATE_FAILED = 1;
+
+    /** The invocation was wrong: a bad flag, an unusable path, an invalid configuration. */
+    static final int EXIT_USAGE = 2;
+
+    /** The analyser itself broke, so this run says nothing about the analysed code. */
+    static final int EXIT_INTERNAL = 3;
+
+    /**
      * The process exit code is the command's return value: discarding it turned a usage error into a
      * silent "gate passed" for any CI step that reads the status.
      */
     public static void main(String[] args) {
         CommandLine commandLine = new CommandLine(new AnalyserCli());
-        // An uncaught crash is not a verdict on the code. Without this handler picocli returns 1,
-        // which is indistinguishable from a failed gate, so map it to the usage/analysis error code.
-        commandLine.setExecutionExceptionHandler((exception, cmd, parseResult) -> {
-            cmd.getErr().println("[ERROR] Internal error: " + exception);
-            exception.printStackTrace(cmd.getErr());
-            return 2;
-        });
+        installExceptionHandlers(commandLine);
         System.exit(commandLine.execute(args));
+    }
+
+    /**
+     * An uncaught crash is not a verdict on the code. Without this handler picocli returns 1, which
+     * is the "gate failed" code, so a defect in the analyser looked like a failing project.
+     */
+    static void installExceptionHandlers(CommandLine commandLine) {
+        commandLine.setExecutionExceptionHandler((exception, cmd, parseResult) ->
+                internalFailure(exception, cmd.getErr(), debugEnabled(cmd)));
+    }
+
+    private static boolean debugEnabled(CommandLine cmd) {
+        Object command = cmd.getCommand();
+        return command instanceof AnalyserCli cli && cli.debug;
+    }
+
+    /** Prints one line (plus the trace only with {@code --debug}) and returns the internal code. */
+    static int internalFailure(Throwable exception, PrintWriter err, boolean debug) {
+        err.println("[ERROR] The analyser failed: " + FailureMessage.oneLine(exception)
+                + ". This is a defect in AEM Code Analyser, not a finding in your project;"
+                + " rerun with --debug for the stack trace.");
+        if (debug) {
+            exception.printStackTrace(err);
+        }
+        err.flush();
+        return EXIT_INTERNAL;
     }
 
     int execute() {
@@ -253,18 +352,74 @@ public class AnalyserCli implements java.util.concurrent.Callable<Integer> {
         if (metaCommandResult.isPresent()) {
             return metaCommandResult.getAsInt();
         }
+        return executePhase("analysis", this::runAnalysis);
+    }
+
+    /** One unit of work whose failure is classified into an exit code and one sentence. */
+    @FunctionalInterface
+    interface Phase {
+        int run() throws Exception;
+    }
+
+    /**
+     * Runs one phase and classifies a failure.
+     *
+     * <ul>
+     *   <li>{@link IllegalArgumentException}: the input cannot be used as given — usage error (2).</li>
+     *   <li>{@link AnalysisException} caused by a runtime failure: the analyser crashed on the input
+     *       — internal error (3); an I/O cause means the project could not be read — usage error (2).</li>
+     *   <li>{@link ExportException} / {@link IOException}: the run could not be completed (3): the
+     *       project was readable enough to start, so this is not a bad invocation.</li>
+     *   <li>Any other runtime failure: a defect (3), never a gate failure.</li>
+     * </ul>
+     */
+    int executePhase(String phase, Phase body) {
         try {
-            return runAnalysis();
+            return body.run();
         } catch (AnalysisException e) {
-            stdout.println("[ERROR] Analysis failed: " + e.getMessage());
-            return 2;
-        } catch (IOException | ExportException e) {
-            stdout.println("[ERROR] Report export failed: " + e.getMessage());
-            return 2;
+            stdout.println("[ERROR] Analysis failed: " + FailureMessage.stripFailurePrefixes(e.getMessage()));
+            debugTrace(e);
+            return e.getCause() instanceof RuntimeException ? EXIT_INTERNAL : EXIT_USAGE;
+        } catch (ExportException | IOException e) {
+            stdout.println("[ERROR] Could not write a report: " + FailureMessage.oneLine(e)
+                    + ". Check that the output directory is writable and has free space"
+                    + " (--output selects it).");
+            debugTrace(e);
+            return EXIT_INTERNAL;
         } catch (IllegalArgumentException e) {
-            stdout.println("[ERROR] " + e.getMessage());
-            return 2;
+            stdout.println("[ERROR] " + FailureMessage.oneLine(e));
+            debugTrace(e);
+            return EXIT_USAGE;
+        } catch (RuntimeException e) {
+            return phaseFailed(phase, e);
+        } catch (Exception e) {
+            // A checked failure nobody anticipated is still the analyser breaking, never a verdict.
+            return phaseFailed(phase, e);
         }
+    }
+
+    /** One sentence for a phase that crashed; the trace stays behind {@code --debug}. */
+    private int phaseFailed(String phase, Exception failure) {
+        stdout.println("[ERROR] The analyser failed during " + phase + ": "
+                + FailureMessage.oneLine(failure)
+                + ". This is a defect in AEM Code Analyser, not a finding in your project;"
+                + " rerun with --debug for the stack trace.");
+        debugTrace(failure);
+        return EXIT_INTERNAL;
+    }
+
+    /** A stack trace is for the person fixing the analyser, not for every CI log. */
+    private void debugTrace(Throwable failure) {
+        if (debug) {
+            failure.printStackTrace(stdout);
+            stdout.flush();
+        }
+    }
+
+    /** An I/O message that only repeats the path ("/x: /x") says nothing; name the real problem. */
+    private static String ioDetail(Path target, IOException failure) {
+        String detail = FailureMessage.oneLine(failure);
+        return target != null && detail.equals(target.toString()) ? "not a writable directory" : detail;
     }
 
     /** Meta commands ({@code --generate-rule-docs}, {@code --list-rules}, {@code --explain}) exit early. */
@@ -294,8 +449,11 @@ public class AnalyserCli implements java.util.concurrent.Callable<Integer> {
     }
 
     private int runAnalysis() throws IOException, ExportException, AnalysisException {
-        Path root = resolveProjectRoot();
+        Path root = validatedProjectRoot();
         List<ReportFormat> reportFormats = parseFormats();
+        // Validated before the scan: an unknown --group-by is a usage error, not a post-analysis one.
+        ConsoleGroupBy consoleGroupBy = consoleGroupBy();
+        java.time.Clock reportClock = reportClock();
         validateFailOn();
         validateNumericOptions();
         if (collectCoverage) {
@@ -305,20 +463,31 @@ public class AnalyserCli implements java.util.concurrent.Callable<Integer> {
         try {
             config = loadConfig(root);
         } catch (IOException e) {
-            stdout.println("[ERROR] Could not read configuration: " + e.getMessage());
-            return 2;
+            // One sentence naming the file, the offending field and the fix; never the Jackson chain.
+            stdout.println("[ERROR] " + FailureMessage.configuration(configurationPath(root), e));
+            debugTrace(e);
+            return EXIT_USAGE;
         }
         AnalysisContext context = scopeToChangedFiles(buildContext(root, config), root);
         AnalysisReport report = analyzeAndFilter(context, root);
         report = applyAutoFix(root, context, report);
         report = config.apply(report);
         report = applyBaseline(root, report);
-        List<io.github.rohithv16.aem.analyser.core.history.RunSummary> history = applyHistory(report);
+        List<io.github.rohithv16.aem.analyser.core.history.RunSummary> history;
+        try {
+            history = applyHistory(report);
+        } catch (IOException e) {
+            stdout.println("[ERROR] Could not write the run history to " + historyDirectory + ": "
+                    + ioDetail(historyDirectory, e)
+                    + ". Point --history at a writable directory.");
+            debugTrace(e);
+            return EXIT_INTERNAL;
+        }
         // The gate is evaluated once, before anything renders: the console block, the dashboard and
         // the exit code all have to describe the same run.
         printQualityGate(report);
         GateVerdict verdict = evaluateGate(report);
-        export(report.withGateVerdict(verdict), reportFormats, history);
+        export(report.withGateVerdict(verdict), reportFormats, history, consoleGroupBy, reportClock);
         printDiagnostics(report);
         return verdict.exitCode();
     }
@@ -330,6 +499,13 @@ public class AnalyserCli implements java.util.concurrent.Callable<Integer> {
                 : io.github.rohithv16.aem.analyser.core.config.AnalyserConfigLoader.loadIfPresent(root);
         warnRetiredRuleIds(config.rules().keySet(), "Configuration");
         return config;
+    }
+
+    /** The configuration file this run reads, for failure messages that must name it. */
+    private Path configurationPath(Path root) {
+        return configFile != null
+                ? configFile
+                : root.resolve(io.github.rohithv16.aem.analyser.core.config.AnalyserConfigLoader.DEFAULT_FILE);
     }
 
     /**
@@ -635,6 +811,28 @@ public class AnalyserCli implements java.util.concurrent.Callable<Integer> {
     }
 
     /**
+     * The reactor root this run analyses, validated before any work starts: a path typo or a
+     * directory that is not a Maven root fails with the path and the expectation in the message,
+     * not with a stack trace twenty seconds into the scan.
+     */
+    private Path validatedProjectRoot() {
+        Path explicit = projectRoot != null ? projectRoot : positionalProjectRoot;
+        Path requested = explicit != null
+                ? explicit.toAbsolutePath().normalize()
+                : Path.of("").toAbsolutePath().normalize();
+        String pathProblem = FailureMessage.pathProblem(requested);
+        if (pathProblem != null) {
+            throw new IllegalArgumentException(pathProblem);
+        }
+        Path root = resolveProjectRoot();
+        String missingPom = FailureMessage.missingPom(root);
+        if (missingPom != null) {
+            throw new IllegalArgumentException(missingPom);
+        }
+        return root;
+    }
+
+    /**
      * Auto-discovers the reactor root when invoked from inside a project.
      *
      * <p>Starting from {@code --project-root} (or the positional argument, or the working directory)
@@ -728,88 +926,114 @@ public class AnalyserCli implements java.util.concurrent.Callable<Integer> {
                 .load(historyDirectory, historyLimit);
     }
 
-    private void export(AnalysisReport report, List<ReportFormat> reportFormats,
-                        List<io.github.rohithv16.aem.analyser.core.history.RunSummary> history)
-            throws IOException, ExportException {
+    /** One file this run will write; {@code target} is null for the console. */
+    private record ReportPlan(ReportFormat format, Path target) {
+    }
+
+    /**
+     * Resolves every report file before anything is rendered, so the console triage block can name
+     * the files this run writes instead of leaving them to lines after the findings.
+     */
+    private List<ReportPlan> planReports(List<ReportFormat> reportFormats) throws IOException {
+        List<ReportPlan> plans = new ArrayList<>();
         for (ReportFormat reportFormat : reportFormats) {
-            switch (reportFormat) {
-                case CONSOLE -> new ConsoleReportFormatter(consoleColorEnabled()).export(report, stdout);
+            plans.add(new ReportPlan(reportFormat, switch (reportFormat) {
+                case CONSOLE -> null;
+                case SARIF -> outputTarget("aem-analyser.sarif");
+                case SONAR -> outputTarget("sonar-aem-analyser-report.json");
+                case HTML -> htmlTarget();
+                case JSON -> outputTarget("aem-analyser-report.json");
+                case TEXT -> outputTarget("aem-analyser.txt");
+                case JUNIT -> outputTarget("aem-analyser-junit.xml");
+                case GITHUB -> outputTarget("github-annotations.txt");
+                case GITLAB -> outputTarget("gitlab-code-quality.json");
+                case AZURE -> outputTarget("azure-pipelines.log");
+            }));
+        }
+        if (!noHtml && !reportFormats.contains(ReportFormat.HTML)) {
+            // --html <path> wins over the default location; otherwise the dashboard is generated on
+            // every run unless explicitly disabled.
+            plans.add(new ReportPlan(ReportFormat.HTML, htmlTarget()));
+        }
+        return plans;
+    }
+
+    private void export(AnalysisReport report, List<ReportFormat> reportFormats,
+                        List<io.github.rohithv16.aem.analyser.core.history.RunSummary> history,
+                        ConsoleGroupBy consoleGroupBy, java.time.Clock reportClock)
+            throws IOException, ExportException {
+        List<ReportPlan> plans = planReports(reportFormats);
+        List<String> reportPaths = plans.stream()
+                .filter(plan -> plan.target() != null)
+                .map(plan -> displayPath(plan.target()))
+                .toList();
+        for (ReportPlan plan : plans) {
+            switch (plan.format()) {
+                case CONSOLE -> new ConsoleReportFormatter(consoleColorEnabled(), consoleGroupBy, reportPaths,
+                        reportClock != null).export(report, stdout);
                 case SARIF -> {
-                    Path target = outputTarget("aem-analyser.sarif");
-                    try (var writer = Files.newBufferedWriter(target, StandardCharsets.UTF_8)) {
-                        new SarifReportExporter().export(report, writer);
-                    }
-                    stdout.println("SARIF report written to " + target);
+                    writeReport(plan.target(), new SarifReportExporter(), report);
+                    stdout.println("SARIF report written to " + plan.target());
                 }
                 case SONAR -> {
-                    Path target = outputTarget("sonar-aem-analyser-report.json");
-                    try (var writer = Files.newBufferedWriter(target, StandardCharsets.UTF_8)) {
-                        new SonarReportExporter().export(report, writer);
-                    }
-                    stdout.println("SonarQube report written to " + target);
+                    writeReport(plan.target(), new SonarReportExporter(), report);
+                    stdout.println("SonarQube report written to " + plan.target());
                 }
-                case HTML -> writeHtmlReport(report, history, htmlTarget());
+                case HTML -> writeHtmlReport(report, history, plan.target(), reportClock);
                 case JSON -> {
-                    Path target = outputTarget("aem-analyser-report.json");
-                    try (var writer = Files.newBufferedWriter(target, StandardCharsets.UTF_8)) {
-                        new JsonReportExporter().export(report, writer);
-                    }
-                    stdout.println("JSON report written to " + target);
+                    writeReport(plan.target(), new JsonReportExporter(), report);
+                    stdout.println("JSON report written to " + plan.target());
                 }
                 case TEXT -> {
-                    // The file is what :make / :cfile consume; the same lines go to stdout so a pipe
-                    // or a captured build log works without reading the artefact.
+                    // The file is what :make / :cfile consume; the same lines go to stdout so a pipe or
+                    // a captured build log works without reading the artefact.
                     var text = new java.io.StringWriter();
                     new TextReportExporter().export(report, text);
                     String content = text.toString();
-                    Path target = outputTarget("aem-analyser.txt");
-                    try (var writer = Files.newBufferedWriter(target, StandardCharsets.UTF_8)) {
+                    try (var writer = Files.newBufferedWriter(plan.target(), StandardCharsets.UTF_8)) {
                         writer.write(content);
                     }
                     if (!content.isEmpty()) {
                         stdout.print(content);
                         stdout.flush();
                     }
-                    stdout.println("Text report written to " + target);
+                    stdout.println("Text report written to " + plan.target());
                 }
                 case JUNIT -> {
-                    Path target = outputTarget("aem-analyser-junit.xml");
-                    try (var writer = Files.newBufferedWriter(target, StandardCharsets.UTF_8)) {
-                        new JUnitXmlExporter().export(report, writer);
-                    }
-                    stdout.println("JUnit XML report written to " + target);
+                    writeReport(plan.target(), new JUnitXmlExporter(), report);
+                    stdout.println("JUnit XML report written to " + plan.target());
                 }
                 case GITHUB -> {
-                    Path target = outputTarget("github-annotations.txt");
-                    try (var writer = Files.newBufferedWriter(target, StandardCharsets.UTF_8)) {
-                        new io.github.rohithv16.aem.analyser.core.export.GitHubAnnotationExporter()
-                                .export(report, writer);
-                    }
-                    stdout.println("GitHub annotations written to " + target);
+                    writeReport(plan.target(),
+                            new io.github.rohithv16.aem.analyser.core.export.GitHubAnnotationExporter(), report);
+                    stdout.println("GitHub annotations written to " + plan.target());
                 }
                 case GITLAB -> {
-                    Path target = outputTarget("gitlab-code-quality.json");
-                    try (var writer = Files.newBufferedWriter(target, StandardCharsets.UTF_8)) {
-                        new io.github.rohithv16.aem.analyser.core.export.GitLabCodeQualityExporter()
-                                .export(report, writer);
-                    }
-                    stdout.println("GitLab Code Quality report written to " + target);
+                    writeReport(plan.target(),
+                            new io.github.rohithv16.aem.analyser.core.export.GitLabCodeQualityExporter(), report);
+                    stdout.println("GitLab Code Quality report written to " + plan.target());
                 }
                 case AZURE -> {
-                    Path target = outputTarget("azure-pipelines.log");
-                    try (var writer = Files.newBufferedWriter(target, StandardCharsets.UTF_8)) {
-                        new io.github.rohithv16.aem.analyser.core.export.AzurePipelinesExporter()
-                                .export(report, writer);
-                    }
-                    stdout.println("Azure Pipelines annotations written to " + target);
+                    writeReport(plan.target(),
+                            new io.github.rohithv16.aem.analyser.core.export.AzurePipelinesExporter(), report);
+                    stdout.println("Azure Pipelines annotations written to " + plan.target());
                 }
             }
         }
-        if (!noHtml && !reportFormats.contains(ReportFormat.HTML)) {
-            // --html <path> wins over the default location; otherwise the dashboard is generated on
-            // every run unless explicitly disabled.
-            writeHtmlReport(report, history, htmlTarget());
+    }
+
+    private void writeReport(Path target, io.github.rohithv16.aem.analyser.core.export.ReportExporter exporter,
+                             AnalysisReport report) throws IOException, ExportException {
+        try (var writer = Files.newBufferedWriter(target, StandardCharsets.UTF_8)) {
+            exporter.export(report, writer);
         }
+    }
+
+    /** A report path as a developer reads it: relative to the working directory when inside it. */
+    private static String displayPath(Path path) {
+        Path absolute = path.toAbsolutePath().normalize();
+        Path cwd = Path.of("").toAbsolutePath().normalize();
+        return absolute.startsWith(cwd) ? cwd.relativize(absolute).toString() : absolute.toString();
     }
 
     /** Destination for the HTML dashboard: an explicit --html path, else the output directory. */
@@ -822,13 +1046,14 @@ public class AnalyserCli implements java.util.concurrent.Callable<Integer> {
 
     private void writeHtmlReport(AnalysisReport report,
                                  List<io.github.rohithv16.aem.analyser.core.history.RunSummary> history,
-                                 Path target) throws IOException,
+                                 Path target, java.time.Clock reportClock) throws IOException,
             io.github.rohithv16.aem.analyser.core.export.ExportException {
         if (target.getParent() != null) {
             Files.createDirectories(target.getParent());
         }
+        java.time.Clock clock = reportClock == null ? java.time.Clock.systemDefaultZone() : reportClock;
         try (var writer = Files.newBufferedWriter(target, StandardCharsets.UTF_8)) {
-            new HtmlReportExporter(java.time.Clock.systemDefaultZone(), 5000, history)
+            new HtmlReportExporter(clock, 5000, history, reportClock != null)
                     .export(report, writer);
         }
         stdout.println("HTML report written to " + target);

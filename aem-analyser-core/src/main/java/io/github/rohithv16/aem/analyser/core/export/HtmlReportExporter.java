@@ -33,7 +33,7 @@ import java.util.stream.Collectors;
 public final class HtmlReportExporter implements ReportExporter {
 
     private static final DateTimeFormatter ISO_FORMATTER =
-            DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss z").withZone(ZoneId.systemDefault());
+            DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss z", Locale.ROOT).withZone(ZoneId.systemDefault());
 
     /** Family chips, in the order the site lists them: code and label. */
     private static final String[][] FAMILY_CHIPS = {
@@ -47,23 +47,36 @@ public final class HtmlReportExporter implements ReportExporter {
     private final java.time.Clock clock;
     private final int maxViolations;
     private final List<RunSummary> history;
+    /** True for a reproducible run: the timestamp comes from a fixed clock and the duration is dropped. */
+    private final boolean omitDuration;
 
     public HtmlReportExporter() {
-        this(java.time.Clock.systemDefaultZone(), 5000, List.of());
+        this(java.time.Clock.systemDefaultZone(), 5000, List.of(), false);
     }
 
     public HtmlReportExporter(java.time.Clock clock) {
-        this(clock, 5000, List.of());
+        this(clock, 5000, List.of(), false);
     }
 
     public HtmlReportExporter(java.time.Clock clock, int maxViolations) {
-        this(clock, maxViolations, List.of());
+        this(clock, maxViolations, List.of(), false);
     }
 
     public HtmlReportExporter(java.time.Clock clock, int maxViolations, List<RunSummary> history) {
+        this(clock, maxViolations, history, false);
+    }
+
+    /**
+     * @param omitDuration report a fixed report clock was installed ({@code --report-epoch}): the
+     *                     wall-clock duration and the local timezone are left out, so the same tree
+     *                     yields identical bytes on any machine
+     */
+    public HtmlReportExporter(java.time.Clock clock, int maxViolations, List<RunSummary> history,
+                              boolean omitDuration) {
         this.clock = clock == null ? java.time.Clock.systemDefaultZone() : clock;
         this.maxViolations = Math.max(1, maxViolations);
         this.history = List.copyOf(history == null ? List.of() : history);
+        this.omitDuration = omitDuration;
     }
 
     @Override
@@ -132,7 +145,7 @@ public final class HtmlReportExporter implements ReportExporter {
         CodeMetrics metrics = report.codeMetrics();
         CoverageReport coverage = report.coverageReport();
 
-        String generatedAt = ISO_FORMATTER.format(Instant.now(clock));
+        String generatedAt = generatedAt();
         StringBuilder sb = new StringBuilder(96_000);
         sb.append("<!DOCTYPE html>\n<html lang=\"en\" data-theme=\"light\">\n<head>\n");
         sb.append("<meta charset=\"UTF-8\">\n");
@@ -202,9 +215,11 @@ public final class HtmlReportExporter implements ReportExporter {
                 .append("    </div>\n");
         sb.append("  </div>\n  <div class=\"top__meta\">\n")
                 .append("    <span class=\"mono\">").append(escape(displayRoot(report.projectRoot()))).append("</span>")
-                .append("<span>Generated ").append(escape(generatedAt)).append("</span>")
-                .append("<span>Analysis ")
-                .append(String.format(Locale.ROOT, "%.2fs", report.durationMillis() / 1000.0)).append("</span>");
+                .append("<span>Generated ").append(escape(generatedAt)).append("</span>");
+        if (!omitDuration) {
+            sb.append("<span>Analysis ")
+                    .append(String.format(Locale.ROOT, "%.2fs", report.durationMillis() / 1000.0)).append("</span>");
+        }
         if (!report.scanStatistics().isEmpty()) {
             sb.append("<span>").append(plural(report.scanStatistics().size(), "scan metric", "scan metrics"))
                     .append("</span>");
@@ -724,6 +739,20 @@ public final class HtmlReportExporter implements ReportExporter {
     }
 
     // ----------------------------------------------------------------- helpers
+
+    /**
+     * The report timestamp. A reproducible run renders the fixed instant in UTC, because a
+     * timestamp formatted in the machine's local zone would make the bytes depend on where the
+     * build ran; a live run keeps the local zone, which is what a developer expects to read.
+     */
+    private String generatedAt() {
+        if (omitDuration) {
+            return DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss 'UTC'", Locale.ROOT)
+                    .withZone(java.time.ZoneOffset.UTC)
+                    .format(Instant.now(clock));
+        }
+        return ISO_FORMATTER.format(Instant.now(clock));
+    }
 
     /**
      * How the analysed root is shown in the header: relative to the working directory when it is

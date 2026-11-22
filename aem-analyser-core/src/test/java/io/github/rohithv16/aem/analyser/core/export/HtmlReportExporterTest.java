@@ -100,6 +100,35 @@ class HtmlReportExporterTest {
         assertEquals(first.toString(), second.toString());
     }
 
+    /**
+     * Reproducible mode: the timestamp is formatted in the fixed clock's zone (never the machine's)
+     * and the wall-clock duration is dropped, so {@code sha256sum} of the report is a cache key.
+     */
+    @Test
+    void reproducibleExportOmitsDurationAndIgnoresTheLocalTimezone() throws Exception {
+        AnalysisReport report = new AnalysisReport(Path.of("/workspace/project"), Map.of(),
+                List.of(violation("AEM-DEAD-001", "message", 1)), 1250);
+        java.time.Clock fixed = java.time.Clock.fixed(
+                java.time.Instant.ofEpochSecond(1_700_000_000L), java.time.ZoneOffset.UTC);
+
+        String html = new HtmlReportExporter(fixed, 5000, List.of(), true).generateHtml(report);
+
+        assertTrue(html.contains("Generated 2023-11-14 22:13:20 UTC"), html);
+        assertFalse(html.contains("Analysis 1.25s"), html);
+        assertEquals(html, new HtmlReportExporter(fixed, 5000, List.of(), true).generateHtml(report));
+    }
+
+    /** Without a fixed clock the duration is useful context and stays. */
+    @Test
+    void liveExportKeepsTheDuration() throws Exception {
+        AnalysisReport report = new AnalysisReport(Path.of("/workspace/project"), Map.of(),
+                List.of(violation("AEM-DEAD-001", "message", 1)), 1250);
+
+        String html = new HtmlReportExporter(java.time.Clock.systemUTC(), 5000).generateHtml(report);
+
+        assertTrue(html.contains("Analysis 1.25s"), html);
+    }
+
     @Test
     void capsRenderedRowsAndKeepsTotals() throws Exception {
         AnalysisReport report = new AnalysisReport(Path.of("/workspace/project"), Map.of(),
