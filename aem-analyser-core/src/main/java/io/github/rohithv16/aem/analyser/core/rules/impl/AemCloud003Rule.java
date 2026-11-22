@@ -11,7 +11,6 @@ import io.github.rohithv16.aem.analyser.core.rules.RuleContext;
 import io.github.rohithv16.aem.analyser.core.rules.RuleEvaluator;
 
 import java.io.BufferedReader;
-import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -22,7 +21,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.util.stream.Stream;
 
 /**
  * Rule AEM-CLOUD-003: Unmapped Subservice or Unresolved Service User.
@@ -275,18 +273,8 @@ public final class AemCloud003Rule implements RuleEvaluator {
             return users;
         }
 
-        try (Stream<Path> stream = Files.walk(root)) {
-            stream.filter(Files::isRegularFile)
-                    .filter(p -> {
-                        String s = p.toString().replace('\\', '/');
-                        return !s.contains("/target/")
-                                && !s.contains("/node_modules/")
-                                && !s.contains("/.git/")
-                                && !s.contains("/.idea/")
-                                && !s.contains("/.vscode/");
-                    })
-                    .forEach(file -> scanFileForSystemUsers(file, users));
-        } catch (IOException ignored) {
+        for (Path file : context.fileInventory().filesUnder(root)) {
+            scanFileForSystemUsers(file, users);
         }
 
         return users;

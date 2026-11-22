@@ -17,9 +17,11 @@ import sys
 import pathlib
 
 # Any of these substrings identifies a path inside validation/probes.
-# Java fixtures live in com/probe, content fixtures under apps/probe, and
-# config fixtures are named com.probe.*.
-PROBE_PATH_MARKERS = ("com/probe/", "apps/probe/", "com.probe.")
+# Java fixtures live in com/probe, content fixtures under apps/probe, config
+# fixtures are named com.probe.*, dispatcher fixtures live under conf.d/ and
+# content-package fixtures are the META-INF/vault/filter.xml files.
+PROBE_PATH_MARKERS = ("com/probe/", "apps/probe/", "com.probe.", "conf.d/",
+                      "META-INF/vault/filter.xml")
 
 
 def main() -> int:

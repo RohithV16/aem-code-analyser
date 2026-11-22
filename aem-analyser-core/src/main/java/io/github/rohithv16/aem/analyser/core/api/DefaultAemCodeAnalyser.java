@@ -50,19 +50,38 @@ public final class DefaultAemCodeAnalyser implements AemCodeAnalyser {
     @Override
     public AnalysisReport analyze(AnalysisContext context) throws AnalysisException {
         long start = System.nanoTime();
+        Map<String, Long> phases = new LinkedHashMap<>();
         io.github.rohithv16.aem.analyser.core.util.DiagnosticSink diagnostics =
                 new io.github.rohithv16.aem.analyser.core.util.DiagnosticSink();
-        try (ProjectDiscoveryEngine discovery = new ProjectDiscoveryEngine(diagnostics)) {
+        // One pruned walk per run. Every scanner and every file-scanning rule consumes this set,
+        // instead of each of them walking the whole root (and paying for node_modules) again.
+        long phaseStart = System.nanoTime();
+        io.github.rohithv16.aem.analyser.core.discovery.FileInventory inventory =
+                io.github.rohithv16.aem.analyser.core.discovery.FileInventory.scan(
+                        context.projectRoot(), diagnostics);
+        // Content-hash parse cache: an unchanged file is parsed once per machine. Rules still see
+        // the whole graph, so a hit cannot drop a finding the way --changed-only can.
+        io.github.rohithv16.aem.analyser.core.parser.cache.ParseCache parseCache =
+                context.enableCache()
+                        ? io.github.rohithv16.aem.analyser.core.parser.cache.ParseCache.forProject(
+                                context.projectRoot(), context.maxFileSizeBytes())
+                        : io.github.rohithv16.aem.analyser.core.parser.cache.ParseCache.disabled();
+        try (ProjectDiscoveryEngine discovery = new ProjectDiscoveryEngine(inventory, diagnostics)) {
             ProjectDiscoveryEngine.DiscoveryResult discoveryResult =
                     discovery.discover(context.projectRoot(), context.activeProfiles());
+            phases.put("discovery", elapsedMillis(phaseStart));
 
             // ── Phase A: parallel extraction (worker threads; ASTs freed immediately) ──
+            phaseStart = System.nanoTime();
             List<JavaSourceParseResult> javaResults =
-                    parseJavaSourcesParallel(context, discoveryResult.modules(), diagnostics);
+                    parseJavaSourcesParallel(context, inventory, discoveryResult.modules(), diagnostics,
+                            parseCache);
             List<OsgiConfigDefinition> configs =
-                    parseOsgiConfigs(context, discoveryResult.modules(), diagnostics);
+                    parseOsgiConfigs(context, discoveryResult.modules(), diagnostics, parseCache);
+            phases.put("parse", elapsedMillis(phaseStart));
 
             // ── Phase A2: HTL & Component scanning ──────────────────────────────
+            phaseStart = System.nanoTime();
             var htlScanner = new HtlScanner();
             List<HtlUsage> htlUsages = new ArrayList<>();
             List<HtlUnsafeContextFinding> htlUnsafeContexts = new ArrayList<>();
@@ -74,8 +93,8 @@ public final class DefaultAemCodeAnalyser implements AemCodeAnalyser {
                 if (!mayContainContent(module.classification())) {
                     continue;
                 }
-                var htlResult = htlScanner.scan(module.moduleDirectory(), diagnostics,
-                        context.maxFileSizeBytes());
+                var htlResult = htlScanner.scan(inventory, module.moduleDirectory(), diagnostics,
+                        context.maxFileSizeBytes(), parseCache);
                 htlResult.usages().stream()
                         .filter(usage -> isChanged(context, usage.filePath()))
                         .forEach(htlUsages::add);
@@ -88,28 +107,32 @@ public final class DefaultAemCodeAnalyser implements AemCodeAnalyser {
                 htlResult.resources().stream()
                         .filter(ref -> isChanged(context, ref.filePath()))
                         .forEach(htlResources::add);
-                compScanner.scanDirectory(module.moduleDirectory(), diagnostics,
+                compScanner.scanDirectory(inventory, module.moduleDirectory(), diagnostics,
                                 context.maxFileSizeBytes()).stream()
                         .filter(component -> isChanged(context, component.contentXml()))
                         .forEach(cqComponents::add);
             }
+            phases.put("htl", elapsedMillis(phaseStart));
 
             // Dependency bytecode indexing
+            phaseStart = System.nanoTime();
             DependencyBytecodeIndexer.DependencyIndex dependencyIndex = indexDependencies(context, diagnostics);
 
             // ── Phase B/C/D: thread-confined graph ingestion ─────────────────────
             ReferenceGraphBuilder builder = new ReferenceGraphBuilder();
             ReferenceGraphBuilder.GraphBuildResult buildResult = builder.build(new ReferenceGraphBuilder.GraphInput(
                     discoveryResult.modules(), javaResults, configs, dependencyIndex, context.projectRoot()));
+            phases.put("graph", elapsedMillis(phaseStart));
 
             Set<String> exportedPatterns = new LinkedHashSet<>(buildResult.exportedPatterns());
             javaResults.forEach(java -> exportedPatterns.addAll(java.exportedPackages()));
 
             // ── Rule evaluation ───────────────────────────────────────────────────
+            phaseStart = System.nanoTime();
             RuleContext ruleContext = new RuleContext(buildResult.graph(), buildResult,
                     Set.copyOf(exportedPatterns), dependencyIndex, context.ignoredServices(), context.projectRoot(),
                     htlUsages, cqComponents, htlUnsafeContexts, discoveryResult.modules(),
-                    htlIncludes, htlResources);
+                    htlIncludes, htlResources, inventory);
             List<Violation> violations = new ArrayList<>();
             for (RuleEvaluator rule : rules) {
                 violations.addAll(rule.evaluate(ruleContext));
@@ -117,23 +140,34 @@ public final class DefaultAemCodeAnalyser implements AemCodeAnalyser {
             violations.sort(Comparator.comparing(Violation::filePath)
                     .thenComparing(v -> v.region().startLine())
                     .thenComparing(Violation::ruleId));
+            phases.put("rules", elapsedMillis(phaseStart));
 
             // ── Open-Source PMD CPD Duplicate Detection ──────────────────────────
+            phaseStart = System.nanoTime();
             var pmdEngine = new io.github.rohithv16.aem.analyser.core.discovery.PmdCpdDuplicationEngine();
             var pmdResult = pmdEngine.analyze(context.projectRoot(), javaResults);
             violations.addAll(pmdResult.violations());
             var codeMetrics = pmdResult.metrics();
+            phases.put("cpd", elapsedMillis(phaseStart));
 
             // ── Embedded SonarSource Java Analysis ───────────────────────────────
+            // The Sonar pass consumes discovery's Java file set and the run's filters, so
+            // --changed-only/--max-file-size mean the same thing here as in every other phase.
             if (context.enableSonar()) {
-                var sonarChecks = io.github.rohithv16.aem.analyser.core.sonar.SonarRuleRegistry.createChecksFor(context.sonarRules());
-                var sonarScanner = new io.github.rohithv16.aem.analyser.core.sonar.SonarJavaScanner(context.projectRoot(), sonarChecks);
+                phaseStart = System.nanoTime();
+                var sonarScanner = new io.github.rohithv16.aem.analyser.core.sonar.SonarJavaScanner(
+                        context.projectRoot(), sonarJavaFiles(context, inventory),
+                        moduleClasspath(discoveryResult.modules()),
+                        io.github.rohithv16.aem.analyser.core.sonar.SonarRuleRegistry
+                                .createChecksFor(context.sonarRules()));
                 violations.addAll(sonarScanner.scan().stream()
                         .filter(v -> !io.github.rohithv16.aem.analyser.core.sonar.SonarAemSuppressions
                                 .isSuppressed(context.projectRoot(), v))
                         .toList());
+                phases.put("sonar", elapsedMillis(phaseStart));
             }
 
+            phaseStart = System.nanoTime();
             violations.sort(Comparator.comparing(Violation::filePath)
                     .thenComparing(v -> v.region().startLine())
                     .thenComparing(Violation::ruleId));
@@ -149,22 +183,78 @@ public final class DefaultAemCodeAnalyser implements AemCodeAnalyser {
             if (!acceptedByDirective.isEmpty()) {
                 violations = violations.stream().filter(v -> !v.isAccepted()).toList();
             }
+            phases.put("suppression", elapsedMillis(phaseStart));
 
+            phaseStart = System.nanoTime();
             var coverageEngine = new io.github.rohithv16.aem.analyser.core.discovery.CoverageDiscoveryEngine();
             var coverageReport = coverageEngine.discover(context.projectRoot(), discoveryResult.modules());
+            phases.put("coverage", elapsedMillis(phaseStart));
+
+            // A changed-only run sees a subset of the tree; pruning from it would delete the
+            // parse results of every file it did not look at.
+            if (parseCache.isEnabled() && context.changedFiles().isEmpty()) {
+                parseCache.prune();
+            }
 
             long durationMillis = (System.nanoTime() - start) / 1_000_000;
             return new AnalysisReport(context.projectRoot(), scanStatistics(discoveryResult, buildResult, htlUsages.size(), cqComponents.size()),
                     violations, durationMillis, coverageReport, codeMetrics, diagnostics.diagnostics())
-                    .withAcceptedViolations(acceptedByDirective);
+                    .withAcceptedViolations(acceptedByDirective)
+                    .withPhaseMillis(phases)
+                    .withCacheSummary(parseCache.isEnabled() ? parseCache.summary() : null);
         } catch (IOException | RuntimeException e) {
             throw new AnalysisException("Analysis failed: " + e.getMessage(), e);
         }
     }
 
+    private static long elapsedMillis(long sinceNanos) {
+        return (System.nanoTime() - sinceNanos) / 1_000_000;
+    }
+
+    /**
+     * The Java files Sonar may analyse: the same inventory the AEM rules parse, minus test sources
+     * (Sonar has always been main-source only), narrowed by {@code --changed-only} and the size cap.
+     */
+    private static List<Path> sonarJavaFiles(AnalysisContext context,
+                                             io.github.rohithv16.aem.analyser.core.discovery.FileInventory inventory) {
+        List<Path> files = new ArrayList<>();
+        for (Path file : inventory.javaFiles()) {
+            if (file.toString().replace('\\', '/').contains("/src/test/")) {
+                continue;
+            }
+            if (!isChanged(context, file)) {
+                continue;
+            }
+            try {
+                if (Files.size(file) > context.maxFileSizeBytes()) {
+                    continue;
+                }
+            } catch (IOException e) {
+                continue;
+            }
+            files.add(file);
+        }
+        files.sort(Comparator.naturalOrder());
+        return files;
+    }
+
+    /** Reactor classpath for Sonar's symbol resolution, without a third walk of the project root. */
+    private static List<java.io.File> moduleClasspath(List<ModuleDescriptor> modules) {
+        List<java.io.File> classpath = new ArrayList<>();
+        for (ModuleDescriptor module : modules) {
+            Path classes = module.moduleDirectory().resolve("target/classes");
+            if (Files.isDirectory(classes)) {
+                classpath.add(classes.toFile());
+            }
+        }
+        return classpath;
+    }
+
     private List<JavaSourceParseResult> parseJavaSourcesParallel(AnalysisContext context,
+                                                                 io.github.rohithv16.aem.analyser.core.discovery.FileInventory inventory,
                                                                  List<io.github.rohithv16.aem.analyser.core.model.discovery.ModuleDescriptor> modules,
-                                                                 io.github.rohithv16.aem.analyser.core.util.DiagnosticSink diagnostics)
+                                                                 io.github.rohithv16.aem.analyser.core.util.DiagnosticSink diagnostics,
+                                                                 io.github.rohithv16.aem.analyser.core.parser.cache.ParseCache cache)
             throws IOException {
         List<Path> javaFiles = new ArrayList<>();
         for (ModuleDescriptor module : modules) {
@@ -177,23 +267,19 @@ public final class DefaultAemCodeAnalyser implements AemCodeAnalyser {
                 if (!Files.isDirectory(sourceRoot)) {
                     continue;
                 }
-                try (Stream<Path> stream = Files.walk(sourceRoot)) {
-                    stream.filter(f -> f.toString().endsWith(".java")).forEach(file -> {
-                        try {
-                            if (Files.size(file) > context.maxFileSizeBytes()) {
-                                diagnostics.add(io.github.rohithv16.aem.analyser.core.model.report.DiagnosticKind.FILE_TOO_LARGE,
-                                        file, "exceeds " + (context.maxFileSizeBytes() / (1024 * 1024)) + " MiB");
-                            } else if (isChanged(context, file)) {
-                                javaFiles.add(file);
-                            }
-                        } catch (IOException e) {
-                            diagnostics.add(io.github.rohithv16.aem.analyser.core.model.report.DiagnosticKind.UNREADABLE_TREE,
-                                    file, io.github.rohithv16.aem.analyser.core.util.DiagnosticSink.reasonOf(e));
+                for (Path file : inventory.filesUnder(sourceRoot,
+                        io.github.rohithv16.aem.analyser.core.discovery.FileInventory.withExtension(".java"))) {
+                    try {
+                        if (Files.size(file) > context.maxFileSizeBytes()) {
+                            diagnostics.add(io.github.rohithv16.aem.analyser.core.model.report.DiagnosticKind.FILE_TOO_LARGE,
+                                    file, "exceeds " + (context.maxFileSizeBytes() / (1024 * 1024)) + " MiB");
+                        } else if (isChanged(context, file)) {
+                            javaFiles.add(file);
                         }
-                    });
-                } catch (IOException e) {
-                    diagnostics.add(io.github.rohithv16.aem.analyser.core.model.report.DiagnosticKind.UNREADABLE_TREE,
-                            sourceRoot, io.github.rohithv16.aem.analyser.core.util.DiagnosticSink.reasonOf(e));
+                    } catch (IOException e) {
+                        diagnostics.add(io.github.rohithv16.aem.analyser.core.model.report.DiagnosticKind.UNREADABLE_TREE,
+                                file, io.github.rohithv16.aem.analyser.core.util.DiagnosticSink.reasonOf(e));
+                    }
                 }
             }
         }
@@ -209,7 +295,15 @@ public final class DefaultAemCodeAnalyser implements AemCodeAnalyser {
         try {
             List<Future<JavaSourceParseResult>> futures = new ArrayList<>(javaFiles.size());
             for (Path javaFile : javaFiles) {
-                futures.add(workers.submit(() -> parser.parseStrict(javaFile)));
+                futures.add(workers.submit(() -> {
+                    java.util.Optional<JavaSourceParseResult> cached = cache.getJava(javaFile);
+                    if (cached.isPresent()) {
+                        return cached.get();
+                    }
+                    JavaSourceParseResult result = parser.parseStrict(javaFile);
+                    cache.putJava(result);
+                    return result;
+                }));
             }
             for (int i = 0; i < futures.size(); i++) {
                 Path javaFile = javaFiles.get(i);
@@ -251,7 +345,8 @@ public final class DefaultAemCodeAnalyser implements AemCodeAnalyser {
 
     private List<OsgiConfigDefinition> parseOsgiConfigs(AnalysisContext context,
                                                         List<io.github.rohithv16.aem.analyser.core.model.discovery.ModuleDescriptor> modules,
-                                                        io.github.rohithv16.aem.analyser.core.util.DiagnosticSink diagnostics) {
+                                                        io.github.rohithv16.aem.analyser.core.util.DiagnosticSink diagnostics,
+                                                        io.github.rohithv16.aem.analyser.core.parser.cache.ParseCache cache) {
         OsgiConfigScanner scanner = new OsgiConfigScanner();
         OsgiConfigParser parser = new OsgiConfigParser();
         io.github.rohithv16.aem.analyser.core.util.PathPatternMatcher ignoredConfigs =
@@ -280,10 +375,17 @@ public final class DefaultAemCodeAnalyser implements AemCodeAnalyser {
                             configPath, io.github.rohithv16.aem.analyser.core.util.DiagnosticSink.reasonOf(e));
                     continue;
                 }
+                var cached = cache.getConfig(configPath);
+                if (cached.isPresent()) {
+                    configs.add(cached.get());
+                    continue;
+                }
                 Set<String> runmodes = scanner.resolveRunmodes(
                         configPath.getParent().getFileName().toString());
                 try {
-                    configs.add(parser.parse(configPath, runmodes));
+                    OsgiConfigDefinition definition = parser.parse(configPath, runmodes);
+                    cache.putConfig(definition);
+                    configs.add(definition);
                 } catch (IOException | RuntimeException e) {
                     diagnostics.add(io.github.rohithv16.aem.analyser.core.model.report.DiagnosticKind.CONFIG_PARSE_ERROR,
                             configPath, io.github.rohithv16.aem.analyser.core.util.DiagnosticSink.reasonOf(e));

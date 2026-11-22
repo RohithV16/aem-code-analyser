@@ -528,6 +528,63 @@ public final class RuleFixCatalog {
                     ui.config/.../config.author.dev.local/com.acme.SearchService.cfg.json""",
                     "text", """
                     ui.config/.../config.author/com.acme.SearchService.cfg.json""");
+            case AEM_CLOUD_006 -> new Fix(
+                    """
+                    The dispatcher is validated only when Cloud Manager deploys, so a broken include, a \
+                    duplicated ServerName, a virtual host with no DocumentRoot or a monolithic \
+                    dispatcher.any turns into a failed pipeline rather than a failed build. The same \
+                    defects are also the usual cause of "works in dev, 404 in prod": the vhost never \
+                    loads, or two vhosts answer for one host name and whichever loads last wins.""",
+                    """
+                    Create the missing include target or fix the path, give every virtual host its own \
+                    ServerName, add {@code DocumentRoot "${DOCROOT}"} to each block, and split a legacy \
+                    monolithic dispatcher.any into conf.dispatcher.d (farms, filters, cache, renders, \
+                    virtualhosts) plus conf.d (vhosts, rewrites, variables).""",
+                    "text", """
+                    # dispatcher/src/conf.d/available_vhosts/acme.vhost
+                    Include conf.d/includes/cache-rules.conf   # no such file
+                    <VirtualHost *:80>
+                        ServerName "www.acme.com"
+                    </VirtualHost>""",
+                    "text", """
+                    # dispatcher/src/conf.d/available_vhosts/acme.vhost
+                    Include conf.d/includes/cache.conf
+                    <VirtualHost *:80>
+                        ServerName "www.acme.com"
+                        DocumentRoot "${DOCROOT}"
+                    </VirtualHost>""");
+            case AEM_CLOUD_007 -> new Fix(
+                    """
+                    Filter roots decide which repository paths a package installs. When two modules \
+                    filter the same root, the package installed last wins, so content from the other \
+                    package silently disappears in the deployed environment — and the build, the \
+                    package manager and both modules' own tests all still pass. {@code mode="replace"} \
+                    on a shared root makes that deletion explicit. A root at {@code /apps}, {@code \
+                    /content/dam} or under {@code /libs} ships content the project does not own.""",
+                    """
+                    Give each content module a disjoint root under the project namespace. Where a root \
+                    genuinely must be shared, use {@code mode="merge"} and include only the paths the \
+                    module owns instead of the platform root itself.""",
+                    "json", """
+                    <!-- ui.apps/src/main/content/META-INF/vault/filter.xml -->
+                    <workspaceFilter version="1.0">
+                        <filter root="/content/acme" mode="replace"/>
+                    </workspaceFilter>
+
+                    <!-- ui.content/src/main/content/META-INF/vault/filter.xml -->
+                    <workspaceFilter version="1.0">
+                        <filter root="/content/acme" mode="merge"/>
+                    </workspaceFilter>""",
+                    "json", """
+                    <!-- ui.apps/src/main/content/META-INF/vault/filter.xml -->
+                    <workspaceFilter version="1.0">
+                        <filter root="/apps/acme/components"/>
+                    </workspaceFilter>
+
+                    <!-- ui.content/src/main/content/META-INF/vault/filter.xml -->
+                    <workspaceFilter version="1.0">
+                        <filter root="/content/acme" mode="merge"/>
+                    </workspaceFilter>""");
             case AEM_SEC_001 -> new Fix(
                     """
                     {@code context='unsafe'} switches off HTL's contextual escaping, and the expression is \

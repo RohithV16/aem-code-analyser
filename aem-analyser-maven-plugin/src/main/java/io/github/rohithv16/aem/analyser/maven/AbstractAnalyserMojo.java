@@ -26,6 +26,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -102,6 +103,14 @@ public abstract class AbstractAnalyserMojo extends AbstractMojo {
     /** Skip the goal entirely. */
     @Parameter(property = "aem-analyser.skip", defaultValue = "false")
     protected boolean skip;
+
+    /**
+     * Issue #44: additionally write a report per reactor module under
+     * {@code target/aem-analyser/modules/<artifactId>/}, plus a module/errors/warnings table.
+     * Findings that belong to no module land in the {@code _reactor} bucket.
+     */
+    @Parameter(property = "aem-analyser.perModule", defaultValue = "false")
+    protected boolean perModule;
 
     /** Print structured analysis diagnostics. */
     @Parameter(property = "aem-analyser.verbose", defaultValue = "false")
@@ -404,16 +413,131 @@ public abstract class AbstractAnalyserMojo extends AbstractMojo {
                 }
                 getLog().info("Wrote HTML report to " + htmlFile);
             }
+
+            if (perModule) {
+                writePerModuleReports(report, root, formats);
+            }
         } catch (IOException | ExportException e) {
             throw new MojoExecutionException("Failed to write analysis reports: " + e.getMessage(), e);
         }
     }
 
-    private Path defaultOutputDirectory(Path root) {
+    protected Path defaultOutputDirectory(Path root) {
         if (project != null && project.getBuild() != null && project.getBuild().getDirectory() != null) {
             return Path.of(project.getBuild().getDirectory());
         }
         return root.resolve("target");
+    }
+
+    /**
+     * Issue #44: builds the module attributor from the live Maven session.
+     *
+     * <p>Modules whose base directory is outside the analysed tree are dropped — they cannot own any
+     * of its files, and a multi-root session ({@code -pl} from a sibling checkout) must not invent
+     * buckets for code that was never scanned.
+     */
+    protected ModuleAttributor moduleAttributor(Path root) {
+        List<ModuleAttributor.Module> modules = new ArrayList<>();
+        if (session != null && session.getProjects() != null) {
+            for (MavenProject reactorProject : session.getProjects()) {
+                if (reactorProject.getBasedir() == null) {
+                    continue;
+                }
+                String relative = ModuleAttributor.relativePathOf(root, reactorProject.getBasedir().toPath());
+                if (relative == null) {
+                    continue;
+                }
+                modules.add(new ModuleAttributor.Module(reactorProject.getArtifactId(), relative));
+            }
+        }
+        if (modules.isEmpty() && project != null && project.getBasedir() != null) {
+            modules.add(new ModuleAttributor.Module(project.getArtifactId(), ""));
+        }
+        return ModuleAttributor.of(modules);
+    }
+
+    /**
+     * Issue #44: writes one report set per reactor module under
+     * {@code <build directory>/aem-analyser/modules/<artifactId>/} and logs the module table.
+     *
+     * <p>Each subset reuses the exporters of the main report, so a module's SARIF is the same
+     * document shape CI already ingests — only the findings differ. Accepted findings are carried
+     * into the owning module too, so the per-module SARIF tells the same "exists, accepted" story as
+     * the reactor-wide one. Findings no module claims go to {@code _reactor}: nothing vanishes.
+     */
+    protected void writePerModuleReports(AnalysisReport report, Path root, List<ReportFormat> formats)
+            throws MojoExecutionException {
+        ModuleAttributor attributor = moduleAttributor(root);
+        Map<String, List<io.github.rohithv16.aem.analyser.core.model.report.Violation>> buckets =
+                PerModuleSummary.bucket(attributor, report.violations());
+        Map<String, List<io.github.rohithv16.aem.analyser.core.model.report.Violation>> accepted =
+                PerModuleSummary.bucket(attributor, report.acceptedViolations());
+
+        List<String> table = PerModuleSummary.render(PerModuleSummary.rows(buckets));
+        for (String line : table) {
+            getLog().info(line);
+        }
+        if (!attributor.isReactor()) {
+            // -N is the usual way to run an aggregator, but it also hides every module from the
+            // session: say so instead of silently publishing a single bucket.
+            getLog().warn("AEM Code Analyser: aem-analyser.perModule=true but the Maven session holds no"
+                    + " nested modules (single-module build or -N); findings are reported as one bucket."
+                    + " Run the goal without -N to attribute findings per module.");
+        }
+        if (buckets.isEmpty() && accepted.isEmpty()) {
+            return;
+        }
+
+        Path modulesDirectory = defaultOutputDirectory(root).resolve("aem-analyser").resolve("modules");
+        java.util.Set<String> moduleIds = new java.util.LinkedHashSet<>(buckets.keySet());
+        moduleIds.addAll(accepted.keySet());
+        try {
+            for (String moduleId : moduleIds) {
+                List<io.github.rohithv16.aem.analyser.core.model.report.Violation> findings =
+                        buckets.getOrDefault(moduleId, List.of());
+                List<io.github.rohithv16.aem.analyser.core.model.report.Violation> acceptedFindings =
+                        accepted.getOrDefault(moduleId, List.of());
+                if (findings.isEmpty() && acceptedFindings.isEmpty()) {
+                    continue;
+                }
+                // A module report is a slice of one run: phase timings and the cache summary belong to
+                // the whole run, not to one module, so they stay empty here.
+                AnalysisReport moduleReport = new AnalysisReport(root, report.scanStatistics(), findings,
+                        report.durationMillis(), report.coverageReport(), report.codeMetrics(),
+                        report.diagnostics(), null, acceptedFindings, Map.of(), null);
+                Path moduleDirectory = modulesDirectory.resolve(directoryName(moduleId));
+                Files.createDirectories(moduleDirectory);
+                for (ReportFormat format : formats) {
+                    Path file = moduleDirectory.resolve(fileName(format));
+                    try (Writer writer = Files.newBufferedWriter(file, StandardCharsets.UTF_8)) {
+                        exporter(format).export(moduleReport, writer);
+                    }
+                }
+                if (generateHtml) {
+                    Path htmlFile = moduleDirectory.resolve("aem-analyser-report.html");
+                    try (Writer writer = Files.newBufferedWriter(htmlFile, StandardCharsets.UTF_8)) {
+                        new HtmlReportExporter(java.time.Clock.systemDefaultZone(), 5000, List.of())
+                                .export(moduleReport, writer);
+                    }
+                }
+                getLog().info("Wrote per-module " + formats + " report(s) for " + moduleId + " to "
+                        + moduleDirectory);
+            }
+        } catch (IOException | ExportException e) {
+            throw new MojoExecutionException("Failed to write per-module reports: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * A module id is an artifactId, so it is already a safe directory name; the sanitiser only guards
+     * against a hand-set artifactId containing a separator or {@code ..}.
+     */
+    private static String directoryName(String moduleId) {
+        String safe = moduleId == null ? "_reactor" : moduleId.replaceAll("[^A-Za-z0-9._-]", "_");
+        while (safe.startsWith(".")) {
+            safe = "_" + safe.substring(1);
+        }
+        return safe.isEmpty() ? "_reactor" : safe;
     }
 
     private static String fileName(ReportFormat format) {
