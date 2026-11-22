@@ -11,6 +11,7 @@ import javax.xml.parsers.ParserConfigurationException;
 import javax.xml.parsers.SAXParserFactory;
 import java.io.IOException;
 import java.io.InputStream;
+import io.github.rohithv16.aem.analyser.core.discovery.FileInventory;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -53,11 +54,12 @@ public final class VaultFilterParser {
             return List.of();
         }
         List<FilterRoot> filters = new ArrayList<>();
-        try (Stream<Path> stream = Files.walk(projectRoot)) {
-            stream.filter(Files::isRegularFile)
-                    .filter(VaultFilterParser::isAuthoredFilter)
-                    .sorted()
-                    .forEach(file -> filters.addAll(parse(file, moduleOf(projectRoot, file))));
+        try {
+            // Pruned walk: a filter after Files.walk still visits every node_modules entry.
+            for (Path file : FileInventory.walkPruned(projectRoot, 0,
+                    path -> Files.isRegularFile(path) && isAuthoredFilter(path))) {
+                filters.addAll(parse(file, moduleOf(projectRoot, file)));
+            }
         } catch (IOException ignored) {
             // An unreadable tree simply yields no filters.
         }

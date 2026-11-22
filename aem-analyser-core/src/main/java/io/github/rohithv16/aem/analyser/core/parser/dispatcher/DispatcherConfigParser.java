@@ -2,6 +2,7 @@ package io.github.rohithv16.aem.analyser.core.parser.dispatcher;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import io.github.rohithv16.aem.analyser.core.discovery.FileInventory;
 import java.nio.file.Files;
 import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
@@ -267,14 +268,15 @@ public final class DispatcherConfigParser {
     /** Module directories named {@code dispatcher} that carry a conf.d or conf.dispatcher.d tree. */
     private List<Path> dispatcherRoots(Path projectRoot) {
         Set<Path> roots = new LinkedHashSet<>();
-        try (Stream<Path> stream = Files.walk(projectRoot, MAX_MODULE_DEPTH)) {
-            stream.filter(Files::isDirectory)
-                    .filter(path -> !isSkipped(path))
-                    .filter(path -> path.getFileName() != null
-                            && path.getFileName().toString().equalsIgnoreCase("dispatcher"))
-                    .filter(this::hasDispatcherTree)
-                    .map(path -> path.toAbsolutePath().normalize())
-                    .forEach(roots::add);
+        try {
+            // Pruned walk: isSkipped() filtered AFTER traversal, so node_modules was still visited.
+            for (Path path : FileInventory.walkPruned(projectRoot, MAX_MODULE_DEPTH,
+                    candidate -> Files.isDirectory(candidate)
+                            && candidate.getFileName() != null
+                            && candidate.getFileName().toString().equalsIgnoreCase("dispatcher")
+                            && hasDispatcherTree(candidate))) {
+                roots.add(path.toAbsolutePath().normalize());
+            }
         } catch (IOException ignored) {
             // An unreadable tree simply yields no dispatcher module.
         }

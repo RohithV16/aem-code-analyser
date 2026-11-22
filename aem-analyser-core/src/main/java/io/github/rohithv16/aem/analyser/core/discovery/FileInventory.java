@@ -39,6 +39,57 @@ public final class FileInventory {
     public static final Set<String> PRUNED_DIRECTORIES = Set.of(
             "node_modules", ".git", "target", ".idea", ".vscode", "vault-work");
 
+    /**
+     * Walks {@code root} without descending into {@link #PRUNED_DIRECTORIES}, collecting every path
+     * accepted by {@code accept} in sorted order.
+     *
+     * <p>For parsers that cannot take a prebuilt inventory, so that a full-root traversal never pays
+     * for {@code node_modules} again: a filter applied <em>after</em> {@code Files.walk} looks free
+     * but still visits every entry, which is exactly the cost this class exists to remove.</p>
+     *
+     * @param maxDepth maximum directory depth to descend ({@code <= 0} for unlimited)
+     */
+    public static List<Path> walkPruned(Path root, int maxDepth, Predicate<Path> accept)
+            throws IOException {
+        List<Path> found = new ArrayList<>();
+        if (root == null || !Files.isDirectory(root)) {
+            return found;
+        }
+        int depth = maxDepth <= 0 ? Integer.MAX_VALUE : maxDepth;
+        Files.walkFileTree(root, Set.of(), depth, new SimpleFileVisitor<>() {
+            @Override
+            public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) {
+                if (!dir.equals(root) && PRUNED_DIRECTORIES.contains(nameOf(dir))) {
+                    return FileVisitResult.SKIP_SUBTREE;
+                }
+                if (!dir.equals(root) && accept.test(dir)) {
+                    found.add(dir);
+                }
+                return FileVisitResult.CONTINUE;
+            }
+
+            @Override
+            public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
+                if (accept.test(file)) {
+                    found.add(file);
+                }
+                return FileVisitResult.CONTINUE;
+            }
+
+            @Override
+            public FileVisitResult visitFileFailed(Path file, IOException failure) {
+                return FileVisitResult.CONTINUE;
+            }
+        });
+        found.sort(null);
+        return found;
+    }
+
+    private static String nameOf(Path path) {
+        Path name = path.getFileName();
+        return name == null ? "" : name.toString();
+    }
+
     private static final FileInventory EMPTY = new FileInventory(List.of());
 
     private final Path root;
