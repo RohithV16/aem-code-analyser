@@ -117,7 +117,65 @@ class AemQualRulesTest {
                 new SourceLocation(root.resolve("LeakyServlet.java"), 15, 5), false
         );
 
-        OSGiComponentNode leakyServlet = new OSGiComponentNode(
+        List<Violation> violations = new AemQual004Rule().evaluate(qual004Context(field, Map.of()));
+
+        assertEquals(1, violations.size());
+        assertEquals(RuleId.AEM_QUAL_004.id(), violations.get(0).ruleId());
+        assertEquals(Severity.ERROR, violations.get(0).severity());
+        assertTrue(violations.get(0).message().contains("resourceResolver"));
+    }
+
+    @Test
+    void testAemQual004_jcrNodeFieldStillFires() {
+        OSGiComponentNode.DeclaredField field = new OSGiComponentNode.DeclaredField(
+                "jcrNode", "javax.jcr.Node",
+                new SourceLocation(root.resolve("LeakyServlet.java"), 16, 5), false
+        );
+
+        List<Violation> violations = new AemQual004Rule().evaluate(qual004Context(field, Map.of()));
+
+        assertEquals(1, violations.size());
+        assertEquals(RuleId.AEM_QUAL_004.id(), violations.get(0).ruleId());
+        assertEquals(Severity.ERROR, violations.get(0).severity());
+        assertTrue(violations.get(0).message().contains("javax.jcr.Node"));
+    }
+
+    @Test
+    void testAemQual004_projectLocalTypeWithUnsafeSimpleNameIsIgnored() {
+        OSGiComponentNode.DeclaredField field = new OSGiComponentNode.DeclaredField(
+                "root", "com.acme.core.models.Node",
+                new SourceLocation(root.resolve("TreeComponent.java"), 16, 5), false
+        );
+        JavaClassNode projectDto = new JavaClassNode(
+                "com.acme.core.models.Node", JavaClassNode.Kind.CLASS,
+                Collections.emptySet(), null, Collections.emptySet(),
+                root.resolve("Node.java"),
+                new SourceLocation(root.resolve("Node.java"), 4, 1)
+        );
+
+        List<Violation> violations = new AemQual004Rule()
+                .evaluate(qual004Context(field, Map.of("com.acme.core.models.Node", projectDto)));
+
+        assertEquals(0, violations.size());
+    }
+
+    @Test
+    void testAemQual004_unresolvedBareUnsafeNameStillFires() {
+        OSGiComponentNode.DeclaredField field = new OSGiComponentNode.DeclaredField(
+                "root", "Node",
+                new SourceLocation(root.resolve("TreeComponent.java"), 16, 5), false
+        );
+
+        List<Violation> violations = new AemQual004Rule().evaluate(qual004Context(field, Map.of()));
+
+        assertEquals(1, violations.size());
+        assertEquals(RuleId.AEM_QUAL_004.id(), violations.get(0).ruleId());
+        assertTrue(violations.get(0).message().contains("field 'root'"));
+    }
+
+    private RuleContext qual004Context(OSGiComponentNode.DeclaredField field,
+                                       Map<String, JavaClassNode> projectClasses) {
+        OSGiComponentNode component = new OSGiComponentNode(
                 "com.example.LeakyServlet", "com.example.LeakyServlet", JavaClassNode.Kind.CLASS,
                 Collections.emptySet(), "org.apache.sling.api.servlets.SlingSafeMethodsServlet",
                 Collections.emptySet(), root.resolve("LeakyServlet.java"),
@@ -130,18 +188,12 @@ class AemQualRulesTest {
 
         ReferenceGraphBuilder.GraphBuildResult buildResult = new ReferenceGraphBuilder.GraphBuildResult(
                 new ReferenceGraph(), Collections.emptySet(), Collections.emptySet(),
-                Map.of("com.example.LeakyServlet", leakyServlet),
-                Collections.emptyMap(), Collections.emptyMap(), Collections.emptyMap(),
+                Map.of("com.example.LeakyServlet", component),
+                Collections.emptyMap(), projectClasses, Collections.emptyMap(),
                 List.of(), null
         );
 
-        RuleContext ctx = new RuleContext(new ReferenceGraph(), buildResult, Set.of(), null, Set.of(), root);
-        List<Violation> violations = new AemQual004Rule().evaluate(ctx);
-
-        assertEquals(1, violations.size());
-        assertEquals(RuleId.AEM_QUAL_004.id(), violations.get(0).ruleId());
-        assertEquals(Severity.ERROR, violations.get(0).severity());
-        assertTrue(violations.get(0).message().contains("resourceResolver"));
+        return new RuleContext(new ReferenceGraph(), buildResult, Set.of(), null, Set.of(), root);
     }
 
     @Test
