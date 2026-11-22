@@ -27,10 +27,29 @@ public record RuleContext(ReferenceGraph graph,
                           List<HtlUsage> htlUsages,
                           List<CqComponentDefinition> cqComponents,
                           List<HtlUnsafeContextFinding> htlUnsafeContexts,
-                          List<io.github.rohithv16.aem.analyser.core.model.discovery.ModuleDescriptor> modules) {
+                          List<io.github.rohithv16.aem.analyser.core.model.discovery.ModuleDescriptor> modules,
+                          List<io.github.rohithv16.aem.analyser.core.model.htl.HtlIncludeRef> htlIncludes,
+                          List<io.github.rohithv16.aem.analyser.core.model.htl.HtlResourceRef> htlResources) {
+
+    /** Compatibility constructor: no template-composition references were scanned. */
+    public RuleContext(ReferenceGraph graph,
+                       ReferenceGraphBuilder.GraphBuildResult buildResult,
+                       Set<String> exportedPackages,
+                       DependencyBytecodeIndexer.DependencyIndex dependencyIndex,
+                       Set<String> ignoredServices,
+                       Path projectRoot,
+                       List<HtlUsage> htlUsages,
+                       List<CqComponentDefinition> cqComponents,
+                       List<HtlUnsafeContextFinding> htlUnsafeContexts,
+                       List<io.github.rohithv16.aem.analyser.core.model.discovery.ModuleDescriptor> modules) {
+        this(graph, buildResult, exportedPackages, dependencyIndex, ignoredServices, projectRoot,
+                htlUsages, cqComponents, htlUnsafeContexts, modules, List.of(), List.of());
+    }
 
     public RuleContext {
         modules = List.copyOf(modules == null ? List.of() : modules);
+        htlIncludes = List.copyOf(htlIncludes == null ? List.of() : htlIncludes);
+        htlResources = List.copyOf(htlResources == null ? List.of() : htlResources);
         // Rules relativize violation paths against this root. A rooted-but-driveless path such as
         // "/mock/project" (or any relative root) makes Path.relativize throw
         // "'other' is different type of Path" on Windows, so the root is always absolutised here.

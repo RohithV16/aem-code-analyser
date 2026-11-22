@@ -557,6 +557,21 @@ public final class RuleFixCatalog {
                     } else {
                         response.sendRedirect("/content/acme/en.html");
                     }""");
+            case AEM_COMP_002 -> new Fix(
+                    """
+                    Content and templates bind to a resource type by string. When the component behind that \
+                    string is renamed or moved, AEM resolves nothing at request time: the page renders \
+                    blank, and neither javac nor the content-package build notices.""",
+                    """
+                    Point the reference at a component that exists under the project's {@code /apps/<project>/} \
+                    prefix, or restore the component directory. Search the content package for the old type \
+                    after a rename so no author content is left behind.""",
+                    "xml", """
+                    <sly data-sly-resource="${ @ resourceType='acme/components/elastic/metatagrenderer'}"/>
+
+                    <!-- no directory at ui.apps/.../apps/acme/components/elastic/metatagrenderer -->""",
+                    "xml", """
+                    <sly data-sly-resource="${ @ resourceType='acme/components/elasticsearch/metatagrenderer'}"/>""");
         };
     }
 }

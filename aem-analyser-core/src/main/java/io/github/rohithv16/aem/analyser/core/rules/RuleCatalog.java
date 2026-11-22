@@ -7,6 +7,7 @@ import io.github.rohithv16.aem.analyser.core.rules.impl.AemCloud003Rule;
 import io.github.rohithv16.aem.analyser.core.rules.impl.AemCloud004Rule;
 import io.github.rohithv16.aem.analyser.core.rules.impl.AemCloud005Rule;
 import io.github.rohithv16.aem.analyser.core.rules.impl.AemComp001Rule;
+import io.github.rohithv16.aem.analyser.core.rules.impl.AemComp002Rule;
 import io.github.rohithv16.aem.analyser.core.rules.impl.AemDead001Rule;
 import io.github.rohithv16.aem.analyser.core.rules.impl.AemDead002ARule;
 import io.github.rohithv16.aem.analyser.core.rules.impl.AemDead002BRule;
@@ -110,6 +111,7 @@ public final class RuleCatalog {
             new AemDead004Rule(),
             new AemDead005Rule(),
             new AemComp001Rule(),
+            new AemComp002Rule(),
             new AemDup001Rule(),
             new AemDup002Rule(),
             new AemDup003Rule(),

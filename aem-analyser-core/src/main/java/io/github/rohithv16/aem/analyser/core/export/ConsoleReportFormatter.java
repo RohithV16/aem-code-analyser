@@ -201,6 +201,7 @@ public final class ConsoleReportFormatter implements ReportExporter {
                 case AEM_DEAD_005 -> "Orphaned Clientlib Category";
                 case AEM_SEC_002 -> "Open Redirect / SSRF";
                 case AEM_PERF_004 -> "Unbounded JCR/Oak Query";
+                case AEM_COMP_002 -> "Resource Type Names No Component";
             };
         } catch (IllegalArgumentException e) {
             return ruleId;
