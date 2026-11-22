@@ -422,7 +422,7 @@ public abstract class AbstractAnalyserMojo extends AbstractMojo {
         }
     }
 
-    private Path defaultOutputDirectory(Path root) {
+    protected Path defaultOutputDirectory(Path root) {
         if (project != null && project.getBuild() != null && project.getBuild().getDirectory() != null) {
             return Path.of(project.getBuild().getDirectory());
         }
