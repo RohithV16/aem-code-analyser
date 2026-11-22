@@ -672,13 +672,12 @@ public class AnalyserCli implements java.util.concurrent.Callable<Integer> {
         Set<String> warned = new TreeSet<>();
         for (String ruleId : ruleIds) {
             if (RuleCatalog.isRetired(ruleId) && warned.add(ruleId.strip().toUpperCase(Locale.ROOT))) {
-                progress("[WARNING] " + source + " references retired rule '" + ruleId + "' — "
-                        + RuleCatalog.retirementNote(ruleId)
-                        + "; it produces no findings, so the entry has no effect.");
+                String replacement = RuleCatalog.replacementFor(ruleId).orElse(null);
+                progress("[WARNING] " + source + ": " + ruleId + " is retired; findings now come from "
+                        + (replacement == null ? "no rule" : replacement)
+                        + (replacement == null ? "." : " (the entry's enablement applies to the replacement; "
+                                + "its severity is ignored)."));
             }
-        }
-        if (!warned.isEmpty()) {
-            progress("[WARNING] Run --list-rules to see the active rule set.");
         }
     }
 
@@ -847,6 +846,9 @@ public class AnalyserCli implements java.util.concurrent.Callable<Integer> {
         if (effective.source() != null) {
             header += " (config: " + effective.source() + ")";
         }
+        if (wantsJson()) {
+            return printRulesJson(out, rules, effective);
+        }
         out.println(header + ":");
         for (var rule : rules) {
             out.printf("  %-16s %-8s %3dm  %s",
@@ -862,6 +864,55 @@ public class AnalyserCli implements java.util.concurrent.Callable<Integer> {
         return 0;
     }
 
+    /** True when {@code --format JSON} turns a meta command into machine-readable output. */
+    private boolean wantsJson() {
+        return formats.stream().anyMatch(format -> format != null && "JSON".equalsIgnoreCase(format.strip()));
+    }
+
+    /**
+     * The catalogue as JSON, emitted from the same {@link RuleRegistry} the HTML reference renders.
+     * A reader can assert precision evidence, lifecycle state and the effective severity without
+     * scraping the text table.
+     */
+    private int printRulesJson(
+            PrintWriter out,
+            List<io.github.rohithv16.aem.analyser.core.rules.metadata.RuleDescriptor> rules,
+            EffectiveConfig effective) {
+        List<Map<String, Object>> rows = new ArrayList<>();
+        for (var rule : rules) {
+            Map<String, Object> row = new LinkedHashMap<>();
+            row.put("id", rule.id());
+            row.put("name", rule.name());
+            row.put("severity", severityCell(rule, effective));
+            row.put("defaultSeverity", rule.defaultSeverity().name());
+            row.put("effortMinutes", rule.effortMinutes());
+            row.put("tags", rule.tags());
+            row.put("helpUri", rule.helpUri());
+            row.put("docAnchor", rule.id().toLowerCase(Locale.ROOT));
+            row.put("status", RuleCatalog.statusOf(rule.id()).wireName());
+            try {
+                var ruleId = io.github.rohithv16.aem.analyser.core.model.report.RuleId.fromId(rule.id());
+                row.put("since", ruleId.since());
+                row.put("replacedBy", ruleId.replacedBy().orElse(null));
+            } catch (IllegalArgumentException unknown) {
+                row.put("since", null);
+                row.put("replacedBy", null);
+            }
+            row.put("enabled", !RuleCatalog.isRetired(rule.id()) && effective.config().isEnabled(rule.id()));
+            rows.add(row);
+        }
+        try {
+            out.println(new com.fasterxml.jackson.databind.ObjectMapper()
+                    .enable(com.fasterxml.jackson.databind.SerializationFeature.INDENT_OUTPUT)
+                    .writeValueAsString(rows));
+        } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
+            error("Could not serialise the rule catalogue: " + e.getOriginalMessage());
+            return 2;
+        }
+        out.flush();
+        return 0;
+    }
+
     /** The severity column of one {@code --list-rules} line, reflecting disablement and overrides. */
     private static String severityCell(
             io.github.rohithv16.aem.analyser.core.rules.metadata.RuleDescriptor rule,
@@ -869,7 +920,7 @@ public class AnalyserCli implements java.util.concurrent.Callable<Integer> {
         if (RuleCatalog.isRetired(rule.id())) {
             return "RETIRED";
         }
-        AnalyserConfig.RuleOverride override = effective.config().rules().get(rule.id());
+        AnalyserConfig.RuleOverride override = effective.config().overrideFor(rule.id());
         if (override != null && override.disabled()) {
             return "DISABLED";
         }

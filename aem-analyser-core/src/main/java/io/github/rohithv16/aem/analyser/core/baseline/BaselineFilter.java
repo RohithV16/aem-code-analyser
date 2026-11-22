@@ -42,6 +42,17 @@ public final class BaselineFilter {
         for (BaselineEntry entry : baseline.entries()) {
             remaining.merge(entry.fingerprint(), 1, Integer::sum);
         }
+        // An id rename changes the fingerprint (it hashes the rule id), which would silently
+        // re-open every accepted finding. Entries naming an alias are matched to the canonical rule
+        // by location and subtype, once each, as a fallback after exact fingerprints.
+        boolean[] aliasUsed = new boolean[baseline.entries().size()];
+        for (int i = 0; i < baseline.entries().size(); i++) {
+            BaselineEntry entry = baseline.entries().get(i);
+            if (entry.ruleId() != null
+                    && io.github.rohithv16.aem.analyser.core.rules.RuleCatalog.isAlias(entry.ruleId())) {
+                aliasUsed[i] = false;
+            }
+        }
 
         List<Violation> filtered = new java.util.ArrayList<>();
         List<Violation> suppressed = new java.util.ArrayList<>();
@@ -50,6 +61,8 @@ public final class BaselineFilter {
             int allowed = remaining.getOrDefault(fingerprint, 0);
             if (allowed > 0) {
                 remaining.put(fingerprint, allowed - 1);
+                suppressed.add(violation);
+            } else if (suppressedByAlias(violation, baseline.entries(), aliasUsed)) {
                 suppressed.add(violation);
             } else {
                 filtered.add(violation);
@@ -78,6 +91,41 @@ public final class BaselineFilter {
             }
         }
         return report.withViolations(filtered).withAcceptedViolations(accepted);
+    }
+
+    /**
+     * Matches a finding to a baseline entry written under an old id. Only entries naming an alias
+     * participate, and each entry can accept one occurrence; a baseline written under the canonical
+     * id still uses fingerprints so a new finding cannot slide into an old waiver.
+     */
+    private static boolean suppressedByAlias(Violation violation, List<BaselineEntry> entries,
+                                             boolean[] used) {
+        String file = Fingerprint.normalizePath(violation.filePath());
+        for (int i = 0; i < entries.size(); i++) {
+            if (used[i]) {
+                continue;
+            }
+            BaselineEntry entry = entries.get(i);
+            if (entry.ruleId() == null
+                    || !io.github.rohithv16.aem.analyser.core.rules.RuleCatalog.isAlias(entry.ruleId())) {
+                continue;
+            }
+            String canonical = io.github.rohithv16.aem.analyser.core.rules.RuleCatalog.resolve(entry.ruleId());
+            if (!canonical.equalsIgnoreCase(violation.ruleId())) {
+                continue;
+            }
+            if (!file.equals(Fingerprint.normalizePath(entry.filePath()))) {
+                continue;
+            }
+            if (!java.util.Objects.equals(
+                    entry.subtype() == null ? null : entry.subtype().toUpperCase(java.util.Locale.ROOT),
+                    violation.subtype())) {
+                continue;
+            }
+            used[i] = true;
+            return true;
+        }
+        return false;
     }
 
     public static int suppressedCount(AnalysisReport before, AnalysisReport after) {

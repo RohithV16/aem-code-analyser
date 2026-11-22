@@ -68,9 +68,30 @@ class AnalyserCliRetiredRulesTest {
 
         CliTestSupport.Run run = CliTestSupport.run(project, "--no-html", "--no-sonar");
 
-        assertTrue(run.errors().contains("references retired rule 'AEM-QUAL-006'"),
+        assertTrue(run.errors().contains("AEM-QUAL-006 is retired; findings now come from AEM-QUAL-004"),
                 "a config entry for a retired rule must warn, not resolve silently:\n" + run.errors());
-        assertTrue(run.errors().contains("AEM-QUAL-004"), run.errors());
+        assertEquals(1, run.errors().lines().filter(line -> line.contains("[WARNING]")).count(),
+                "one warning per retired id, not a second line telling the user to run --list-rules:\n"
+                        + run.errors());
+    }
+
+    @Test
+    void listRulesJsonExposesLifecycleState() throws Exception {
+        CliTestSupport.Run run = CliTestSupport.runArgs("--list-rules", "--format", "json");
+
+        assertEquals(0, run.exitCode(), run.errors());
+        var json = new com.fasterxml.jackson.databind.ObjectMapper().readTree(run.output());
+        com.fasterxml.jackson.databind.JsonNode retired = null;
+        for (var row : json) {
+            if ("AEM-QUAL-006".equals(row.path("id").asText())) {
+                retired = row;
+            }
+        }
+        assertTrue(retired != null, "--list-rules --format json must include every registry id:\n" + run.output());
+        assertEquals("retired", retired.path("status").asText());
+        assertEquals("AEM-QUAL-004", retired.path("replacedBy").asText());
+        assertEquals("1.0.0", retired.path("since").asText());
+        assertFalse(retired.path("enabled").asBoolean(), "a retired id cannot be enabled");
     }
 
     @Test
@@ -84,7 +105,7 @@ class AnalyserCliRetiredRulesTest {
 
         CliTestSupport.Run run = CliTestSupport.run(project, "--no-html", "--no-sonar");
 
-        assertTrue(run.errors().contains("Baseline .aem-analyser-baseline.json references retired rule"),
+        assertTrue(run.errors().contains("Baseline .aem-analyser-baseline.json: AEM-QUAL-006 is retired"),
                 run.errors());
     }
 }
