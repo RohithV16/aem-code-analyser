@@ -5,14 +5,31 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### ⚠ Migration — baselines written before 1.1.0
+
+- **`.aem-analyser-baseline.json` files must be regenerated.** Baseline fingerprints now hash the
+  rule id, subtype, normalised path and the finding's verbatim message instead of a
+  digit-stripped location. The old scheme collided, so a *new* finding could be silently suppressed
+  by an unrelated accepted entry. Old files are rejected rather than mis-matched: the analyser exits
+  2 with `Unsupported baseline schema version 1 …`. Regenerate with:
+
+  ```bash
+  aem-analyser <project> --baseline .aem-analyser-baseline.json --update-baseline
+  ```
+
+  Then review the diff: findings that were previously accepted may reappear, which is the point —
+  they were never actually matched to the waiver that hid them.
+
+- Also one-off: SARIF bytes reorder (canonical key order, no semantic change), `partialFingerprints`
+  and GitLab Code Climate fingerprints change, so GitHub/GitLab may re-file existing alerts once.
+  AEM-QUAL-003 findings now arrive at Sonar as `VULNERABILITY` instead of being dropped.
+
 ### Added
 
 - **First Maven Central release (1.0.10).** `io.github.rohithv16:aem-code-analyser`,
   `aem-analyser-core` and `aem-analyser-maven-plugin` are published with sources, javadoc and GPG
   signatures, so the plugin needs no repository entry and no token. Verified by resolving both the
   plugin goal and the library from an empty local repository. The shaded CLI stays a release asset.
-
-### Added
 
 - `-Prelease-central` actually works now: signed jars, sources and javadoc for the core library and
   the Maven plugin, published through the Sonatype Portal. Javadoc never built under the old profile
