@@ -118,6 +118,10 @@ public class AnalyserCli implements java.util.concurrent.Callable<Integer> {
                     + "Overrides the project configuration; unknown rule ids are rejected.")
     private List<String> severityOverrides;
 
+    @Option(names = "--tag", paramLabel = "TAG",
+            description = "With --list-rules: list only rules carrying TAG (e.g. osgi, security, performance).")
+    private String tagFilter;
+
     @Option(names = {"--ignored-services"}, split = ",",
             description = "Service implementation class names to whitelist (never flagged unused).")
     private Set<String> ignoredServices;
@@ -202,11 +206,11 @@ public class AnalyserCli implements java.util.concurrent.Callable<Integer> {
     private Path configFile;
 
     @Option(names = {"--list-rules"},
-            description = "List every rule with severity and effort, then exit.")
+            description = "List every rule with its effective severity and effort, then exit.")
     private boolean listRules;
 
     @Option(names = {"--explain"}, paramLabel = "RULE",
-            description = "Print metadata for one rule (e.g. AEM-DEAD-002A), then exit.")
+            description = "Print the effective metadata for one rule (e.g. AEM-DEAD-002A), then exit.")
     private String explainRule;
 
     @Option(names = {"--generate-rule-docs"}, paramLabel = "DIR",
@@ -314,14 +318,30 @@ public class AnalyserCli implements java.util.concurrent.Callable<Integer> {
         if (generateRuleDocs != null) {
             return OptionalInt.of(writeRuleDocs(generateRuleDocs));
         }
+        if (tagFilter != null && !listRules) {
+            error("--tag can only be used with --list-rules.");
+            return OptionalInt.of(2);
+        }
+        if (!listRules && (explainRule == null || explainRule.isBlank())) {
+            return OptionalInt.empty();
+        }
+        // Introspection must describe the run the user is about to make: the same config file, the
+        // same --severity layer. Reading only the registry defaults made the catalogue disagree with
+        // the report it explains.
+        EffectiveConfig effective;
+        try {
+            effective = loadConfig(resolveProjectRoot());
+        } catch (IOException e) {
+            error("Could not read configuration: " + e.getMessage());
+            return OptionalInt.of(2);
+        } catch (IllegalArgumentException e) {
+            error(e.getMessage());
+            return OptionalInt.of(2);
+        }
         if (listRules) {
-            printRules(stdout);
-            return OptionalInt.of(0);
+            return OptionalInt.of(printRules(stdout, effective, tagFilter));
         }
-        if (explainRule != null && !explainRule.isBlank()) {
-            return OptionalInt.of(printExplain(stdout, explainRule));
-        }
-        return OptionalInt.empty();
+        return OptionalInt.of(printExplain(stdout, explainRule, effective));
     }
 
     private int writeRuleDocs(Path directory) {
@@ -611,27 +631,96 @@ public class AnalyserCli implements java.util.concurrent.Callable<Integer> {
     }
 
     void printRules(PrintWriter out) {
-        out.println("AEM Code Analyser rules:");
-        for (var rule : io.github.rohithv16.aem.analyser.core.rules.metadata.RuleRegistry.all()) {
+        printRules(out, EffectiveConfig.of(AnalyserConfig.empty(), null, Set.of()), null);
+    }
+
+    /**
+     * Lists the <em>effective</em> rule set: the registry, adjusted by the project config and
+     * {@code --severity}. A catalogue that shows defaults while the run honours a config is worse than
+     * no catalogue — it invites a team to disable a rule that still runs.
+     */
+    int printRules(PrintWriter out, EffectiveConfig effective, String tag) {
+        List<io.github.rohithv16.aem.analyser.core.rules.metadata.RuleDescriptor> rules =
+                io.github.rohithv16.aem.analyser.core.rules.metadata.RuleRegistry.all();
+        if (tag != null && !tag.isBlank()) {
+            String wanted = tag.strip();
+            rules = rules.stream()
+                    .filter(rule -> rule.tags().stream().anyMatch(t -> t.equalsIgnoreCase(wanted)))
+                    .toList();
+            if (rules.isEmpty()) {
+                error("No rules tagged '" + wanted + "'. Known tags: " + knownTags() + ".");
+                return 2;
+            }
+        }
+        String header = "AEM Code Analyser rules" + (tag == null || tag.isBlank() ? "" : " tagged '" + tag.strip() + "'");
+        if (effective.source() != null) {
+            header += " (config: " + effective.source() + ")";
+        }
+        out.println(header + ":");
+        for (var rule : rules) {
             out.printf("  %-16s %-8s %3dm  %s",
-                    rule.id(), settledSeverity(rule.id(), rule.defaultSeverity()), rule.effortMinutes(),
+                    rule.id(), severityCell(rule, effective), rule.effortMinutes(),
                     rule.shortDescription());
-            // A retired id must never read as a live rule: nothing can emit it, so a config entry
-            // that disables it changes nothing.
-            if (RuleCatalog.isRetired(rule.id())) {
-                out.print(" [" + RuleCatalog.retirementNote(rule.id()) + "]");
+            String note = provenanceNote(rule, effective);
+            if (!note.isEmpty()) {
+                out.print(" [" + note + "]");
             }
             out.println();
         }
         out.flush();
+        return 0;
     }
 
-    /** Retired rules are labelled {@code RETIRED} instead of a severity they can no longer produce. */
-    private static String settledSeverity(String ruleId, Severity severity) {
-        return RuleCatalog.isRetired(ruleId) ? "RETIRED" : severity.name();
+    /** The severity column of one {@code --list-rules} line, reflecting disablement and overrides. */
+    private static String severityCell(
+            io.github.rohithv16.aem.analyser.core.rules.metadata.RuleDescriptor rule,
+            EffectiveConfig effective) {
+        if (RuleCatalog.isRetired(rule.id())) {
+            return "RETIRED";
+        }
+        AnalyserConfig.RuleOverride override = effective.config().rules().get(rule.id());
+        if (override != null && override.disabled()) {
+            return "DISABLED";
+        }
+        if (override != null && override.severity() != null
+                && override.severity() != rule.defaultSeverity()) {
+            return override.severity().name() + "*";
+        }
+        return rule.defaultSeverity().name();
+    }
+
+    /** Why a rule reads differently from its default: disabled, overridden, or retired. */
+    private static String provenanceNote(
+            io.github.rohithv16.aem.analyser.core.rules.metadata.RuleDescriptor rule,
+            EffectiveConfig effective) {
+        if (RuleCatalog.isRetired(rule.id())) {
+            return RuleCatalog.retirementNote(rule.id());
+        }
+        AnalyserConfig.RuleOverride override = effective.config().rules().get(rule.id());
+        String provenance = effective.provenance(rule.id());
+        if (override != null && override.disabled()) {
+            return "disabled by " + (provenance == null ? "config" : provenance);
+        }
+        if (override != null && override.severity() != null
+                && override.severity() != rule.defaultSeverity()) {
+            return (provenance == null ? "config" : provenance) + "; default " + rule.defaultSeverity();
+        }
+        return "";
+    }
+
+    private static String knownTags() {
+        Set<String> tags = new TreeSet<>();
+        for (var rule : io.github.rohithv16.aem.analyser.core.rules.metadata.RuleRegistry.all()) {
+            tags.addAll(rule.tags());
+        }
+        return String.join(", ", tags);
     }
 
     int printExplain(PrintWriter out, String ruleId) {
+        return printExplain(out, ruleId, EffectiveConfig.of(AnalyserConfig.empty(), null, Set.of()));
+    }
+
+    int printExplain(PrintWriter out, String ruleId, EffectiveConfig effective) {
         var descriptor = io.github.rohithv16.aem.analyser.core.rules.metadata.RuleRegistry.find(ruleId);
         if (descriptor.isEmpty()) {
             out.println("[ERROR] Unknown rule '" + ruleId + "'. Use --list-rules to see all rules.");
@@ -640,12 +729,25 @@ public class AnalyserCli implements java.util.concurrent.Callable<Integer> {
         }
         var rule = descriptor.get();
         boolean retired = RuleCatalog.isRetired(rule.id());
+        AnalyserConfig.RuleOverride override = effective.config().rules().get(rule.id());
+        String provenance = effective.provenance(rule.id());
         out.println(rule.id() + " — " + rule.name());
-        out.println("  Severity:     " + (retired ? "RETIRED (was " + rule.defaultSeverity() + ")" : rule.defaultSeverity()));
         if (retired) {
+            out.println("  Severity:     RETIRED (was " + rule.defaultSeverity() + ")");
             out.println("  State:        " + RuleCatalog.retirementNote(rule.id()));
             out.println("                No rule evaluator produces this id; a configuration or baseline "
                     + "entry that names it has no effect.");
+        } else if (override != null && override.disabled()) {
+            out.println("  Severity:     DISABLED (default " + rule.defaultSeverity() + ")");
+            out.println("  State:        Disabled by " + (provenance == null ? "config" : provenance)
+                    + " — this rule reports no findings in this run.");
+        } else {
+            Severity severity = override != null && override.severity() != null
+                    ? override.severity() : rule.defaultSeverity();
+            out.println("  Severity:     " + severity
+                    + (severity == rule.defaultSeverity() ? ""
+                            : " (from " + (provenance == null ? "config" : provenance)
+                                    + "; default " + rule.defaultSeverity() + ")"));
         }
         out.println("  Type:         " + rule.type());
         out.println("  Effort:       " + rule.effortMinutes() + " minutes");

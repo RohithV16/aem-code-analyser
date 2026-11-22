@@ -65,7 +65,8 @@ description: Every flag, output format, exit code, configuration key and suppres
             <tr><td class="mono nowrap">--baseline-report</td><td class="mono">off</td><td>Keep suppressed findings visible at <code>INFO</code>.</td></tr>
             <tr><td class="mono nowrap">--changed-only</td><td class="mono">off</td><td>Only files and lines changed in Git.</td></tr>
             <tr><td class="mono nowrap">--since &lt;ref&gt;</td><td class="mono">—</td><td>Git reference to compare against (<code>HEAD~1</code>, <code>origin/main</code>); implies <code>--changed-only</code>.</td></tr>
-            <tr><td class="mono nowrap">--config &lt;file&gt;</td><td class="mono">.aem-analyser.yml</td><td>Project configuration file.</td></tr>
+            <tr><td class="mono nowrap">--config &lt;file&gt;</td><td class="mono">.aem-analyser.yml</td><td>Project configuration file (rule enablement/severity, allowlists).</td></tr>
+            <tr><td class="mono nowrap">--severity &lt;RULE=SEVERITY&gt;</td><td class="mono">—</td><td>Per-rule override for this run: <code>ERROR</code>, <code>WARNING</code>, <code>INFO</code> or <code>OFF</code>. Repeatable or comma-separated; wins over the config file and is rejected for unknown rule ids.</td></tr>
             <tr><td class="mono nowrap">--ignore-config, --ignore-config-path &lt;globs&gt;</td><td class="mono">—</td><td>Reactor-relative configuration paths to exclude.</td></tr>
             <tr><td class="mono nowrap">--ignored-services &lt;classes&gt;</td><td class="mono">—</td><td>Service classes that are never reported as unused.</td></tr>
             <tr><td class="mono nowrap">--dependency-jars &lt;paths&gt;</td><td class="mono">—</td><td>JARs or directories to index for platform PIDs from other bundles.</td></tr>
@@ -75,10 +76,12 @@ description: Every flag, output format, exit code, configuration key and suppres
             <tr><td class="mono nowrap">--profile &lt;list&gt;</td><td class="mono">—</td><td>Maven profiles to activate during discovery.</td></tr>
             <tr><td class="mono nowrap">--max-file-size &lt;bytes&gt;</td><td class="mono">10485760</td><td>Skip larger files. They are reported as diagnostics.</td></tr>
             <tr><td class="mono nowrap">--timeout &lt;seconds&gt;</td><td class="mono">0</td><td>Overall time budget. 0 means none.</td></tr>
-            <tr><td class="mono nowrap">--explain &lt;RULE&gt;</td><td class="mono">—</td><td>Print one rule's metadata and exit.</td></tr>
-            <tr><td class="mono nowrap">--list-rules</td><td class="mono">—</td><td>Print the rule catalogue and exit.</td></tr>
+            <tr><td class="mono nowrap">--explain &lt;RULE&gt;</td><td class="mono">—</td><td>Print one rule's <em>effective</em> metadata (severity, provenance, disablement), then exit.</td></tr>
+            <tr><td class="mono nowrap">--list-rules</td><td class="mono">—</td><td>Print the <em>effective</em> rule catalogue — disabled rules marked, overridden severities with provenance — then exit. Honours <code>--config</code> and <code>--severity</code>.</td></tr>
+            <tr><td class="mono nowrap">--tag &lt;tag&gt;</td><td class="mono">—</td><td>With <code>--list-rules</code>: only rules carrying the tag (e.g. <code>osgi</code>, <code>security</code>, <code>performance</code>).</td></tr>
             <tr><td class="mono nowrap">--generate-rule-docs &lt;dir&gt;</td><td class="mono">—</td><td>Generate the issue reference into <code>&lt;dir&gt;/issues</code> and exit.</td></tr>
-            <tr><td class="mono nowrap">-v, --verbose</td><td class="mono">off</td><td>Print parse and scan diagnostics.</td></tr>
+            <tr><td class="mono nowrap">-v, --verbose</td><td class="mono">off</td><td>Print parse and scan diagnostics on <em>stderr</em>.</td></tr>
+            <tr><td class="mono nowrap">-q, --quiet</td><td class="mono">off</td><td>Silence progress and warning lines on stderr. Errors are still reported.</td></tr>
             <tr><td class="mono nowrap">--no-color</td><td class="mono">off</td><td>Disable ANSI colours.</td></tr>
             <tr><td class="mono nowrap">-h, --help / -V, --version</td><td class="mono">—</td><td>Usage and version, from picocli.</td></tr>
           </tbody>
@@ -92,6 +95,14 @@ description: Every flag, output format, exit code, configuration key and suppres
         Formats combine: pass a comma-separated list to <code>--format</code>. Only
         <code>CONSOLE</code> writes to stdout; every other format is a file under
         <code>--output</code> (default <code>target/aem-analyser</code>).
+      </p>
+      <p>
+        Streams are split by contract: <strong>stdout is the report</strong> — the console report and
+        nothing else — while progress, <code>[INFO]</code>/<code>[WARN]</code> lines, "report written
+        to …" notices and <code>--verbose</code> diagnostics go to <strong>stderr</strong>. So
+        <code>aem-analyser … &gt; report.txt</code> writes a file that parses, and
+        <code>-q/--quiet</code> silences the progress channel without touching the report. Errors are
+        always printed, even with <code>-q</code>.
       </p>
       <div class="table-wrap">
         <table class="table--compact">
@@ -128,7 +139,13 @@ description: Every flag, output format, exit code, configuration key and suppres
             </tr>
             <tr>
               <td class="mono">2</td>
-              <td>The analysis could not run. Not a verdict on the code.</td>
+              <td>Usage error or the analysis could not run — an unknown flag or format, a malformed
+                <code>--severity</code>, an unreadable configuration file. Not a verdict on the code.</td>
+            </tr>
+            <tr>
+              <td class="mono">3</td>
+              <td>Internal error — the analyser crashed. A bug in the tool, never a verdict on the
+                analysed code, so it is distinct from a failed gate.</td>
             </tr>
           </tbody>
         </table>
