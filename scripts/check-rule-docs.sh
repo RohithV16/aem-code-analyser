@@ -23,3 +23,9 @@ else
   echo "issue reference is stale: run --generate-rule-docs docs and commit the result" >&2
   exit 1
 fi
+
+# The generated pages only earn their URLs if the site publishes and describes them; this asserts the
+# page set, the titles, the JSON-LD and the sitemap URL set derived from the same source tree.
+if command -v python3 >/dev/null 2>&1; then
+  python3 "$(dirname "${BASH_SOURCE[0]}")/check-site-seo.py" docs
+fi
