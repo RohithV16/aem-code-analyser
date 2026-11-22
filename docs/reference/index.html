@@ -22,6 +22,7 @@ description: Every flag, output format, exit code, configuration key and suppres
     <h2>Elsewhere</h2>
     <ul>
       <li><a href="{{ site.baseurl }}/getting-started/">Getting started</a></li>
+      <li><a href="{{ site.baseurl }}/compatibility/">Compatibility contract</a></li>
       <li><a href="{{ site.baseurl }}/issues/">Issues and fixes</a></li>
     </ul>
   </aside>
@@ -78,6 +79,9 @@ description: Every flag, output format, exit code, configuration key and suppres
             <tr><td class="mono nowrap">--max-file-size &lt;bytes&gt;</td><td class="mono">10485760</td><td>Skip larger files. They are reported as diagnostics.</td></tr>
             <tr><td class="mono nowrap">--timeout &lt;seconds&gt;</td><td class="mono">0</td><td>Overall time budget. 0 means none.</td></tr>
             <tr><td class="mono nowrap">--explain &lt;RULE&gt;</td><td class="mono">—</td><td>Print one rule's <em>effective</em> metadata (severity, provenance, disablement), then exit.</td></tr>
+            <tr><td class="mono nowrap">--diagnose &lt;RULE:PATH:LINE&gt;</td><td class="mono">—</td><td>Write one redacted, offline repro bundle for a finding and exit. Nothing is transmitted.</td></tr>
+            <tr><td class="mono nowrap">--import-report &lt;sarif&gt;</td><td class="mono">—</td><td>Read another analyser's SARIF for migration coverage; nothing is suppressed without <code>--import-map</code>.</td></tr>
+            <tr><td class="mono nowrap">--import-map &lt;file&gt;</td><td class="mono">—</td><td>Map foreign rule ids to analyser ids, e.g. <code>java:S3649: AEM-QUAL-004</code>. Requires <code>--import-report</code>.</td></tr>
             <tr><td class="mono nowrap">--list-rules</td><td class="mono">—</td><td>Print the <em>effective</em> rule catalogue — disabled rules marked, overridden severities with provenance — then exit. Honours <code>--config</code> and <code>--severity</code>.</td></tr>
             <tr><td class="mono nowrap">--tag &lt;tag&gt;</td><td class="mono">—</td><td>With <code>--list-rules</code>: only rules carrying the tag (e.g. <code>osgi</code>, <code>security</code>, <code>performance</code>).</td></tr>
             <tr><td class="mono nowrap">--generate-rule-docs &lt;dir&gt;</td><td class="mono">—</td><td>Generate the issue reference into <code>&lt;dir&gt;/issues</code> and exit.</td></tr>

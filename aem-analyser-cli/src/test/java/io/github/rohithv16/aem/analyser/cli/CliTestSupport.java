@@ -96,6 +96,37 @@ final class CliTestSupport {
                         + "}\n");
     }
 
+    /**
+     * A two-module AEM-shaped project whose only finding is one AEM-QUAL-004 ERROR: an OSGi
+     * component field holding a request-scoped {@code PageManager}.
+     */
+    static void writePageManagerProject(Path project) throws java.io.IOException {
+        Files.writeString(project.resolve("pom.xml"),
+                "<project><modelVersion>4.0.0</modelVersion><groupId>com.acme</groupId>"
+                        + "<artifactId>fixture</artifactId><version>1.0.0</version>"
+                        + "<packaging>pom</packaging><modules><module>core</module></modules></project>");
+        Path core = Files.createDirectories(project.resolve("core"));
+        Files.writeString(core.resolve("pom.xml"),
+                "<project><modelVersion>4.0.0</modelVersion>"
+                        + "<parent><groupId>com.acme</groupId><artifactId>fixture</artifactId>"
+                        + "<version>1.0.0</version></parent>"
+                        + "<artifactId>fixture.core</artifactId><packaging>bundle</packaging></project>");
+        Path sources = Files.createDirectories(core.resolve("src/main/java/com/acme"));
+        Files.writeString(sources.resolve("Cards.java"),
+                "package com.acme;\n"
+                        + "import com.day.cq.wcm.api.PageManager;\n"
+                        + "import org.osgi.service.component.annotations.Component;\n"
+                        + "import org.osgi.service.component.annotations.Reference;\n"
+                        + "@Component(service = Runnable.class)\n"
+                        + "public class Cards implements Runnable {\n"
+                        + "    @Reference\n"
+                        + "    private PageManager pageManager;\n"
+                        + "    @Override\n"
+                        + "    public void run() {\n"
+                        + "    }\n"
+                        + "}\n");
+    }
+
     static AnalysisReport reportWith(Violation... violations) {
         return new AnalysisReport(Path.of("/tmp/project"), Map.of(), List.of(violations), 1);
     }

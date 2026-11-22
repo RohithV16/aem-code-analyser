@@ -28,4 +28,5 @@ fi
 # page set, the titles, the JSON-LD and the sitemap URL set derived from the same source tree.
 if command -v python3 >/dev/null 2>&1; then
   python3 "$(dirname "${BASH_SOURCE[0]}")/check-site-seo.py" docs
+  python3 "$(dirname "${BASH_SOURCE[0]}")/generate-rule-evidence.py" --check
 fi

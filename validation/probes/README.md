@@ -1,11 +1,17 @@
 # Rule probes — deliberate per-rule validation
 
 `validation/probes` is a self-contained **source fixture set** laid out like an AEM reactor
-(`core`, `ui.apps`, `ui.config`) that deliberately contains **one positive case for every rule**.
-It exists purely as analyser input — the analyser reads the sources, it does not build them, and
-the fixture modules intentionally declare no dependencies (so `mvn package` inside this directory
-is not expected to work). It exercises the full CLI pipeline (discovery → parsing → graph → rules
-→ SARIF) exactly as a customer repo would.
+(`core`, `ui.apps`, `ui.config`) that deliberately contains **one positive case for every rule**, paired
+with a fixed twin under [`validation/probes-clean`](../probes-clean/README.md). It exists purely as
+analyser input — the analyser reads the sources, it does not build them, and the fixture modules
+intentionally declare no dependencies (so `mvn package` inside this directory is not expected to work).
+It exercises the full CLI pipeline (discovery → parsing → graph → rules → SARIF) exactly as a customer
+repo would.
+
+The pairing is machine-readable in [`evidence.json`](evidence.json): every active rule names the
+positive probe's file, line and subtype and the clean twin that must stay silent. The same data is
+published as `rule-evidence.json` (in the jar and at `/evidence/`) and rendered by
+`--list-rules --format json`.
 
 ## Run directly
 
@@ -14,10 +20,12 @@ mvn -q -DskipTests package
 scripts/run-rule-probes.sh
 ```
 
-The script runs the analyser against `validation/probes`, then verifies that the SARIF report
-contains every rule listed in `expected-rules.txt` **and that each rule fired on a probe file**
-rather than incidentally on unrelated code. Missing rules, rules demonstrated only by non-probe
-code, rule ids absent from `expected-rules.txt`, and files skipped by the parser all exit non-zero.
+The script runs the analyser against `validation/probes` and `validation/probes-clean`, then verifies
+that the SARIF report contains every rule listed in `expected-rules.txt`, **that each rule fired on a
+probe file**, **that the declared positive probe produced exactly one finding**, and **that its clean
+twin produced none**. Missing rules, rules demonstrated only by non-probe code, rule ids absent from
+`expected-rules.txt`, parser-skipped files, a duplicate positive finding and any finding in a clean
+twin all exit non-zero. Each passing pair prints `PAIR OK <rule>`.
 
 ## Inject into a real repo (safe)
 
@@ -84,7 +92,9 @@ This tests the probes in the target’s real module layout and Maven profile con
 ## Adding a probe
 
 1. Add the smallest source/config that honestly triggers the rule.
-2. Add the rule id to `expected-rules.txt`.
-3. Run `scripts/run-rule-probes.sh`; the probe must fire **and** no unexpected rule should be
-   introduced unless it is also documented in the matrix.
-4. Re-run `scripts/inject-rule-probes.sh` on at least one real repo before merging.
+2. Add a fixed twin under `validation/probes-clean` and record both in `evidence.json`
+   (`positiveProbe` file/line/subtype, `negativeProbe` path).
+3. Add the rule id to `expected-rules.txt`.
+4. Run `scripts/generate-rule-evidence.py`, then `scripts/run-rule-probes.sh`; the pair must print
+   `PAIR OK` and no unexpected rule should be introduced unless it is also documented in the matrix.
+5. Re-run `scripts/inject-rule-probes.sh` on at least one real repo before merging.

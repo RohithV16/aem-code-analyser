@@ -177,6 +177,14 @@ public final class SarifReportExporter implements ReportExporter {
                     "justification", "baseline:" + io.github.rohithv16.aem.analyser.core.baseline
                             .Fingerprint.of(violation));
         }
+        if (violation.acceptance()
+                == io.github.rohithv16.aem.analyser.core.model.report.AcceptanceOrigin.EXTERNAL) {
+            String detail = violation.acceptanceDetail();
+            return ordered(
+                    "kind", "external",
+                    "status", "accepted",
+                    "justification", detail.isBlank() ? "imported report" : detail);
+        }
         return ordered(
                 "kind", "inSource",
                 "status", "accepted",
@@ -186,6 +194,13 @@ public final class SarifReportExporter implements ReportExporter {
     private Map<String, Object> ruleDefinition(RuleDescriptor rule) {
         Map<String, Object> definition = new LinkedHashMap<>();
         definition.put("id", rule.id());
+        // SARIF's way to say "this rule supersedes those ids". The replacement descriptor carries the
+        // retired id so a consumer that still stores AEM-QUAL-006 can map its old alerts onto
+        // AEM-QUAL-004 instead of leaving them orphaned.
+        List<String> deprecatedIds = deprecatedIds(rule.id());
+        if (!deprecatedIds.isEmpty()) {
+            definition.put("deprecatedIds", deprecatedIds);
+        }
         definition.put("name", rule.name());
         definition.put("shortDescription", ordered("text", rule.shortDescription()));
         definition.put("fullDescription", ordered("text", rule.fullDescription()));
@@ -194,6 +209,16 @@ public final class SarifReportExporter implements ReportExporter {
         Map<String, Object> properties = new LinkedHashMap<>();
         if (!rule.tags().isEmpty()) {
             properties.put("tags", rule.tags());
+        }
+        // Lifecycle metadata travels with the descriptor, so an API consumer can tell a retired id
+        // from a live one without parsing our HTML page.
+        try {
+            var ruleId = io.github.rohithv16.aem.analyser.core.model.report.RuleId.fromId(rule.id());
+            properties.put("status", ruleId.status().wireName());
+            properties.put("since", ruleId.since());
+            ruleId.replacedBy().ifPresent(replacement -> properties.put("replacedBy", replacement));
+        } catch (IllegalArgumentException unknown) {
+            // A descriptor for an id outside RuleId (none today) simply carries no lifecycle fields.
         }
         if (rule.cwe() != null) {
             properties.put("cwe", rule.cwe());
@@ -219,6 +244,18 @@ public final class SarifReportExporter implements ReportExporter {
         }
         definition.put("defaultConfiguration", configuration);
         return definition;
+    }
+
+    /** Ids this rule supersedes: every retired or deprecated id whose {@code replacedBy} names it. */
+    private static List<String> deprecatedIds(String ruleId) {
+        List<String> ids = new ArrayList<>();
+        for (io.github.rohithv16.aem.analyser.core.model.report.RuleId candidate
+                : io.github.rohithv16.aem.analyser.core.model.report.RuleId.values()) {
+            if (candidate.replacedBy().map(ruleId::equals).orElse(false)) {
+                ids.add(candidate.id());
+            }
+        }
+        return ids;
     }
 
     /** Plain-text rule help: the long description plus the remediation the CLI already prints. */

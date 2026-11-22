@@ -19,6 +19,8 @@ import java.util.Locale;
  * @param relatedLocations secondary locations (related Java classes etc.)
  * @param acceptance       why the finding was accepted (baseline entry, inline directive) or
  *                         {@link AcceptanceOrigin#NONE} when it still counts against the gate
+ * @param acceptanceDetail free-form provenance for the waiver, e.g. the foreign rule and location
+ *                         that accepted an imported finding; empty when the origin needs no detail
  */
 public record Violation(
         String ruleId,
@@ -30,7 +32,8 @@ public record Violation(
         String targetPid,
         String remediation,
         List<RelatedLocation> relatedLocations,
-        AcceptanceOrigin acceptance) {
+        AcceptanceOrigin acceptance,
+        String acceptanceDetail) {
 
     /**
      * Creates an actionable finding. Rule implementations and tests keep using this shape; acceptance
@@ -47,7 +50,22 @@ public record Violation(
                      String remediation,
                      List<RelatedLocation> relatedLocations) {
         this(ruleId, severity, subtype, message, filePath, region, targetPid, remediation,
-                relatedLocations, AcceptanceOrigin.NONE);
+                relatedLocations, AcceptanceOrigin.NONE, "");
+    }
+
+    /** Creates a finding with an acceptance origin but no extra provenance. */
+    public Violation(String ruleId,
+                     Severity severity,
+                     String subtype,
+                     String message,
+                     String filePath,
+                     TextRegion region,
+                     String targetPid,
+                     String remediation,
+                     List<RelatedLocation> relatedLocations,
+                     AcceptanceOrigin acceptance) {
+        this(ruleId, severity, subtype, message, filePath, region, targetPid, remediation,
+                relatedLocations, acceptance, "");
     }
 
     public Violation {
@@ -61,12 +79,18 @@ public record Violation(
         if (acceptance == null) {
             acceptance = AcceptanceOrigin.NONE;
         }
+        acceptanceDetail = acceptanceDetail == null ? "" : acceptanceDetail;
     }
 
     /** Marks this finding as accepted without changing its severity, message or location. */
     public Violation withAcceptance(AcceptanceOrigin origin) {
+        return withAcceptance(origin, acceptanceDetail);
+    }
+
+    /** Marks this finding as accepted, recording why (e.g. the foreign rule and location). */
+    public Violation withAcceptance(AcceptanceOrigin origin, String detail) {
         return new Violation(ruleId, severity, subtype, message, filePath, region, targetPid,
-                remediation, relatedLocations, origin);
+                remediation, relatedLocations, origin, detail);
     }
 
     public boolean isAccepted() {

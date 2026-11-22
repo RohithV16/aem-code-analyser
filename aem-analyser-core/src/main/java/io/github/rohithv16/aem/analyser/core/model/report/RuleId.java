@@ -102,7 +102,7 @@ public enum RuleId {
             Severity.WARNING),
     AEM_QUAL_006("AEM-QUAL-006", "ResolverStoredInComponentField",
             "OSGi component stores a request-scoped ResourceResolver or JCR Session in an instance field.",
-            Severity.WARNING),
+            Severity.WARNING, RuleStatus.RETIRED, "1.0.0", "AEM-QUAL-004"),
     AEM_DEAD_005("AEM-DEAD-005", "OrphanedClientlibCategory",
             "A client library category is never referenced by an HTL/JSP template or another client library.",
             Severity.INFO),
@@ -138,12 +138,34 @@ public enum RuleId {
     private final String name;
     private final String shortDescription;
     private final Severity defaultLevel;
+    private final RuleStatus status;
+    private final String since;
+    private final String replacedById;
 
     RuleId(String id, String name, String shortDescription, Severity defaultLevel) {
+        this(id, name, shortDescription, defaultLevel, RuleStatus.ACTIVE, introducedIn(id), null);
+    }
+
+    RuleId(String id, String name, String shortDescription, Severity defaultLevel,
+           RuleStatus status, String since, String replacedById) {
         this.id = id;
         this.name = name;
         this.shortDescription = shortDescription;
         this.defaultLevel = defaultLevel;
+        this.status = status;
+        this.since = since;
+        this.replacedById = replacedById;
+    }
+
+    /**
+     * First release a rule shipped in. Rules added after the 1.0 line are stamped 1.1.0; the value is
+     * part of {@code rule-ids.lock}, so moving it is a reviewed change, not a comment.
+     */
+    private static String introducedIn(String id) {
+        return switch (id) {
+            case "AEM-COMP-002", "AEM-QUAL-008", "AEM-DEAD-007", "AEM-CLOUD-006", "AEM-CLOUD-007" -> "1.1.0";
+            default -> "1.0.0";
+        };
     }
 
     public String id() {
@@ -160,6 +182,29 @@ public enum RuleId {
 
     public Severity defaultLevel() {
         return defaultLevel;
+    }
+
+    /** Lifecycle state: active, deprecated or retired. */
+    public RuleStatus status() {
+        return status;
+    }
+
+    /** First analyser release that declared this id. */
+    public String since() {
+        return since;
+    }
+
+    /**
+     * @return the id that supersedes this one, empty when there is none. A retired id always names
+     *         its replacement so a warning can tell the user what to configure instead.
+     */
+    public java.util.Optional<String> replacedBy() {
+        return java.util.Optional.ofNullable(replacedById);
+    }
+
+    /** True when this id no longer has a producer. */
+    public boolean isRetired() {
+        return status.isRetired();
     }
 
     public static RuleId fromId(String id) {

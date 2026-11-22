@@ -223,6 +223,16 @@ public class AnalyserCli implements java.util.concurrent.Callable<Integer> {
             description = "Keep baseline-suppressed findings in reports at INFO severity.")
     private boolean baselineReport;
 
+    @Option(names = {"--import-report"}, paramLabel = "FILE",
+            description = "SARIF report from another analyser to read for migration coverage (nothing is "
+                    + "suppressed unless --import-map equates its rules with an analyser rule).")
+    private Path importReport;
+
+    @Option(names = {"--import-map"}, paramLabel = "FILE",
+            description = "YAML/JSON map of foreign-rule: AEM-RULE, e.g. 'java:S3649: AEM-QUAL-004'. "
+                    + "Requires --import-report.")
+    private Path importMap;
+
     @Option(names = {"--history"}, paramLabel = "DIR",
             description = "Append a run summary to DIR/runs.jsonl and render the trend in the HTML report.")
     private Path historyDirectory;
@@ -242,6 +252,11 @@ public class AnalyserCli implements java.util.concurrent.Callable<Integer> {
     @Option(names = {"--explain"}, paramLabel = "RULE",
             description = "Print the effective metadata for one rule (e.g. AEM-DEAD-002A), then exit.")
     private String explainRule;
+
+    @Option(names = {"--diagnose"}, paramLabel = "RULE:PATH:LINE",
+            description = "Write a redacted, offline repro bundle for one finding, e.g. "
+                    + "\"AEM-DEAD-004:ui.apps/card.html:42\", then exit. Nothing is transmitted.")
+    private String diagnoseTarget;
 
     @Option(names = {"--generate-rule-docs"}, paramLabel = "DIR",
             description = "Generate the HTML issue reference into DIR/issues, then exit.")
@@ -438,6 +453,10 @@ public class AnalyserCli implements java.util.concurrent.Callable<Integer> {
     }
 
     int execute() {
+        if (importMap != null && importReport == null) {
+            error("--import-map requires --import-report: a map alone has no foreign results to match.");
+            return EXIT_USAGE;
+        }
         OptionalInt metaCommandResult = executeMetaCommand();
         if (metaCommandResult.isPresent()) {
             return metaCommandResult.getAsInt();
@@ -609,6 +628,10 @@ public class AnalyserCli implements java.util.concurrent.Callable<Integer> {
         report = applyAutoFix(root, context, report);
         report = config.apply(report);
         report = applyBaseline(root, report);
+        report = applyImportedReport(root, report);
+        if (diagnoseTarget != null && !diagnoseTarget.isBlank()) {
+            return writeDiagnoseBundle(root, effective, report);
+        }
         List<io.github.rohithv16.aem.analyser.core.history.RunSummary> history;
         try {
             history = applyHistory(report);
@@ -731,13 +754,12 @@ public class AnalyserCli implements java.util.concurrent.Callable<Integer> {
         Set<String> warned = new TreeSet<>();
         for (String ruleId : ruleIds) {
             if (RuleCatalog.isRetired(ruleId) && warned.add(ruleId.strip().toUpperCase(Locale.ROOT))) {
-                progress("[WARNING] " + source + " references retired rule '" + ruleId + "' — "
-                        + RuleCatalog.retirementNote(ruleId)
-                        + "; it produces no findings, so the entry has no effect.");
+                String replacement = RuleCatalog.replacementFor(ruleId).orElse(null);
+                progress("[WARNING] " + source + ": " + ruleId + " is retired; findings now come from "
+                        + (replacement == null ? "no rule" : replacement)
+                        + (replacement == null ? "." : " (the entry's enablement applies to the replacement; "
+                                + "its severity is ignored)."));
             }
-        }
-        if (!warned.isEmpty()) {
-            progress("[WARNING] Run --list-rules to see the active rule set.");
         }
     }
 
@@ -867,6 +889,96 @@ public class AnalyserCli implements java.util.concurrent.Callable<Integer> {
         return filtered;
     }
 
+    /**
+     * Writes one redacted repro bundle for a finding selected by {@code RULE:PATH:LINE}. A selector
+     * that matches nothing is a usage error (exit 2), not an empty bundle: a bundle for a finding that
+     * never existed would waste the maintainer's time and look like the tool confirmed the report.
+     */
+    private int writeDiagnoseBundle(Path root, EffectiveConfig effective, AnalysisReport report) {
+        DiagnoseTarget selector = DiagnoseTarget.parse(diagnoseTarget).relativeTo(root);
+        var descriptor = io.github.rohithv16.aem.analyser.core.rules.metadata.RuleRegistry
+                .find(selector.ruleId());
+        if (descriptor.isEmpty()) {
+            error("Unknown rule '" + selector.ruleId() + "' in --diagnose. Run --list-rules to see the ids.");
+            return EXIT_USAGE;
+        }
+        var rule = descriptor.get();
+        List<Violation> candidates = new ArrayList<>(report.violations());
+        candidates.addAll(report.acceptedViolations());
+        Violation finding = null;
+        for (Violation candidate : candidates) {
+            if (!rule.id().equalsIgnoreCase(candidate.ruleId())) {
+                continue;
+            }
+            if (!selector.path().equals(DiagnoseTarget.normalizePath(candidate.filePath()))) {
+                continue;
+            }
+            int start = candidate.region() == null ? 0 : candidate.region().startLine();
+            int end = candidate.region() == null ? start : Math.max(start, candidate.region().endLine());
+            if (selector.line() >= start && selector.line() <= end) {
+                finding = candidate;
+                break;
+            }
+        }
+        if (finding == null) {
+            error(diagnoseTarget + " is not a finding in this run. Run the analyser without --diagnose "
+                    + "to see the findings it actually reports.");
+            return EXIT_USAGE;
+        }
+        Path output = outputDirectory != null ? outputDirectory : root.resolve("target/aem-analyser");
+        Path target;
+        if (output.getFileName() != null && output.getFileName().toString().endsWith(".zip")) {
+            target = output;
+        } else {
+            target = output.resolve(io.github.rohithv16.aem.analyser.core.diagnose.DiagnoseBundle
+                    .fileName(rule.id()));
+        }
+        try {
+            io.github.rohithv16.aem.analyser.core.diagnose.DiagnoseBundle.write(root, finding, rule,
+                    effective.config(), report.diagnostics(), target);
+        } catch (IOException e) {
+            throw new IllegalArgumentException("Could not write the diagnose bundle to " + target + ": "
+                    + FailureMessage.oneLine(e) + ". --output must be a writable directory.");
+        }
+        progress("[INFO] Diagnose bundle written to " + target
+                + " (redacted, offline; nothing was transmitted).");
+        return EXIT_OK;
+    }
+
+    /**
+     * Imports another analyser's SARIF and accepts our findings that the explicit id map equates with
+     * an overlapping foreign result. Nothing is suppressed by location alone, and without an
+     * {@code --import-map} the import is a coverage count only.
+     */
+    private AnalysisReport applyImportedReport(Path root, AnalysisReport report) {
+        if (importReport == null) {
+            return report;
+        }
+        if (!Files.isRegularFile(importReport)) {
+            throw new IllegalArgumentException("Imported report not found: " + importReport
+                    + ". Point --import-report at the other analyser's SARIF file.");
+        }
+        try {
+            var foreign = io.github.rohithv16.aem.analyser.core.interop.SarifImporter.read(importReport, root);
+            var map = importMap == null
+                    ? io.github.rohithv16.aem.analyser.core.interop.ImportMap.empty()
+                    : io.github.rohithv16.aem.analyser.core.interop.ImportMap.load(importMap);
+            var result = io.github.rohithv16.aem.analyser.core.interop.ExternalSuppressions
+                    .apply(report, foreign, map);
+            int unmapped = result.foreignCount() - result.mappedCount();
+            progress("[INFO] Imported " + result.foreignCount() + " foreign result(s) from "
+                    + importReport.getFileName() + ": " + result.mappedCount() + " mapped, "
+                    + unmapped + " unmapped; " + result.suppressedCount()
+                    + " finding(s) accepted as external.");
+            return result.report();
+        } catch (IllegalArgumentException invalid) {
+            throw invalid;
+        } catch (IOException unreadable) {
+            throw new IllegalArgumentException("Could not read the imported report or map: "
+                    + FailureMessage.oneLine(unreadable) + ". Both must be readable files.");
+        }
+    }
+
     private void printDiagnostics(AnalysisReport report) {
         if (!verbose || report.diagnostics().isEmpty()) {
             return;
@@ -906,6 +1018,9 @@ public class AnalyserCli implements java.util.concurrent.Callable<Integer> {
         if (effective.source() != null) {
             header += " (config: " + effective.source() + ")";
         }
+        if (wantsJson()) {
+            return printRulesJson(out, rules, effective);
+        }
         out.println(header + ":");
         for (var rule : rules) {
             out.printf("  %-16s %-8s %3dm  %s",
@@ -921,6 +1036,61 @@ public class AnalyserCli implements java.util.concurrent.Callable<Integer> {
         return 0;
     }
 
+    /** True when {@code --format JSON} turns a meta command into machine-readable output. */
+    private boolean wantsJson() {
+        return formats.stream().anyMatch(format -> format != null && "JSON".equalsIgnoreCase(format.strip()));
+    }
+
+    /**
+     * The catalogue as JSON, emitted from the same {@link RuleRegistry} the HTML reference renders.
+     * A reader can assert precision evidence, lifecycle state and the effective severity without
+     * scraping the text table.
+     */
+    private int printRulesJson(
+            PrintWriter out,
+            List<io.github.rohithv16.aem.analyser.core.rules.metadata.RuleDescriptor> rules,
+            EffectiveConfig effective) {
+        List<Map<String, Object>> rows = new ArrayList<>();
+        for (var rule : rules) {
+            Map<String, Object> row = new LinkedHashMap<>();
+            row.put("id", rule.id());
+            row.put("name", rule.name());
+            row.put("severity", severityCell(rule, effective));
+            row.put("defaultSeverity", rule.defaultSeverity().name());
+            row.put("effortMinutes", rule.effortMinutes());
+            row.put("tags", rule.tags());
+            row.put("helpUri", rule.helpUri());
+            row.put("docAnchor", rule.id().toLowerCase(Locale.ROOT));
+            var evidence = io.github.rohithv16.aem.analyser.core.rules.metadata.RuleEvidence
+                    .find(rule.id()).orElse(null);
+            row.put("positiveProbe", evidence == null ? null : evidence.positiveProbe());
+            row.put("positiveLine", evidence == null ? null : evidence.positiveLine());
+            row.put("positiveSubtype", evidence == null ? null : evidence.positiveSubtype());
+            row.put("negativeProbe", evidence == null ? null : evidence.negativeProbe());
+            row.put("status", RuleCatalog.statusOf(rule.id()).wireName());
+            try {
+                var ruleId = io.github.rohithv16.aem.analyser.core.model.report.RuleId.fromId(rule.id());
+                row.put("since", ruleId.since());
+                row.put("replacedBy", ruleId.replacedBy().orElse(null));
+            } catch (IllegalArgumentException unknown) {
+                row.put("since", null);
+                row.put("replacedBy", null);
+            }
+            row.put("enabled", !RuleCatalog.isRetired(rule.id()) && effective.config().isEnabled(rule.id()));
+            rows.add(row);
+        }
+        try {
+            out.println(new com.fasterxml.jackson.databind.ObjectMapper()
+                    .enable(com.fasterxml.jackson.databind.SerializationFeature.INDENT_OUTPUT)
+                    .writeValueAsString(rows));
+        } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
+            error("Could not serialise the rule catalogue: " + e.getOriginalMessage());
+            return 2;
+        }
+        out.flush();
+        return 0;
+    }
+
     /** The severity column of one {@code --list-rules} line, reflecting disablement and overrides. */
     private static String severityCell(
             io.github.rohithv16.aem.analyser.core.rules.metadata.RuleDescriptor rule,
@@ -928,7 +1098,7 @@ public class AnalyserCli implements java.util.concurrent.Callable<Integer> {
         if (RuleCatalog.isRetired(rule.id())) {
             return "RETIRED";
         }
-        AnalyserConfig.RuleOverride override = effective.config().rules().get(rule.id());
+        AnalyserConfig.RuleOverride override = effective.config().overrideFor(rule.id());
         if (override != null && override.disabled()) {
             return "DISABLED";
         }
