@@ -33,21 +33,21 @@ class AnalyserCliFailureTest {
 
         CliTestSupport.Run run = CliTestSupport.runArgs(missing, "--no-html");
 
-        assertEquals(2, run.exitCode(), run.output());
-        assertTrue(run.output().contains(missing), run.output());
-        assertTrue(run.output().contains("does not exist"), run.output());
-        assertTrue(run.output().contains("--project-root"), run.output());
-        assertFalse(run.output().contains("Analysis failed: Analysis failed:"), run.output());
-        assertFalse(run.output().contains("No root pom.xml"), run.output());
+        assertEquals(2, run.exitCode(), text(run));
+        assertTrue(text(run).contains(missing), text(run));
+        assertTrue(text(run).contains("does not exist"), text(run));
+        assertTrue(text(run).contains("--project-root"), text(run));
+        assertFalse(text(run).contains("Analysis failed: Analysis failed:"), text(run));
+        assertFalse(text(run).contains("No root pom.xml"), text(run));
     }
 
     @Test
     void directoryWithoutPomExplainsWhatWasExpected(@TempDir Path empty) throws Exception {
         CliTestSupport.Run run = CliTestSupport.run(empty, "--no-html");
 
-        assertEquals(2, run.exitCode(), run.output());
-        assertTrue(run.output().contains("No pom.xml in " + empty.toAbsolutePath().normalize()), run.output());
-        assertTrue(run.output().contains("Maven project root"), run.output());
+        assertEquals(2, run.exitCode(), text(run));
+        assertTrue(text(run).contains("No pom.xml in " + empty.toAbsolutePath().normalize()), text(run));
+        assertTrue(text(run).contains("Maven project root"), text(run));
     }
 
     @Test
@@ -57,12 +57,12 @@ class AnalyserCliFailureTest {
 
         CliTestSupport.Run run = CliTestSupport.run(project, "--no-html", "--no-sonar");
 
-        assertEquals(2, run.exitCode(), run.output());
-        assertTrue(run.output().contains(".aem-analyser.yml"), run.output());
-        assertTrue(run.output().contains("'rules'"), run.output());
-        assertTrue(run.output().contains("mapping"), run.output());
-        assertFalse(run.output().contains("Cannot construct instance"), run.output());
-        assertFalse(run.output().contains("LinkedHashMap"), run.output());
+        assertEquals(2, run.exitCode(), text(run));
+        assertTrue(text(run).contains(".aem-analyser.yml"), text(run));
+        assertTrue(text(run).contains("'rules'"), text(run));
+        assertTrue(text(run).contains("mapping"), text(run));
+        assertFalse(text(run).contains("Cannot construct instance"), text(run));
+        assertFalse(text(run).contains("LinkedHashMap"), text(run));
     }
 
     @Test
@@ -72,9 +72,9 @@ class AnalyserCliFailureTest {
         CliTestSupport.Run run = CliTestSupport.runArgs("--config", project.resolve("nope.yml").toString(),
                 project.toString(), "--no-html", "--no-sonar");
 
-        assertEquals(2, run.exitCode(), run.output());
-        assertTrue(run.output().contains("nope.yml"), run.output());
-        assertTrue(run.output().contains("not found"), run.output());
+        assertEquals(2, run.exitCode(), text(run));
+        assertTrue(text(run).contains("nope.yml"), text(run));
+        assertTrue(text(run).contains("not found"), text(run));
     }
 
     @Test
@@ -83,11 +83,11 @@ class AnalyserCliFailureTest {
             throw new IllegalStateException("boom");
         });
 
-        assertEquals(3, run.exitCode(), run.output());
-        assertTrue(run.output().contains("analyser failed during analysis"), run.output());
-        assertTrue(run.output().contains("boom"), run.output());
-        assertFalse(run.output().contains("\tat io.github"), run.output());
-        assertFalse(run.output().contains("Exception in thread"), run.output());
+        assertEquals(3, run.exitCode(), text(run));
+        assertTrue(text(run).contains("analyser failed during analysis"), text(run));
+        assertTrue(text(run).contains("boom"), text(run));
+        assertFalse(text(run).contains("\tat io.github"), text(run));
+        assertFalse(text(run).contains("Exception in thread"), text(run));
     }
 
     @Test
@@ -96,8 +96,8 @@ class AnalyserCliFailureTest {
             throw new IllegalStateException("boom");
         });
 
-        assertEquals(3, run.exitCode(), run.output());
-        assertTrue(run.output().contains("\tat io.github.rohithv16"), run.output());
+        assertEquals(3, run.exitCode(), text(run));
+        assertTrue(text(run).contains("\tat io.github.rohithv16"), text(run));
     }
 
     @Test
@@ -107,10 +107,10 @@ class AnalyserCliFailureTest {
                     new IOException("unreadable"));
         });
 
-        assertEquals(2, run.exitCode(), run.output());
-        assertTrue(run.output().contains("[ERROR] Analysis failed: No root pom.xml found under /tmp/x"),
-                run.output());
-        assertFalse(run.output().contains("Analysis failed: Analysis failed:"), run.output());
+        assertEquals(2, run.exitCode(), text(run));
+        assertTrue(text(run).contains("[ERROR] Analysis failed: No root pom.xml found under /tmp/x"),
+                text(run));
+        assertFalse(text(run).contains("Analysis failed: Analysis failed:"), text(run));
     }
 
     /** A wrapped runtime failure is the analyser crashing on the input, not a usage error. */
@@ -120,7 +120,7 @@ class AnalyserCliFailureTest {
             throw new AnalysisException("Analysis failed: index out of bounds", new IllegalStateException("x"));
         });
 
-        assertEquals(3, run.exitCode(), run.output());
+        assertEquals(3, run.exitCode(), text(run));
     }
 
     /** End-to-end exit 3: the analyser cannot do its job, which says nothing about the code. */
@@ -133,10 +133,10 @@ class AnalyserCliFailureTest {
         CliTestSupport.Run run = CliTestSupport.run(project, "--no-html", "--no-sonar",
                 "--history", historyFile.toString());
 
-        assertEquals(3, run.exitCode(), run.output());
-        assertTrue(run.output().contains("run history"), run.output());
-        assertTrue(run.output().contains("not a writable directory"), run.output());
-        assertFalse(run.output().contains("\tat "), run.output());
+        assertEquals(3, run.exitCode(), text(run));
+        assertTrue(text(run).contains("run history"), text(run));
+        assertTrue(text(run).contains("not a writable directory"), text(run));
+        assertFalse(text(run).contains("\tat "), text(run));
     }
 
     /** The picocli handler is the last line of defence: it must not report a crash as exit 1. */
@@ -164,17 +164,29 @@ class AnalyserCliFailureTest {
 
     private static CliTestSupport.Run runPhase(boolean debug, AnalyserCli.Phase phase) {
         PrintStream originalOut = System.out;
-        ByteArrayOutputStream captured = new ByteArrayOutputStream();
-        try (PrintStream capture = new PrintStream(captured, true, StandardCharsets.UTF_8)) {
-            System.setOut(capture);
+        PrintStream originalErr = System.err;
+        ByteArrayOutputStream capturedOut = new ByteArrayOutputStream();
+        ByteArrayOutputStream capturedErr = new ByteArrayOutputStream();
+        try (PrintStream out = new PrintStream(capturedOut, true, StandardCharsets.UTF_8);
+             PrintStream err = new PrintStream(capturedErr, true, StandardCharsets.UTF_8)) {
+            System.setOut(out);
+            System.setErr(err);
             AnalyserCli cli = new AnalyserCli();
             if (debug) {
                 new CommandLine(cli).parseArgs("--debug");
             }
             int exit = cli.executePhase("analysis", phase);
-            return new CliTestSupport.Run(exit, captured.toString(StandardCharsets.UTF_8));
+            return new CliTestSupport.Run(exit,
+                    capturedOut.toString(StandardCharsets.UTF_8),
+                    capturedErr.toString(StandardCharsets.UTF_8));
         } finally {
             System.setOut(originalOut);
+            System.setErr(originalErr);
         }
+    }
+
+    /** Failure text lands on stderr once stdout is report-only, so assertions read both channels. */
+    private static String text(CliTestSupport.Run run) {
+        return run.output() + run.errors();
     }
 }

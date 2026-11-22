@@ -26,8 +26,8 @@ class AnalyserCliConsoleReportTest {
         String[] lines = run.output().split("\n", -1);
         assertTrue(lines[1].contains("AEM CODE ANALYSER"), run.output());
         assertTrue(lines[1].contains("GATE PASSED"), run.output());
-        assertTrue(run.output().contains("Total Violations: 0"), run.output());
-        assertTrue(run.output().contains("Reports: "), run.output());
+        assertTrue((run.output() + run.errors()).contains("Total Violations: 0"), run.output());
+        assertTrue((run.output() + run.errors()).contains("Reports: "), run.output());
         assertTrue(run.output().indexOf("Reports: ") < run.output().indexOf("FINDINGS ("),
                 "the written report paths must precede the findings:\n" + run.output());
     }
@@ -39,8 +39,8 @@ class AnalyserCliConsoleReportTest {
         CliTestSupport.Run run = CliTestSupport.run(project, "--group-by", "bogus", "--no-html");
 
         assertEquals(2, run.exitCode(), run.output());
-        assertTrue(run.output().contains("--group-by"), run.output());
-        assertTrue(run.output().contains("FILE, RULE, NONE"), run.output());
+        assertTrue((run.output() + run.errors()).contains("--group-by"), run.output());
+        assertTrue((run.output() + run.errors()).contains("FILE, RULE, NONE"), run.output());
     }
 
     @Test
@@ -51,6 +51,6 @@ class AnalyserCliConsoleReportTest {
                 "--group-by", "file");
 
         assertEquals(0, run.exitCode(), run.output());
-        assertTrue(run.output().contains("grouped by file"), run.output());
+        assertTrue((run.output() + run.errors()).contains("grouped by file"), run.output());
     }
 }

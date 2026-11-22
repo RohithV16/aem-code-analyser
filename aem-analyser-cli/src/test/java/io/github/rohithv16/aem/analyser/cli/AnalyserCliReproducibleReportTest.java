@@ -76,8 +76,8 @@ class AnalyserCliReproducibleReportTest {
                 "--report-epoch", "not-a-timestamp");
 
         assertEquals(2, run.exitCode(), run.output());
-        assertTrue(run.output().contains("--report-epoch"), run.output());
-        assertTrue(run.output().contains("whole seconds"), run.output());
+        assertTrue((run.output() + run.errors()).contains("--report-epoch"), run.output());
+        assertTrue((run.output() + run.errors()).contains("whole seconds"), run.output());
     }
 
     @Test
@@ -88,6 +88,6 @@ class AnalyserCliReproducibleReportTest {
                 "--report-epoch=-5");
 
         assertEquals(2, run.exitCode(), run.output());
-        assertTrue(run.output().contains("0 or greater"), run.output());
+        assertTrue((run.output() + run.errors()).contains("0 or greater"), run.output());
     }
 }
