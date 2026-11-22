@@ -46,41 +46,16 @@ public final class SarifReportExporter implements ReportExporter {
 
         List<Map<String, Object>> results = new ArrayList<>();
         for (Violation violation : report.violations()) {
-            if (!ruleIndexes.containsKey(violation.ruleId())) {
-                var descriptor = io.github.rohithv16.aem.analyser.core.rules.metadata.RuleRegistry
-                        .get(violation.ruleId());
-                ruleIndexes.put(violation.ruleId(), ruleDefinitions.size());
-                ruleDefinitions.add(ruleDefinition(descriptor));
+            // Accepted findings reach violations() only in the legacy --baseline-report mode, where
+            // an INFO copy is kept for renderers without suppression support; SARIF emits the
+            // untouched, real-level copy from acceptedViolations() instead of both.
+            if (violation.isAccepted()) {
+                continue;
             }
-            Map<String, Object> result = new LinkedHashMap<>();
-            result.put("ruleId", violation.ruleId());
-            result.put("ruleIndex", ruleIndexes.get(violation.ruleId()));
-            result.put("level", sarifLevel(violation.severity()));
-            StringBuilder messageText = new StringBuilder(violation.message());
-            violation.remediationOpt().ifPresent(r -> messageText.append(" Remediation: ").append(r));
-            result.put("message", ordered("text", messageText.toString()));
-            Map<String, Object> properties = new LinkedHashMap<>();
-            properties.put("subtype", violation.subtype());
-            violation.targetPidOpt().ifPresent(pid -> properties.put("targetPid", pid));
-            result.put("properties", properties);
-            // Stable identity so GitHub code scanning tracks the same alert across unrelated edits.
-            result.put("partialFingerprints", ordered("aemAnalyserFingerprint/v1",
-                    io.github.rohithv16.aem.analyser.core.baseline.Fingerprint.of(violation)));
-            result.put("locations", List.of(location(violation.filePath(), violation.region())));
-            if (!violation.relatedLocations().isEmpty()) {
-                List<Map<String, Object>> related = new ArrayList<>();
-                int id = 1;
-                for (RelatedLocation relatedLocation : violation.relatedLocations()) {
-                    Map<String, Object> entry = new LinkedHashMap<>();
-                    entry.put("id", id++);
-                    entry.put("physicalLocation", physicalLocation(relatedLocation.filePath(), relatedLocation.region()));
-                    entry.put("message", ordered("text",
-                            relatedLocation.message()));
-                    related.add(entry);
-                }
-                result.put("relatedLocations", related);
-            }
-            results.add(result);
+            results.add(result(violation, ruleIndexes, ruleDefinitions, false));
+        }
+        for (Violation violation : report.acceptedViolations()) {
+            results.add(result(violation, ruleIndexes, ruleDefinitions, true));
         }
 
         Map<String, Object> driver = new LinkedHashMap<>();
@@ -126,6 +101,75 @@ public final class SarifReportExporter implements ReportExporter {
         }
     }
 
+    /**
+     * Builds one {@code results[]} entry. An accepted finding keeps its real {@code level}, message,
+     * subtype and region and additionally carries {@code baselineState} plus an accepted
+     * {@code suppressions[]} entry, so a consumer shows "exists, accepted" instead of either a
+     * reopened alert or no finding at all.
+     */
+    private Map<String, Object> result(Violation violation,
+                                       Map<String, Integer> ruleIndexes,
+                                       List<Map<String, Object>> ruleDefinitions,
+                                       boolean accepted) {
+        if (!ruleIndexes.containsKey(violation.ruleId())) {
+            var descriptor = io.github.rohithv16.aem.analyser.core.rules.metadata.RuleRegistry
+                    .get(violation.ruleId());
+            ruleIndexes.put(violation.ruleId(), ruleDefinitions.size());
+            ruleDefinitions.add(ruleDefinition(descriptor));
+        }
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("ruleId", violation.ruleId());
+        result.put("ruleIndex", ruleIndexes.get(violation.ruleId()));
+        result.put("level", sarifLevel(violation.severity()));
+        StringBuilder messageText = new StringBuilder(violation.message());
+        violation.remediationOpt().ifPresent(r -> messageText.append(" Remediation: ").append(r));
+        result.put("message", ordered("text", messageText.toString()));
+        Map<String, Object> properties = new LinkedHashMap<>();
+        properties.put("subtype", violation.subtype());
+        violation.targetPidOpt().ifPresent(pid -> properties.put("targetPid", pid));
+        result.put("properties", properties);
+        // Stable identity so GitHub code scanning tracks the same alert across unrelated edits.
+        result.put("partialFingerprints", ordered("aemAnalyserFingerprint/v1",
+                io.github.rohithv16.aem.analyser.core.baseline.Fingerprint.of(violation)));
+        result.put("locations", List.of(location(violation.filePath(), violation.region())));
+        if (!violation.relatedLocations().isEmpty()) {
+            List<Map<String, Object>> related = new ArrayList<>();
+            int id = 1;
+            for (RelatedLocation relatedLocation : violation.relatedLocations()) {
+                Map<String, Object> entry = new LinkedHashMap<>();
+                entry.put("id", id++);
+                entry.put("physicalLocation", physicalLocation(relatedLocation.filePath(), relatedLocation.region()));
+                entry.put("message", ordered("text",
+                        relatedLocation.message()));
+                related.add(entry);
+            }
+            result.put("relatedLocations", related);
+        }
+        if (accepted) {
+            // "unchanged" is the SARIF baseline state for a finding the baseline already contains;
+            // the suppression then carries where the waiver came from, so the audit trail lives in
+            // the artefact instead of one console line.
+            result.put("baselineState", "unchanged");
+            result.put("suppressions", List.of(suppression(violation)));
+        }
+        return result;
+    }
+
+    private Map<String, Object> suppression(Violation violation) {
+        if (violation.acceptance()
+                == io.github.rohithv16.aem.analyser.core.model.report.AcceptanceOrigin.BASELINE) {
+            return ordered(
+                    "kind", "external",
+                    "status", "accepted",
+                    "justification", "baseline:" + io.github.rohithv16.aem.analyser.core.baseline
+                            .Fingerprint.of(violation));
+        }
+        return ordered(
+                "kind", "inSource",
+                "status", "accepted",
+                "justification", "aem-analyser-disable directive");
+    }
+
     private Map<String, Object> ruleDefinition(RuleDescriptor rule) {
         Map<String, Object> definition = new LinkedHashMap<>();
         definition.put("id", rule.id());
@@ -133,6 +177,7 @@ public final class SarifReportExporter implements ReportExporter {
         definition.put("shortDescription", ordered("text", rule.shortDescription()));
         definition.put("fullDescription", ordered("text", rule.fullDescription()));
         definition.put("helpUri", rule.helpUri());
+        definition.put("help", ordered("text", helpText(rule), "markdown", helpMarkdown(rule)));
         Map<String, Object> properties = new LinkedHashMap<>();
         if (!rule.tags().isEmpty()) {
             properties.put("tags", rule.tags());
@@ -140,9 +185,17 @@ public final class SarifReportExporter implements ReportExporter {
         if (rule.cwe() != null) {
             properties.put("cwe", rule.cwe());
         }
-        if (!properties.isEmpty()) {
-            definition.put("properties", properties);
+        // GitHub code scanning ranks an alert by properties.security-severity; a security-tagged rule
+        // without it is uploaded "with no security severity" and lands unranked in the alert list.
+        // Non-security rules instead advertise their gate severity, so a consumer can show the same
+        // Error/Warning split the CLI gates on without inventing a CVSS score for a code smell.
+        if (rule.securityRanked()) {
+            properties.put("security-severity", String.format(java.util.Locale.ROOT, "%.1f", rule.securitySeverity()));
+        } else {
+            properties.put("problem", ordered("severity", sarifLevel(rule.defaultSeverity())));
         }
+        properties.put("precision", rule.precision());
+        definition.put("properties", properties);
         // SARIF's own way of saying "this descriptor exists but the rule can never fire". Only
         // retired ids are disabled: an id produced by another engine (AEM-DUP-010 via PMD CPD) is
         // still active.
@@ -153,6 +206,34 @@ public final class SarifReportExporter implements ReportExporter {
         }
         definition.put("defaultConfiguration", configuration);
         return definition;
+    }
+
+    /** Plain-text rule help: the long description plus the remediation the CLI already prints. */
+    private static String helpText(RuleDescriptor rule) {
+        StringBuilder text = new StringBuilder(rule.fullDescription());
+        if (rule.remediation() != null && !rule.remediation().isBlank()) {
+            text.append("\n\nRemediation: ").append(rule.remediation());
+        }
+        return text.toString();
+    }
+
+    /**
+     * Markdown rule help built from the remediation text that already exists in the registry, so the
+     * guidance shown in the code-scanning UI is the same advice {@code --explain} prints instead of a
+     * second, drifting copy.
+     */
+    private static String helpMarkdown(RuleDescriptor rule) {
+        StringBuilder markdown = new StringBuilder();
+        markdown.append("### ").append(rule.id()).append(" — ").append(rule.name()).append("\n\n")
+                .append(rule.fullDescription());
+        if (rule.remediation() != null && !rule.remediation().isBlank()) {
+            markdown.append("\n\n**Remediation:** ").append(rule.remediation());
+        }
+        if (rule.cwe() != null) {
+            markdown.append("\n\n**Weakness:** ").append(rule.cwe());
+        }
+        markdown.append("\n\n[Rule documentation](").append(rule.helpUri()).append(')');
+        return markdown.toString();
     }
 
     /** Percent-encodes a project-relative path for {@code artifactLocation.uri}, keeping '/'. */

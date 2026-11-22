@@ -1,6 +1,7 @@
 package io.github.rohithv16.aem.analyser.core.baseline;
 
 import io.github.rohithv16.aem.analyser.core.model.graph.TextRegion;
+import io.github.rohithv16.aem.analyser.core.model.report.AcceptanceOrigin;
 import io.github.rohithv16.aem.analyser.core.model.report.AnalysisReport;
 import io.github.rohithv16.aem.analyser.core.model.report.Severity;
 import io.github.rohithv16.aem.analyser.core.model.report.Violation;
@@ -59,6 +60,36 @@ class BaselineFilterTest {
                 new Baseline(Baseline.CURRENT_SCHEMA_VERSION, "test", entries));
 
         assertEquals(0, filtered.violations().size());
+    }
+
+    /**
+     * Issue #17: a baselined finding leaves the gate-visible list (counts and exit code unchanged)
+     * but stays in the report as an accepted finding at its original severity, so SARIF can show
+     * "exists, accepted" instead of deleting the evidence.
+     */
+    @Test
+    void baselinedFindingsMoveToTheAcceptedListWithoutChangingTheirSeverity(@TempDir Path root) {
+        Violation error = violation("core/src/main/java/A.java", 1);
+        Violation warning = new Violation("AEM-DUP-001", Severity.WARNING, "DUPLICATE_SERVLET",
+                "Duplicate servlet registration", "core/src/main/java/A.java",
+                new TextRegion(9, 1, 9, 10), null, null, List.of());
+        AnalysisReport report = report(root, List.of(error, warning));
+        Baseline baseline = new Baseline(Baseline.CURRENT_SCHEMA_VERSION, "test",
+                List.of(new BaselineEntry(Fingerprint.of(error), "AEM-DEAD-001",
+                        "core/src/main/java/A.java", "ORPHANED_CONFIGURATION")));
+
+        AnalysisReport filtered = BaselineFilter.filter(report, baseline);
+
+        assertEquals(1, filtered.violations().size(), "the gate must still see only the new finding");
+        assertEquals(0, filtered.countBySeverity(Severity.ERROR),
+                "the accepted error must no longer be counted by the gate");
+        assertEquals(1, filtered.acceptedViolations().size());
+        Violation accepted = filtered.acceptedViolations().get(0);
+        assertEquals(Severity.ERROR, accepted.severity(),
+                "acceptance must annotate, not downgrade, the finding");
+        assertEquals("ORPHANED_CONFIGURATION", accepted.subtype());
+        assertEquals(AcceptanceOrigin.BASELINE, accepted.acceptance());
+        assertEquals(1, BaselineFilter.suppressedCount(report, filtered));
     }
 
     @Test

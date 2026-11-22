@@ -16,6 +16,12 @@ import java.util.TreeMap;
  * @param gateVerdict     outcome of the effective quality gate; every renderer prints this instead
  *                        of deriving a verdict from the error count
  * @param diagnostics     non-fatal parse/read problems encountered during the run
+ * @param acceptedViolations findings the project already accepted (baseline entry or inline
+ *                        {@code aem-analyser-disable-*} directive). They are deliberately NOT part
+ *                        of {@link #violations()}: the gate, the console summary and the exit code
+ *                        count only actionable findings. Exporters that can express a suppressed
+ *                        result (SARIF) emit them so the report shows "N exist, N accepted"
+ *                        instead of pretending the code is clean.
  */
 public record AnalysisReport(Path projectRoot,
                              Map<String, Integer> scanStatistics,
@@ -24,7 +30,8 @@ public record AnalysisReport(Path projectRoot,
                              CoverageReport coverageReport,
                              CodeMetrics codeMetrics,
                              List<AnalysisDiagnostic> diagnostics,
-                             GateVerdict gateVerdict) {
+                             GateVerdict gateVerdict,
+                             List<Violation> acceptedViolations) {
 
     public AnalysisReport(Path projectRoot,
                           Map<String, Integer> scanStatistics,
@@ -54,6 +61,18 @@ public record AnalysisReport(Path projectRoot,
                 diagnostics, null);
     }
 
+    public AnalysisReport(Path projectRoot,
+                          Map<String, Integer> scanStatistics,
+                          List<Violation> violations,
+                          long durationMillis,
+                          CoverageReport coverageReport,
+                          CodeMetrics codeMetrics,
+                          List<AnalysisDiagnostic> diagnostics,
+                          GateVerdict gateVerdict) {
+        this(projectRoot, scanStatistics, violations, durationMillis, coverageReport, codeMetrics,
+                diagnostics, gateVerdict, List.of());
+    }
+
     public AnalysisReport {
         projectRoot = projectRoot.toAbsolutePath().normalize();
         scanStatistics = Collections.unmodifiableMap(new TreeMap<>(
@@ -66,6 +85,7 @@ public record AnalysisReport(Path projectRoot,
             codeMetrics = new CodeMetrics(0, 0, 0, 0, 0, 0.0);
         }
         diagnostics = List.copyOf(diagnostics == null ? List.of() : diagnostics);
+        acceptedViolations = List.copyOf(acceptedViolations == null ? List.of() : acceptedViolations);
         if (gateVerdict == null) {
             gateVerdict = GateVerdict.forCounts(
                     countBySeverity(violations, Severity.ERROR),
@@ -85,17 +105,23 @@ public record AnalysisReport(Path projectRoot,
 
     public AnalysisReport withViolations(List<Violation> newViolations) {
         return new AnalysisReport(projectRoot, scanStatistics, newViolations, durationMillis,
-                coverageReport, codeMetrics, diagnostics, gateVerdict);
+                coverageReport, codeMetrics, diagnostics, gateVerdict, acceptedViolations);
+    }
+
+    /** Returns a copy carrying a different accepted-findings list; the gate-visible list is unchanged. */
+    public AnalysisReport withAcceptedViolations(List<Violation> newAcceptedViolations) {
+        return new AnalysisReport(projectRoot, scanStatistics, violations, durationMillis,
+                coverageReport, codeMetrics, diagnostics, gateVerdict, newAcceptedViolations);
     }
 
     public AnalysisReport withDiagnostics(List<AnalysisDiagnostic> newDiagnostics) {
         return new AnalysisReport(projectRoot, scanStatistics, violations, durationMillis,
-                coverageReport, codeMetrics, newDiagnostics, gateVerdict);
+                coverageReport, codeMetrics, newDiagnostics, gateVerdict, acceptedViolations);
     }
 
     /** Returns a copy carrying the verdict of the effective gate for this run. */
     public AnalysisReport withGateVerdict(GateVerdict verdict) {
         return new AnalysisReport(projectRoot, scanStatistics, violations, durationMillis,
-                coverageReport, codeMetrics, diagnostics, verdict);
+                coverageReport, codeMetrics, diagnostics, verdict, acceptedViolations);
     }
 }
