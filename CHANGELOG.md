@@ -26,6 +26,13 @@ All notable changes to this project are documented here. The format follows
 
 ### Added
 
+- **`--mcp`** serves the Model Context Protocol over stdio (line-delimited JSON-RPC 2.0) with four
+  read-only tools: `analyse` returns the compact finding list with remediation and fingerprint,
+  `list_rules` the catalogue (optionally by tag), `explain_rule` one rule's full metadata, and
+  `explain_finding` the finding plus its rule. The server reads the same registry, analysis engine
+  and configuration layer as the gate; stdout carries protocol frames only and all logging goes to
+  stderr, so an editor agent (Claude Code, Cursor, Copilot) gets the same 36 findings the build does.
+
 - **`-f JSON`** writes `aem-analyser-report.json`, the neutral machine-readable report: a
   `schemaVersion`, the tool version, per-severity counts, each finding with its stable
   `fingerprint` and full rule metadata. Consumers that are not GitHub/GitLab/Azure/Sonar no longer

@@ -141,10 +141,39 @@ and offers a persistent dark mode, print stylesheet and keyboard-accessible tabs
 | `--list-rules` | — | Print the effective rule catalogue and exit. |
 | `--explain <RULE>` | — | Print one rule's effective metadata and exit. |
 | `--tag <tag>` | — | With `--list-rules`: only rules carrying the tag. |
+| `--mcp` | off | Serve MCP on stdio for editor agents: `analyse`, `list_rules`, `explain_rule`, `explain_finding`. stdout is protocol-only; logs go to stderr. |
 | `--generate-rule-docs <dir>` | — | Generate the issue reference page into `<dir>/issues` and exit. |
 | `-v, --verbose` | off | Print analysis diagnostics on stderr. |
 | `-q, --quiet` | off | Silence progress and warning lines on stderr; the report on stdout is unaffected. |
 | `--no-color` | off | Disable ANSI colours. |
+
+### MCP server for editor agents
+
+`--mcp` serves the [Model Context Protocol](https://modelcontextprotocol.io) over stdio, so Claude
+Code, Cursor or Copilot ask the analyser instead of re-deriving AEM semantics. Point your client at
+the shaded jar; the project root and the effective configuration are the same ones a gate run uses:
+
+```json
+{
+  "mcpServers": {
+    "aem-analyser": {
+      "command": "java",
+      "args": ["-jar", "/path/to/aem-analyser-cli.jar", "--mcp", "--project-root", "/path/to/aem-project"]
+    }
+  }
+}
+```
+
+| Tool | Argument | Returns |
+|---|---|---|
+| `analyse` | `root` (optional) | Compact findings (`ruleId`, `severity`, `file`, `line`, `message`, `remediation`, `fingerprint`) plus per-severity counts. |
+| `list_rules` | `tag` (optional) | The rule catalogue: id, name, severity, type, tags, CWE, effort. |
+| `explain_rule` | `id` | Full metadata and remediation for one rule; unknown ids are JSON-RPC errors. |
+| `explain_finding` | `fingerprint` | The finding plus the rule that produced it, using the session's latest `analyse`. |
+
+stdout carries JSON-RPC frames only (one object per line); startup, progress and errors go to stderr,
+which `-q` silences. Malformed JSON, unknown methods, unknown tools and unknown rule ids come back as
+JSON-RPC error objects and the session keeps serving; closing stdin exits 0.
 
 ---
 

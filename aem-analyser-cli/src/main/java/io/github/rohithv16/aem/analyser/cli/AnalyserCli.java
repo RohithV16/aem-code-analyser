@@ -228,6 +228,12 @@ public class AnalyserCli implements java.util.concurrent.Callable<Integer> {
             description = "Project configuration YAML (default: .aem-analyser.yml when present).")
     private Path configFile;
 
+    @Option(names = {"--mcp"},
+            description = "Serve the Model Context Protocol on stdio (line-delimited JSON-RPC 2.0) "
+                    + "with the tools analyse, list_rules, explain_rule and explain_finding, then exit "
+                    + "at EOF. stdout carries protocol frames only; logs go to stderr.")
+    private boolean mcp;
+
     @Option(names = {"--list-rules"},
             description = "List every rule with its effective severity and effort, then exit.")
     private boolean listRules;
@@ -409,6 +415,9 @@ public class AnalyserCli implements java.util.concurrent.Callable<Integer> {
     }
 
     int execute() {
+        if (mcp) {
+            return runMcpServer();
+        }
         OptionalInt metaCommandResult = executeMetaCommand();
         if (metaCommandResult.isPresent()) {
             return metaCommandResult.getAsInt();
@@ -512,6 +521,50 @@ public class AnalyserCli implements java.util.concurrent.Callable<Integer> {
             return OptionalInt.of(printRules(stdout, effective, tagFilter));
         }
         return OptionalInt.of(printExplain(stdout, explainRule, effective));
+    }
+
+    /**
+     * Serves MCP over stdio until the client closes stdin. The project root and the effective
+     * configuration are resolved exactly as an analysis run would resolve them, so {@code analyse}
+     * and {@code explain_rule} answer with what the gate would use; {@code --severity} and
+     * {@code --config} therefore apply to the session, not just to a one-shot run.
+     */
+    private int runMcpServer() {
+        Path root = resolveProjectRoot();
+        EffectiveConfig effective;
+        try {
+            effective = loadConfig(root);
+        } catch (IOException e) {
+            stderr.println("[ERROR] " + FailureMessage.configuration(configurationPath(root), e));
+            debugTrace(e);
+            return EXIT_USAGE;
+        } catch (IllegalArgumentException e) {
+            error(FailureMessage.oneLine(e));
+            debugTrace(e);
+            return EXIT_USAGE;
+        }
+        try {
+            if (!quiet) {
+                stderr.println("[INFO] MCP server on stdio for " + root
+                        + " (protocol " + io.github.rohithv16.aem.analyser.core.mcp.McpServer.PROTOCOL_VERSION
+                        + "; close stdin to stop).");
+            }
+            io.github.rohithv16.aem.analyser.core.mcp.McpServer server =
+                    io.github.rohithv16.aem.analyser.core.mcp.McpServer.stdio(
+                            root, effective.config(), sonar, cache,
+                            line -> {
+                                if (!quiet) {
+                                    stderr.println(line);
+                                }
+                            });
+            int exit = server.serve();
+            stderr.flush();
+            return exit;
+        } catch (IOException e) {
+            error("MCP server failed: " + FailureMessage.oneLine(e));
+            debugTrace(e);
+            return EXIT_INTERNAL;
+        }
     }
 
     private int writeRuleDocs(Path directory) {
