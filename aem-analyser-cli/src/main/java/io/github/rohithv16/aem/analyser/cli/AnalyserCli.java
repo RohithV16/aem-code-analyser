@@ -23,6 +23,7 @@ import io.github.rohithv16.aem.analyser.core.model.report.GateVerdict;
 import io.github.rohithv16.aem.analyser.core.model.report.Severity;
 import io.github.rohithv16.aem.analyser.core.model.report.Violation;
 import io.github.rohithv16.aem.analyser.core.rules.RuleCatalog;
+import picocli.AutoComplete;
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Model.CommandSpec;
@@ -71,7 +72,7 @@ public class AnalyserCli implements java.util.concurrent.Callable<Integer> {
             description = "Project root; shorthand for --project-root.")
     private Path positionalProjectRoot;
 
-    @Option(names = {"-f", "--format"}, split = ",",
+    @Option(names = {"-f", "--format"}, split = ",", completionCandidates = FormatCandidates.class,
             description = "Output formats (comma-separated): CONSOLE, TEXT, JSON, SARIF, SONAR, HTML, GITHUB, GITLAB, AZURE, JUNIT. "
                     + "Default: CONSOLE (the HTML dashboard is also generated unless --no-html).")
     private List<String> formats = List.of("CONSOLE");
@@ -246,9 +247,31 @@ public class AnalyserCli implements java.util.concurrent.Callable<Integer> {
             description = "Generate the HTML issue reference into DIR/issues, then exit.")
     private Path generateRuleDocs;
 
-    @Option(names = {"--fail-on"},
+    @Option(names = "--fail-on", completionCandidates = FailOnCandidates.class,
             description = "Fail build if violations at or above severity exist: ERROR, WARNING, INFO.")
     private String failOn;
+
+    @Option(names = "--generate-completion", paramLabel = "SHELL",
+            description = "Print a shell completion script for bash, zsh or fish on stdout, then exit. "
+                    + "Install with e.g. 'source <(aem-analyser --generate-completion bash)'.")
+    private String generateCompletion;
+
+    /** Completion values for {@code --fail-on}; also the accepted set. */
+    static final class FailOnCandidates implements Iterable<String> {
+        @Override
+        public java.util.Iterator<String> iterator() {
+            return List.of("NONE", "ERROR", "WARNING", "INFO").iterator();
+        }
+    }
+
+    /** Completion values for {@code --format}, in the order {@link #SUPPORTED_FORMATS} names them. */
+    static final class FormatCandidates implements Iterable<String> {
+        @Override
+        public java.util.Iterator<String> iterator() {
+            return List.of("CONSOLE", "TEXT", "JSON", "SARIF", "SONAR", "HTML",
+                    "GITHUB", "GITLAB", "AZURE", "JUNIT").iterator();
+        }
+    }
 
     boolean isSonar() {
         return sonar;
@@ -491,6 +514,9 @@ public class AnalyserCli implements java.util.concurrent.Callable<Integer> {
 
     /** Meta commands ({@code --generate-rule-docs}, {@code --list-rules}, {@code --explain}) exit early. */
     private OptionalInt executeMetaCommand() {
+        if (generateCompletion != null) {
+            return OptionalInt.of(writeCompletionScript(generateCompletion));
+        }
         if (generateRuleDocs != null) {
             return OptionalInt.of(writeRuleDocs(generateRuleDocs));
         }
@@ -518,6 +544,29 @@ public class AnalyserCli implements java.util.concurrent.Callable<Integer> {
             return OptionalInt.of(printRules(stdout, effective, tagFilter));
         }
         return OptionalInt.of(printExplain(stdout, explainRule, effective));
+    }
+
+    /**
+     * Prints a completion script for one shell. The flag surface is the product here: a reader who
+     * has to run {@code --help} to spell {@code --baseline-report} will not use the flag at all.
+     */
+    int writeCompletionScript(String shell) {
+        String requested = shell == null ? "" : shell.strip();
+        CommandLine model = createCommandLine();
+        String script = switch (requested.toLowerCase(Locale.ROOT)) {
+            case "bash" -> AutoComplete.bash(model.getCommandName(), model);
+            case "zsh" -> ShellCompletion.zsh(model.getCommandSpec());
+            case "fish" -> ShellCompletion.fish(model.getCommandSpec());
+            default -> null;
+        };
+        if (script == null) {
+            error("Unknown shell '" + requested + "' for --generate-completion."
+                    + " Supported shells: bash, zsh, fish.");
+            return EXIT_USAGE;
+        }
+        stdout.print(script);
+        stdout.flush();
+        return EXIT_OK;
     }
 
     private int writeRuleDocs(Path directory) {

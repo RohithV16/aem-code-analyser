@@ -46,6 +46,11 @@ All notable changes to this project are documented here. The format follows
   severity, so it cannot reshape the findings it grades. Unknown values (e.g. `failOn: SOMETIMES`)
   exit 2 naming the offending key.
 
+- **`--generate-completion bash|zsh|fish`** prints a completion script on stdout and exits. bash
+  comes from picocli, zsh and fish are generated from the same command model, so every declared
+  option is completable, `--fail-on` completes `NONE ERROR WARNING INFO` and `--format` completes
+  the ten format names. An unknown shell exits 2 with a message instead of a stack trace.
+
 - **First Maven Central release (1.0.10).** `io.github.rohithv16:aem-code-analyser`,
   `aem-analyser-core` and `aem-analyser-maven-plugin` are published with sources, javadoc and GPG
   signatures, so the plugin needs no repository entry and no token. Verified by resolving both the
