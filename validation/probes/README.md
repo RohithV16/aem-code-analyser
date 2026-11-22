@@ -60,6 +60,7 @@ This tests the probes in the target’s real module layout and Maven profile con
 | AEM-QUAL-005 | `getAdministrativeResourceResolver(null)` |
 | AEM-QUAL-006 | component field of type `ResourceResolver` |
 | AEM-QUAL-008 | `UnprovidedReferenceProbe` references a project interface no component registers |
+| AEM-QUAL-007 | `RequestInjectionProbe` is `adaptables = Resource.class` but injects a `SlingHttpServletRequest` |
 | AEM-PERF-001 | factory resolver acquired and never closed |
 | AEM-PERF-002 | `repository.login(...)` session never closed |
 | AEM-PERF-003 | `select * from nt:base` without `where` |

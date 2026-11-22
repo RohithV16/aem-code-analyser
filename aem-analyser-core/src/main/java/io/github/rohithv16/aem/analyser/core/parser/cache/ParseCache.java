@@ -40,7 +40,7 @@ import java.util.stream.Stream;
 public final class ParseCache {
 
     /** Bump when the stored shape or the parser semantics change. */
-    public static final int SCHEMA = 1;
+    public static final int SCHEMA = 2;
 
     static final String KIND_JAVA = "java";
     static final String KIND_HTL = "htl";

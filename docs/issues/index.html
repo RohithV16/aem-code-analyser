@@ -13,16 +13,16 @@ description: Every AEM Code Analyser rule — what it detects, why it matters on
       <div class="issue-tools">
         <label class="visually-hidden" for="issueSearch">Filter issues</label>
         <input type="search" id="issueSearch" placeholder="Filter by id, name, tag or symptom…" autocomplete="off">
-        <button class="chip" type="button" data-family="all" aria-pressed="true">All 38</button>
+        <button class="chip" type="button" data-family="all" aria-pressed="true">All 39</button>
         <button class="chip" type="button" data-family="DEAD" aria-pressed="false">Dead code 10</button>
         <button class="chip" type="button" data-family="DUP" aria-pressed="false">Duplication 4</button>
-        <button class="chip" type="button" data-family="QUAL" aria-pressed="false">Quality 7</button>
+        <button class="chip" type="button" data-family="QUAL" aria-pressed="false">Quality 8</button>
         <button class="chip" type="button" data-family="PERF" aria-pressed="false">Performance 4</button>
         <button class="chip" type="button" data-family="CLOUD" aria-pressed="false">Cloud Service 7</button>
         <button class="chip" type="button" data-family="SEC" aria-pressed="false">Security 2</button>
         <button class="chip" type="button" data-family="COMP" aria-pressed="false">Components 2</button>
         <button class="chip" type="button" data-family="A11Y" aria-pressed="false">A11Y 2</button>
-        <span class="issue-count" id="issueCount" aria-live="polite">38 of 38 issues</span>
+        <span class="issue-count" id="issueCount" aria-live="polite">39 of 39 issues</span>
       </div>
     </div>
 
@@ -479,7 +479,7 @@ public class CardViewModel { }</code></pre>
     <section class="family" id="family-qual">
       <div class="family__head">
         <h2>Quality and Cloud Manager parity</h2>
-        <span>7 issues</span>
+        <span>8 issues</span>
       </div>
       <p class="muted">The checks Cloud Manager runs, plus the thread-safety rules it expects you to hold.</p>
 
@@ -728,6 +728,41 @@ public class ResourceResolverProviderImpl implements ResourceResolverProvider {
           </div>
         </div>
         <p class="suppress">Suppress one line: <code>// aem-analyser-disable-next-line AEM-QUAL-008</code> · tags quality, osgi · <code>--explain AEM-QUAL-008</code></p>
+      </article>
+
+      <article class="rule-card" id="aem-qual-007" data-family="QUAL" data-search="aem-qual-007 unregistrableslingmodel sling model injects a request-only type or @requestattribute without declaring a request adaptable. quality sling-models warning declare slinghttpservletrequest (or httpservletrequest) among the model&#39;s adaptables, or inject the value from the resource instead. sling models resolves an injection against the adaptable, not against the request the adaptable came from. a model declared adaptables = resource.class therefore cannot inject a request, a response or a @requestattribute: the class compiles, the bundle activates and the model registers, then request.adaptto(model.class) throws a modelexception (required injection) or silently renders null fields (optional injection). if the model needs request state, declare slinghttpservletrequest among its adaptables (usually alongside resource.class). if it only needs resource data, inject that data from the resource with @valuemapvalue or @childresource instead of reaching for the request.">
+        <header class="rule-card__head">
+          <h3 class="rule-card__title"><a class="rule-card__permalink" href="aem-qual-007/" aria-label="Open the AEM-QUAL-007 reference page"><span class="rule-card__id">AEM-QUAL-007</span></a><a class="rule-card__anchor" href="#aem-qual-007" aria-label="Link to AEM-QUAL-007">#</a><span class="rule-card__name">UnregistrableSlingModel</span></h3>
+          <span class="pill pill--warning">WARNING</span>
+          <span class="rule-card__meta">
+            <span>25 min fix</span>
+            <span>Bug</span>
+          </span>
+        </header>
+        <p class="rule-card__summary">Sling Model injects a request-only type or @RequestAttribute without declaring a request adaptable.</p>
+        <h4>Why it matters</h4>
+        <p>Sling Models resolves an injection against the adaptable, not against the request the adaptable came from. A model declared adaptables = Resource.class therefore cannot inject a request, a response or a @RequestAttribute: the class compiles, the bundle activates and the model registers, then request.adaptTo(Model.class) throws a ModelException (required injection) or silently renders null fields (optional injection).</p>
+        <h4>How to fix it</h4>
+        <p>If the model needs request state, declare SlingHttpServletRequest among its adaptables (usually alongside Resource.class). If it only needs resource data, inject that data from the resource with @ValueMapValue or @ChildResource instead of reaching for the request.</p>
+        <div class="examples">
+          <div class="code code--bad">
+            <div class="code__bar"><span class="code__label">java · before</span></div>
+            <pre><code>@Model(adaptables = Resource.class)
+public class HeroModel {
+    @Inject
+    private SlingHttpServletRequest request;
+}</code></pre>
+          </div>
+          <div class="code code--good">
+            <div class="code__bar"><span class="code__label">java · after</span></div>
+            <pre><code>@Model(adaptables = {Resource.class, SlingHttpServletRequest.class})
+public class HeroModel {
+    @Inject
+    private SlingHttpServletRequest request;
+}</code></pre>
+          </div>
+        </div>
+        <p class="suppress">Suppress one line: <code>// aem-analyser-disable-next-line AEM-QUAL-007</code> · tags quality, sling-models · <code>--explain AEM-QUAL-007</code></p>
       </article>
     </section>
 
@@ -1327,7 +1362,7 @@ if (target != null &amp;&amp; target.startsWith(&quot;/content/&quot;) &amp;&amp
     <ul>
       <li><a href="#family-dead">Dead code <span class="muted">10</span></a></li>
       <li><a href="#family-dup">Duplication <span class="muted">4</span></a></li>
-      <li><a href="#family-qual">Quality and Cloud Manager parity <span class="muted">7</span></a></li>
+      <li><a href="#family-qual">Quality and Cloud Manager parity <span class="muted">8</span></a></li>
       <li><a href="#family-perf">Performance <span class="muted">4</span></a></li>
       <li><a href="#family-cloud">AEM as a Cloud Service <span class="muted">7</span></a></li>
       <li><a href="#family-sec">Security <span class="muted">2</span></a></li>
@@ -1356,6 +1391,7 @@ if (target != null &amp;&amp; target.startsWith(&quot;/content/&quot;) &amp;&amp
       <li><a href="#aem-qual-004">AEM-QUAL-004</a></li>
       <li><a href="#aem-qual-005">AEM-QUAL-005</a></li>
       <li><a href="#aem-qual-006">AEM-QUAL-006</a></li>
+      <li><a href="#aem-qual-007">AEM-QUAL-007</a></li>
       <li><a href="#aem-qual-008">AEM-QUAL-008</a></li>
       <li><a href="#aem-perf-001">AEM-PERF-001</a></li>
       <li><a href="#aem-perf-002">AEM-PERF-002</a></li>

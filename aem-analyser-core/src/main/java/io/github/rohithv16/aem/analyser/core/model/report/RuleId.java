@@ -117,6 +117,9 @@ public enum RuleId {
             Severity.WARNING),
     AEM_DEAD_006("AEM-DEAD-006", "MissingTranslationKey",
             "Translation key used by a template or model has no entry in the baseline (en) dictionary.",
+            Severity.WARNING),
+    AEM_QUAL_007("AEM-QUAL-007", "UnregistrableSlingModel",
+            "Sling Model injects a request-only type or @RequestAttribute without declaring a request adaptable.",
             Severity.WARNING);
 
     private final String id;

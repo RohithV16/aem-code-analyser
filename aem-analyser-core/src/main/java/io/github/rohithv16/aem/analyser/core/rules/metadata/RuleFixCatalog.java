@@ -736,6 +736,31 @@ public final class RuleFixCatalog {
                       "checkout.cart": "Your cart",
                       "checkout.title": "Checkout"
                     }""");
+            case AEM_QUAL_007 -> new Fix(
+                    """
+                    Sling Models resolves an injection against the adaptable, not against the request \
+                    the adaptable came from. A model declared {@code adaptables = Resource.class} \
+                    therefore cannot inject a request, a response or a {@code @RequestAttribute}: the \
+                    class compiles, the bundle activates and the model registers, then \
+                    {@code request.adaptTo(Model.class)} throws a {@code ModelException} (required \
+                    injection) or silently renders null fields (optional injection).""",
+                    """
+                    If the model needs request state, declare {@code SlingHttpServletRequest} among \
+                    its adaptables (usually alongside {@code Resource.class}). If it only needs \
+                    resource data, inject that data from the resource with {@code @ValueMapValue} or \
+                    {@code @ChildResource} instead of reaching for the request.""",
+                    "java", """
+                    @Model(adaptables = Resource.class)
+                    public class HeroModel {
+                        @Inject
+                        private SlingHttpServletRequest request;
+                    }""",
+                    "java", """
+                    @Model(adaptables = {Resource.class, SlingHttpServletRequest.class})
+                    public class HeroModel {
+                        @Inject
+                        private SlingHttpServletRequest request;
+                    }""");
         };
     }
 }
