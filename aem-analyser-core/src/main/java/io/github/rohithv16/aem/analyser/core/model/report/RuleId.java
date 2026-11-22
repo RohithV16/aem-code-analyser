@@ -114,6 +114,9 @@ public enum RuleId {
             Severity.WARNING),
     AEM_A11Y_002("AEM-A11Y-002", "LinkWithoutAccessibleName",
             "HTL anchor has no href/data-sly-attribute.href, or no accessible name for icon-only content (WCAG 2.4.4).",
+            Severity.WARNING),
+    AEM_DEAD_006("AEM-DEAD-006", "MissingTranslationKey",
+            "Translation key used by a template or model has no entry in the baseline (en) dictionary.",
             Severity.WARNING);
 
     private final String id;

@@ -48,6 +48,7 @@ This tests the probes in the target’s real module layout and Maven profile con
 | AEM-DEAD-004 | HTL `data-sly-use.missing="com.probe.DoesNotExist"` |
 | AEM-DEAD-005 | clientlib category `probe.orphan` is never referenced |
 | AEM-DEAD-007 | `components/zzprobe/inc/broken.html` includes a missing template |
+| AEM-DEAD-006 | `components/zzprobe/i18n-broken.html` uses `probe.missing.key`, absent from `i18n/en.json` |
 | AEM-DUP-001 | two servlets register `/bin/probe` |
 | AEM-DUP-002 | `com.probe.DupPid` in both `.cfg.json` and `.config` |
 | AEM-DUP-003 | two models claim `resourceType="probe/dup"` with the same adapter |

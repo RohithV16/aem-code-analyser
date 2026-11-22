@@ -351,6 +351,7 @@ public final class ConsoleReportFormatter implements ReportExporter {
                 case AEM_DEAD_007 -> "Broken HTL Include";
                 case AEM_A11Y_001 -> "Image Without Alt Text";
                 case AEM_A11Y_002 -> "Link Without Accessible Name";
+                case AEM_DEAD_006 -> "Missing Translation Key";
             };
         } catch (IllegalArgumentException e) {
             return ruleId;

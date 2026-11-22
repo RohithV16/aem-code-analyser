@@ -77,6 +77,7 @@ public final class RuleRegistry {
                  AEM_PERF_001, AEM_PERF_002, AEM_DEAD_003A,
                  AEM_COMP_002, AEM_QUAL_008, AEM_DEAD_007,
                  AEM_A11Y_001, AEM_A11Y_002 -> RuleType.BUG;
+            case AEM_DEAD_006 -> RuleType.BUG;
             case AEM_QUAL_005, AEM_CLOUD_001, AEM_SEC_001 -> RuleType.VULNERABILITY;
             case AEM_QUAL_003 -> RuleType.SECURITY_HOTSPOT;
             default -> RuleType.CODE_SMELL;
@@ -102,6 +103,7 @@ public final class RuleRegistry {
             case AEM_QUAL_008 -> 20;
             case AEM_DEAD_007 -> 15;
             case AEM_A11Y_001, AEM_A11Y_002 -> 10;
+            case AEM_DEAD_006 -> 20;
         };
         String cwe = switch (rule) {
             case AEM_SEC_001 -> "CWE-79";
@@ -135,6 +137,7 @@ public final class RuleRegistry {
             case AEM_QUAL_008 -> List.of("quality", "osgi");
             case AEM_DEAD_007 -> List.of("dead-code", "htl");
             case AEM_A11Y_001, AEM_A11Y_002 -> List.of("accessibility", "htl", "wcag");
+            case AEM_DEAD_006 -> List.of("dead-code", "i18n", "htl");
         };
         return new RuleDescriptor(
                 rule.id(),
@@ -216,6 +219,7 @@ public final class RuleRegistry {
             case AEM_DEAD_007 -> "Correct the include path to an existing template, or break the include cycle.";
             case AEM_A11Y_001 -> "Add an alt attribute (empty alt for a decorative image), or bind one with data-sly-attribute.alt.";
             case AEM_A11Y_002 -> "Add an href (or data-sly-attribute.href), and give an icon-only link an aria-label or visually hidden text.";
+            case AEM_DEAD_006 -> "Add the key to the baseline en.json dictionary (and to every other locale), or correct the key at the use site.";
         };
     }
 

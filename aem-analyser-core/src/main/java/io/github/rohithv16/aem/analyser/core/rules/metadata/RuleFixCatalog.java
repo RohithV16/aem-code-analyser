@@ -707,6 +707,35 @@ public final class RuleFixCatalog {
                     <a class="icon-link" href="${model.url}" aria-label="${model.label}">
                         <img src="${model.icon}" alt="">
                     </a>""");
+            case AEM_DEAD_006 -> new Fix(
+                    """
+                    AEM prints the raw key when {@code ${'key' @ i18n}} has no dictionary entry, \
+                    so a missing translation ships to production as visible text. The build and \
+                    the bundle both pass, and the only signal is a customer reading "checkout.title" \
+                    on the page. Keeping every locale in step by hand also guarantees that the \
+                    {@code en} dictionary silently drifts behind the templates.""",
+                    """
+                    Add the key to the baseline {@code en.json} under the project's {@code i18n} \
+                    folder, then add the translated value to each locale file. Use one spelling of \
+                    the key in templates and models; the dictionary lookup is exact and \
+                    case-sensitive.""",
+                    "html", """
+                    <!-- components/checkout/checkout.html -->
+                    <h1>${'checkout.title' @ i18n}</h1>
+
+                    <!-- ui.apps/.../i18n/en.json -->
+                    {
+                      "checkout.cart": "Your cart"
+                    }""",
+                    "html", """
+                    <!-- components/checkout/checkout.html -->
+                    <h1>${'checkout.title' @ i18n}</h1>
+
+                    <!-- ui.apps/.../i18n/en.json -->
+                    {
+                      "checkout.cart": "Your cart",
+                      "checkout.title": "Checkout"
+                    }""");
         };
     }
 }

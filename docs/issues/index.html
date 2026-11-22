@@ -13,8 +13,8 @@ description: Every AEM Code Analyser rule — what it detects, why it matters on
       <div class="issue-tools">
         <label class="visually-hidden" for="issueSearch">Filter issues</label>
         <input type="search" id="issueSearch" placeholder="Filter by id, name, tag or symptom…" autocomplete="off">
-        <button class="chip" type="button" data-family="all" aria-pressed="true">All 37</button>
-        <button class="chip" type="button" data-family="DEAD" aria-pressed="false">Dead code 9</button>
+        <button class="chip" type="button" data-family="all" aria-pressed="true">All 38</button>
+        <button class="chip" type="button" data-family="DEAD" aria-pressed="false">Dead code 10</button>
         <button class="chip" type="button" data-family="DUP" aria-pressed="false">Duplication 4</button>
         <button class="chip" type="button" data-family="QUAL" aria-pressed="false">Quality 7</button>
         <button class="chip" type="button" data-family="PERF" aria-pressed="false">Performance 4</button>
@@ -22,14 +22,14 @@ description: Every AEM Code Analyser rule — what it detects, why it matters on
         <button class="chip" type="button" data-family="SEC" aria-pressed="false">Security 2</button>
         <button class="chip" type="button" data-family="COMP" aria-pressed="false">Components 2</button>
         <button class="chip" type="button" data-family="A11Y" aria-pressed="false">A11Y 2</button>
-        <span class="issue-count" id="issueCount" aria-live="polite">37 of 37 issues</span>
+        <span class="issue-count" id="issueCount" aria-live="polite">38 of 38 issues</span>
       </div>
     </div>
 
     <section class="family" id="family-dead">
       <div class="family__head">
         <h2>Dead code</h2>
-        <span>9 issues</span>
+        <span>10 issues</span>
       </div>
       <p class="muted">Code, configuration and content with no remaining consumer.</p>
 
@@ -307,6 +307,46 @@ public class CacheWarmer {
           </div>
         </div>
         <p class="suppress">Suppress one line: <code>// aem-analyser-disable-next-line AEM-DEAD-007</code> · tags dead-code, htl · <code>--explain AEM-DEAD-007</code></p>
+      </article>
+
+      <article class="rule-card" id="aem-dead-006" data-family="DEAD" data-search="aem-dead-006 missingtranslationkey translation key used by a template or model has no entry in the baseline (en) dictionary. dead-code i18n htl warning add the key to the baseline en.json dictionary (and to every other locale), or correct the key at the use site. aem prints the raw key when ${&#39;key&#39; @ i18n} has no dictionary entry, so a missing translation ships to production as visible text. the build and the bundle both pass, and the only signal is a customer reading &quot;checkout.title&quot; on the page. keeping every locale in step by hand also guarantees that the en dictionary silently drifts behind the templates. add the key to the baseline en.json under the project&#39;s i18n folder, then add the translated value to each locale file. use one spelling of the key in templates and models; the dictionary lookup is exact and case-sensitive.">
+        <header class="rule-card__head">
+          <h3 class="rule-card__title"><a class="rule-card__permalink" href="aem-dead-006/" aria-label="Open the AEM-DEAD-006 reference page"><span class="rule-card__id">AEM-DEAD-006</span></a><a class="rule-card__anchor" href="#aem-dead-006" aria-label="Link to AEM-DEAD-006">#</a><span class="rule-card__name">MissingTranslationKey</span></h3>
+          <span class="pill pill--warning">WARNING</span>
+          <span class="rule-card__meta">
+            <span>20 min fix</span>
+            <span>Bug</span>
+          </span>
+        </header>
+        <p class="rule-card__summary">Translation key used by a template or model has no entry in the baseline (en) dictionary.</p>
+        <h4>Why it matters</h4>
+        <p>AEM prints the raw key when ${&#39;key&#39; @ i18n} has no dictionary entry, so a missing translation ships to production as visible text. The build and the bundle both pass, and the only signal is a customer reading &quot;checkout.title&quot; on the page. Keeping every locale in step by hand also guarantees that the en dictionary silently drifts behind the templates.</p>
+        <h4>How to fix it</h4>
+        <p>Add the key to the baseline en.json under the project&#39;s i18n folder, then add the translated value to each locale file. Use one spelling of the key in templates and models; the dictionary lookup is exact and case-sensitive.</p>
+        <div class="examples">
+          <div class="code code--bad">
+            <div class="code__bar"><span class="code__label">html · before</span></div>
+            <pre><code>&lt;!-- components/checkout/checkout.html --&gt;
+&lt;h1&gt;${&#39;checkout.title&#39; @ i18n}&lt;/h1&gt;
+
+&lt;!-- ui.apps/.../i18n/en.json --&gt;
+{
+  &quot;checkout.cart&quot;: &quot;Your cart&quot;
+}</code></pre>
+          </div>
+          <div class="code code--good">
+            <div class="code__bar"><span class="code__label">html · after</span></div>
+            <pre><code>&lt;!-- components/checkout/checkout.html --&gt;
+&lt;h1&gt;${&#39;checkout.title&#39; @ i18n}&lt;/h1&gt;
+
+&lt;!-- ui.apps/.../i18n/en.json --&gt;
+{
+  &quot;checkout.cart&quot;: &quot;Your cart&quot;,
+  &quot;checkout.title&quot;: &quot;Checkout&quot;
+}</code></pre>
+          </div>
+        </div>
+        <p class="suppress">Suppress one line: <code>// aem-analyser-disable-next-line AEM-DEAD-006</code> · tags dead-code, i18n, htl · <code>--explain AEM-DEAD-006</code></p>
       </article>
     </section>
 
@@ -1285,7 +1325,7 @@ if (target != null &amp;&amp; target.startsWith(&quot;/content/&quot;) &amp;&amp
   <aside class="docs__aside">
     <p class="aside__title">Families</p>
     <ul>
-      <li><a href="#family-dead">Dead code <span class="muted">9</span></a></li>
+      <li><a href="#family-dead">Dead code <span class="muted">10</span></a></li>
       <li><a href="#family-dup">Duplication <span class="muted">4</span></a></li>
       <li><a href="#family-qual">Quality and Cloud Manager parity <span class="muted">7</span></a></li>
       <li><a href="#family-perf">Performance <span class="muted">4</span></a></li>
@@ -1304,6 +1344,7 @@ if (target != null &amp;&amp; target.startsWith(&quot;/content/&quot;) &amp;&amp
       <li><a href="#aem-dead-003c">AEM-DEAD-003C</a></li>
       <li><a href="#aem-dead-004">AEM-DEAD-004</a></li>
       <li><a href="#aem-dead-005">AEM-DEAD-005</a></li>
+      <li><a href="#aem-dead-006">AEM-DEAD-006</a></li>
       <li><a href="#aem-dead-007">AEM-DEAD-007</a></li>
       <li><a href="#aem-dup-001">AEM-DUP-001</a></li>
       <li><a href="#aem-dup-002">AEM-DUP-002</a></li>
