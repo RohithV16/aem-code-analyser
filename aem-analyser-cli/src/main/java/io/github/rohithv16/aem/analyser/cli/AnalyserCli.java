@@ -3,6 +3,7 @@ package io.github.rohithv16.aem.analyser.cli;
 import io.github.rohithv16.aem.analyser.core.api.AnalysisContext;
 import io.github.rohithv16.aem.analyser.core.api.AnalysisException;
 import io.github.rohithv16.aem.analyser.core.api.DefaultAemCodeAnalyser;
+import io.github.rohithv16.aem.analyser.core.export.ColorSupport;
 import io.github.rohithv16.aem.analyser.core.export.ConsoleReportFormatter;
 import io.github.rohithv16.aem.analyser.core.export.ExportException;
 import io.github.rohithv16.aem.analyser.core.export.HtmlReportExporter;
@@ -201,6 +202,14 @@ public class AnalyserCli implements java.util.concurrent.Callable<Integer> {
 
     boolean isNoSonar() {
         return !sonar;
+    }
+
+    /**
+     * Colour is off unless standard output is a terminal: a redirected report must stay clean, and
+     * {@code --no-color} / {@code NO_COLOR} remain the explicit opt-outs.
+     */
+    boolean consoleColorEnabled() {
+        return !noColor && ColorSupport.enabled(ColorSupport.stdoutIsTerminal());
     }
 
     /**
@@ -666,7 +675,7 @@ public class AnalyserCli implements java.util.concurrent.Callable<Integer> {
             throws IOException, ExportException {
         for (ReportFormat reportFormat : reportFormats) {
             switch (reportFormat) {
-                case CONSOLE -> new ConsoleReportFormatter(!noColor).export(report, stdout);
+                case CONSOLE -> new ConsoleReportFormatter(consoleColorEnabled()).export(report, stdout);
                 case SARIF -> {
                     Path target = outputTarget("aem-analyser.sarif");
                     try (var writer = Files.newBufferedWriter(target, StandardCharsets.UTF_8)) {
