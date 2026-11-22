@@ -133,7 +133,34 @@ public final class RuleRegistry {
                 remediation(rule),
                 cwe,
                 type,
-                effort);
+                effort,
+                securitySeverity(rule),
+                precision());
+    }
+
+    /**
+     * GitHub code-scanning security score (0.1–10.0) for rules tagged {@code security}, 0.0 for every
+     * other rule. Without it GitHub uploads each alert "with no security severity", so the alert list
+     * is unranked; the score decides Critical/High/Medium/Low. Both security rules are High band
+     * (7.0–8.9) because a hit is directly exploitable from a request.
+     */
+    private static double securitySeverity(RuleId rule) {
+        return switch (rule) {
+            // CWE-79: HTL unescaped context — reflected/stored XSS.
+            case AEM_SEC_001 -> 8.0;
+            // CWE-601/CWE-918: request value reaches sendRedirect or an outbound URL.
+            case AEM_SEC_002 -> 8.0;
+            default -> 0.0;
+        };
+    }
+
+    /**
+     * SARIF {@code precision}: first-party rules resolve references through the reactor's own graph,
+     * so a hit is a true positive; embedded SonarJava findings come from heuristics and are marked
+     * medium. Reporting this stops consumers from treating every alert as equally trustworthy.
+     */
+    private static String precision() {
+        return "high";
     }
 
     private static String remediation(RuleId rule) {
@@ -185,6 +212,8 @@ public final class RuleRegistry {
                 "",
                 null,
                 RuleType.CODE_SMELL,
-                sonar ? 10 : 5);
+                sonar ? 10 : 5,
+                0.0,
+                sonar ? "medium" : "low");
     }
 }

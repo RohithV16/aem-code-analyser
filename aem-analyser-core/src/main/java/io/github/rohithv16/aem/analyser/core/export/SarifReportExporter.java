@@ -133,6 +133,7 @@ public final class SarifReportExporter implements ReportExporter {
         definition.put("shortDescription", ordered("text", rule.shortDescription()));
         definition.put("fullDescription", ordered("text", rule.fullDescription()));
         definition.put("helpUri", rule.helpUri());
+        definition.put("help", ordered("text", helpText(rule), "markdown", helpMarkdown(rule)));
         Map<String, Object> properties = new LinkedHashMap<>();
         if (!rule.tags().isEmpty()) {
             properties.put("tags", rule.tags());
@@ -140,9 +141,17 @@ public final class SarifReportExporter implements ReportExporter {
         if (rule.cwe() != null) {
             properties.put("cwe", rule.cwe());
         }
-        if (!properties.isEmpty()) {
-            definition.put("properties", properties);
+        // GitHub code scanning ranks an alert by properties.security-severity; a security-tagged rule
+        // without it is uploaded "with no security severity" and lands unranked in the alert list.
+        // Non-security rules instead advertise their gate severity, so a consumer can show the same
+        // Error/Warning split the CLI gates on without inventing a CVSS score for a code smell.
+        if (rule.securityRanked()) {
+            properties.put("security-severity", String.format(java.util.Locale.ROOT, "%.1f", rule.securitySeverity()));
+        } else {
+            properties.put("problem", ordered("severity", sarifLevel(rule.defaultSeverity())));
         }
+        properties.put("precision", rule.precision());
+        definition.put("properties", properties);
         // SARIF's own way of saying "this descriptor exists but the rule can never fire". Only
         // retired ids are disabled: an id produced by another engine (AEM-DUP-010 via PMD CPD) is
         // still active.
@@ -153,6 +162,34 @@ public final class SarifReportExporter implements ReportExporter {
         }
         definition.put("defaultConfiguration", configuration);
         return definition;
+    }
+
+    /** Plain-text rule help: the long description plus the remediation the CLI already prints. */
+    private static String helpText(RuleDescriptor rule) {
+        StringBuilder text = new StringBuilder(rule.fullDescription());
+        if (rule.remediation() != null && !rule.remediation().isBlank()) {
+            text.append("\n\nRemediation: ").append(rule.remediation());
+        }
+        return text.toString();
+    }
+
+    /**
+     * Markdown rule help built from the remediation text that already exists in the registry, so the
+     * guidance shown in the code-scanning UI is the same advice {@code --explain} prints instead of a
+     * second, drifting copy.
+     */
+    private static String helpMarkdown(RuleDescriptor rule) {
+        StringBuilder markdown = new StringBuilder();
+        markdown.append("### ").append(rule.id()).append(" — ").append(rule.name()).append("\n\n")
+                .append(rule.fullDescription());
+        if (rule.remediation() != null && !rule.remediation().isBlank()) {
+            markdown.append("\n\n**Remediation:** ").append(rule.remediation());
+        }
+        if (rule.cwe() != null) {
+            markdown.append("\n\n**Weakness:** ").append(rule.cwe());
+        }
+        markdown.append("\n\n[Rule documentation](").append(rule.helpUri()).append(')');
+        return markdown.toString();
     }
 
     /** Percent-encodes a project-relative path for {@code artifactLocation.uri}, keeping '/'. */
