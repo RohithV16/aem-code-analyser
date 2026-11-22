@@ -103,6 +103,11 @@ public class AnalyserCli implements java.util.concurrent.Callable<Integer> {
                     + "line per finding under a count per file or rule.")
     private String groupByOption;
 
+    @Option(names = {"--report-epoch"}, paramLabel = "UNIX_SECONDS",
+            description = "Fixed report timestamp in Unix seconds (also read from SOURCE_DATE_EPOCH). "
+                    + "Reports then omit the wall-clock duration, so the same tree produces identical bytes.")
+    private String reportEpochOption;
+
     @Option(names = {"-v", "--verbose"},
             description = "Print structured analysis diagnostics (unparseable files, skipped trees).")
     private boolean verbose;
@@ -229,6 +234,50 @@ public class AnalyserCli implements java.util.concurrent.Callable<Integer> {
     /** How the console lists findings, as requested by {@code --group-by}. */
     ConsoleGroupBy consoleGroupBy() {
         return ConsoleGroupBy.parse(groupByOption);
+    }
+
+    /** The environment variable honoured when {@code --report-epoch} is absent. */
+    static final String SOURCE_DATE_EPOCH = "SOURCE_DATE_EPOCH";
+
+    /**
+     * The fixed clock for this run, or {@code null} for a live one.
+     *
+     * <p>{@code --report-epoch} wins; {@code SOURCE_DATE_EPOCH} is the build-tool convention and is
+     * honoured when the flag is absent, so a reproducible build needs no analyser-specific flag.
+     * The clock reports UTC: a timestamp formatted in the machine's local zone would make the bytes
+     * depend on where the build ran.</p>
+     *
+     * @throws IllegalArgumentException for a value that is not a whole, non-negative Unix second
+     */
+    java.time.Clock reportClock() {
+        String raw = reportEpochOption != null ? reportEpochOption : System.getenv(SOURCE_DATE_EPOCH);
+        if (raw == null || raw.isBlank()) {
+            return null;
+        }
+        // A String option (not a Long) so a malformed value is our one-line usage error instead of
+        // picocli's converter message on stderr.
+        String source = reportEpochOption != null ? "--report-epoch" : SOURCE_DATE_EPOCH;
+        long epoch = parseEpoch(raw, source);
+        try {
+            return java.time.Clock.fixed(java.time.Instant.ofEpochSecond(epoch), java.time.ZoneOffset.UTC);
+        } catch (java.time.DateTimeException e) {
+            throw new IllegalArgumentException(source + " " + epoch
+                    + " is outside the range of representable dates (expected a Unix timestamp in seconds).");
+        }
+    }
+
+    static long parseEpoch(String raw, String source) {
+        long epoch;
+        try {
+            epoch = Long.parseLong(raw.strip());
+        } catch (NumberFormatException e) {
+            throw new IllegalArgumentException(source + " must be a Unix timestamp in whole seconds, got '"
+                    + raw + "'.");
+        }
+        if (epoch < 0) {
+            throw new IllegalArgumentException(source + " must be 0 or greater, got " + epoch + ".");
+        }
+        return epoch;
     }
 
     /**
@@ -401,6 +450,7 @@ public class AnalyserCli implements java.util.concurrent.Callable<Integer> {
         List<ReportFormat> reportFormats = parseFormats();
         // Validated before the scan: an unknown --group-by is a usage error, not a post-analysis one.
         ConsoleGroupBy consoleGroupBy = consoleGroupBy();
+        java.time.Clock reportClock = reportClock();
         validateFailOn();
         validateNumericOptions();
         if (collectCoverage) {
@@ -434,7 +484,7 @@ public class AnalyserCli implements java.util.concurrent.Callable<Integer> {
         // the exit code all have to describe the same run.
         printQualityGate(report);
         GateVerdict verdict = evaluateGate(report);
-        export(report.withGateVerdict(verdict), reportFormats, history, consoleGroupBy);
+        export(report.withGateVerdict(verdict), reportFormats, history, consoleGroupBy, reportClock);
         printDiagnostics(report);
         return verdict.exitCode();
     }
@@ -900,7 +950,8 @@ public class AnalyserCli implements java.util.concurrent.Callable<Integer> {
 
     private void export(AnalysisReport report, List<ReportFormat> reportFormats,
                         List<io.github.rohithv16.aem.analyser.core.history.RunSummary> history,
-                        ConsoleGroupBy consoleGroupBy) throws IOException, ExportException {
+                        ConsoleGroupBy consoleGroupBy, java.time.Clock reportClock)
+            throws IOException, ExportException {
         List<ReportPlan> plans = planReports(reportFormats);
         List<String> reportPaths = plans.stream()
                 .filter(plan -> plan.target() != null)
@@ -908,8 +959,8 @@ public class AnalyserCli implements java.util.concurrent.Callable<Integer> {
                 .toList();
         for (ReportPlan plan : plans) {
             switch (plan.format()) {
-                case CONSOLE -> new ConsoleReportFormatter(consoleColorEnabled(), consoleGroupBy, reportPaths, false)
-                        .export(report, stdout);
+                case CONSOLE -> new ConsoleReportFormatter(consoleColorEnabled(), consoleGroupBy, reportPaths,
+                        reportClock != null).export(report, stdout);
                 case SARIF -> {
                     writeReport(plan.target(), new SarifReportExporter(), report);
                     stdout.println("SARIF report written to " + plan.target());
@@ -918,7 +969,7 @@ public class AnalyserCli implements java.util.concurrent.Callable<Integer> {
                     writeReport(plan.target(), new SonarReportExporter(), report);
                     stdout.println("SonarQube report written to " + plan.target());
                 }
-                case HTML -> writeHtmlReport(report, history, plan.target());
+                case HTML -> writeHtmlReport(report, history, plan.target(), reportClock);
                 case GITHUB -> {
                     writeReport(plan.target(),
                             new io.github.rohithv16.aem.analyser.core.export.GitHubAnnotationExporter(), report);
@@ -962,13 +1013,14 @@ public class AnalyserCli implements java.util.concurrent.Callable<Integer> {
 
     private void writeHtmlReport(AnalysisReport report,
                                  List<io.github.rohithv16.aem.analyser.core.history.RunSummary> history,
-                                 Path target) throws IOException,
+                                 Path target, java.time.Clock reportClock) throws IOException,
             io.github.rohithv16.aem.analyser.core.export.ExportException {
         if (target.getParent() != null) {
             Files.createDirectories(target.getParent());
         }
+        java.time.Clock clock = reportClock == null ? java.time.Clock.systemDefaultZone() : reportClock;
         try (var writer = Files.newBufferedWriter(target, StandardCharsets.UTF_8)) {
-            new HtmlReportExporter(java.time.Clock.systemDefaultZone(), 5000, history)
+            new HtmlReportExporter(clock, 5000, history, reportClock != null)
                     .export(report, writer);
         }
         stdout.println("HTML report written to " + target);
