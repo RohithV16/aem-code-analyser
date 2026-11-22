@@ -3,6 +3,8 @@ package io.github.rohithv16.aem.analyser.cli;
 import io.github.rohithv16.aem.analyser.core.api.AnalysisContext;
 import io.github.rohithv16.aem.analyser.core.api.AnalysisException;
 import io.github.rohithv16.aem.analyser.core.api.DefaultAemCodeAnalyser;
+import io.github.rohithv16.aem.analyser.core.config.AnalyserConfig;
+import io.github.rohithv16.aem.analyser.core.config.AnalyserConfigLoader;
 import io.github.rohithv16.aem.analyser.core.export.ColorSupport;
 import io.github.rohithv16.aem.analyser.core.export.ConsoleReportFormatter;
 import io.github.rohithv16.aem.analyser.core.export.ExportException;
@@ -29,10 +31,14 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.FileTime;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.OptionalInt;
 import java.util.Set;
+import java.util.TreeSet;
 
 /**
  * FEAT-DELIV-02: standalone Picocli command-line executable.
@@ -98,8 +104,13 @@ public class AnalyserCli implements java.util.concurrent.Callable<Integer> {
     private boolean noColor;
 
     @Option(names = {"-v", "--verbose"},
-            description = "Print structured analysis diagnostics (unparseable files, skipped trees).")
+            description = "Print structured analysis diagnostics (unparseable files, skipped trees) on stderr.")
     private boolean verbose;
+
+    @Option(names = {"-q", "--quiet"},
+            description = "Suppress progress and warning lines on stderr. stdout still carries the report "
+                    + "on its own; errors are always reported.")
+    private boolean quiet;
 
     @Option(names = {"--ignored-services"}, split = ",",
             description = "Service implementation class names to whitelist (never flagged unused).")
@@ -217,12 +228,38 @@ public class AnalyserCli implements java.util.concurrent.Callable<Integer> {
     }
 
     /**
-     * Console channel of the tool. A CLI writes its report to standard output by design, so this is
+     * Report channel of the tool. A CLI writes its report to standard output by design, so this is
      * deliberately not a logging framework: {@code --no-color}, report formats and CI annotations need
      * the raw stream, and levels or timestamps would corrupt machine-readable output.
      */
     @SuppressWarnings("java:S106")
     private final PrintWriter stdout = new PrintWriter(System.out, true, StandardCharsets.UTF_8);
+
+    /**
+     * Progress channel. Everything that is not the report — {@code [INFO]}/{@code [WARN]} lines, "report
+     * written to …", diagnostics — goes here, so {@code aem-analyser … > report.txt} leaves a file that
+     * parses as a report and a terminal that still shows progress. {@code -q} silences it.
+     */
+    @SuppressWarnings("java:S106")
+    private final PrintWriter stderr = new PrintWriter(System.err, true, StandardCharsets.UTF_8);
+
+    /** Progress line, suppressed by {@code -q}. */
+    private void progress(String line) {
+        if (!quiet) {
+            stderr.println(line);
+        }
+    }
+
+    private void progressf(String format, Object... args) {
+        if (!quiet) {
+            stderr.printf(format, args);
+        }
+    }
+
+    /** Error line: never suppressed by {@code -q}, because a silent failure is undebuggable. */
+    private void error(String message) {
+        stderr.println("[ERROR] " + message);
+    }
 
     @Override
     public Integer call() {
@@ -232,15 +269,17 @@ public class AnalyserCli implements java.util.concurrent.Callable<Integer> {
     /**
      * The process exit code is the command's return value: discarding it turned a usage error into a
      * silent "gate passed" for any CI step that reads the status.
+     *
+     * <p>Contract: 0 pass, 1 gate failure, 2 usage/analysis error, 3 internal error. An uncaught crash
+     * is not a verdict on the code — picocli's default 1 would read as a failed gate — so it gets its
+     * own code instead of colliding with either.
      */
     public static void main(String[] args) {
         CommandLine commandLine = new CommandLine(new AnalyserCli());
-        // An uncaught crash is not a verdict on the code. Without this handler picocli returns 1,
-        // which is indistinguishable from a failed gate, so map it to the usage/analysis error code.
         commandLine.setExecutionExceptionHandler((exception, cmd, parseResult) -> {
             cmd.getErr().println("[ERROR] Internal error: " + exception);
             exception.printStackTrace(cmd.getErr());
-            return 2;
+            return 3;
         });
         System.exit(commandLine.execute(args));
     }
@@ -253,13 +292,13 @@ public class AnalyserCli implements java.util.concurrent.Callable<Integer> {
         try {
             return runAnalysis();
         } catch (AnalysisException e) {
-            stdout.println("[ERROR] Analysis failed: " + e.getMessage());
+            error("Analysis failed: " + e.getMessage());
             return 2;
         } catch (IOException | ExportException e) {
-            stdout.println("[ERROR] Report export failed: " + e.getMessage());
+            error("Report export failed: " + e.getMessage());
             return 2;
         } catch (IllegalArgumentException e) {
-            stdout.println("[ERROR] " + e.getMessage());
+            error(e.getMessage());
             return 2;
         }
     }
@@ -282,10 +321,10 @@ public class AnalyserCli implements java.util.concurrent.Callable<Integer> {
     private int writeRuleDocs(Path directory) {
         try {
             io.github.rohithv16.aem.analyser.core.rules.metadata.RuleDocsGenerator.writeAll(directory);
-            stdout.println("[INFO] Rule documentation written to " + directory);
+            progress("[INFO] Rule documentation written to " + directory);
             return 0;
         } catch (IOException e) {
-            stdout.println("[ERROR] Could not write rule documentation: " + e.getMessage());
+            error("Could not write rule documentation: " + e.getMessage());
             return 2;
         }
     }
@@ -302,7 +341,7 @@ public class AnalyserCli implements java.util.concurrent.Callable<Integer> {
         try {
             config = loadConfig(root);
         } catch (IOException e) {
-            stdout.println("[ERROR] Could not read configuration: " + e.getMessage());
+            error("Could not read configuration: " + e.getMessage());
             return 2;
         }
         AnalysisContext context = scopeToChangedFiles(buildContext(root, config), root);
@@ -334,22 +373,21 @@ public class AnalyserCli implements java.util.concurrent.Callable<Integer> {
      * id lets a team believe a check is enabled or disabled when nothing emits it.
      */
     private void warnRetiredRuleIds(Set<String> ruleIds, String source) {
-        Set<String> warned = new java.util.TreeSet<>();
+        Set<String> warned = new TreeSet<>();
         for (String ruleId : ruleIds) {
             if (RuleCatalog.isRetired(ruleId) && warned.add(ruleId.strip().toUpperCase(Locale.ROOT))) {
-                stdout.println("[WARNING] " + source + " references retired rule '" + ruleId + "' — "
+                progress("[WARNING] " + source + " references retired rule '" + ruleId + "' — "
                         + RuleCatalog.retirementNote(ruleId)
                         + "; it produces no findings, so the entry has no effect.");
             }
         }
         if (!warned.isEmpty()) {
-            stdout.println("[WARNING] Run --list-rules to see the active rule set.");
+            progress("[WARNING] Run --list-rules to see the active rule set.");
         }
     }
 
     /** Applies command-line overrides and configured allowlists, then builds the analysis context. */
-    private AnalysisContext buildContext(Path root,
-            io.github.rohithv16.aem.analyser.core.config.AnalyserConfig config) {
+    private AnalysisContext buildContext(Path root, AnalyserConfig config) {
         AnalysisContext.Builder builder = AnalysisContext.builder(root);
         Set<String> effectiveIgnoredServices = new java.util.LinkedHashSet<>(
                 ignoredServices == null ? Set.of() : ignoredServices);
@@ -394,8 +432,8 @@ public class AnalyserCli implements java.util.concurrent.Callable<Integer> {
         if (diff.failed()) {
             // Never shrink the parsed file set from a failed diff: a typo in --since (or an
             // unfetched CI base ref) would otherwise report a clean build.
-            stdout.println("[WARN] " + diff.failureReason());
-            stdout.println("[WARN] Falling back to a FULL scan so findings cannot be dropped.");
+            progress("[WARN] " + diff.failureReason());
+            progress("[WARN] Falling back to a FULL scan so findings cannot be dropped.");
             return context;
         }
         if (diff.isGitRepo()) {
@@ -416,22 +454,22 @@ public class AnalyserCli implements java.util.concurrent.Callable<Integer> {
         AutoFixEngine fixEngine = new AutoFixEngine();
         var fixSummary = fixEngine.fix(root, report.violations(), fixDryRun);
         if (fixSummary.hasFixes()) {
-            stdout.printf("[INFO] %s %d issue(s) across %d file(s):%n",
+            progressf("[INFO] %s %d issue(s) across %d file(s):%n",
                     fixDryRun ? "Auto-fix dry-run: would repair" : "Auto-fix successfully repaired",
                     fixSummary.fixesApplied(), fixSummary.filesModified());
             for (var repair : fixSummary.records()) {
-                stdout.println("  - [" + repair.ruleId() + "] " + repair.filePath() + ": "
+                progress("  - [" + repair.ruleId() + "] " + repair.filePath() + ": "
                         + repair.description());
             }
             if (!fixDryRun) {
-                stdout.println("[INFO] Re-analysing after auto-fix...");
+                progress("[INFO] Re-analysing after auto-fix...");
                 report = analyzeAndFilter(context, root);
             }
         } else {
-            stdout.println("[INFO] No auto-fixable code smells detected in target files.");
+            progress("[INFO] No auto-fixable code smells detected in target files.");
         }
         for (String failure : fixSummary.writeFailures()) {
-            stdout.println("[WARNING] Could not auto-fix " + failure);
+            progress("[WARNING] Could not auto-fix " + failure);
         }
         return report;
     }
@@ -444,7 +482,7 @@ public class AnalyserCli implements java.util.concurrent.Callable<Integer> {
                 path = defaultPath;
             }
             io.github.rohithv16.aem.analyser.core.baseline.BaselineStore.save(path, report);
-            stdout.println("[INFO] Baseline written to " + path + " ("
+            progress("[INFO] Baseline written to " + path + " ("
                     + report.violations().size() + " finding(s) accepted).");
         } else if (path == null && Files.isRegularFile(defaultPath)) {
             path = defaultPath;
@@ -454,7 +492,7 @@ public class AnalyserCli implements java.util.concurrent.Callable<Integer> {
         }
         if (!Files.isRegularFile(path)) {
             if (!updateBaseline) {
-                stdout.println("[WARNING] Baseline file not found: " + path);
+                progress("[WARNING] Baseline file not found: " + path);
             }
             return report;
         }
@@ -470,7 +508,7 @@ public class AnalyserCli implements java.util.concurrent.Callable<Integer> {
                 .count();
         AnalysisReport filtered = io.github.rohithv16.aem.analyser.core.baseline.BaselineFilter
                 .filter(report, loaded, baselineReport);
-        stdout.println("[INFO] Baseline suppressed " + suppressed + " accepted finding(s).");
+        progress("[INFO] Baseline suppressed " + suppressed + " accepted finding(s).");
         return filtered;
     }
 
@@ -478,12 +516,12 @@ public class AnalyserCli implements java.util.concurrent.Callable<Integer> {
         if (!verbose || report.diagnostics().isEmpty()) {
             return;
         }
-        stdout.println("[INFO] Analysis diagnostics (" + report.diagnostics().size() + "):");
+        progress("[INFO] Analysis diagnostics (" + report.diagnostics().size() + "):");
         for (var diagnostic : report.diagnostics()) {
             String location = diagnostic.line() > 0
                     ? diagnostic.path() + ":" + diagnostic.line()
                     : diagnostic.path();
-            stdout.println("  - [" + diagnostic.kind() + "] " + location + ": " + diagnostic.reason());
+            progress("  - [" + diagnostic.kind() + "] " + location + ": " + diagnostic.reason());
         }
     }
 
@@ -604,16 +642,16 @@ public class AnalyserCli implements java.util.concurrent.Callable<Integer> {
             GitDiffResolver gitDiffResolver = new GitDiffResolver();
             var diffResult = gitDiffResolver.resolveChanged(root, since);
             if (diffResult.failed()) {
-                stdout.println("[WARN] " + diffResult.failureReason());
-                stdout.println("[WARN] Git-diff filtering disabled for this run: reporting every finding"
+                progress("[WARN] " + diffResult.failureReason());
+                progress("[WARN] Git-diff filtering disabled for this run: reporting every finding"
                         + " from a full scan.");
             } else if (diffResult.isGitRepo()) {
                 if (diffResult.changedFiles().isEmpty()) {
-                    stdout.println("[WARN] Git-diff filtering is active but NO changed files were detected."
+                    progress("[WARN] Git-diff filtering is active but NO changed files were detected."
                             + " Every finding is filtered out and this run cannot fail on content."
                             + " Drop --changed-only/--since for a full scan.");
                 }
-                stdout.printf("[INFO] Git-diff filtering active (%d changed file(s) found);"
+                progressf("[INFO] Git-diff filtering active (%d changed file(s) found);"
                         + " scoping violations to changed files and lines.%n",
                         diffResult.changedFiles().size());
                 List<Violation> filtered = report.violations().stream()
@@ -621,7 +659,7 @@ public class AnalyserCli implements java.util.concurrent.Callable<Integer> {
                         .toList();
                 report = report.withViolations(filtered);
             } else {
-                stdout.println("[INFO] Directory is not a git repository or git command failed; proceeding with full scan.");
+                progress("[INFO] Directory is not a git repository or git command failed; proceeding with full scan.");
             }
         }
         return report;
@@ -732,14 +770,14 @@ public class AnalyserCli implements java.util.concurrent.Callable<Integer> {
                     try (var writer = Files.newBufferedWriter(target, StandardCharsets.UTF_8)) {
                         new SarifReportExporter().export(report, writer);
                     }
-                    stdout.println("SARIF report written to " + target);
+                    progress("SARIF report written to " + target);
                 }
                 case SONAR -> {
                     Path target = outputTarget("sonar-aem-analyser-report.json");
                     try (var writer = Files.newBufferedWriter(target, StandardCharsets.UTF_8)) {
                         new SonarReportExporter().export(report, writer);
                     }
-                    stdout.println("SonarQube report written to " + target);
+                    progress("SonarQube report written to " + target);
                 }
                 case HTML -> writeHtmlReport(report, history, htmlTarget());
                 case GITHUB -> {
@@ -748,7 +786,7 @@ public class AnalyserCli implements java.util.concurrent.Callable<Integer> {
                         new io.github.rohithv16.aem.analyser.core.export.GitHubAnnotationExporter()
                                 .export(report, writer);
                     }
-                    stdout.println("GitHub annotations written to " + target);
+                    progress("GitHub annotations written to " + target);
                 }
                 case GITLAB -> {
                     Path target = outputTarget("gitlab-code-quality.json");
@@ -756,7 +794,7 @@ public class AnalyserCli implements java.util.concurrent.Callable<Integer> {
                         new io.github.rohithv16.aem.analyser.core.export.GitLabCodeQualityExporter()
                                 .export(report, writer);
                     }
-                    stdout.println("GitLab Code Quality report written to " + target);
+                    progress("GitLab Code Quality report written to " + target);
                 }
                 case AZURE -> {
                     Path target = outputTarget("azure-pipelines.log");
@@ -764,7 +802,7 @@ public class AnalyserCli implements java.util.concurrent.Callable<Integer> {
                         new io.github.rohithv16.aem.analyser.core.export.AzurePipelinesExporter()
                                 .export(report, writer);
                     }
-                    stdout.println("Azure Pipelines annotations written to " + target);
+                    progress("Azure Pipelines annotations written to " + target);
                 }
             }
         }
@@ -794,7 +832,7 @@ public class AnalyserCli implements java.util.concurrent.Callable<Integer> {
             new HtmlReportExporter(java.time.Clock.systemDefaultZone(), 5000, history)
                     .export(report, writer);
         }
-        stdout.println("HTML report written to " + target);
+        progress("HTML report written to " + target);
     }
 
     /**
@@ -852,16 +890,16 @@ public class AnalyserCli implements java.util.concurrent.Callable<Integer> {
 
         if (!force && status.isFresh()) {
             String rel = root.relativize(status.coverageFile()).toString();
-            stdout.println("[INFO] Existing JaCoCo coverage is up to date (" + rel + "); skipping test execution (use --force to re-run).");
+            progress("[INFO] Existing JaCoCo coverage is up to date (" + rel + "); skipping test execution (use --force to re-run).");
             return;
         }
 
         if (force) {
-            stdout.println("[INFO] --force specified: executing unit tests to collect fresh test code coverage...");
+            progress("[INFO] --force specified: executing unit tests to collect fresh test code coverage...");
         } else if (status.coverageFile() != null) {
-            stdout.println("[INFO] " + status.reason() + "; re-executing unit tests for fresh coverage...");
+            progress("[INFO] " + status.reason() + "; re-executing unit tests for fresh coverage...");
         } else {
-            stdout.println("[INFO] Dynamic JaCoCo enabled: executing unit tests to collect test code coverage...");
+            progress("[INFO] Dynamic JaCoCo enabled: executing unit tests to collect test code coverage...");
         }
 
         List<String> cmd = resolveMavenCommand(root, testModules);
@@ -878,15 +916,15 @@ public class AnalyserCli implements java.util.concurrent.Callable<Integer> {
             Process process = pb.start();
             int exitCode = process.waitFor();
             if (exitCode != 0) {
-                stdout.println("[WARNING] Maven test execution returned code " + exitCode + "; continuing analysis with available artifacts.");
+                progress("[WARNING] Maven test execution returned code " + exitCode + "; continuing analysis with available artifacts.");
             } else {
-                stdout.println("[INFO] Test coverage collected successfully.");
+                progress("[INFO] Test coverage collected successfully.");
             }
         } catch (IOException e) {
-            stdout.println("[WARNING] Unable to run Maven to collect coverage: " + e.getMessage());
+            progress("[WARNING] Unable to run Maven to collect coverage: " + e.getMessage());
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            stdout.println("[WARNING] Coverage collection interrupted.");
+            progress("[WARNING] Coverage collection interrupted.");
         }
     }
 
@@ -1173,19 +1211,19 @@ public class AnalyserCli implements java.util.concurrent.Callable<Integer> {
         return String.join(", ", parts);
     }
 
-    /** Prints the configured quality-gate thresholds and whether each one passed. */
+    /** Prints the configured quality-gate thresholds and whether each one passed (progress channel). */
     private void printQualityGate(AnalysisReport report) {
         if (minCoverage == null && maxDuplication == null && maxWarnings == null) {
             return;
         }
-        stdout.println(SEPARATOR);
-        stdout.println(" QUALITY GATE VERIFICATION");
-        stdout.println(SEPARATOR);
+        progress(SEPARATOR);
+        progress(" QUALITY GATE VERIFICATION");
+        progress(SEPARATOR);
         long warnings = report.countBySeverity(Severity.WARNING);
         checkMaxWarnings(warnings);
         checkDuplication(report);
         checkLineCoverage(report);
-        stdout.println(SEPARATOR);
+        progress(SEPARATOR);
     }
 
     private boolean checkMaxWarnings(long warnings) {
@@ -1193,7 +1231,7 @@ public class AnalyserCli implements java.util.concurrent.Callable<Integer> {
             return true;
         }
         boolean pass = warnings <= maxWarnings;
-        stdout.printf("  - Max Warnings:   %,d (Threshold: <= %,d) [%s]%n",
+        progressf("  - Max Warnings:   %,d (Threshold: <= %,d) [%s]%n",
                 warnings, maxWarnings, pass ? "PASS" : "FAIL");
         return pass;
     }
@@ -1206,7 +1244,7 @@ public class AnalyserCli implements java.util.concurrent.Callable<Integer> {
                 ? report.codeMetrics().duplicationPercent()
                 : 0.0;
         boolean pass = duplication <= maxDuplication;
-        stdout.printf("  - Duplication:    %.1f%% (Threshold: <= %.1f%%) [%s]%n",
+        progressf("  - Duplication:    %.1f%% (Threshold: <= %.1f%%) [%s]%n",
                 duplication, maxDuplication, pass ? "PASS" : "FAIL");
         return pass;
     }
@@ -1220,12 +1258,12 @@ public class AnalyserCli implements java.util.concurrent.Callable<Integer> {
             // A threshold of 0 means "measure but do not gate": absence of coverage data is
             // not a failure in that case.
             boolean pass = minCoverage <= 0;
-            stdout.printf("  - Line Coverage:  Not detected (Threshold: >= %.1f%%) [%s]%n",
+            progressf("  - Line Coverage:  Not detected (Threshold: >= %.1f%%) [%s]%n",
                     minCoverage, pass ? "PASS" : "FAIL");
             return pass;
         }
         boolean pass = coverage.lineCoveragePercent() >= minCoverage;
-        stdout.printf("  - Line Coverage:  %.1f%% (Threshold: >= %.1f%%) [%s]%n",
+        progressf("  - Line Coverage:  %.1f%% (Threshold: >= %.1f%%) [%s]%n",
                 coverage.lineCoveragePercent(), minCoverage, pass ? "PASS" : "FAIL");
         return pass;
     }
