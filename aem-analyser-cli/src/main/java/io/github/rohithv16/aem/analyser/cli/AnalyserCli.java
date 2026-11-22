@@ -4,6 +4,7 @@ import io.github.rohithv16.aem.analyser.core.api.AnalysisContext;
 import io.github.rohithv16.aem.analyser.core.api.AnalysisException;
 import io.github.rohithv16.aem.analyser.core.api.DefaultAemCodeAnalyser;
 import io.github.rohithv16.aem.analyser.core.export.ColorSupport;
+import io.github.rohithv16.aem.analyser.core.export.ConsoleGroupBy;
 import io.github.rohithv16.aem.analyser.core.export.ConsoleReportFormatter;
 import io.github.rohithv16.aem.analyser.core.export.ExportException;
 import io.github.rohithv16.aem.analyser.core.export.HtmlReportExporter;
@@ -96,6 +97,11 @@ public class AnalyserCli implements java.util.concurrent.Callable<Integer> {
 
     @Option(names = {"--no-color"}, description = "Disable ANSI colors in console output.")
     private boolean noColor;
+
+    @Option(names = {"--group-by"},
+            description = "Group console findings: FILE, RULE or NONE (default). Grouped output is one "
+                    + "line per finding under a count per file or rule.")
+    private String groupByOption;
 
     @Option(names = {"-v", "--verbose"},
             description = "Print structured analysis diagnostics (unparseable files, skipped trees).")
@@ -216,6 +222,11 @@ public class AnalyserCli implements java.util.concurrent.Callable<Integer> {
         return !noColor && ColorSupport.enabled(ColorSupport.stdoutIsTerminal());
     }
 
+    /** How the console lists findings, as requested by {@code --group-by}. */
+    ConsoleGroupBy consoleGroupBy() {
+        return ConsoleGroupBy.parse(groupByOption);
+    }
+
     /**
      * Console channel of the tool. A CLI writes its report to standard output by design, so this is
      * deliberately not a logging framework: {@code --no-color}, report formats and CI annotations need
@@ -293,6 +304,8 @@ public class AnalyserCli implements java.util.concurrent.Callable<Integer> {
     private int runAnalysis() throws IOException, ExportException, AnalysisException {
         Path root = resolveProjectRoot();
         List<ReportFormat> reportFormats = parseFormats();
+        // Validated before the scan: an unknown --group-by is a usage error, not a post-analysis one.
+        ConsoleGroupBy consoleGroupBy = consoleGroupBy();
         validateFailOn();
         validateNumericOptions();
         if (collectCoverage) {
@@ -315,7 +328,7 @@ public class AnalyserCli implements java.util.concurrent.Callable<Integer> {
         // the exit code all have to describe the same run.
         printQualityGate(report);
         GateVerdict verdict = evaluateGate(report);
-        export(report.withGateVerdict(verdict), reportFormats, history);
+        export(report.withGateVerdict(verdict), reportFormats, history, consoleGroupBy);
         printDiagnostics(report);
         return verdict.exitCode();
     }
@@ -721,58 +734,87 @@ public class AnalyserCli implements java.util.concurrent.Callable<Integer> {
                 .load(historyDirectory, historyLimit);
     }
 
-    private void export(AnalysisReport report, List<ReportFormat> reportFormats,
-                        List<io.github.rohithv16.aem.analyser.core.history.RunSummary> history)
-            throws IOException, ExportException {
+    /** One file this run will write; {@code target} is null for the console. */
+    private record ReportPlan(ReportFormat format, Path target) {
+    }
+
+    /**
+     * Resolves every report file before anything is rendered, so the console triage block can name
+     * the files this run writes instead of leaving them to lines after the findings.
+     */
+    private List<ReportPlan> planReports(List<ReportFormat> reportFormats) throws IOException {
+        List<ReportPlan> plans = new ArrayList<>();
         for (ReportFormat reportFormat : reportFormats) {
-            switch (reportFormat) {
-                case CONSOLE -> new ConsoleReportFormatter(consoleColorEnabled()).export(report, stdout);
-                case SARIF -> {
-                    Path target = outputTarget("aem-analyser.sarif");
-                    try (var writer = Files.newBufferedWriter(target, StandardCharsets.UTF_8)) {
-                        new SarifReportExporter().export(report, writer);
-                    }
-                    stdout.println("SARIF report written to " + target);
-                }
-                case SONAR -> {
-                    Path target = outputTarget("sonar-aem-analyser-report.json");
-                    try (var writer = Files.newBufferedWriter(target, StandardCharsets.UTF_8)) {
-                        new SonarReportExporter().export(report, writer);
-                    }
-                    stdout.println("SonarQube report written to " + target);
-                }
-                case HTML -> writeHtmlReport(report, history, htmlTarget());
-                case GITHUB -> {
-                    Path target = outputTarget("github-annotations.txt");
-                    try (var writer = Files.newBufferedWriter(target, StandardCharsets.UTF_8)) {
-                        new io.github.rohithv16.aem.analyser.core.export.GitHubAnnotationExporter()
-                                .export(report, writer);
-                    }
-                    stdout.println("GitHub annotations written to " + target);
-                }
-                case GITLAB -> {
-                    Path target = outputTarget("gitlab-code-quality.json");
-                    try (var writer = Files.newBufferedWriter(target, StandardCharsets.UTF_8)) {
-                        new io.github.rohithv16.aem.analyser.core.export.GitLabCodeQualityExporter()
-                                .export(report, writer);
-                    }
-                    stdout.println("GitLab Code Quality report written to " + target);
-                }
-                case AZURE -> {
-                    Path target = outputTarget("azure-pipelines.log");
-                    try (var writer = Files.newBufferedWriter(target, StandardCharsets.UTF_8)) {
-                        new io.github.rohithv16.aem.analyser.core.export.AzurePipelinesExporter()
-                                .export(report, writer);
-                    }
-                    stdout.println("Azure Pipelines annotations written to " + target);
-                }
-            }
+            plans.add(new ReportPlan(reportFormat, switch (reportFormat) {
+                case CONSOLE -> null;
+                case SARIF -> outputTarget("aem-analyser.sarif");
+                case SONAR -> outputTarget("sonar-aem-analyser-report.json");
+                case HTML -> htmlTarget();
+                case GITHUB -> outputTarget("github-annotations.txt");
+                case GITLAB -> outputTarget("gitlab-code-quality.json");
+                case AZURE -> outputTarget("azure-pipelines.log");
+            }));
         }
         if (!noHtml && !reportFormats.contains(ReportFormat.HTML)) {
             // --html <path> wins over the default location; otherwise the dashboard is generated on
             // every run unless explicitly disabled.
-            writeHtmlReport(report, history, htmlTarget());
+            plans.add(new ReportPlan(ReportFormat.HTML, htmlTarget()));
         }
+        return plans;
+    }
+
+    private void export(AnalysisReport report, List<ReportFormat> reportFormats,
+                        List<io.github.rohithv16.aem.analyser.core.history.RunSummary> history,
+                        ConsoleGroupBy consoleGroupBy) throws IOException, ExportException {
+        List<ReportPlan> plans = planReports(reportFormats);
+        List<String> reportPaths = plans.stream()
+                .filter(plan -> plan.target() != null)
+                .map(plan -> displayPath(plan.target()))
+                .toList();
+        for (ReportPlan plan : plans) {
+            switch (plan.format()) {
+                case CONSOLE -> new ConsoleReportFormatter(consoleColorEnabled(), consoleGroupBy, reportPaths, false)
+                        .export(report, stdout);
+                case SARIF -> {
+                    writeReport(plan.target(), new SarifReportExporter(), report);
+                    stdout.println("SARIF report written to " + plan.target());
+                }
+                case SONAR -> {
+                    writeReport(plan.target(), new SonarReportExporter(), report);
+                    stdout.println("SonarQube report written to " + plan.target());
+                }
+                case HTML -> writeHtmlReport(report, history, plan.target());
+                case GITHUB -> {
+                    writeReport(plan.target(),
+                            new io.github.rohithv16.aem.analyser.core.export.GitHubAnnotationExporter(), report);
+                    stdout.println("GitHub annotations written to " + plan.target());
+                }
+                case GITLAB -> {
+                    writeReport(plan.target(),
+                            new io.github.rohithv16.aem.analyser.core.export.GitLabCodeQualityExporter(), report);
+                    stdout.println("GitLab Code Quality report written to " + plan.target());
+                }
+                case AZURE -> {
+                    writeReport(plan.target(),
+                            new io.github.rohithv16.aem.analyser.core.export.AzurePipelinesExporter(), report);
+                    stdout.println("Azure Pipelines annotations written to " + plan.target());
+                }
+            }
+        }
+    }
+
+    private void writeReport(Path target, io.github.rohithv16.aem.analyser.core.export.ReportExporter exporter,
+                             AnalysisReport report) throws IOException, ExportException {
+        try (var writer = Files.newBufferedWriter(target, StandardCharsets.UTF_8)) {
+            exporter.export(report, writer);
+        }
+    }
+
+    /** A report path as a developer reads it: relative to the working directory when inside it. */
+    private static String displayPath(Path path) {
+        Path absolute = path.toAbsolutePath().normalize();
+        Path cwd = Path.of("").toAbsolutePath().normalize();
+        return absolute.startsWith(cwd) ? cwd.relativize(absolute).toString() : absolute.toString();
     }
 
     /** Destination for the HTML dashboard: an explicit --html path, else the output directory. */

@@ -163,4 +163,110 @@ class ConsoleReportFormatterTest {
         assertTrue(writer.toString().contains(
                 "GATE FAILED: duplication 6.2% exceeds --max-duplication 3.0%."), writer.toString());
     }
+
+    /**
+     * The answer has to be on screen before the findings: a 278-line log whose verdict is line 277
+     * is read by scrolling to the bottom, which is exactly what this report must not require.
+     */
+    @Test
+    void verdictCountsHotspotsAndReportPathsPrecedeTheFirstFinding() throws Exception {
+        AnalysisReport report = new AnalysisReport(
+                Path.of("/dummy/root"), Map.of("modules", 4),
+                List.of(error(), warning(), info()), 6400);
+
+        StringWriter writer = new StringWriter();
+        new ConsoleReportFormatter(false, ConsoleGroupBy.NONE,
+                List.of("target/aem-analyser/aem-analyser.sarif", "target/aem-analyser/aem-analyser-report.html"),
+                false).export(report, writer);
+        String out = writer.toString();
+
+        String head = out.lines().limit(12).reduce("", (a, b) -> a + b + "\n");
+        assertTrue(head.contains("AEM CODE ANALYSER \u2014 GATE FAILED"), head);
+        assertTrue(head.contains("Total Violations: 3 (1 Error, 1 Warning, 1 Info)"), head);
+        assertTrue(head.contains("Hotspots: "), head);
+        assertTrue(head.contains("ui.config/config.cfg.json (1)"), head);
+        assertTrue(head.contains("Reports: target/aem-analyser/aem-analyser.sarif"), head);
+        assertTrue(head.contains("6.4 s"), head);
+        assertTrue(head.contains("4 modules"), head);
+
+        assertTrue(out.indexOf("GATE FAILED") < out.indexOf("[ERROR] AEM-DEAD-001"),
+                "the verdict must be printed before the first finding:\n" + out);
+        assertTrue(out.indexOf("Total Violations: 3") < out.indexOf("[ERROR] AEM-DEAD-001"), out);
+    }
+
+    /** --group-by file: one header per file with the count, one line per finding. */
+    @Test
+    void groupByFilePrintsOneHeaderPerFileWithCounts() throws Exception {
+        AnalysisReport report = new AnalysisReport(Path.of("/dummy/root"), Map.of(),
+                List.of(violation("AEM-DEAD-001", Severity.ERROR, "core/A.java", 1),
+                        violation("AEM-DUP-010", Severity.WARNING, "core/A.java", 2),
+                        violation("AEM-DEAD-003B", Severity.INFO, "core/A.java", 3),
+                        violation("AEM-DEAD-001", Severity.ERROR, "core/B.java", 4),
+                        violation("AEM-CLOUD-001", Severity.ERROR, "core/B.java", 5)),
+                10);
+
+        StringWriter writer = new StringWriter();
+        new ConsoleReportFormatter(false, ConsoleGroupBy.FILE, List.of(), false).export(report, writer);
+        String out = writer.toString();
+
+        assertTrue(out.contains("FINDINGS (5) \u2014 grouped by file"), out);
+        assertTrue(out.contains("core/A.java (3)"), out);
+        assertTrue(out.contains("core/B.java (2)"), out);
+        assertTrue(out.indexOf("core/A.java (3)") < out.indexOf("core/B.java (2)"),
+                "the file with the most findings comes first:\n" + out);
+        assertFalse(out.contains("  File: "), "grouped findings are one line each, not six-line blocks");
+    }
+
+    /** --group-by rule: the rule is stated once per group, the location on every finding. */
+    @Test
+    void groupByRulePrintsOneHeaderPerRuleWithCounts() throws Exception {
+        AnalysisReport report = new AnalysisReport(Path.of("/dummy/root"), Map.of(),
+                List.of(violation("AEM-DEAD-001", Severity.ERROR, "core/A.java", 1),
+                        violation("AEM-DEAD-001", Severity.ERROR, "core/B.java", 2),
+                        violation("AEM-DUP-010", Severity.WARNING, "core/A.java", 3)),
+                10);
+
+        StringWriter writer = new StringWriter();
+        new ConsoleReportFormatter(false, ConsoleGroupBy.RULE, List.of(), false).export(report, writer);
+        String out = writer.toString();
+
+        assertTrue(out.contains("FINDINGS (3) \u2014 grouped by rule"), out);
+        assertTrue(out.contains("AEM-DEAD-001 (2)"), out);
+        assertTrue(out.contains("core/B.java:2"), out);
+    }
+
+    /** A reproducible run (fixed report clock) omits the wall-clock duration from the triage line. */
+    @Test
+    void reproducibleRunOmitsTheDuration() throws Exception {
+        AnalysisReport report = new AnalysisReport(Path.of("/dummy/root"), Map.of(),
+                List.of(error()), 6400);
+
+        StringWriter writer = new StringWriter();
+        new ConsoleReportFormatter(false, ConsoleGroupBy.NONE, List.of(), true).export(report, writer);
+        String out = writer.toString();
+
+        assertTrue(out.contains("Total Violations: 1 (1 Error, 0 Warnings, 0 Infos)"), out);
+        assertFalse(out.contains("6.4 s"), out);
+    }
+
+    private static Violation violation(String ruleId, Severity severity, String path, int line) {
+        return new Violation(ruleId, severity, null, "message at " + path + ":" + line, path,
+                new TextRegion(line, 1, line, 10), null, null, List.of());
+    }
+
+    private static Violation error() {
+        return new Violation("AEM-DEAD-001", Severity.ERROR, null, "Orphaned config",
+                "ui.config/config.cfg.json", new TextRegion(1, 1, 1, 10), null, null, List.of());
+    }
+
+    private static Violation warning() {
+        return new Violation("AEM-DUP-010", Severity.WARNING, null, "Duplicate code",
+                "core/Service.java", new TextRegion(20, 1, 20, 10), null, null, List.of());
+    }
+
+    private static Violation info() {
+        return new Violation("AEM-DEAD-003B", Severity.INFO, null, "Unused model",
+                "core/Model.java", new TextRegion(10, 1, 10, 10), null, null, List.of());
+    }
 }
+
