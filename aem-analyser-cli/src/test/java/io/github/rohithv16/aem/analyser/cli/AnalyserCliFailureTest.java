@@ -29,12 +29,14 @@ class AnalyserCliFailureTest {
 
     @Test
     void missingProjectRootNamesThePathAndExitsTwo() throws Exception {
-        String missing = "/tmp/aem-analyser-no-such-" + UUID.randomUUID();
+        // Portable: /tmp is D:\tmp on Windows, so assert on the unique leaf name, not a POSIX path.
+        String name = "aem-analyser-no-such-" + UUID.randomUUID();
+        String missing = java.nio.file.Path.of(System.getProperty("java.io.tmpdir")).resolve(name).toString();
 
         CliTestSupport.Run run = CliTestSupport.runArgs(missing, "--no-html");
 
         assertEquals(2, run.exitCode(), text(run));
-        assertTrue(text(run).contains(missing), text(run));
+        assertTrue(text(run).contains(name), text(run));
         assertTrue(text(run).contains("does not exist"), text(run));
         assertTrue(text(run).contains("--project-root"), text(run));
         assertFalse(text(run).contains("Analysis failed: Analysis failed:"), text(run));
