@@ -1,5 +1,6 @@
 package io.github.rohithv16.aem.analyser.core.rules;
 
+import io.github.rohithv16.aem.analyser.core.discovery.FileInventory;
 import io.github.rohithv16.aem.analyser.core.graph.ReferenceGraph;
 import io.github.rohithv16.aem.analyser.core.graph.ReferenceGraphBuilder;
 import io.github.rohithv16.aem.analyser.core.graph.ReferenceGraphIndex;
@@ -29,7 +30,8 @@ public record RuleContext(ReferenceGraph graph,
                           List<HtlUnsafeContextFinding> htlUnsafeContexts,
                           List<io.github.rohithv16.aem.analyser.core.model.discovery.ModuleDescriptor> modules,
                           List<io.github.rohithv16.aem.analyser.core.model.htl.HtlIncludeRef> htlIncludes,
-                          List<io.github.rohithv16.aem.analyser.core.model.htl.HtlResourceRef> htlResources) {
+                          List<io.github.rohithv16.aem.analyser.core.model.htl.HtlResourceRef> htlResources,
+                          FileInventory inventory) {
 
     /** Compatibility constructor: no template-composition references were scanned. */
     public RuleContext(ReferenceGraph graph,
@@ -43,10 +45,46 @@ public record RuleContext(ReferenceGraph graph,
                        List<HtlUnsafeContextFinding> htlUnsafeContexts,
                        List<io.github.rohithv16.aem.analyser.core.model.discovery.ModuleDescriptor> modules) {
         this(graph, buildResult, exportedPackages, dependencyIndex, ignoredServices, projectRoot,
-                htlUsages, cqComponents, htlUnsafeContexts, modules, List.of(), List.of());
+                htlUsages, cqComponents, htlUnsafeContexts, modules, List.of(), List.of(),
+                FileInventory.empty());
+    }
+
+    /** Compatibility constructor: no shared inventory. */
+    public RuleContext(ReferenceGraph graph,
+                       ReferenceGraphBuilder.GraphBuildResult buildResult,
+                       Set<String> exportedPackages,
+                       DependencyBytecodeIndexer.DependencyIndex dependencyIndex,
+                       Set<String> ignoredServices,
+                       Path projectRoot,
+                       List<HtlUsage> htlUsages,
+                       List<CqComponentDefinition> cqComponents,
+                       List<HtlUnsafeContextFinding> htlUnsafeContexts,
+                       List<io.github.rohithv16.aem.analyser.core.model.discovery.ModuleDescriptor> modules,
+                       List<io.github.rohithv16.aem.analyser.core.model.htl.HtlIncludeRef> htlIncludes,
+                       List<io.github.rohithv16.aem.analyser.core.model.htl.HtlResourceRef> htlResources) {
+        this(graph, buildResult, exportedPackages, dependencyIndex, ignoredServices, projectRoot,
+                htlUsages, cqComponents, htlUnsafeContexts, modules, htlIncludes, htlResources,
+                FileInventory.empty());
+    }
+
+    /** Compatibility constructor: no template-composition references and no shared inventory. */
+    public RuleContext(ReferenceGraph graph,
+                       ReferenceGraphBuilder.GraphBuildResult buildResult,
+                       Set<String> exportedPackages,
+                       DependencyBytecodeIndexer.DependencyIndex dependencyIndex,
+                       Set<String> ignoredServices,
+                       Path projectRoot,
+                       List<HtlUsage> htlUsages,
+                       List<CqComponentDefinition> cqComponents,
+                       List<HtlUnsafeContextFinding> htlUnsafeContexts,
+                       List<io.github.rohithv16.aem.analyser.core.model.discovery.ModuleDescriptor> modules,
+                       FileInventory inventory) {
+        this(graph, buildResult, exportedPackages, dependencyIndex, ignoredServices, projectRoot,
+                htlUsages, cqComponents, htlUnsafeContexts, modules, List.of(), List.of(), inventory);
     }
 
     public RuleContext {
+        inventory = inventory == null ? FileInventory.empty() : inventory;
         modules = List.copyOf(modules == null ? List.of() : modules);
         htlIncludes = List.copyOf(htlIncludes == null ? List.of() : htlIncludes);
         htlResources = List.copyOf(htlResources == null ? List.of() : htlResources);
@@ -170,6 +208,23 @@ public record RuleContext(ReferenceGraph graph,
 
     public ReferenceGraphIndex index() {
         return graph.getIndex();
+    }
+
+    /**
+     * The run's shared inventory, or a bounded walk of the project root when the context was built
+     * without one (unit tests that construct a context around a temp directory).
+     *
+     * <p>Falling back here rather than in every rule keeps rule tests independent of the engine
+     * wiring while production always hands in the single pruned inventory.</p>
+     */
+    public FileInventory fileInventory() {
+        if (!inventory.isEmpty()) {
+            return inventory;
+        }
+        if (projectRoot == null) {
+            return FileInventory.empty();
+        }
+        return FileInventory.scan(projectRoot);
     }
 
     /**

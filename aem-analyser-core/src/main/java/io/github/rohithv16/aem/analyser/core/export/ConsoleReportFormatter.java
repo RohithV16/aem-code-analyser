@@ -136,6 +136,20 @@ public final class ConsoleReportFormatter implements ReportExporter {
                     .append(" file(s) skipped or degraded (run with --verbose for details)\n");
         }
 
+        // Per-phase wall-clock so the slow phase in a large scan is visible instead of inferred.
+        if (!report.phaseMillis().isEmpty()) {
+            sb.append(" Phases: ");
+            String separator = "";
+            for (var phase : report.phaseMillis().entrySet()) {
+                sb.append(separator).append(phase.getKey()).append(' ').append(phase.getValue()).append(" ms");
+                separator = " · ";
+            }
+            sb.append('\n');
+        }
+        if (report.cacheSummary() != null) {
+            sb.append(" Parse Cache: ").append(report.cacheSummary()).append('\n');
+        }
+
         // Code Metrics & Coverage section
         sb.append(div).append('\n');
         sb.append(" [Code Metrics]\n");

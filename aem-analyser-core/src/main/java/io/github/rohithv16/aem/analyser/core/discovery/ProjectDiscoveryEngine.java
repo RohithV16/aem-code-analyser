@@ -42,6 +42,7 @@ public final class ProjectDiscoveryEngine implements AutoCloseable {
     private final OsgiConfigScanner osgiConfigScanner = new OsgiConfigScanner();
     private final CloudConfigDiscoveryEngine cloudConfigEngine = new CloudConfigDiscoveryEngine();
     private final io.github.rohithv16.aem.analyser.core.util.DiagnosticSink diagnostics;
+    private final FileInventory inventory;
     private List<String> activeProfiles = List.of();
 
     public ProjectDiscoveryEngine() {
@@ -49,7 +50,17 @@ public final class ProjectDiscoveryEngine implements AutoCloseable {
     }
 
     public ProjectDiscoveryEngine(io.github.rohithv16.aem.analyser.core.util.DiagnosticSink diagnostics) {
+        this(null, diagnostics);
+    }
+
+    /**
+     * @param inventory the run's shared pruned inventory, or {@code null} to let each config scan
+     *                  build its own for the subtree it needs
+     */
+    public ProjectDiscoveryEngine(FileInventory inventory,
+                                  io.github.rohithv16.aem.analyser.core.util.DiagnosticSink diagnostics) {
         this.modelReader = new org.apache.maven.model.io.DefaultModelReader();
+        this.inventory = inventory;
         this.diagnostics = diagnostics == null
                 ? new io.github.rohithv16.aem.analyser.core.util.DiagnosticSink()
                 : diagnostics;
@@ -156,7 +167,9 @@ public final class ProjectDiscoveryEngine implements AutoCloseable {
                 || (model.getDependencyManagement() != null && model.getDependencyManagement().getDependencies().stream()
                         .anyMatch(d -> AEM_SDK_API.equals(d.getArtifactId()) || UBER_JAR.equals(d.getArtifactId())));
 
-        List<OsgiConfigScanner.DiscoveredConfig> configs = osgiConfigScanner.scanModule(moduleDirectory, diagnostics);
+        List<OsgiConfigScanner.DiscoveredConfig> configs = inventory != null && !inventory.isEmpty()
+                ? osgiConfigScanner.scanModule(inventory, moduleDirectory, diagnostics)
+                : osgiConfigScanner.scanModule(moduleDirectory, diagnostics);
         Set<Path> configPaths = new LinkedHashSet<>();
         configs.forEach(c -> configPaths.add(c.absolutePath()));
 

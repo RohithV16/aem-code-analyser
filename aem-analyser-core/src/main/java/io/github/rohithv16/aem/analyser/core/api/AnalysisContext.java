@@ -18,6 +18,8 @@ import java.util.Set;
  * @param maxFileSizeBytes       maximum bytes per source/config/template file (default: 10 MiB)
  * @param timeoutMillis          overall analysis budget in milliseconds (0 = no timeout)
  * @param changedFiles           when non-empty, only these reactor-relative files are parsed
+ * @param enableCache            reuse the content-hash parse cache under
+ *                               {@code target/aem-analyser/cache} (default: true)
  */
 public record AnalysisContext(
         Path projectRoot,
@@ -30,7 +32,8 @@ public record AnalysisContext(
         String sonarRules,
         long maxFileSizeBytes,
         long timeoutMillis,
-        Set<String> changedFiles) {
+        Set<String> changedFiles,
+        boolean enableCache) {
 
     public static final long DEFAULT_MAX_FILE_SIZE_BYTES = 10L * 1024 * 1024;
 
@@ -54,12 +57,12 @@ public record AnalysisContext(
             Set<String> ignoredServices,
             Set<String> ignoredConfigPaths) {
         this(projectRoot, activeProfiles, threads, dependencyJarRoots, ignoredServices, ignoredConfigPaths,
-                true, "default", DEFAULT_MAX_FILE_SIZE_BYTES, 0, Set.of());
+                true, "default", DEFAULT_MAX_FILE_SIZE_BYTES, 0, Set.of(), true);
     }
 
     public static AnalysisContext of(Path projectRoot) {
         return new AnalysisContext(projectRoot, List.of(), 0, List.of(), Set.of(), Set.of(),
-                true, "default", DEFAULT_MAX_FILE_SIZE_BYTES, 0, Set.of());
+                true, "default", DEFAULT_MAX_FILE_SIZE_BYTES, 0, Set.of(), true);
     }
 
     public int workerThreads() {
@@ -68,12 +71,13 @@ public record AnalysisContext(
 
     public Builder toBuilder() {
         return new Builder(projectRoot, activeProfiles, threads, dependencyJarRoots, ignoredServices,
-                ignoredConfigPaths, enableSonar, sonarRules, maxFileSizeBytes, timeoutMillis, changedFiles);
+                ignoredConfigPaths, enableSonar, sonarRules, maxFileSizeBytes, timeoutMillis, changedFiles,
+                enableCache);
     }
 
     public static Builder builder(Path projectRoot) {
         return new Builder(projectRoot, List.of(), 0, List.of(), Set.of(), Set.of(),
-                true, "default", DEFAULT_MAX_FILE_SIZE_BYTES, 0, Set.of());
+                true, "default", DEFAULT_MAX_FILE_SIZE_BYTES, 0, Set.of(), true);
     }
 
     public record Builder(
@@ -87,7 +91,8 @@ public record AnalysisContext(
             String sonarRules,
             long maxFileSizeBytes,
             long timeoutMillis,
-            Set<String> changedFiles) {
+            Set<String> changedFiles,
+            boolean enableCache) {
 
         public Builder(
                 Path projectRoot,
@@ -97,73 +102,80 @@ public record AnalysisContext(
                 Set<String> ignoredServices,
                 Set<String> ignoredConfigPaths) {
             this(projectRoot, activeProfiles, threads, dependencyJarRoots, ignoredServices, ignoredConfigPaths,
-                    true, "default", DEFAULT_MAX_FILE_SIZE_BYTES, 0, Set.of());
+                    true, "default", DEFAULT_MAX_FILE_SIZE_BYTES, 0, Set.of(), true);
         }
 
         public Builder activeProfiles(List<String> profiles) {
             return new Builder(projectRoot, List.copyOf(profiles), threads, dependencyJarRoots,
                     ignoredServices, ignoredConfigPaths, enableSonar, sonarRules, maxFileSizeBytes,
-                    timeoutMillis, changedFiles);
+                    timeoutMillis, changedFiles, enableCache);
         }
 
         public Builder threads(int threads) {
             return new Builder(projectRoot, activeProfiles, threads, dependencyJarRoots,
                     ignoredServices, ignoredConfigPaths, enableSonar, sonarRules, maxFileSizeBytes,
-                    timeoutMillis, changedFiles);
+                    timeoutMillis, changedFiles, enableCache);
         }
 
         public Builder dependencyJarRoots(List<Path> roots) {
             return new Builder(projectRoot, activeProfiles, threads, List.copyOf(roots),
                     ignoredServices, ignoredConfigPaths, enableSonar, sonarRules, maxFileSizeBytes,
-                    timeoutMillis, changedFiles);
+                    timeoutMillis, changedFiles, enableCache);
         }
 
         public Builder ignoredServices(Set<String> ignored) {
             return new Builder(projectRoot, activeProfiles, threads, dependencyJarRoots,
                     Set.copyOf(ignored), ignoredConfigPaths, enableSonar, sonarRules, maxFileSizeBytes,
-                    timeoutMillis, changedFiles);
+                    timeoutMillis, changedFiles, enableCache);
         }
 
         public Builder ignoredConfigPaths(Set<String> patterns) {
             return new Builder(projectRoot, activeProfiles, threads, dependencyJarRoots,
                     ignoredServices, Set.copyOf(patterns), enableSonar, sonarRules, maxFileSizeBytes,
-                    timeoutMillis, changedFiles);
+                    timeoutMillis, changedFiles, enableCache);
         }
 
         public Builder enableSonar(boolean enableSonar) {
             return new Builder(projectRoot, activeProfiles, threads, dependencyJarRoots,
                     ignoredServices, ignoredConfigPaths, enableSonar, sonarRules, maxFileSizeBytes,
-                    timeoutMillis, changedFiles);
+                    timeoutMillis, changedFiles, enableCache);
         }
 
         public Builder sonarRules(String sonarRules) {
             return new Builder(projectRoot, activeProfiles, threads, dependencyJarRoots,
                     ignoredServices, ignoredConfigPaths, enableSonar, sonarRules, maxFileSizeBytes,
-                    timeoutMillis, changedFiles);
+                    timeoutMillis, changedFiles, enableCache);
         }
 
         public Builder maxFileSizeBytes(long maxFileSizeBytes) {
             return new Builder(projectRoot, activeProfiles, threads, dependencyJarRoots,
                     ignoredServices, ignoredConfigPaths, enableSonar, sonarRules, maxFileSizeBytes,
-                    timeoutMillis, changedFiles);
+                    timeoutMillis, changedFiles, enableCache);
         }
 
         public Builder timeoutMillis(long timeoutMillis) {
             return new Builder(projectRoot, activeProfiles, threads, dependencyJarRoots,
                     ignoredServices, ignoredConfigPaths, enableSonar, sonarRules, maxFileSizeBytes,
-                    timeoutMillis, changedFiles);
+                    timeoutMillis, changedFiles, enableCache);
         }
 
         public Builder changedFiles(Set<String> changedFiles) {
             return new Builder(projectRoot, activeProfiles, threads, dependencyJarRoots,
                     ignoredServices, ignoredConfigPaths, enableSonar, sonarRules, maxFileSizeBytes,
-                    timeoutMillis, Set.copyOf(changedFiles));
+                    timeoutMillis, Set.copyOf(changedFiles), enableCache);
+        }
+
+        /** {@code --no-cache}: disable the content-hash parse cache for this run. */
+        public Builder enableCache(boolean enableCache) {
+            return new Builder(projectRoot, activeProfiles, threads, dependencyJarRoots,
+                    ignoredServices, ignoredConfigPaths, enableSonar, sonarRules, maxFileSizeBytes,
+                    timeoutMillis, changedFiles, enableCache);
         }
 
         public AnalysisContext build() {
             return new AnalysisContext(projectRoot, activeProfiles, threads, dependencyJarRoots,
                     ignoredServices, ignoredConfigPaths, enableSonar, sonarRules, maxFileSizeBytes,
-                    timeoutMillis, changedFiles);
+                    timeoutMillis, changedFiles, enableCache);
         }
     }
 }

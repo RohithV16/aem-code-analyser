@@ -19,7 +19,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.util.stream.Stream;
 
 /**
  * AEM-DEAD-005: client library categories that no template or other clientlib references.
@@ -52,30 +51,20 @@ public final class AemDead005Rule implements RuleEvaluator {
         Map<String, Path> firstFileByCategory = new LinkedHashMap<>();
         Set<String> allCategories = new LinkedHashSet<>();
         Set<String> referenced = new LinkedHashSet<>();
-        try (Stream<Path> stream = Files.walk(root)) {
-            stream.filter(Files::isRegularFile)
-                    .filter(path -> isClientlibDefinition(path))
-                    .forEach(path -> {
-                        for (String category : categories(path, CATEGORY_ATTR)) {
-                            firstFileByCategory.putIfAbsent(category, path);
-                            allCategories.add(category);
-                        }
-                        referenced.addAll(categories(path, DEPENDENCY_ATTR));
-                    });
-        } catch (IOException e) {
-            return List.of();
+        for (Path path : context.fileInventory().filesUnder(root, AemDead005Rule::isClientlibDefinition)) {
+            for (String category : categories(path, CATEGORY_ATTR)) {
+                firstFileByCategory.putIfAbsent(category, path);
+                allCategories.add(category);
+            }
+            referenced.addAll(categories(path, DEPENDENCY_ATTR));
         }
         if (allCategories.isEmpty()) {
             return List.of();
         }
 
         // Pass 2: stream templates/component XML one file at a time and mark referenced categories.
-        try (Stream<Path> stream = Files.walk(root)) {
-            stream.filter(Files::isRegularFile)
-                    .filter(AemDead005Rule::isTemplate)
-                    .forEach(path -> markReferences(path, allCategories, referenced));
-        } catch (IOException e) {
-            // keep what was found so far
+        for (Path path : context.fileInventory().filesUnder(root, AemDead005Rule::isTemplate)) {
+            markReferences(path, allCategories, referenced);
         }
 
         List<Violation> violations = new ArrayList<>();
