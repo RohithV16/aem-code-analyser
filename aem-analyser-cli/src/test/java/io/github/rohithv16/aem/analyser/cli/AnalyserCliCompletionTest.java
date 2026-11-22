@@ -8,6 +8,7 @@ import java.nio.file.Path;
 import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -30,6 +31,9 @@ class AnalyserCliCompletionTest {
         assertTrue(run.output().contains("--fail-on"), "the flag surface must be offered");
         assertTrue(run.output().contains("WARNING"), "--fail-on values are completed");
 
+        // The script's content is asserted above on every platform; only the shell that parses it
+        // is platform-specific (windows-latest has no /bin/bash).
+        assumeTrue(Files.isExecutable(Path.of("/bin/bash")), "no /bin/bash on this platform");
         Path script = tempDir.resolve("aem-analyser.bash");
         Files.writeString(script, run.output());
         CliTestSupport.Run syntax = runProcess("/bin/bash", "-n", script.toString());
