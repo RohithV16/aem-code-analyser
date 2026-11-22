@@ -26,6 +26,19 @@ All notable changes to this project are documented here. The format follows
 
 ### Added
 
+- **`-f JSON`** writes `aem-analyser-report.json`, the neutral machine-readable report: a
+  `schemaVersion`, the tool version, per-severity counts, each finding with its stable
+  `fingerprint` and full rule metadata. Consumers that are not GitHub/GitLab/Azure/Sonar no longer
+  have to scrape console text or a SARIF document. Byte-identical across runs over the same tree.
+
+- **`-f TEXT`** writes `aem-analyser.txt` (and echoes it to stdout), one
+  `file:line:col: E AEM-RULE message` line per finding — the shape vim's `:cfile`/`:make`, Emacs
+  `compilation-mode`, VS Code's `$gcc` problem matcher and `grep` already parse.
+
+- **`-f JUNIT`** writes `aem-analyser-junit.xml` so Jenkins, GitLab and Azure DevOps render findings
+  on the test tab: one `<testcase>` per finding, `<failure>` for ERROR/WARNING, `<skipped/>` for
+  INFO.
+
 - **First Maven Central release (1.0.10).** `io.github.rohithv16:aem-code-analyser`,
   `aem-analyser-core` and `aem-analyser-maven-plugin` are published with sources, javadoc and GPG
   signatures, so the plugin needs no repository entry and no token. Verified by resolving both the

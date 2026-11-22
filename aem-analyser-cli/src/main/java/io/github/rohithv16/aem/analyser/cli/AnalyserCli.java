@@ -7,9 +7,12 @@ import io.github.rohithv16.aem.analyser.core.export.ColorSupport;
 import io.github.rohithv16.aem.analyser.core.export.ConsoleReportFormatter;
 import io.github.rohithv16.aem.analyser.core.export.ExportException;
 import io.github.rohithv16.aem.analyser.core.export.HtmlReportExporter;
+import io.github.rohithv16.aem.analyser.core.export.JsonReportExporter;
+import io.github.rohithv16.aem.analyser.core.export.JUnitXmlExporter;
 import io.github.rohithv16.aem.analyser.core.export.ReportFormat;
 import io.github.rohithv16.aem.analyser.core.export.SarifReportExporter;
 import io.github.rohithv16.aem.analyser.core.export.SonarReportExporter;
+import io.github.rohithv16.aem.analyser.core.export.TextReportExporter;
 import io.github.rohithv16.aem.analyser.core.fix.AutoFixEngine;
 import io.github.rohithv16.aem.analyser.core.git.GitDiffResolver;
 import io.github.rohithv16.aem.analyser.core.model.report.AnalysisReport;
@@ -56,7 +59,7 @@ public class AnalyserCli implements java.util.concurrent.Callable<Integer> {
     private Path positionalProjectRoot;
 
     @Option(names = {"-f", "--format"}, split = ",",
-            description = "Output formats (comma-separated): CONSOLE, SARIF, SONAR, HTML, GITHUB, GITLAB, AZURE. "
+            description = "Output formats (comma-separated): CONSOLE, TEXT, JSON, SARIF, SONAR, HTML, GITHUB, GITLAB, AZURE, JUNIT. "
                     + "Default: CONSOLE (the HTML dashboard is also generated unless --no-html).")
     private List<String> formats = List.of("CONSOLE");
 
@@ -539,6 +542,10 @@ public class AnalyserCli implements java.util.concurrent.Callable<Integer> {
         return 0;
     }
 
+    /** Canonical, human-facing list of format names, used by every error message. */
+    static final String SUPPORTED_FORMATS =
+            "CONSOLE, TEXT, JSON, SARIF, SONAR, HTML, GITHUB, GITLAB, AZURE, JUNIT";
+
     List<ReportFormat> parseFormats() {
         List<ReportFormat> parsed = new ArrayList<>();
         for (String format : formats) {
@@ -551,12 +558,12 @@ public class AnalyserCli implements java.util.concurrent.Callable<Integer> {
                 }
             } catch (IllegalArgumentException e) {
                 throw new IllegalArgumentException("Unknown report format '" + format
-                        + "'. Supported formats: CONSOLE, SARIF, SONAR, HTML, GITHUB, GITLAB, AZURE.");
+                        + "'. Supported formats: " + SUPPORTED_FORMATS + ".");
             }
         }
         if (parsed.isEmpty()) {
             throw new IllegalArgumentException("No report format configured. "
-                    + "Supported formats: CONSOLE, SARIF, SONAR, HTML, GITHUB, GITLAB, AZURE.");
+                    + "Supported formats: " + SUPPORTED_FORMATS + ".");
         }
         // --no-html is an explicit escalation: it wins even when HTML was requested via -f HTML.
         if (noHtml) {
@@ -742,6 +749,36 @@ public class AnalyserCli implements java.util.concurrent.Callable<Integer> {
                     stdout.println("SonarQube report written to " + target);
                 }
                 case HTML -> writeHtmlReport(report, history, htmlTarget());
+                case JSON -> {
+                    Path target = outputTarget("aem-analyser-report.json");
+                    try (var writer = Files.newBufferedWriter(target, StandardCharsets.UTF_8)) {
+                        new JsonReportExporter().export(report, writer);
+                    }
+                    stdout.println("JSON report written to " + target);
+                }
+                case TEXT -> {
+                    // The file is what :make / :cfile consume; the same lines go to stdout so a pipe
+                    // or a captured build log works without reading the artefact.
+                    var text = new java.io.StringWriter();
+                    new TextReportExporter().export(report, text);
+                    String content = text.toString();
+                    Path target = outputTarget("aem-analyser.txt");
+                    try (var writer = Files.newBufferedWriter(target, StandardCharsets.UTF_8)) {
+                        writer.write(content);
+                    }
+                    if (!content.isEmpty()) {
+                        stdout.print(content);
+                        stdout.flush();
+                    }
+                    stdout.println("Text report written to " + target);
+                }
+                case JUNIT -> {
+                    Path target = outputTarget("aem-analyser-junit.xml");
+                    try (var writer = Files.newBufferedWriter(target, StandardCharsets.UTF_8)) {
+                        new JUnitXmlExporter().export(report, writer);
+                    }
+                    stdout.println("JUnit XML report written to " + target);
+                }
                 case GITHUB -> {
                     Path target = outputTarget("github-annotations.txt");
                     try (var writer = Files.newBufferedWriter(target, StandardCharsets.UTF_8)) {
@@ -823,7 +860,7 @@ public class AnalyserCli implements java.util.concurrent.Callable<Integer> {
 
     /** Extensions a {@code -o} path may carry to be read as a file rather than a directory. */
     private static final Set<String> REPORT_FILE_EXTENSIONS =
-            Set.of("sarif", "json", "html", "htm", "txt", "log");
+            Set.of("sarif", "json", "html", "htm", "txt", "log", "xml");
 
     /** True when an output path names a file: an existing file, or a known report extension. */
     static boolean looksLikeReportFile(Path path) {
