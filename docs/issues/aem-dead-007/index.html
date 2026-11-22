@@ -1,0 +1,45 @@
+---
+layout: default
+nav: issues
+title: "AEM-DEAD-007 BrokenHtlInclude — HTL data-sly-include target is missing or forms an include cycle."
+description: "AEM-DEAD-007 (WARNING): HTL data-sly-include target is missing or forms an include cycle."
+rule_id: "AEM-DEAD-007"
+rule_family: "DEAD"
+rule_family_title: "Dead code"
+rule_severity: "WARNING"
+rule_tags: "dead-code, htl"
+---
+
+<div class="shell docs">
+  <div class="docs__main">
+    <p class="muted"><a href="../">← All 33 rules</a></p>
+    <div class="issues-head">
+      <h1><span class="rule-card__id">AEM-DEAD-007</span> BrokenHtlInclude</h1>
+      <p class="lede">HTL data-sly-include target is missing or forms an include cycle.</p>
+      <p class="muted"><span class="pill pill--warning">WARNING</span> · 15 min fix · Bug · <a href="../#family-dead">Dead code</a></p>
+    </div>
+
+    <article class="rule-card rule-card--page" id="aem-dead-007" data-family="DEAD">
+        <p class="rule-card__summary">HTL data-sly-include target is missing or forms an include cycle.</p>
+        <h2>Why it matters</h2>
+        <p>Sightly resolves data-sly-include while rendering, so a renamed or mis-pathed include is invisible to the build. It surfaces only as an empty region on one page, long after the template was moved. An include cycle is worse: rendering recurses until the request is aborted.</p>
+        <h2>How to fix it</h2>
+        <p>Correct the include path to an existing template relative to the including file, or break the cycle by factoring the shared markup into a leaf template that both sides include.</p>
+        <div class="examples">
+          <div class="code code--bad">
+            <div class="code__bar"><span class="code__label">html · before</span></div>
+            <pre><code>&lt;!-- components/card/card.html --&gt;
+&lt;sly data-sly-include=&quot;card-details.html&quot;/&gt;
+
+&lt;!-- components/card/details.html (renamed to card-details.html) --&gt;</code></pre>
+          </div>
+          <div class="code code--good">
+            <div class="code__bar"><span class="code__label">html · after</span></div>
+            <pre><code>&lt;sly data-sly-include=&quot;card-details.html&quot;/&gt;</code></pre>
+          </div>
+        </div>
+        <p class="suppress">Suppress one line: <code>// aem-analyser-disable-next-line AEM-DEAD-007</code> · tags dead-code, htl · <code>--explain AEM-DEAD-007</code></p>
+    </article>
+    <p class="muted">Every rule in the catalogue, with what it detects and how to fix it: <a href="../">all 33 rules</a>. Suppress a single line with <code>// aem-analyser-disable-next-line AEM-DEAD-007</code>.</p>
+  </div>
+</div>

@@ -280,7 +280,7 @@ public class CacheWarmer {
 
       <article class="rule-card" id="aem-dead-007" data-family="DEAD" data-search="aem-dead-007 brokenhtlinclude htl data-sly-include target is missing or forms an include cycle. dead-code htl warning correct the include path to an existing template, or break the include cycle. sightly resolves data-sly-include while rendering, so a renamed or mis-pathed include is invisible to the build. it surfaces only as an empty region on one page, long after the template was moved. an include cycle is worse: rendering recurses until the request is aborted. correct the include path to an existing template relative to the including file, or break the cycle by factoring the shared markup into a leaf template that both sides include.">
         <header class="rule-card__head">
-          <h3 class="rule-card__title"><span class="rule-card__id">AEM-DEAD-007</span><a class="rule-card__anchor" href="#aem-dead-007" aria-label="Link to AEM-DEAD-007">#</a><span class="rule-card__name">BrokenHtlInclude</span></h3>
+          <h3 class="rule-card__title"><a class="rule-card__permalink" href="aem-dead-007/" aria-label="Open the AEM-DEAD-007 reference page"><span class="rule-card__id">AEM-DEAD-007</span></a><a class="rule-card__anchor" href="#aem-dead-007" aria-label="Link to AEM-DEAD-007">#</a><span class="rule-card__name">BrokenHtlInclude</span></h3>
           <span class="pill pill--warning">WARNING</span>
           <span class="rule-card__meta">
             <span>15 min fix</span>
@@ -656,7 +656,7 @@ try (ResourceResolver resolver =
 
       <article class="rule-card" id="aem-qual-008" data-family="QUAL" data-search="aem-qual-008 unprovidedmandatoryreference mandatory @reference target is declared by project sources but registered by no component. quality osgi error register a @component service implementation for the target type, or mark the @reference optional if activation must not depend on it. a declarative services component with an unsatisfied mandatory reference never activates. the bundle stays active and the code compiles because the target type is on the classpath, so the failure is invisible until the servlet 404s or the scheduled job never fires. register an implementation with @component(service = target.class), or declare the reference cardinality = referencecardinality.optional when activation must not depend on it. confirm in the felix console that the component is satisfied.">
         <header class="rule-card__head">
-          <h3 class="rule-card__title"><span class="rule-card__id">AEM-QUAL-008</span><a class="rule-card__anchor" href="#aem-qual-008" aria-label="Link to AEM-QUAL-008">#</a><span class="rule-card__name">UnprovidedMandatoryReference</span></h3>
+          <h3 class="rule-card__title"><a class="rule-card__permalink" href="aem-qual-008/" aria-label="Open the AEM-QUAL-008 reference page"><span class="rule-card__id">AEM-QUAL-008</span></a><a class="rule-card__anchor" href="#aem-qual-008" aria-label="Link to AEM-QUAL-008">#</a><span class="rule-card__name">UnprovidedMandatoryReference</span></h3>
           <span class="pill pill--error">ERROR</span>
           <span class="rule-card__meta">
             <span>20 min fix</span>
@@ -1103,7 +1103,7 @@ if (target != null &amp;&amp; target.startsWith(&quot;/content/&quot;) &amp;&amp
 
       <article class="rule-card" id="aem-comp-002" data-family="COMP" data-search="aem-comp-002 missingresourcetypecomponent literal sling:resourcetype or data-sly-resource type names no component under the project&#39;s /apps prefix. quality component error point the reference at an existing component under the project&#39;s /apps prefix, or restore the component that was renamed or moved. content and templates bind to a resource type by string. when the component behind that string is renamed or moved, aem resolves nothing at request time: the page renders blank, and neither javac nor the content-package build notices. point the reference at a component that exists under the project&#39;s /apps/&lt;project&gt;/ prefix, or restore the component directory. search the content package for the old type after a rename so no author content is left behind.">
         <header class="rule-card__head">
-          <h3 class="rule-card__title"><span class="rule-card__id">AEM-COMP-002</span><a class="rule-card__anchor" href="#aem-comp-002" aria-label="Link to AEM-COMP-002">#</a><span class="rule-card__name">MissingResourceTypeComponent</span></h3>
+          <h3 class="rule-card__title"><a class="rule-card__permalink" href="aem-comp-002/" aria-label="Open the AEM-COMP-002 reference page"><span class="rule-card__id">AEM-COMP-002</span></a><a class="rule-card__anchor" href="#aem-comp-002" aria-label="Link to AEM-COMP-002">#</a><span class="rule-card__name">MissingResourceTypeComponent</span></h3>
           <span class="pill pill--error">ERROR</span>
           <span class="rule-card__meta">
             <span>15 min fix</span>

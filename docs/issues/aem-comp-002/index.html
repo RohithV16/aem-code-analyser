@@ -1,0 +1,44 @@
+---
+layout: default
+nav: issues
+title: "AEM-COMP-002 MissingResourceTypeComponent — Literal sling:resourceType or data-sly-resource type names no component …"
+description: "AEM-COMP-002 (ERROR): Literal sling:resourceType or data-sly-resource type names no component under the project's /apps prefix."
+rule_id: "AEM-COMP-002"
+rule_family: "COMP"
+rule_family_title: "Component compatibility"
+rule_severity: "ERROR"
+rule_tags: "quality, component"
+---
+
+<div class="shell docs">
+  <div class="docs__main">
+    <p class="muted"><a href="../">← All 33 rules</a></p>
+    <div class="issues-head">
+      <h1><span class="rule-card__id">AEM-COMP-002</span> MissingResourceTypeComponent</h1>
+      <p class="lede">Literal sling:resourceType or data-sly-resource type names no component under the project&#39;s /apps prefix.</p>
+      <p class="muted"><span class="pill pill--error">ERROR</span> · 15 min fix · Bug · <a href="../#family-comp">Component compatibility</a></p>
+    </div>
+
+    <article class="rule-card rule-card--page" id="aem-comp-002" data-family="COMP">
+        <p class="rule-card__summary">Literal sling:resourceType or data-sly-resource type names no component under the project&#39;s /apps prefix.</p>
+        <h2>Why it matters</h2>
+        <p>Content and templates bind to a resource type by string. When the component behind that string is renamed or moved, AEM resolves nothing at request time: the page renders blank, and neither javac nor the content-package build notices.</p>
+        <h2>How to fix it</h2>
+        <p>Point the reference at a component that exists under the project&#39;s /apps/&lt;project&gt;/ prefix, or restore the component directory. Search the content package for the old type after a rename so no author content is left behind.</p>
+        <div class="examples">
+          <div class="code code--bad">
+            <div class="code__bar"><span class="code__label">xml · before</span></div>
+            <pre><code>&lt;sly data-sly-resource=&quot;${ @ resourceType=&#39;acme/components/elastic/metatagrenderer&#39;}&quot;/&gt;
+
+&lt;!-- no directory at ui.apps/.../apps/acme/components/elastic/metatagrenderer --&gt;</code></pre>
+          </div>
+          <div class="code code--good">
+            <div class="code__bar"><span class="code__label">xml · after</span></div>
+            <pre><code>&lt;sly data-sly-resource=&quot;${ @ resourceType=&#39;acme/components/elasticsearch/metatagrenderer&#39;}&quot;/&gt;</code></pre>
+          </div>
+        </div>
+        <p class="suppress">Suppress one line: <code>// aem-analyser-disable-next-line AEM-COMP-002</code> · tags quality, component · <code>--explain AEM-COMP-002</code></p>
+    </article>
+    <p class="muted">Every rule in the catalogue, with what it detects and how to fix it: <a href="../">all 33 rules</a>. Suppress a single line with <code>// aem-analyser-disable-next-line AEM-COMP-002</code>.</p>
+  </div>
+</div>
