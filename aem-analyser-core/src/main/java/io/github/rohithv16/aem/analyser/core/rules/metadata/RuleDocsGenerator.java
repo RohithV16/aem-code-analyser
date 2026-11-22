@@ -34,27 +34,27 @@ public final class RuleDocsGenerator {
     private static final List<String> FAMILIES =
             List.of("DEAD", "DUP", "QUAL", "PERF", "CLOUD", "SEC", "COMP", "A11Y", "WF");
 
-    private static final Map<String, String> FAMILY_TITLES = Map.of(
-            "DEAD", "Dead code",
-            "DUP", "Duplication",
-            "QUAL", "Quality and Cloud Manager parity",
-            "PERF", "Performance",
-            "CLOUD", "AEM as a Cloud Service",
-            "SEC", "Security",
-            "COMP", "Component compatibility",
-            "A11Y", "Accessibility");
-            register(FAMILIES, "WF", "Workflow integrity");
+    private static final Map<String, String> FAMILY_TITLES = Map.ofEntries(
+            Map.entry("DEAD", "Dead code"),
+            Map.entry("DUP", "Duplication"),
+            Map.entry("QUAL", "Quality and Cloud Manager parity"),
+            Map.entry("PERF", "Performance"),
+            Map.entry("CLOUD", "AEM as a Cloud Service"),
+            Map.entry("SEC", "Security"),
+            Map.entry("COMP", "Component compatibility"),
+            Map.entry("A11Y", "Accessibility"),
+            Map.entry("WF", "Workflow integrity"));
 
-    private static final Map<String, String> FAMILY_BLURBS = Map.of(
-            "DEAD", "Code, configuration and content with no remaining consumer.",
-            "DUP", "Two things claiming the same request, PID, resource type or code block.",
-            "QUAL", "The checks Cloud Manager runs, plus the thread-safety rules it expects you to hold.",
-            "PERF", "Resource lifecycles and repository query cost.",
-            "CLOUD", "Patterns that break on AEM as a Cloud Service, including plaintext secrets.",
-            "SEC", "Output escaping and request-driven redirects.",
-            "COMP", "Deprecated Classic UI component definitions.",
-            "A11Y", "WCAG defects visible in the HTL markup, before a page is rendered.");
-            register(FAMILIES, "WF", "Workflow launchers, models and steps that resolve to nothing.");
+    private static final Map<String, String> FAMILY_BLURBS = Map.ofEntries(
+            Map.entry("DEAD", "Code, configuration and content with no remaining consumer."),
+            Map.entry("DUP", "Two things claiming the same request, PID, resource type or code block."),
+            Map.entry("QUAL", "The checks Cloud Manager runs, plus the thread-safety rules it expects you to hold."),
+            Map.entry("PERF", "Resource lifecycles and repository query cost."),
+            Map.entry("CLOUD", "Patterns that break on AEM as a Cloud Service, including plaintext secrets."),
+            Map.entry("SEC", "Output escaping and request-driven redirects."),
+            Map.entry("COMP", "Deprecated Classic UI component definitions."),
+            Map.entry("A11Y", "WCAG defects visible in the HTL markup, before a page is rendered."),
+            Map.entry("WF", "Workflow launchers, models and steps that resolve to nothing."));
 
     /** Meta descriptions longer than this are truncated on a word boundary; search results cut them. */
     private static final int DESCRIPTION_LIMIT = 158;
@@ -65,6 +65,15 @@ public final class RuleDocsGenerator {
     /** Cloud Manager check ids quoted in a rule's short description, for example "(CQBP-75)". */
     private static final Pattern CLOUD_MANAGER_ID =
             Pattern.compile("\\(([A-Z]{2,}[A-Z0-9-]*[0-9]+|CQBP-ThreadSafety)\\)");
+
+    /** The five ways a rule can be tuned, plus the exit-code contract, all on the reference page. */
+    private static final String[][] TUNING = {
+        {"configuration", "Disable or re-scope it in <code>.aem-analyser.yml</code>"},
+        {"flags", "Fail the build on it with <code>--fail-on</code>"},
+        {"suppression", "Suppress one occurrence inline"},
+        {"baseline", "Accept it in a baseline"},
+        {"exit-codes", "What its severity means for the exit code"},
+    };
 
     private RuleDocsGenerator() {
     }
@@ -103,7 +112,7 @@ public final class RuleDocsGenerator {
             anchors.add(anchor);
             Path pageDir = issues.resolve(anchor);
             Files.createDirectories(pageDir);
-            Files.writeString(pageDir.resolve("index.html"), renderRulePage(rule), StandardCharsets.UTF_8);
+            Files.writeString(pageDir.resolve("index.html"), renderRulePage(rule, rules), StandardCharsets.UTF_8);
         }
         pruneStaleRulePages(issues, anchors);
     }
@@ -199,7 +208,7 @@ public final class RuleDocsGenerator {
             html.append("      <p class=\"muted\">")
                     .append(escape(FAMILY_BLURBS.get(family))).append("</p>\n");
             for (RuleDescriptor rule : inFamily) {
-                renderRuleCard(html, rule, family);
+                renderRuleCard(html, rule, family, rules);
             }
             html.append("    </section>\n");
         }
@@ -239,7 +248,7 @@ public final class RuleDocsGenerator {
      * fix the index shows. Jekyll takes the canonical URL from the file path, so the page answers at
      * {@code /issues/<anchor>/} without a redirect.
      */
-    static String renderRulePage(RuleDescriptor rule) {
+    static String renderRulePage(RuleDescriptor rule, List<RuleDescriptor> rules) {
         RuleFixCatalog.Fix fix = fixFor(rule);
         String family = familyOf(rule.id());
         String familyTitle = FAMILY_TITLES.getOrDefault(family, "AEM Code Analyser rules");
@@ -275,6 +284,7 @@ public final class RuleDocsGenerator {
         html.append("    <article class=\"rule-card rule-card--page\" id=\"").append(anchorFor(rule.id()))
                 .append("\" data-family=\"").append(family).append("\">\n");
         renderRuleBody(html, rule, fix, "h2");
+        renderCrossReferences(html, rule, siblingsOf(rule, rules), "../../", "../", "../");
         html.append("    </article>\n");
 
         html.append("    <p class=\"muted\">Every rule in the catalogue, with what it detects and how to ")
@@ -332,7 +342,8 @@ public final class RuleDocsGenerator {
         };
     }
 
-    private static void renderRuleCard(StringBuilder html, RuleDescriptor rule, String family) {
+    private static void renderRuleCard(StringBuilder html, RuleDescriptor rule, String family,
+                                       List<RuleDescriptor> rules) {
         String cloudManagerId = cloudManagerId(rule.shortDescription());
 
         html.append("\n      <article class=\"rule-card\" id=\"").append(anchorFor(rule.id())).append("\"")
@@ -365,6 +376,8 @@ public final class RuleDocsGenerator {
         html.append("        </header>\n");
 
         renderRuleBody(html, rule, fixFor(rule), "h4");
+
+        renderCrossReferences(html, rule, siblingsOf(rule, rules), "../", "", "");
 
         html.append("      </article>\n");
     }
@@ -416,6 +429,62 @@ public final class RuleDocsGenerator {
             html.append(" · tags ").append(escape(String.join(", ", rule.tags())));
         }
         html.append(" · <code>--explain ").append(escape(rule.id())).append("</code></p>\n");
+    }
+
+    /**
+     * The routes out of a rule entry: the four flags that tune it on the reference page, and its two
+     * nearest neighbours in the same family. A developer who lands here from a CI log has the finding
+     * and the fix; without this row the next step is a site search rather than a link.
+     *
+     * @param tunePrefix    path from this page to the site root ({@code ../} or {@code ../../})
+     * @param siblingPrefix path from this page to a sibling rule directory
+     * @param familyPrefix  path from this page to the issues index, for the family anchor
+     */
+    private static void renderCrossReferences(StringBuilder html, RuleDescriptor rule,
+                                              List<RuleDescriptor> siblings,
+                                              String tunePrefix, String siblingPrefix, String familyPrefix) {
+        html.append("        <div class=\"rule-card__tune\">\n");
+        html.append("          <span class=\"rule-card__tune-label\">Tune this rule</span>\n");
+        for (String[] tuning : TUNING) {
+            html.append("          <a href=\"").append(tunePrefix).append("reference/#")
+                    .append(tuning[0]).append("\">").append(tuning[1]).append("</a>\n");
+        }
+        html.append("        </div>\n");
+
+        if (siblings.isEmpty()) {
+            return;
+        }
+        String family = familyOf(rule.id());
+        html.append("        <p class=\"rule-card__siblings\">Same family:");
+        for (RuleDescriptor sibling : siblings) {
+            html.append(" <a href=\"").append(siblingPrefix).append(anchorFor(sibling.id()))
+                    .append("/\" title=\"").append(escape(sibling.name())).append("\">")
+                    .append(escape(sibling.id())).append("</a>");
+        }
+        html.append(" · <a href=\"").append(familyPrefix).append("#family-")
+                .append(family.toLowerCase(Locale.ROOT)).append("\">all rules in this family</a></p>\n");
+    }
+
+    /**
+     * The two rules a reader most likely meant instead: same family, ordered by id so the choice is
+     * stable across runs. A family with a single rule falls back to the neighbouring ids.
+     */
+    private static List<RuleDescriptor> siblingsOf(RuleDescriptor rule, List<RuleDescriptor> rules) {
+        String family = familyOf(rule.id());
+        List<RuleDescriptor> inFamily = rules.stream()
+                .filter(other -> !other.id().equals(rule.id()))
+                .filter(other -> family.equals(familyOf(other.id())))
+                .sorted(java.util.Comparator.comparing(RuleDescriptor::id))
+                .limit(2)
+                .toList();
+        if (!inFamily.isEmpty()) {
+            return inFamily;
+        }
+        return rules.stream()
+                .filter(other -> !other.id().equals(rule.id()))
+                .sorted(java.util.Comparator.comparing(RuleDescriptor::id))
+                .limit(2)
+                .toList();
     }
 
     private static String severityPill(RuleDescriptor rule) {

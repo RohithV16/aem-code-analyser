@@ -1,0 +1,85 @@
+---
+layout: default
+title: Page not found
+description: This URL no longer exists. The rule reference moved to /issues/ — search it, or follow the forwarding map from the old /rules/ pages.
+sitemap: false
+permalink: /404.html
+---
+
+<div class="shell prose not-found">
+  <p class="eyebrow">404</p>
+  <h1>That page isn’t here — but the rule probably is.</h1>
+  <p class="lede">
+    The rule catalogue moved from one page per rule under <code>/rules/</code> to a single
+    <a href="{{ site.baseurl }}/issues/">issues and fixes</a> page with an anchor per rule. If you
+    followed an old link, it should forward on its own; if not, search for the rule id or the symptom.
+  </p>
+
+  <form class="not-found__search" role="search" method="get" action="{{ site.baseurl }}/issues/">
+    <label class="visually-hidden" for="notFoundQuery">Search the rule catalogue</label>
+    <input type="search" id="notFoundQuery" name="q" placeholder="Rule id, name or symptom — e.g. AEM-DEAD-001" autocomplete="off">
+    <button class="btn btn--primary btn--sm" type="submit">Search rules</button>
+  </form>
+
+  <p class="muted" id="notFoundNote" hidden></p>
+
+  <h2>Browse by family</h2>
+  <ul class="not-found__families">
+    <li><a href="{{ site.baseurl }}/issues/#family-dead">Dead code</a></li>
+    <li><a href="{{ site.baseurl }}/issues/#family-dup">Duplication</a></li>
+    <li><a href="{{ site.baseurl }}/issues/#family-qual">Quality</a></li>
+    <li><a href="{{ site.baseurl }}/issues/#family-perf">Performance</a></li>
+    <li><a href="{{ site.baseurl }}/issues/#family-cloud">Cloud Service</a></li>
+    <li><a href="{{ site.baseurl }}/issues/#family-sec">Security</a></li>
+    <li><a href="{{ site.baseurl }}/issues/#family-comp">Components</a></li>
+  </ul>
+
+  <h2>Or start from a page</h2>
+  <ul class="not-found__pages">
+    <li><a href="{{ site.baseurl }}/">Overview</a></li>
+    <li><a href="{{ site.baseurl }}/getting-started/">Getting started</a></li>
+    <li><a href="{{ site.baseurl }}/reference/">CLI reference</a></li>
+    <li><a href="{{ site.baseurl }}/demo/">Sample report</a></li>
+  </ul>
+</div>
+
+<script>
+  /* Forwards the URL shapes the docs rebuild deleted. The map is generated from the rule pages
+     (_data/redirects.json); the pattern below also covers ids that were never in the map. */
+  (function () {
+    var base = {{ site.baseurl | jsonify }};
+    var map = {{ site.data.redirects | jsonify }};
+    var byPath = {};
+    (map || []).forEach(function (entry) { byPath[entry.from] = entry.to; });
+
+    var path = window.location.pathname;
+    var target = byPath[path] || null;
+
+    if (!target) {
+      var rules = path.match(/^(.*\/)rules\/([^/]+?)(?:\.html|\/)?$/i);
+      if (rules) {
+        var id = rules[2].toLowerCase();
+        target = id && id !== 'index' ? rules[1] + 'issues/#' + id : rules[1] + 'issues/';
+      } else if (/\/rules\/?$/.test(path)) {
+        target = path.replace(/\/rules\/?$/, '/issues/');
+      } else if (path.slice(-1) !== '/' && !/\.[a-z0-9]+$/i.test(path)) {
+        target = path + '/';
+      }
+    }
+
+    if (target && target !== path && target.indexOf(path + '#') !== 0) {
+      try {
+        if (window.sessionStorage.getItem('aem-404') === path) return;
+        window.sessionStorage.setItem('aem-404', path);
+      } catch (e) { /* private mode: forward once, unguarded */ }
+      window.location.replace(target);
+      return;
+    }
+
+    var note = document.getElementById('notFoundNote');
+    if (note) {
+      note.hidden = false;
+      note.textContent = 'Nothing on the site answers at ' + path + '. The rule filter above searches every rule id, name and symptom.';
+    }
+  })();
+</script>

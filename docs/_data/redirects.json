@@ -1,0 +1,282 @@
+[
+ {
+  "from": "/aem-code-analyser/rules/aem-cloud-001/",
+  "to": "/aem-code-analyser/issues/#aem-cloud-001"
+ },
+ {
+  "from": "/aem-code-analyser/rules/AEM-CLOUD-001.html",
+  "to": "/aem-code-analyser/issues/#aem-cloud-001"
+ },
+ {
+  "from": "/aem-code-analyser/rules/aem-cloud-002/",
+  "to": "/aem-code-analyser/issues/#aem-cloud-002"
+ },
+ {
+  "from": "/aem-code-analyser/rules/AEM-CLOUD-002.html",
+  "to": "/aem-code-analyser/issues/#aem-cloud-002"
+ },
+ {
+  "from": "/aem-code-analyser/rules/aem-cloud-003/",
+  "to": "/aem-code-analyser/issues/#aem-cloud-003"
+ },
+ {
+  "from": "/aem-code-analyser/rules/AEM-CLOUD-003.html",
+  "to": "/aem-code-analyser/issues/#aem-cloud-003"
+ },
+ {
+  "from": "/aem-code-analyser/rules/aem-cloud-004/",
+  "to": "/aem-code-analyser/issues/#aem-cloud-004"
+ },
+ {
+  "from": "/aem-code-analyser/rules/AEM-CLOUD-004.html",
+  "to": "/aem-code-analyser/issues/#aem-cloud-004"
+ },
+ {
+  "from": "/aem-code-analyser/rules/aem-cloud-005/",
+  "to": "/aem-code-analyser/issues/#aem-cloud-005"
+ },
+ {
+  "from": "/aem-code-analyser/rules/AEM-CLOUD-005.html",
+  "to": "/aem-code-analyser/issues/#aem-cloud-005"
+ },
+ {
+  "from": "/aem-code-analyser/rules/aem-cloud-006/",
+  "to": "/aem-code-analyser/issues/#aem-cloud-006"
+ },
+ {
+  "from": "/aem-code-analyser/rules/AEM-CLOUD-006.html",
+  "to": "/aem-code-analyser/issues/#aem-cloud-006"
+ },
+ {
+  "from": "/aem-code-analyser/rules/aem-cloud-007/",
+  "to": "/aem-code-analyser/issues/#aem-cloud-007"
+ },
+ {
+  "from": "/aem-code-analyser/rules/AEM-CLOUD-007.html",
+  "to": "/aem-code-analyser/issues/#aem-cloud-007"
+ },
+ {
+  "from": "/aem-code-analyser/rules/aem-comp-001/",
+  "to": "/aem-code-analyser/issues/#aem-comp-001"
+ },
+ {
+  "from": "/aem-code-analyser/rules/AEM-COMP-001.html",
+  "to": "/aem-code-analyser/issues/#aem-comp-001"
+ },
+ {
+  "from": "/aem-code-analyser/rules/aem-comp-002/",
+  "to": "/aem-code-analyser/issues/#aem-comp-002"
+ },
+ {
+  "from": "/aem-code-analyser/rules/AEM-COMP-002.html",
+  "to": "/aem-code-analyser/issues/#aem-comp-002"
+ },
+ {
+  "from": "/aem-code-analyser/rules/aem-dead-001/",
+  "to": "/aem-code-analyser/issues/#aem-dead-001"
+ },
+ {
+  "from": "/aem-code-analyser/rules/AEM-DEAD-001.html",
+  "to": "/aem-code-analyser/issues/#aem-dead-001"
+ },
+ {
+  "from": "/aem-code-analyser/rules/aem-dead-002a/",
+  "to": "/aem-code-analyser/issues/#aem-dead-002a"
+ },
+ {
+  "from": "/aem-code-analyser/rules/AEM-DEAD-002A.html",
+  "to": "/aem-code-analyser/issues/#aem-dead-002a"
+ },
+ {
+  "from": "/aem-code-analyser/rules/aem-dead-002b/",
+  "to": "/aem-code-analyser/issues/#aem-dead-002b"
+ },
+ {
+  "from": "/aem-code-analyser/rules/AEM-DEAD-002B.html",
+  "to": "/aem-code-analyser/issues/#aem-dead-002b"
+ },
+ {
+  "from": "/aem-code-analyser/rules/aem-dead-003a/",
+  "to": "/aem-code-analyser/issues/#aem-dead-003a"
+ },
+ {
+  "from": "/aem-code-analyser/rules/AEM-DEAD-003A.html",
+  "to": "/aem-code-analyser/issues/#aem-dead-003a"
+ },
+ {
+  "from": "/aem-code-analyser/rules/aem-dead-003b/",
+  "to": "/aem-code-analyser/issues/#aem-dead-003b"
+ },
+ {
+  "from": "/aem-code-analyser/rules/AEM-DEAD-003B.html",
+  "to": "/aem-code-analyser/issues/#aem-dead-003b"
+ },
+ {
+  "from": "/aem-code-analyser/rules/aem-dead-003c/",
+  "to": "/aem-code-analyser/issues/#aem-dead-003c"
+ },
+ {
+  "from": "/aem-code-analyser/rules/AEM-DEAD-003C.html",
+  "to": "/aem-code-analyser/issues/#aem-dead-003c"
+ },
+ {
+  "from": "/aem-code-analyser/rules/aem-dead-004/",
+  "to": "/aem-code-analyser/issues/#aem-dead-004"
+ },
+ {
+  "from": "/aem-code-analyser/rules/AEM-DEAD-004.html",
+  "to": "/aem-code-analyser/issues/#aem-dead-004"
+ },
+ {
+  "from": "/aem-code-analyser/rules/aem-dead-005/",
+  "to": "/aem-code-analyser/issues/#aem-dead-005"
+ },
+ {
+  "from": "/aem-code-analyser/rules/AEM-DEAD-005.html",
+  "to": "/aem-code-analyser/issues/#aem-dead-005"
+ },
+ {
+  "from": "/aem-code-analyser/rules/aem-dead-007/",
+  "to": "/aem-code-analyser/issues/#aem-dead-007"
+ },
+ {
+  "from": "/aem-code-analyser/rules/AEM-DEAD-007.html",
+  "to": "/aem-code-analyser/issues/#aem-dead-007"
+ },
+ {
+  "from": "/aem-code-analyser/rules/aem-dup-001/",
+  "to": "/aem-code-analyser/issues/#aem-dup-001"
+ },
+ {
+  "from": "/aem-code-analyser/rules/AEM-DUP-001.html",
+  "to": "/aem-code-analyser/issues/#aem-dup-001"
+ },
+ {
+  "from": "/aem-code-analyser/rules/aem-dup-002/",
+  "to": "/aem-code-analyser/issues/#aem-dup-002"
+ },
+ {
+  "from": "/aem-code-analyser/rules/AEM-DUP-002.html",
+  "to": "/aem-code-analyser/issues/#aem-dup-002"
+ },
+ {
+  "from": "/aem-code-analyser/rules/aem-dup-003/",
+  "to": "/aem-code-analyser/issues/#aem-dup-003"
+ },
+ {
+  "from": "/aem-code-analyser/rules/AEM-DUP-003.html",
+  "to": "/aem-code-analyser/issues/#aem-dup-003"
+ },
+ {
+  "from": "/aem-code-analyser/rules/aem-dup-010/",
+  "to": "/aem-code-analyser/issues/#aem-dup-010"
+ },
+ {
+  "from": "/aem-code-analyser/rules/AEM-DUP-010.html",
+  "to": "/aem-code-analyser/issues/#aem-dup-010"
+ },
+ {
+  "from": "/aem-code-analyser/rules/aem-perf-001/",
+  "to": "/aem-code-analyser/issues/#aem-perf-001"
+ },
+ {
+  "from": "/aem-code-analyser/rules/AEM-PERF-001.html",
+  "to": "/aem-code-analyser/issues/#aem-perf-001"
+ },
+ {
+  "from": "/aem-code-analyser/rules/aem-perf-002/",
+  "to": "/aem-code-analyser/issues/#aem-perf-002"
+ },
+ {
+  "from": "/aem-code-analyser/rules/AEM-PERF-002.html",
+  "to": "/aem-code-analyser/issues/#aem-perf-002"
+ },
+ {
+  "from": "/aem-code-analyser/rules/aem-perf-003/",
+  "to": "/aem-code-analyser/issues/#aem-perf-003"
+ },
+ {
+  "from": "/aem-code-analyser/rules/AEM-PERF-003.html",
+  "to": "/aem-code-analyser/issues/#aem-perf-003"
+ },
+ {
+  "from": "/aem-code-analyser/rules/aem-perf-004/",
+  "to": "/aem-code-analyser/issues/#aem-perf-004"
+ },
+ {
+  "from": "/aem-code-analyser/rules/AEM-PERF-004.html",
+  "to": "/aem-code-analyser/issues/#aem-perf-004"
+ },
+ {
+  "from": "/aem-code-analyser/rules/aem-qual-001/",
+  "to": "/aem-code-analyser/issues/#aem-qual-001"
+ },
+ {
+  "from": "/aem-code-analyser/rules/AEM-QUAL-001.html",
+  "to": "/aem-code-analyser/issues/#aem-qual-001"
+ },
+ {
+  "from": "/aem-code-analyser/rules/aem-qual-002/",
+  "to": "/aem-code-analyser/issues/#aem-qual-002"
+ },
+ {
+  "from": "/aem-code-analyser/rules/AEM-QUAL-002.html",
+  "to": "/aem-code-analyser/issues/#aem-qual-002"
+ },
+ {
+  "from": "/aem-code-analyser/rules/aem-qual-003/",
+  "to": "/aem-code-analyser/issues/#aem-qual-003"
+ },
+ {
+  "from": "/aem-code-analyser/rules/AEM-QUAL-003.html",
+  "to": "/aem-code-analyser/issues/#aem-qual-003"
+ },
+ {
+  "from": "/aem-code-analyser/rules/aem-qual-004/",
+  "to": "/aem-code-analyser/issues/#aem-qual-004"
+ },
+ {
+  "from": "/aem-code-analyser/rules/AEM-QUAL-004.html",
+  "to": "/aem-code-analyser/issues/#aem-qual-004"
+ },
+ {
+  "from": "/aem-code-analyser/rules/aem-qual-005/",
+  "to": "/aem-code-analyser/issues/#aem-qual-005"
+ },
+ {
+  "from": "/aem-code-analyser/rules/AEM-QUAL-005.html",
+  "to": "/aem-code-analyser/issues/#aem-qual-005"
+ },
+ {
+  "from": "/aem-code-analyser/rules/aem-qual-006/",
+  "to": "/aem-code-analyser/issues/#aem-qual-006"
+ },
+ {
+  "from": "/aem-code-analyser/rules/AEM-QUAL-006.html",
+  "to": "/aem-code-analyser/issues/#aem-qual-006"
+ },
+ {
+  "from": "/aem-code-analyser/rules/aem-qual-008/",
+  "to": "/aem-code-analyser/issues/#aem-qual-008"
+ },
+ {
+  "from": "/aem-code-analyser/rules/AEM-QUAL-008.html",
+  "to": "/aem-code-analyser/issues/#aem-qual-008"
+ },
+ {
+  "from": "/aem-code-analyser/rules/aem-sec-001/",
+  "to": "/aem-code-analyser/issues/#aem-sec-001"
+ },
+ {
+  "from": "/aem-code-analyser/rules/AEM-SEC-001.html",
+  "to": "/aem-code-analyser/issues/#aem-sec-001"
+ },
+ {
+  "from": "/aem-code-analyser/rules/aem-sec-002/",
+  "to": "/aem-code-analyser/issues/#aem-sec-002"
+ },
+ {
+  "from": "/aem-code-analyser/rules/AEM-SEC-002.html",
+  "to": "/aem-code-analyser/issues/#aem-sec-002"
+ }
+]

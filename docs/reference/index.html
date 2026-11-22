@@ -95,6 +95,28 @@ description: Every flag, output format, exit code, configuration key and suppres
           </tbody>
         </table>
       </div>
+
+      <h2>Which rules a flag governs</h2>
+      <p>
+        Severity, gates and filters apply to the whole catalogue: <code>--fail-on</code>,
+        <code>--fail-on-warning</code>, <code>--severity</code>, <code>--tag</code> and
+        <code>rules.&lt;ID&gt;.enabled</code> in the config file all read the same rule set, so the
+        same instructions work on every card. Each entry on
+        <a href="{{ site.baseurl }}/issues/">issues and fixes</a> links back to this section, to
+        <a href="#configuration">configuration</a>, <a href="#suppression">suppression</a> and
+        <a href="#baseline">baseline</a>, so the finding and the flag that governs it are one page
+        apart.
+      </p>
+      <p class="muted">
+        Or narrow by area first:
+        <a href="{{ site.baseurl }}/issues/#family-dead">dead code</a> ·
+        <a href="{{ site.baseurl }}/issues/#family-dup">duplication</a> ·
+        <a href="{{ site.baseurl }}/issues/#family-qual">quality</a> ·
+        <a href="{{ site.baseurl }}/issues/#family-perf">performance</a> ·
+        <a href="{{ site.baseurl }}/issues/#family-cloud">Cloud Service</a> ·
+        <a href="{{ site.baseurl }}/issues/#family-sec">security</a> ·
+        <a href="{{ site.baseurl }}/issues/#family-comp">components</a>.
+      </p>
     </section>
 
     <section id="formats">
