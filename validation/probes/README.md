@@ -38,6 +38,7 @@ This tests the probes in the target’s real module layout and Maven profile con
 | Rule | Deliberate probe |
 |---|---|
 | AEM-COMP-001 | `components/classic/dialog.xml` (Classic UI dialog) |
+| AEM-COMP-002 | `components/zzprobe/broken-resource.html` renders `probe/components/doesnotexist` |
 | AEM-DEAD-001 | `config/com.probe.missing.Service.cfg.json` (no component) |
 | AEM-DEAD-002A | `ProbeConfigComponent` config has `ghost` not declared in `ProbeOcd` |
 | AEM-DEAD-002B | `ProbeOcd.unusedProp()` is never consumed |
@@ -46,6 +47,7 @@ This tests the probes in the target’s real module layout and Maven profile con
 | AEM-DEAD-003C | `DelayedComponent` is `immediate=false` with no service |
 | AEM-DEAD-004 | HTL `data-sly-use.missing="com.probe.DoesNotExist"` |
 | AEM-DEAD-005 | clientlib category `probe.orphan` is never referenced |
+| AEM-DEAD-007 | `components/zzprobe/inc/broken.html` includes a missing template |
 | AEM-DUP-001 | two servlets register `/bin/probe` |
 | AEM-DUP-002 | `com.probe.DupPid` in both `.cfg.json` and `.config` |
 | AEM-DUP-003 | two models claim `resourceType="probe/dup"` with the same adapter |
@@ -56,6 +58,7 @@ This tests the probes in the target’s real module layout and Maven profile con
 | AEM-QUAL-004 | component field of type `PageManager` |
 | AEM-QUAL-005 | `getAdministrativeResourceResolver(null)` |
 | AEM-QUAL-006 | component field of type `ResourceResolver` |
+| AEM-QUAL-008 | `UnprovidedReferenceProbe` references a project interface no component registers |
 | AEM-PERF-001 | factory resolver acquired and never closed |
 | AEM-PERF-002 | `repository.login(...)` session never closed |
 | AEM-PERF-003 | `select * from nt:base` without `where` |

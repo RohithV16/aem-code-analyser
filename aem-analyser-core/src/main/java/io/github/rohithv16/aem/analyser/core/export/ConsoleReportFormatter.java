@@ -203,6 +203,7 @@ public final class ConsoleReportFormatter implements ReportExporter {
                 case AEM_PERF_004 -> "Unbounded JCR/Oak Query";
                 case AEM_COMP_002 -> "Resource Type Names No Component";
                 case AEM_QUAL_008 -> "Unsatisfied Mandatory @Reference";
+                case AEM_DEAD_007 -> "Broken HTL Include";
             };
         } catch (IllegalArgumentException e) {
             return ruleId;

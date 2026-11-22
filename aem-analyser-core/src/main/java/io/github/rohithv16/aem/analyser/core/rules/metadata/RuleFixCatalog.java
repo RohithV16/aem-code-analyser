@@ -594,6 +594,22 @@ public final class RuleFixCatalog {
                     public class ResourceResolverProviderImpl implements ResourceResolverProvider {
                         public ResourceResolver obtainResourceResolver() { ... }
                     }""");
+            case AEM_DEAD_007 -> new Fix(
+                    """
+                    Sightly resolves {@code data-sly-include} while rendering, so a renamed or mis-pathed \
+                    include is invisible to the build. It surfaces only as an empty region on one page, long \
+                    after the template was moved. An include cycle is worse: rendering recurses until the \
+                    request is aborted.""",
+                    """
+                    Correct the include path to an existing template relative to the including file, or break \
+                    the cycle by factoring the shared markup into a leaf template that both sides include.""",
+                    "html", """
+                    <!-- components/card/card.html -->
+                    <sly data-sly-include="card-details.html"/>
+
+                    <!-- components/card/details.html (renamed to card-details.html) -->""",
+                    "html", """
+                    <sly data-sly-include="card-details.html"/>""");
         };
     }
 }

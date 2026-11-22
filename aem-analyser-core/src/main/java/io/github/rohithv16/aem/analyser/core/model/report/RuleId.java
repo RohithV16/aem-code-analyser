@@ -99,7 +99,10 @@ public enum RuleId {
             Severity.ERROR),
     AEM_QUAL_008("AEM-QUAL-008", "UnprovidedMandatoryReference",
             "Mandatory @Reference target is declared by project sources but registered by no component.",
-            Severity.ERROR);
+            Severity.ERROR),
+    AEM_DEAD_007("AEM-DEAD-007", "BrokenHtlInclude",
+            "HTL data-sly-include target is missing or forms an include cycle.",
+            Severity.WARNING);
 
     private final String id;
     private final String name;
