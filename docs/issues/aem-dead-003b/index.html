@@ -1,0 +1,45 @@
+---
+layout: default
+nav: issues
+title: "AEM-DEAD-003B UnusedSlingModel — Sling Model has zero Java adaptations and no resourceType binding."
+description: "AEM-DEAD-003B (INFO): Sling Model has zero Java adaptations and no resourceType binding."
+rule_id: "AEM-DEAD-003B"
+rule_family: "DEAD"
+rule_family_title: "Dead code"
+rule_severity: "INFO"
+rule_tags: "dead-code, osgi"
+---
+
+<div class="shell docs">
+  <div class="docs__main">
+    <p class="muted"><a href="../">← All 30 rules</a></p>
+    <div class="issues-head">
+      <h1><span class="rule-card__id">AEM-DEAD-003B</span> UnusedSlingModel</h1>
+      <p class="lede">Sling Model has zero Java adaptations and no resourceType binding.</p>
+      <p class="muted"><span class="pill pill--info">INFO</span> · 5 min fix · Code smell · <a href="../#family-dead">Dead code</a></p>
+    </div>
+
+    <article class="rule-card rule-card--page" id="aem-dead-003b" data-family="DEAD">
+        <p class="rule-card__summary">Sling Model has zero Java adaptations and no resourceType binding.</p>
+        <h2>Why it matters</h2>
+        <p>A Sling Model that no template adapts from and that no resourceType binds is never instantiated. It is often a model that survived the deletion of its component.</p>
+        <h2>How to fix it</h2>
+        <p>Bind it with @Model(resourceType = ...) so the component uses it, adapt it explicitly from HTL with data-sly-use, or delete it.</p>
+        <div class="examples">
+          <div class="code code--bad">
+            <div class="code__bar"><span class="code__label">java · before</span></div>
+            <pre><code>@Model(adaptables = Resource.class)
+public class TeaserModel { }</code></pre>
+          </div>
+          <div class="code code--good">
+            <div class="code__bar"><span class="code__label">java · after</span></div>
+            <pre><code>@Model(adaptables = Resource.class,
+       resourceType = &quot;acme/components/teaser&quot;)
+public class TeaserModel { }</code></pre>
+          </div>
+        </div>
+        <p class="suppress">Suppress one line: <code>// aem-analyser-disable-next-line AEM-DEAD-003B</code> · tags dead-code, osgi · <code>--explain AEM-DEAD-003B</code></p>
+    </article>
+    <p class="muted">Every rule in the catalogue, with what it detects and how to fix it: <a href="../">all 30 rules</a>. Suppress a single line with <code>// aem-analyser-disable-next-line AEM-DEAD-003B</code>.</p>
+  </div>
+</div>

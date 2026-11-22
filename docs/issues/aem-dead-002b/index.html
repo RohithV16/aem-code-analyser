@@ -1,0 +1,50 @@
+---
+layout: default
+nav: issues
+title: "AEM-DEAD-002B UnconsumedOcdProperty — OCD Attribute method is never consumed by designating Java component."
+description: "AEM-DEAD-002B (WARNING): OCD Attribute method is never consumed by designating Java component."
+rule_id: "AEM-DEAD-002B"
+rule_family: "DEAD"
+rule_family_title: "Dead code"
+rule_severity: "WARNING"
+rule_tags: "dead-code, osgi"
+---
+
+<div class="shell docs">
+  <div class="docs__main">
+    <p class="muted"><a href="../">← All 30 rules</a></p>
+    <div class="issues-head">
+      <h1><span class="rule-card__id">AEM-DEAD-002B</span> UnconsumedOcdProperty</h1>
+      <p class="lede">OCD Attribute method is never consumed by designating Java component.</p>
+      <p class="muted"><span class="pill pill--warning">WARNING</span> · 10 min fix · Code smell · <a href="../#family-dead">Dead code</a></p>
+    </div>
+
+    <article class="rule-card rule-card--page" id="aem-dead-002b" data-family="DEAD">
+        <p class="rule-card__summary">OCD Attribute method is never consumed by designating Java component.</p>
+        <h2>Why it matters</h2>
+        <p>An OCD attribute that no code reads is a setting users can change with no effect. It usually survives a refactor that removed the code path but not the interface method.</p>
+        <h2>How to fix it</h2>
+        <p>Inject the configuration and read the attribute, or delete it from the @ObjectClassDefinition so the configuration console stops offering a dead switch.</p>
+        <div class="examples">
+          <div class="code code--bad">
+            <div class="code__bar"><span class="code__label">java · before</span></div>
+            <pre><code>@ObjectClassDefinition(name = &quot;Search Service&quot;)
+public @interface Config {
+
+    // nothing in the bundle calls this
+    int legacyTimeoutSeconds() default 30;
+}</code></pre>
+          </div>
+          <div class="code code--good">
+            <div class="code__bar"><span class="code__label">java · after</span></div>
+            <pre><code>@Activate
+void activate(Config config) {
+    this.timeout = Duration.ofSeconds(config.timeoutSeconds());
+}</code></pre>
+          </div>
+        </div>
+        <p class="suppress">Suppress one line: <code>// aem-analyser-disable-next-line AEM-DEAD-002B</code> · tags dead-code, osgi · <code>--explain AEM-DEAD-002B</code></p>
+    </article>
+    <p class="muted">Every rule in the catalogue, with what it detects and how to fix it: <a href="../">all 30 rules</a>. Suppress a single line with <code>// aem-analyser-disable-next-line AEM-DEAD-002B</code>.</p>
+  </div>
+</div>

@@ -314,6 +314,41 @@ class HtmlReportExporterTest {
     }
 
     @Test
+    void reportHeadCarriesSocialMetadataAndStaysOutOfTheIndex() {
+        Violation error = new Violation("AEM-CLOUD-001", Severity.ERROR, null, "plaintext secret",
+                "ui.config/a.cfg.json", new TextRegion(1, 1, 1, 10), null, null, List.of());
+        AnalysisReport report = new AnalysisReport(Path.of("/workspace/portfolio"), Map.of(),
+                List.of(error, violation("AEM-PERF-001", "unclosed resolver", 2)), 10);
+
+        String html = new HtmlReportExporter(java.time.Clock.systemUTC(), 5000, List.of(),
+                "https://rohithv16.github.io/aem-code-analyser/demo/").generateHtml(report);
+
+        assertTrue(html.contains("<meta name=\"robots\" content=\"noindex\">"), html);
+        assertTrue(html.contains("<meta name=\"description\" content=\"AEM Code Analyser report — 2 findings "
+                + "(1 error, 1 warning) for portfolio.\">"), html);
+        assertTrue(html.contains("<meta property=\"og:title\" content=\"AEM Code Analyser — 2 findings\">"), html);
+        assertTrue(html.contains("<meta property=\"og:description\""), html);
+        assertTrue(html.contains("<meta property=\"og:url\" content=\"https://rohithv16.github.io/"
+                + "aem-code-analyser/demo/\">"), html);
+        assertTrue(html.contains("<link rel=\"canonical\" href=\"https://rohithv16.github.io/"
+                + "aem-code-analyser/demo/\">"), html);
+        assertTrue(html.contains("<meta name=\"twitter:card\" content=\"summary\">"), html);
+    }
+
+    @Test
+    void reportWithoutAPublishedUrlEmitsNoCanonical() {
+        AnalysisReport report = new AnalysisReport(Path.of("/workspace/project"), Map.of(),
+                List.of(violation("AEM-DEAD-001", "message", 1)), 10);
+
+        String html = new HtmlReportExporter(java.time.Clock.systemUTC(), 5000, List.of(), null)
+                .generateHtml(report);
+
+        assertFalse(html.contains("rel=\"canonical\""), "a build artefact has no canonical URL");
+        assertFalse(html.contains("og:url\""), "og:url without a published location would be a 404");
+        assertTrue(html.contains("noindex"), "an unpublished report must still stay out of the index");
+    }
+
+    @Test
     void violationValuesAreEscapedIntoDataAttributes() {
         Violation xss = new Violation("AEM-SEC-001", Severity.ERROR, null,
                 "quote \" and <tag>", "core/<bad>.java",

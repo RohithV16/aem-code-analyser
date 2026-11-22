@@ -1,0 +1,50 @@
+---
+layout: default
+nav: issues
+title: "AEM-PERF-004 UnboundedQuery — JCR/Oak query has no limit and may scan an unbounded result set."
+description: "AEM-PERF-004 (WARNING): JCR/Oak query has no limit and may scan an unbounded result set."
+rule_id: "AEM-PERF-004"
+rule_family: "PERF"
+rule_family_title: "Performance"
+rule_severity: "WARNING"
+rule_tags: "performance, query"
+---
+
+<div class="shell docs">
+  <div class="docs__main">
+    <p class="muted"><a href="../">← All 30 rules</a></p>
+    <div class="issues-head">
+      <h1><span class="rule-card__id">AEM-PERF-004</span> UnboundedQuery</h1>
+      <p class="lede">JCR/Oak query has no limit and may scan an unbounded result set.</p>
+      <p class="muted"><span class="pill pill--warning">WARNING</span> · 20 min fix · Code smell · <a href="../#family-perf">Performance</a></p>
+    </div>
+
+    <article class="rule-card rule-card--page" id="aem-perf-004" data-family="PERF">
+        <p class="rule-card__summary">JCR/Oak query has no limit and may scan an unbounded result set.</p>
+        <h2>Why it matters</h2>
+        <p>An unbounded query result can be enormous on a content repository that grows daily. It is the usual cause of a slow component that only shows up in production.</p>
+        <h2>How to fix it</h2>
+        <p>Bound the result set with p.limit (or LIMIT in JCR-SQL2) and paginate with p.offset. Report the total separately with p.guessTotal rather than materialising every hit.</p>
+        <div class="examples">
+          <div class="code code--bad">
+            <div class="code__bar"><span class="code__label">java · before</span></div>
+            <pre><code>Map&lt;String, String&gt; params = Map.of(
+        &quot;path&quot;, &quot;/content/acme&quot;,
+        &quot;type&quot;, &quot;cq:Page&quot;,
+        &quot;property&quot;, &quot;jcr:content/sling:resourceType&quot;);</code></pre>
+          </div>
+          <div class="code code--good">
+            <div class="code__bar"><span class="code__label">java · after</span></div>
+            <pre><code>Map&lt;String, String&gt; params = new HashMap&lt;&gt;();
+params.put(&quot;path&quot;, &quot;/content/acme&quot;);
+params.put(&quot;type&quot;, &quot;cq:Page&quot;);
+params.put(&quot;p.limit&quot;, &quot;50&quot;);
+params.put(&quot;p.offset&quot;, String.valueOf(page * 50));
+params.put(&quot;p.guessTotal&quot;, &quot;1000&quot;);</code></pre>
+          </div>
+        </div>
+        <p class="suppress">Suppress one line: <code>// aem-analyser-disable-next-line AEM-PERF-004</code> · tags performance, query · <code>--explain AEM-PERF-004</code></p>
+    </article>
+    <p class="muted">Every rule in the catalogue, with what it detects and how to fix it: <a href="../">all 30 rules</a>. Suppress a single line with <code>// aem-analyser-disable-next-line AEM-PERF-004</code>.</p>
+  </div>
+</div>

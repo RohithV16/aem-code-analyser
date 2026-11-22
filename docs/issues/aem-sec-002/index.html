@@ -1,0 +1,48 @@
+---
+layout: default
+nav: issues
+title: "AEM-SEC-002 OpenRedirectOrSsrf — User-controlled input flows into a redirect or outbound HTTP request."
+description: "AEM-SEC-002 (WARNING): User-controlled input flows into a redirect or outbound HTTP request."
+rule_id: "AEM-SEC-002"
+rule_family: "SEC"
+rule_family_title: "Security"
+rule_severity: "WARNING"
+rule_tags: "security, ssrf"
+---
+
+<div class="shell docs">
+  <div class="docs__main">
+    <p class="muted"><a href="../">← All 30 rules</a></p>
+    <div class="issues-head">
+      <h1><span class="rule-card__id">AEM-SEC-002</span> OpenRedirectOrSsrf</h1>
+      <p class="lede">User-controlled input flows into a redirect or outbound HTTP request.</p>
+      <p class="muted"><span class="pill pill--warning">WARNING</span> · 25 min fix · Code smell · <a href="../#family-sec">Security</a></p>
+    </div>
+
+    <article class="rule-card rule-card--page" id="aem-sec-002" data-family="SEC">
+        <p class="rule-card__summary">User-controlled input flows into a redirect or outbound HTTP request.</p>
+        <h2>Why it matters</h2>
+        <p>A request parameter that reaches sendRedirect or an outbound HTTP call lets an attacker choose the destination: an open redirect for phishing, or server-side request forgery against internal services (CWE-601).</p>
+        <h2>How to fix it</h2>
+        <p>Validate the destination against an allowlist of hosts or a fixed set of relative paths before redirecting, and never build an outbound URL from unvalidated input.</p>
+        <div class="examples">
+          <div class="code code--bad">
+            <div class="code__bar"><span class="code__label">java · before</span></div>
+            <pre><code>String target = request.getParameter(&quot;next&quot;);
+response.sendRedirect(target);</code></pre>
+          </div>
+          <div class="code code--good">
+            <div class="code__bar"><span class="code__label">java · after</span></div>
+            <pre><code>String target = request.getParameter(&quot;next&quot;);
+if (target != null &amp;&amp; target.startsWith(&quot;/content/&quot;) &amp;&amp; !target.startsWith(&quot;//&quot;)) {
+    response.sendRedirect(response.encodeRedirectURL(target));
+} else {
+    response.sendRedirect(&quot;/content/acme/en.html&quot;);
+}</code></pre>
+          </div>
+        </div>
+        <p class="suppress">Suppress one line: <code>// aem-analyser-disable-next-line AEM-SEC-002</code> · tags security, ssrf · <code>--explain AEM-SEC-002</code></p>
+    </article>
+    <p class="muted">Every rule in the catalogue, with what it detects and how to fix it: <a href="../">all 30 rules</a>. Suppress a single line with <code>// aem-analyser-disable-next-line AEM-SEC-002</code>.</p>
+  </div>
+</div>

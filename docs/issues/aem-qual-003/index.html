@@ -1,0 +1,50 @@
+---
+layout: default
+nav: issues
+title: "AEM-QUAL-003 SlingSchedulerUsage — Sling whiteboard scheduler used instead of Sling Scheduled Jobs (AMSCORE-554)."
+description: "AEM-QUAL-003 (WARNING): Sling whiteboard scheduler used instead of Sling Scheduled Jobs (AMSCORE-554)."
+rule_id: "AEM-QUAL-003"
+rule_family: "QUAL"
+rule_family_title: "Quality and Cloud Manager parity"
+rule_severity: "WARNING"
+rule_tags: "quality, aem-cloud"
+---
+
+<div class="shell docs">
+  <div class="docs__main">
+    <p class="muted"><a href="../">← All 30 rules</a></p>
+    <div class="issues-head">
+      <h1><span class="rule-card__id">AEM-QUAL-003</span> SlingSchedulerUsage</h1>
+      <p class="lede">Sling whiteboard scheduler used instead of Sling Scheduled Jobs (AMSCORE-554).</p>
+      <p class="muted"><span class="pill pill--warning">WARNING</span> · 20 min fix · Security hotspot · <a href="../#family-qual">Quality and Cloud Manager parity</a></p>
+    </div>
+
+    <article class="rule-card rule-card--page" id="aem-qual-003" data-family="QUAL">
+        <p class="rule-card__summary">Sling whiteboard scheduler used instead of Sling Scheduled Jobs (AMSCORE-554).</p>
+        <h2>Why it matters</h2>
+        <p>AMSCORE-554 flags the Sling whiteboard scheduler. AEM as a Cloud Service expects Sling Scheduled Jobs, which are cluster-aware: a job runs once across the publish tier instead of once per instance, and it survives a restart.</p>
+        <h2>How to fix it</h2>
+        <p>Implement a JobConsumer for the topic and schedule the run through the Sling Job API instead of Scheduler.addJob.</p>
+        <div class="examples">
+          <div class="code code--bad">
+            <div class="code__bar"><span class="code__label">java · before</span></div>
+            <pre><code>scheduler.add(new ImportJob(), options);</code></pre>
+          </div>
+          <div class="code code--good">
+            <div class="code__bar"><span class="code__label">java · after</span></div>
+            <pre><code>@Component(service = JobConsumer.class, immediate = true,
+           property = JobConsumer.PROPERTY_TOPICS + &quot;=acme/import&quot;)
+public class ImportJobConsumer implements JobConsumer {
+
+    @Override
+    public JobResult process(Job job) {
+        return JobResult.OK;
+    }
+}</code></pre>
+          </div>
+        </div>
+        <p class="suppress">Suppress one line: <code>// aem-analyser-disable-next-line AEM-QUAL-003</code> · tags quality, aem-cloud · <code>--explain AEM-QUAL-003</code></p>
+    </article>
+    <p class="muted">Every rule in the catalogue, with what it detects and how to fix it: <a href="../">all 30 rules</a>. Suppress a single line with <code>// aem-analyser-disable-next-line AEM-QUAL-003</code>.</p>
+  </div>
+</div>

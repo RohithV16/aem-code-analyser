@@ -1,0 +1,164 @@
+{%- comment -%}
+  Machine-readable description of every page, emitted as JSON-LD.
+
+  The repository is the one identity these documents all point at, so it is read from the site
+  config instead of being retyped, and the version comes from docs/_data/version.yml — the same value
+  the header prints — so the structured data cannot claim a release the site does not advertise.
+  Every value goes through `jsonify`, which quotes and escapes it; never concatenate a string into
+  JSON here, or a rule description containing a quote invalidates the whole block.
+{%- endcomment -%}
+{%- assign sd_root = site.url | append: site.baseurl -%}
+{%- assign sd_page_url = sd_root | append: page.url -%}
+{%- assign sd_repository = "https://github.com/" | append: site.repository -%}
+{%- capture sd_description -%}{{ site.description | strip_newlines | strip }}{%- endcapture -%}
+{%- assign sd_section_name = "" -%}
+{%- assign sd_section_url = "" -%}
+{%- case page.nav -%}
+  {%- when "issues" -%}
+    {%- assign sd_section_name = "Issues and fixes" -%}
+    {%- assign sd_section_url = "/issues/" -%}
+  {%- when "start" -%}
+    {%- assign sd_section_name = "Getting started" -%}
+    {%- assign sd_section_url = "/getting-started/" -%}
+  {%- when "reference" -%}
+    {%- assign sd_section_name = "Reference" -%}
+    {%- assign sd_section_url = "/reference/" -%}
+  {%- when "maintainers" -%}
+    {%- assign sd_section_name = "Maintainers" -%}
+    {%- assign sd_section_url = "/maintainers/" -%}
+{%- endcase -%}
+{%- if page.url == "/" -%}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": {{ site.title | jsonify }},
+  "description": {{ sd_description | jsonify }},
+  "applicationCategory": "DeveloperApplication",
+  "applicationSubCategory": "Static code analysis",
+  "operatingSystem": "Java 21",
+  "programmingLanguage": "Java",
+  "softwareVersion": {{ site.data.version.current | jsonify }},
+  "url": {{ sd_root | append: "/" | jsonify }},
+  "downloadUrl": {{ sd_repository | append: "/releases/latest" | jsonify }},
+  "codeRepository": {{ sd_repository | jsonify }},
+  "license": {{ sd_repository | append: "/blob/main/LICENSE" | jsonify }},
+  "softwareHelp": {{ sd_root | append: "/issues/" | jsonify }},
+  "sameAs": [{{ sd_repository | jsonify }}],
+  "isAccessibleForFree": true,
+  "offers": {
+    "@type": "Offer",
+    "price": "0",
+    "priceCurrency": "USD",
+    "availability": "https://schema.org/InStock"
+  },
+  "author": {
+    "@type": "Organization",
+    "name": {{ site.title | jsonify }},
+    "url": {{ sd_root | append: "/" | jsonify }}
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": {{ site.title | jsonify }},
+    "url": {{ sd_root | append: "/" | jsonify }}
+  }
+}
+</script>
+{%- else -%}
+{%- if page.rule_id -%}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "TechArticle",
+  "headline": {{ page.title | jsonify }},
+  "name": {{ page.title | jsonify }},
+  "description": {{ page.description | jsonify }},
+  "identifier": {{ page.rule_id | jsonify }},
+  "articleSection": {{ page.rule_family_title | jsonify }},
+  "keywords": {{ page.rule_tags | jsonify }},
+  "inLanguage": {{ site.lang | default: "en" | jsonify }},
+  "url": {{ sd_page_url | jsonify }},
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": {{ sd_page_url | jsonify }}
+  },
+  "isPartOf": {
+    "@type": "WebSite",
+    "name": {{ site.title | jsonify }},
+    "url": {{ sd_root | append: "/" | jsonify }}
+  },
+  "about": {
+    "@type": "SoftwareApplication",
+    "name": {{ site.title | jsonify }},
+    "url": {{ sd_root | append: "/" | jsonify }}
+  },
+  "author": {
+    "@type": "Organization",
+    "name": {{ site.title | jsonify }},
+    "url": {{ sd_root | append: "/" | jsonify }}
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": {{ site.title | jsonify }},
+    "url": {{ sd_root | append: "/" | jsonify }}
+  }
+}
+</script>
+{%- endif -%}
+{%- comment -%}
+  The breadcrumb items are assembled before the JSON block so the block itself stays a valid JSON
+  document with one value slot — a comma emitted by an `if` inside the array would make the
+  unrendered template unparseable and hide a broken separator until a Jekyll build.
+{%- endcomment -%}
+{%- capture sd_crumbs -%}
+    {
+      "@type": "ListItem",
+      "position": 1,
+      "name": "Home",
+      "item": {{ sd_root | append: "/" | jsonify }}
+    }
+{%- endcapture -%}
+{%- assign sd_position = 1 -%}
+{%- if sd_section_name != "" -%}
+  {%- assign sd_position = 2 -%}
+  {%- capture sd_crumb -%},
+    {
+      "@type": "ListItem",
+      "position": 2,
+      "name": {{ sd_section_name | jsonify }},
+      "item": {{ sd_root | append: sd_section_url | jsonify }}
+    }
+  {%- endcapture -%}
+  {%- assign sd_crumbs = sd_crumbs | append: sd_crumb -%}
+{%- endif -%}
+{%- if page.rule_id -%}
+  {%- assign sd_position = sd_position | plus: 1 -%}
+  {%- capture sd_crumb -%},
+    {
+      "@type": "ListItem",
+      "position": {{ sd_position }},
+      "name": {{ page.rule_id | jsonify }},
+      "item": {{ sd_page_url | jsonify }}
+    }
+  {%- endcapture -%}
+  {%- assign sd_crumbs = sd_crumbs | append: sd_crumb -%}
+{%- elsif sd_section_name == "" -%}
+  {%- assign sd_position = 2 -%}
+  {%- capture sd_crumb -%},
+    {
+      "@type": "ListItem",
+      "position": 2,
+      "name": {{ page.title | default: site.title | jsonify }},
+      "item": {{ sd_page_url | jsonify }}
+    }
+  {%- endcapture -%}
+  {%- assign sd_crumbs = sd_crumbs | append: sd_crumb -%}
+{%- endif -%}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [{{ sd_crumbs }}]
+}
+</script>
+{%- endif -%}

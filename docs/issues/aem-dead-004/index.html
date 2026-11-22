@@ -1,0 +1,42 @@
+---
+layout: default
+nav: issues
+title: "AEM-DEAD-004 BrokenHtlReference — HTL template references non-existent Java class or Sling Model."
+description: "AEM-DEAD-004 (ERROR): HTL template references non-existent Java class or Sling Model."
+rule_id: "AEM-DEAD-004"
+rule_family: "DEAD"
+rule_family_title: "Dead code"
+rule_severity: "ERROR"
+rule_tags: "dead-code, htl"
+---
+
+<div class="shell docs">
+  <div class="docs__main">
+    <p class="muted"><a href="../">← All 30 rules</a></p>
+    <div class="issues-head">
+      <h1><span class="rule-card__id">AEM-DEAD-004</span> BrokenHtlReference</h1>
+      <p class="lede">HTL template references non-existent Java class or Sling Model.</p>
+      <p class="muted"><span class="pill pill--error">ERROR</span> · 15 min fix · Bug · <a href="../#family-dead">Dead code</a></p>
+    </div>
+
+    <article class="rule-card rule-card--page" id="aem-dead-004" data-family="DEAD">
+        <p class="rule-card__summary">HTL template references non-existent Java class or Sling Model.</p>
+        <h2>Why it matters</h2>
+        <p>An HTL expression that names a class which does not exist fails at render time, not at build time, so the page breaks in the author or publish instance rather than in CI. It is usually a package move or a rename that missed the template.</p>
+        <h2>How to fix it</h2>
+        <p>Point data-sly-use at the current fully qualified class name, and confirm the class lives in a bundle the template&#39;s package can see.</p>
+        <div class="examples">
+          <div class="code code--bad">
+            <div class="code__bar"><span class="code__label">html · before</span></div>
+            <pre><code>&lt;sly data-sly-use.model=&quot;com.acme.core.models.OldHeroModel&quot;/&gt;</code></pre>
+          </div>
+          <div class="code code--good">
+            <div class="code__bar"><span class="code__label">html · after</span></div>
+            <pre><code>&lt;sly data-sly-use.model=&quot;com.acme.core.models.HeroModel&quot;/&gt;</code></pre>
+          </div>
+        </div>
+        <p class="suppress">Suppress one line: <code>&lt;!-- aem-analyser-disable-next-line AEM-DEAD-004 --&gt;</code> · tags dead-code, htl · <code>--explain AEM-DEAD-004</code></p>
+    </article>
+    <p class="muted">Every rule in the catalogue, with what it detects and how to fix it: <a href="../">all 30 rules</a>. Suppress a single line with <code>&lt;!-- aem-analyser-disable-next-line AEM-DEAD-004 --&gt;</code>.</p>
+  </div>
+</div>

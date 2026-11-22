@@ -50,6 +50,9 @@ public final class HtmlReportExporter implements ReportExporter {
     /** True for a reproducible run: the timestamp comes from a fixed clock and the duration is dropped. */
     private final boolean omitDuration;
 
+    /** Canonical URL of the published report, or null when the caller did not supply one. */
+    private final String siteUrl;
+
     public HtmlReportExporter() {
         this(java.time.Clock.systemDefaultZone(), 5000, List.of(), false);
     }
@@ -63,7 +66,7 @@ public final class HtmlReportExporter implements ReportExporter {
     }
 
     public HtmlReportExporter(java.time.Clock clock, int maxViolations, List<RunSummary> history) {
-        this(clock, maxViolations, history, false);
+        this(clock, maxViolations, history, false, configuredSiteUrl());
     }
 
     /**
@@ -73,10 +76,55 @@ public final class HtmlReportExporter implements ReportExporter {
      */
     public HtmlReportExporter(java.time.Clock clock, int maxViolations, List<RunSummary> history,
                               boolean omitDuration) {
+        this(clock, maxViolations, history, omitDuration, configuredSiteUrl());
+    }
+
+    /**
+     * @param siteUrl absolute URL the report will be published at, for the canonical link; null when
+     *                the report has no public home, in which case only {@code noindex} is emitted
+     */
+    public HtmlReportExporter(java.time.Clock clock, int maxViolations, List<RunSummary> history,
+                              String siteUrl) {
+        this(clock, maxViolations, history, false, siteUrl);
+    }
+
+    /**
+     * Canonical constructor: a reproducible run ({@code --report-epoch}) and a published location
+     * ({@code -Daem.analyser.siteUrl}) are independent, so both are settable at once.
+     */
+    public HtmlReportExporter(java.time.Clock clock, int maxViolations, List<RunSummary> history,
+                              boolean omitDuration, String siteUrl) {
         this.clock = clock == null ? java.time.Clock.systemDefaultZone() : clock;
         this.maxViolations = Math.max(1, maxViolations);
         this.history = List.copyOf(history == null ? List.of() : history);
         this.omitDuration = omitDuration;
+        this.siteUrl = normaliseSiteUrl(siteUrl);
+    }
+
+    /**
+     * The published location of the report, when a build knows it. A report is normally a build
+     * artefact with no URL, so the default is "none" and only {@code noindex} is emitted; a pipeline
+     * that does publish one (the project's own demo page) sets
+     * {@code -Daem.analyser.siteUrl=https://host/path/}.
+     */
+    private static String configuredSiteUrl() {
+        String value = System.getProperty("aem.analyser.siteUrl");
+        if (value == null || value.isBlank()) {
+            value = System.getenv("AEM_ANALYSER_SITE_URL");
+        }
+        return value;
+    }
+
+    /** Only an absolute http(s) URL can be a canonical, and a trailing slash is part of the URL. */
+    private static String normaliseSiteUrl(String value) {
+        if (value == null) {
+            return null;
+        }
+        String trimmed = value.trim();
+        if (!trimmed.startsWith("http://") && !trimmed.startsWith("https://")) {
+            return null;
+        }
+        return trimmed;
     }
 
     @Override
@@ -152,8 +200,26 @@ public final class HtmlReportExporter implements ReportExporter {
         sb.append("<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n");
         sb.append("<meta name=\"generator\" content=\"AEM Code Analyser v")
                 .append(escape(VersionInfo.current())).append("\">\n");
-        sb.append("<title>AEM Code Analyser — ").append(totalViolations)
-                .append(totalViolations == 1 ? " finding" : " findings").append("</title>\n");
+        String title = "AEM Code Analyser — " + totalViolations
+                + (totalViolations == 1 ? " finding" : " findings");
+        String description = metaDescription(report, totalViolations, errors, warnings, infos);
+        sb.append("<title>").append(escape(title)).append("</title>\n");
+        // The report is an artefact people forward into tickets, PR comments and wikis. A preview
+        // with a title and a description is the difference between a useful unfurl and a bare link,
+        // and noindex keeps a copy pasted onto a Pages site out of the search index as thin content.
+        sb.append("<meta name=\"robots\" content=\"noindex\">\n");
+        sb.append("<meta name=\"description\" content=\"").append(escape(description)).append("\">\n");
+        sb.append("<meta property=\"og:type\" content=\"website\">\n");
+        sb.append("<meta property=\"og:site_name\" content=\"AEM Code Analyser\">\n");
+        sb.append("<meta property=\"og:title\" content=\"").append(escape(title)).append("\">\n");
+        sb.append("<meta property=\"og:description\" content=\"").append(escape(description)).append("\">\n");
+        sb.append("<meta name=\"twitter:card\" content=\"summary\">\n");
+        sb.append("<meta name=\"twitter:title\" content=\"").append(escape(title)).append("\">\n");
+        sb.append("<meta name=\"twitter:description\" content=\"").append(escape(description)).append("\">\n");
+        if (siteUrl != null) {
+            sb.append("<link rel=\"canonical\" href=\"").append(escape(siteUrl)).append("\">\n");
+            sb.append("<meta property=\"og:url\" content=\"").append(escape(siteUrl)).append("\">\n");
+        }
         sb.append("<script>(function(){try{var t=localStorage.getItem('aem-analyser-theme')"
                 + "||(window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches"
                 + "?'dark':'light');document.documentElement.setAttribute('data-theme',t);"
@@ -802,6 +868,44 @@ public final class HtmlReportExporter implements ReportExporter {
 
     private long countBySeverity(List<Violation> violations, Severity severity) {
         return violations.stream().filter(violation -> violation.severity() == severity).count();
+    }
+
+    /**
+     * One sentence for the meta description and the link previews: what was scanned and what it
+     * found. Empty severity buckets are left out, so a warnings-only report never reads "0 errors".
+     */
+    static String metaDescription(AnalysisReport report, long total, long errors, long warnings, long infos) {
+        StringBuilder text = new StringBuilder("AEM Code Analyser report — ");
+        if (total == 0) {
+            text.append("no findings");
+        } else {
+            List<String> parts = new ArrayList<>();
+            if (errors > 0) {
+                parts.add(errors + (errors == 1 ? " error" : " errors"));
+            }
+            if (warnings > 0) {
+                parts.add(warnings + (warnings == 1 ? " warning" : " warnings"));
+            }
+            if (infos > 0) {
+                parts.add(infos + (infos == 1 ? " info" : " infos"));
+            }
+            text.append(total).append(total == 1 ? " finding" : " findings")
+                    .append(" (").append(String.join(", ", parts)).append(')');
+        }
+        String project = projectName(report);
+        if (!project.isEmpty()) {
+            text.append(" for ").append(project);
+        }
+        return text.append('.').toString();
+    }
+
+    /** The last path element, not the absolute path: a report must not leak the machine it ran on. */
+    private static String projectName(AnalysisReport report) {
+        Path root = report.projectRoot();
+        if (root == null || root.getFileName() == null) {
+            return "";
+        }
+        return root.getFileName().toString();
     }
 
     /** Maps a rule id to the family used by the dashboard's filter chips. */
