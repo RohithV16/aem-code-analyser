@@ -1985,6 +1985,44 @@ th .mono {
   margin-bottom: 0.7rem;
 }
 
+/* ------------------------------------------------------------ verify steps */
+.verify-steps {
+  counter-reset: verify-step;
+  list-style: none;
+  padding: 0;
+  margin: 1.6rem 0 2rem;
+}
+
+.verify-steps > li {
+  position: relative;
+  padding-left: 2.6rem;
+  margin-bottom: 2.4rem;
+}
+
+.verify-steps > li::before {
+  counter-increment: verify-step;
+  content: counter(verify-step);
+  position: absolute;
+  left: 0;
+  top: 0.1rem;
+  display: grid;
+  place-items: center;
+  width: 1.8rem;
+  height: 1.8rem;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.verify-steps h2 {
+  border-top: 0;
+  padding-top: 0;
+  margin-top: 0;
+}
+
 /* -------------------------------------------------------------- utilities */
 
 .not-found {

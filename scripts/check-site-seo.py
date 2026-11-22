@@ -302,6 +302,32 @@ def check_compare(pages: list[dict[str, str]]) -> None:
     assert "/compare/" in home, "the home page must link /compare/"
 
 
+def check_verify(pages: list[dict[str, str]]) -> None:
+    """The reproduction page must quote output the shipped jar actually prints, and be reachable."""
+    page = next((page for page in pages if page["url"] == "/verify/"), None)
+    assert page, "docs/verify/index.html is missing"
+    assert page.get("sitemap") != "false", "/verify/ must be indexable"
+    html = Path(str(page["path"])).read_text(encoding="utf-8")
+    assert html.count("<pre>") >= 3, "/verify/ needs the download, run and expected-output blocks"
+    assert "sha256sum -c SHA256SUMS.txt" in html, "/verify/ must check the published checksums"
+    assert "Total Violations: 10 (4 Errors, 5 Warnings, 1 Info)" in html, \
+        "/verify/ must quote the fixture's real console total"
+    assert "GATE FAILED" in html, "/verify/ must state the expected verdict"
+    assert "validation/reactor" in html, "/verify/ must name the fixture it runs"
+
+    home = (DOCS / "index.html").read_text(encoding="utf-8")
+    assert "/verify/" in home, "the home page must link /verify/"
+    footer = (DOCS / "_includes/site-footer.html").read_text(encoding="utf-8")
+    assert "/verify/" in footer, "the footer's Documentation column must link /verify/"
+
+    demo = (DOCS / "demo/index.html").read_text(encoding="utf-8")
+    assert "demo-fixture-note" in demo, "the sample report must say it is a fixture"
+    assert "not a client project" in demo, "the sample report must disown client-project status"
+    assert "../verify/" in demo, "the sample report must link to the reproduction page"
+    demo_script = (Path(__file__).resolve().parent / "build-demo-report.sh").read_text(encoding="utf-8")
+    assert "demo-fixture-note" in demo_script, "regenerating the demo must re-add the banner"
+
+
 def main() -> int:
     config = site_config()
     pages = published_pages()
@@ -312,6 +338,7 @@ def main() -> int:
     redirects = check_404_and_redirects(pages)
     check_cross_references(pages, rule_pages)
     check_compare(pages)
+    check_verify(pages)
 
     base = config["url"] + config["baseurl"]
     indexable = [p for p in pages if p.get("sitemap") != "false"]

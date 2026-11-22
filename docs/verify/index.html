@@ -1,0 +1,148 @@
+---
+layout: default
+nav: verify
+title: "Verify it yourself in two minutes"
+description: "Download the released jar, check its SHA-256 against the release's SHA256SUMS.txt, and reproduce the exact console report this site publishes — no AEM instance, no credentials, no network after the download."
+---
+
+<div class="shell prose">
+
+  <p class="eyebrow">Two minutes · three commands</p>
+  <h1>Verify it yourself in two minutes</h1>
+  <p class="lede">
+    You do not have to take the site’s word for what the analyser finds. Download the released jar,
+    check the checksum the release publishes, and run it against a fixture that ships in the
+    repository. The console output below is what this build prints today — if yours differs, the
+    last section says why.
+  </p>
+
+  <ol class="verify-steps">
+
+    <li>
+      <h2>Download it and check the checksum</h2>
+      <p>
+        Every release publishes <code>SHA256SUMS.txt</code> next to the jar. Verify before you run —
+        the point of a checksum is that you do not have to trust the download.
+      </p>
+      <div class="code code--shell">
+        <div class="code__bar"><span class="code__label">bash · linux</span></div>
+<pre><code>HOST=https://github.com/RohithV16/aem-code-analyser
+curl -LO "$HOST/releases/latest/download/aem-analyser-cli.jar"
+curl -LO "$HOST/releases/latest/download/SHA256SUMS.txt"
+sha256sum -c SHA256SUMS.txt</code></pre>
+      </div>
+      <div class="code code--shell">
+        <div class="code__bar"><span class="code__label">bash · macOS (no sha256sum)</span></div>
+<pre><code>shasum -a 256 -c SHA256SUMS.txt</code></pre>
+      </div>
+      <p class="muted">
+        Both print <code>aem-analyser-cli.jar: OK</code>. Anything else — a missing file, a
+        <code>FAILED</code> line — means the download did not match the release; stop there.
+      </p>
+    </li>
+
+    <li>
+      <h2>Run it against the fixture</h2>
+      <p>
+        <code>validation/reactor</code> is a small Maven reactor committed to the repository
+        specifically to be analysed: four modules, one duplicated servlet path, two orphaned OSGi
+        configurations and a handful of parity findings. Nothing else is needed — no AEM instance, no
+        credentials, no network.
+      </p>
+      <div class="code code--shell">
+        <div class="code__bar"><span class="code__label">bash</span></div>
+<pre><code>git clone https://github.com/RohithV16/aem-code-analyser
+cd aem-code-analyser
+java -jar ~/aem-analyser-cli.jar validation/reactor --no-html --no-color</code></pre>
+      </div>
+      <p class="muted">
+        <code>--no-html</code> keeps the run read-only — it prints the report instead of also writing
+        a dashboard. Drop it to get <code>target/aem-analyser/aem-analyser-report.html</code>.
+      </p>
+    </li>
+
+    <li>
+      <h2>Compare the console output</h2>
+      <p>The run must start and end with this, and exit <code>1</code> — the fixture has errors:</p>
+      <div class="code">
+        <div class="code__bar"><span class="code__label">console output · head</span></div>
+<pre><code>================================================================================
+ AEM CODE ANALYSER — GATE FAILED
+ 4 error-severity findings detected.
+ Total Violations: 10 (4 Errors, 5 Warnings, 1 Info) · 0.7 s · 4 modules
+ Hotspots: bundle/src/main/java/com/acme/servlet/ThreeServlet.java (2)  bundle/src/main/java/com/acme/servlet/TwoServlet.java (2)  bundle/src/main/java/com/acme/servlet/OneServlet.java (1)
+ Project Root: /path/to/aem-code-analyser/validation/reactor
+================================================================================</code></pre>
+      </div>
+      <div class="code">
+        <div class="code__bar"><span class="code__label">console output · tail</span></div>
+<pre><code>--------------------------------------------------------------------------------
+GATE FAILED: 4 error-severity findings detected.
+================================================================================</code></pre>
+      </div>
+      <p class="muted">
+        The duration and the project root are machine-specific; the counts, the verdict and the
+        hotspot order are not. Ten findings, four of them errors, exit code 1.
+      </p>
+    </li>
+  </ol>
+
+  <h2>The fixture versus a real project</h2>
+  <p>
+    Ten findings is a fixture, not a benchmark. The reference project this site was built against is
+    a production AEM reactor that produced <strong>36 findings — 7 errors, 28 warnings, 1 info</strong>
+    — and therefore also exited 1. That is the difference the tool is for: the fixture proves the
+    install works, a real reactor is where the cross-module findings appear.
+  </p>
+  <div class="table-wrap">
+    <table class="table--compact">
+      <thead>
+        <tr><th scope="col">Run</th><th scope="col">Findings</th><th scope="col">Exit</th><th scope="col">What it proves</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Released jar checksum</td>
+          <td>—</td>
+          <td><code>0</code></td>
+          <td>The artifact is the one the release published.</td>
+        </tr>
+        <tr>
+          <td><code>validation/reactor</code></td>
+          <td>10 (4 errors, 5 warnings, 1 info)</td>
+          <td><code>1</code></td>
+          <td>The analyser runs on this machine and finds what the site says it finds.</td>
+        </tr>
+        <tr>
+          <td>A real AEM reactor</td>
+          <td>Yours — 36 on the reference project</td>
+          <td><code>0</code> or <code>1</code></td>
+          <td>Cross-module findings on code you own.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="muted">
+    The <a href="{{ site.baseurl }}/demo/">sample report</a> is the same 10-finding
+    <code>validation/reactor</code> fixture, not a customer project; it is there to show the dashboard,
+    not to claim a result.
+  </p>
+
+  <h2>If your numbers differ</h2>
+  <ul>
+    <li><strong>Different JDK.</strong> The jar targets Java 21. A newer JDK is fine; a JRE older than
+      21 fails to start, and the error names the version.</li>
+    <li><strong>A different checkout.</strong> The fixture counts depend on the files present — a
+      filtered clone, a dirty working tree or a missing submodule changes the totals. Use a clean
+      clone of the tag you downloaded.</li>
+    <li><strong>A different release.</strong> Rules are added between releases. The counts above are
+      from the current release; <code>--list-rules</code> prints the catalogue your jar actually
+      carries, and <code>--version</code> prints the version.</li>
+  </ul>
+
+  <p class="mt-3">
+    <a class="btn btn--primary" href="{{ site.baseurl }}/getting-started/">Full setup guide</a>
+    <a class="btn" href="{{ site.baseurl }}/demo/">Open the sample report</a>
+    <a class="btn btn--ghost" href="{{ site.baseurl }}/compare/">How it compares →</a>
+  </p>
+
+</div>

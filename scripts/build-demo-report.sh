@@ -86,6 +86,29 @@ if grep -q "$ROOT" "$generated"; then
 fi
 
 mkdir -p "$ROOT/docs/demo"
+
+# A reader must not mistake the sample for a client project. The banner is inline-styled because the
+# report is a self-contained file, and it is idempotent so re-running the script cannot stack copies.
+python3 - "$generated" <<'PY'
+import pathlib
+import sys
+
+path = pathlib.Path(sys.argv[1])
+html = path.read_text(encoding="utf-8")
+if "demo-fixture-note" not in html:
+    banner = (
+        '<div id="demo-fixture-note" style="margin:0;padding:0.65rem 1rem;'
+        'font:500 0.82rem/1.5 ui-sans-serif,system-ui,-apple-system,sans-serif;'
+        'color:#0e1417;background:#fdf3e5;border-bottom:1px solid #e3e5e1">'
+        "Fixture, not a client project: this report is the 10-finding "
+        "<code>validation/reactor</code> sample (4 errors, 5 warnings, 1 info) from the current "
+        'release. <a href="../verify/" style="color:#0a6a63;font-weight:600">'
+        "Reproduce it yourself in two minutes &rarr;</a></div>"
+    )
+    html = html.replace("<body>", "<body>\n" + banner, 1)
+    path.write_text(html, encoding="utf-8")
+PY
+
 cp "$generated" "$DEMO"
 echo "Wrote docs/demo/index.html"
 check
