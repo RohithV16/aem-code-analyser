@@ -29,11 +29,14 @@ public final class AemSec001Rule implements RuleEvaluator {
         }
 
         for (HtlUnsafeContextFinding finding : context.htlUnsafeContexts()) {
-            boolean elementSink = finding.snippet() != null && finding.snippet().contains("data-sly-element");
+            // The rule is an ERROR-severity CWE-79 rule: every '@ context=\'unsafe\'' hit disables
+            // HTL's contextual escaping, so the level must not depend on other text on the same
+            // template line. A benign 'data-sly-element' attribute elsewhere on the line used to
+            // downgrade a real stored-XSS sink to WARNING, which the default gate then ignored and
+            // which contradicted the rule's own defaultConfiguration in SARIF.
             violations.add(new Violation(
                     RuleId.AEM_SEC_001.id(),
-                    elementSink ? io.github.rohithv16.aem.analyser.core.model.report.Severity.WARNING
-                            : RuleId.AEM_SEC_001.defaultLevel(),
+                    RuleId.AEM_SEC_001.defaultLevel(),
                     "UNSAFE_HTL_CONTEXT_BYPASS",
                     "HTL expression uses '@ context=\\'unsafe\\'' which disables automatic XSS protection: " + finding.snippet(),
                     relativePath(context, finding.filePath()),
