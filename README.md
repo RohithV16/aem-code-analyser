@@ -9,7 +9,7 @@ that single-language tools cannot see.
 
 ## Quick start
 
-Pick whichever is easiest — all three need no configuration and no flags.
+Pick whichever is easiest — all four need no configuration and no flags.
 
 ### 1 · Run it now, nothing to install
 
@@ -64,6 +64,19 @@ everything by itself. Every run prints a console report and writes an HTML dashb
 
 `mvn verify` now fails on new findings. It resolves straight from **Maven Central** — no
 `<pluginRepositories>`, no token, nothing to configure.
+
+### 4 · Or run the container
+
+```bash
+docker run --rm -v "$PWD:/src" ghcr.io/rohithv16/aem-code-analyser:1.0.10
+```
+
+No JDK on the agent — only a container runtime. The image is a bare JRE plus the same shaded jar, so
+the findings are identical to the jar route; the dashboard is written to `target/aem-analyser/` in the
+mounted project. It runs as UID/GID `1000`; on Linux agents whose user differs, add
+`--user "$(id -u):$(id -g)"` so the reports stay yours. Each release publishes `:<version>` and
+`:latest`, with OCI source/version labels, provenance and an SBOM (`--version` prints the built
+version).
 
 ### No flags needed
 

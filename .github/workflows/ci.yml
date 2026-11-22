@@ -255,6 +255,50 @@ jobs:
           sha256sum *.jar > SHA256SUMS.txt
           cat SHA256SUMS.txt
 
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # The shaded jar the previous step staged is the only input. Publishing from the same
+      # job that tags the release means a version can never exist on GHCR without the jar
+      # (or the other way round), and a failed push aborts before the tag is created.
+      - name: Build and push the container image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          build-args: |
+            VERSION=${{ steps.bump.outputs.version }}
+            REVISION=${{ github.sha }}
+          tags: |
+            ghcr.io/rohithv16/aem-code-analyser:${{ steps.bump.outputs.version }}
+            ghcr.io/rohithv16/aem-code-analyser:latest
+          provenance: true
+          sbom: true
+
+      - name: Smoke-test the published image
+        shell: bash
+        env:
+          VERSION: ${{ steps.bump.outputs.version }}
+        run: |
+          IMAGE="ghcr.io/rohithv16/aem-code-analyser:${VERSION}"
+          docker pull "$IMAGE"
+          REPORTED=$(docker run --rm "$IMAGE" --version)
+          echo "$REPORTED"
+          case "$REPORTED" in
+            *"$VERSION"*) ;;
+            *) echo "image reports '$REPORTED', expected version $VERSION" >&2; exit 1 ;;
+          esac
+          USER_ID=$(docker image inspect "$IMAGE" --format '{{.Config.User}}')
+          echo "image user: ${USER_ID:-<root>}"
+          [ "$USER_ID" = "1000:1000" ] || { echo "image must run as 1000:1000, not '${USER_ID}'" >&2; exit 1; }
+
       - name: Commit version bump and push tag
         shell: bash
         run: |
