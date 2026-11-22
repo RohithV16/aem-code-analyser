@@ -1,0 +1,42 @@
+---
+layout: default
+nav: issues
+title: "AEM-DEAD-005 OrphanedClientlibCategory — A client library category is never referenced by an HTL/JSP template or …"
+description: "AEM-DEAD-005 (INFO): A client library category is never referenced by an HTL/JSP template or another client library."
+rule_id: "AEM-DEAD-005"
+rule_family: "DEAD"
+rule_family_title: "Dead code"
+rule_severity: "INFO"
+rule_tags: "dead-code, clientlib"
+---
+
+<div class="shell docs">
+  <div class="docs__main">
+    <p class="muted"><a href="../">← All 33 rules</a></p>
+    <div class="issues-head">
+      <h1><span class="rule-card__id">AEM-DEAD-005</span> OrphanedClientlibCategory</h1>
+      <p class="lede">A client library category is never referenced by an HTL/JSP template or another client library.</p>
+      <p class="muted"><span class="pill pill--info">INFO</span> · 10 min fix · Code smell · <a href="../#family-dead">Dead code</a></p>
+    </div>
+
+    <article class="rule-card rule-card--page" id="aem-dead-005" data-family="DEAD">
+        <p class="rule-card__summary">A client library category is never referenced by an HTL/JSP template or another client library.</p>
+        <h2>Why it matters</h2>
+        <p>A client library no page, component or other clientlib includes is still built and deployed. Dead clientlibs usually carry JS and CSS that also hide unused configuration and third-party dependencies.</p>
+        <h2>How to fix it</h2>
+        <p>Reference the category from an HTL template (data-sly-call with categories) or from another clientlib&#39;s categories dependency, or delete the clientlib folder.</p>
+        <div class="examples">
+          <div class="code code--bad">
+            <div class="code__bar"><span class="code__label">xml · before</span></div>
+            <pre><code>&lt;jcr:root ... categories=&quot;[acme.legacy.grid]&quot;/&gt;</code></pre>
+          </div>
+          <div class="code code--good">
+            <div class="code__bar"><span class="code__label">html · after</span></div>
+            <pre><code>&lt;sly data-sly-call=&quot;${clientlib.css @ categories=&#39;acme.legacy.grid&#39;}&quot;/&gt;</code></pre>
+          </div>
+        </div>
+        <p class="suppress">Suppress one line: <code>&lt;!-- aem-analyser-disable-next-line AEM-DEAD-005 --&gt;</code> · tags dead-code, clientlib · <code>--explain AEM-DEAD-005</code></p>
+    </article>
+    <p class="muted">Every rule in the catalogue, with what it detects and how to fix it: <a href="../">all 33 rules</a>. Suppress a single line with <code>&lt;!-- aem-analyser-disable-next-line AEM-DEAD-005 --&gt;</code>.</p>
+  </div>
+</div>

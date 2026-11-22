@@ -1,0 +1,48 @@
+---
+layout: default
+nav: issues
+title: "AEM-CLOUD-003 UnmappedSubserviceUser — Java call to getServiceResourceResolver() has no matching …"
+description: "AEM-CLOUD-003 (ERROR): Java call to getServiceResourceResolver() has no matching ServiceUserMapperImpl.amended mapping or system user definition."
+rule_id: "AEM-CLOUD-003"
+rule_family: "CLOUD"
+rule_family_title: "AEM as a Cloud Service"
+rule_severity: "ERROR"
+rule_tags: "aem-cloud"
+---
+
+<div class="shell docs">
+  <div class="docs__main">
+    <p class="muted"><a href="../">← All 33 rules</a></p>
+    <div class="issues-head">
+      <h1><span class="rule-card__id">AEM-CLOUD-003</span> UnmappedSubserviceUser</h1>
+      <p class="lede">Java call to getServiceResourceResolver() has no matching ServiceUserMapperImpl.amended mapping or system user definition.</p>
+      <p class="muted"><span class="pill pill--error">ERROR</span> · 25 min fix · Code smell · <a href="../#family-cloud">AEM as a Cloud Service</a></p>
+    </div>
+
+    <article class="rule-card rule-card--page" id="aem-cloud-003" data-family="CLOUD">
+        <p class="rule-card__summary">Java call to getServiceResourceResolver() has no matching ServiceUserMapperImpl.amended mapping or system user definition.</p>
+        <h2>Why it matters</h2>
+        <p>getServiceResourceResolver only works when a ServiceUserMapper mapping exists for the bundle&#39;s subservice and the service user exists in the repository. Without the mapping the call fails at runtime with a LoginException, and the feature only breaks on the environment where the config is missing.</p>
+        <h2>How to fix it</h2>
+        <p>Declare the service user through repoinit and add the mapping in a configuration file for the ServiceUserMapperImpl.amended factory, then grant the ACLs the feature needs.</p>
+        <div class="examples">
+          <div class="code code--bad">
+            <div class="code__bar"><span class="code__label">text · before</span></div>
+            <pre><code>// Java asks for subservice &quot;search&quot; but no mapping ships
+resolverFactory.getServiceResourceResolver(
+        Map.of(ResourceResolverFactory.SUBSERVICE, &quot;search&quot;));</code></pre>
+          </div>
+          <div class="code code--good">
+            <div class="code__bar"><span class="code__label">text · after</span></div>
+            <pre><code>ui.config/.../config/org.apache.sling.serviceusermapping.impl.ServiceUserMapperImpl.amended-acme.cfg.json
+  { &quot;user.mapping&quot;: [ &quot;com.acme.core:search=acme-search-service&quot; ] }
+
+ui.config/.../config/org.apache.sling.jcr.repoinit.RepositoryInitializer-acme.cfg.json
+  { &quot;scripts&quot;: [ &quot;create service user acme-search-service with path /home/users/acme&quot; ] }</code></pre>
+          </div>
+        </div>
+        <p class="suppress">Suppress one line: <code>// aem-analyser-disable-next-line AEM-CLOUD-003</code> · tags aem-cloud · <code>--explain AEM-CLOUD-003</code></p>
+    </article>
+    <p class="muted">Every rule in the catalogue, with what it detects and how to fix it: <a href="../">all 33 rules</a>. Suppress a single line with <code>// aem-analyser-disable-next-line AEM-CLOUD-003</code>.</p>
+  </div>
+</div>

@@ -557,6 +557,59 @@ public final class RuleFixCatalog {
                     } else {
                         response.sendRedirect("/content/acme/en.html");
                     }""");
+            case AEM_COMP_002 -> new Fix(
+                    """
+                    Content and templates bind to a resource type by string. When the component behind that \
+                    string is renamed or moved, AEM resolves nothing at request time: the page renders \
+                    blank, and neither javac nor the content-package build notices.""",
+                    """
+                    Point the reference at a component that exists under the project's {@code /apps/<project>/} \
+                    prefix, or restore the component directory. Search the content package for the old type \
+                    after a rename so no author content is left behind.""",
+                    "xml", """
+                    <sly data-sly-resource="${ @ resourceType='acme/components/elastic/metatagrenderer'}"/>
+
+                    <!-- no directory at ui.apps/.../apps/acme/components/elastic/metatagrenderer -->""",
+                    "xml", """
+                    <sly data-sly-resource="${ @ resourceType='acme/components/elasticsearch/metatagrenderer'}"/>""");
+            case AEM_QUAL_008 -> new Fix(
+                    """
+                    A Declarative Services component with an unsatisfied mandatory reference never \
+                    activates. The bundle stays Active and the code compiles because the target type is on \
+                    the classpath, so the failure is invisible until the servlet 404s or the scheduled job \
+                    never fires.""",
+                    """
+                    Register an implementation with {@code @Component(service = Target.class)}, or declare the \
+                    reference {@code cardinality = ReferenceCardinality.OPTIONAL} when activation must not \
+                    depend on it. Confirm in the Felix console that the component is satisfied.""",
+                    "java", """
+                    @Component(immediate = true, service = ElasticIndexOrchestrator.class)
+                    public class ElasticIndexOrchestrator {
+                        // ResourceResolverProvider is declared in this project...
+                        @Reference private ResourceResolverProvider resolverProvider;
+                    }
+                    // ...but no @Component implements or registers it""",
+                    "java", """
+                    @Component(service = ResourceResolverProvider.class)
+                    public class ResourceResolverProviderImpl implements ResourceResolverProvider {
+                        public ResourceResolver obtainResourceResolver() { ... }
+                    }""");
+            case AEM_DEAD_007 -> new Fix(
+                    """
+                    Sightly resolves {@code data-sly-include} while rendering, so a renamed or mis-pathed \
+                    include is invisible to the build. It surfaces only as an empty region on one page, long \
+                    after the template was moved. An include cycle is worse: rendering recurses until the \
+                    request is aborted.""",
+                    """
+                    Correct the include path to an existing template relative to the including file, or break \
+                    the cycle by factoring the shared markup into a leaf template that both sides include.""",
+                    "html", """
+                    <!-- components/card/card.html -->
+                    <sly data-sly-include="card-details.html"/>
+
+                    <!-- components/card/details.html (renamed to card-details.html) -->""",
+                    "html", """
+                    <sly data-sly-include="card-details.html"/>""");
         };
     }
 }

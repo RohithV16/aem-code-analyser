@@ -1,0 +1,62 @@
+---
+layout: default
+nav: issues
+title: "AEM-COMP-001 DeprecatedClassicUiDialog — Component defines deprecated Classic UI dialog.xml instead of Granite UI …"
+description: "AEM-COMP-001 (WARNING): Component defines deprecated Classic UI dialog.xml instead of Granite UI _cq_dialog."
+rule_id: "AEM-COMP-001"
+rule_family: "COMP"
+rule_family_title: "Component compatibility"
+rule_severity: "WARNING"
+rule_tags: "quality, classic-ui"
+---
+
+<div class="shell docs">
+  <div class="docs__main">
+    <p class="muted"><a href="../">← All 33 rules</a></p>
+    <div class="issues-head">
+      <h1><span class="rule-card__id">AEM-COMP-001</span> DeprecatedClassicUiDialog</h1>
+      <p class="lede">Component defines deprecated Classic UI dialog.xml instead of Granite UI _cq_dialog.</p>
+      <p class="muted"><span class="pill pill--warning">WARNING</span> · 20 min fix · Code smell · <a href="../#family-comp">Component compatibility</a></p>
+    </div>
+
+    <article class="rule-card rule-card--page" id="aem-comp-001" data-family="COMP">
+        <p class="rule-card__summary">Component defines deprecated Classic UI dialog.xml instead of Granite UI _cq_dialog.</p>
+        <h2>Why it matters</h2>
+        <p>Classic UI dialog.xml is not read by the Touch UI editor, so authors cannot edit the component in AEM as a Cloud Service. It also drags in Classic UI client libraries that are not available there.</p>
+        <h2>How to fix it</h2>
+        <p>Migrate the dialog to a Granite UI _cq_dialog/.content.xml with sling:resourceType=&quot;cq/gui/components/authoring/dialog&quot;, then delete dialog.xml and check each field&#39;s xtype has a Granite equivalent.</p>
+        <div class="examples">
+          <div class="code code--bad">
+            <div class="code__bar"><span class="code__label">text · before</span></div>
+            <pre><code>acme/components/hero/dialog.xml
+  &lt;dialog jcr:primaryType=&quot;nt:unstructured&quot;&gt;
+    &lt;items jcr:primaryType=&quot;nt:unstructured&quot;&gt;
+      &lt;title jcr:primaryType=&quot;cq:Widget&quot; xtype=&quot;textfield&quot; fieldLabel=&quot;Title&quot;/&gt;
+    &lt;/items&gt;
+  &lt;/dialog&gt;</code></pre>
+          </div>
+          <div class="code code--good">
+            <div class="code__bar"><span class="code__label">xml · after</span></div>
+            <pre><code>acme/components/hero/_cq_dialog/.content.xml
+  &lt;jcr:root xmlns:sling=&quot;http://sling.apache.org/jcr/sling/1.0&quot;
+            xmlns:cq=&quot;http://www.day.com/jcr/cq/1.0&quot;
+            jcr:primaryType=&quot;nt:unstructured&quot;
+            jcr:title=&quot;Hero&quot;
+            sling:resourceType=&quot;cq/gui/components/authoring/dialog&quot;&gt;
+    &lt;content jcr:primaryType=&quot;nt:unstructured&quot;
+             sling:resourceType=&quot;granite/ui/components/coral/foundation/container&quot;&gt;
+      &lt;items jcr:primaryType=&quot;nt:unstructured&quot;&gt;
+        &lt;title jcr:primaryType=&quot;nt:unstructured&quot;
+               sling:resourceType=&quot;granite/ui/components/coral/foundation/form/textfield&quot;
+               fieldLabel=&quot;Title&quot;
+               name=&quot;./title&quot;/&gt;
+      &lt;/items&gt;
+    &lt;/content&gt;
+  &lt;/jcr:root&gt;</code></pre>
+          </div>
+        </div>
+        <p class="suppress">Suppress one line: <code>&lt;!-- aem-analyser-disable-next-line AEM-COMP-001 --&gt;</code> · tags quality, classic-ui · <code>--explain AEM-COMP-001</code></p>
+    </article>
+    <p class="muted">Every rule in the catalogue, with what it detects and how to fix it: <a href="../">all 33 rules</a>. Suppress a single line with <code>&lt;!-- aem-analyser-disable-next-line AEM-COMP-001 --&gt;</code>.</p>
+  </div>
+</div>

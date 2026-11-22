@@ -107,7 +107,10 @@ public final class OsgiComponentVisitor {
             }
         }
 
-        Map<String, String> references = extractReferences(type, packageName, imports, localTypes);
+        List<OSGiComponentNode.ServiceReference> referenceDetails =
+                extractReferenceDetails(type, packageName, imports, localTypes, filePath);
+        Map<String, String> references = new LinkedHashMap<>();
+        referenceDetails.forEach(reference -> references.put(reference.name(), reference.targetType()));
 
         String factoryId = AnnotationUtils.memberValue(annotation, "factory")
                 .filter(value -> !value.isBlank())
@@ -149,7 +152,8 @@ public final class OsgiComponentVisitor {
                 declaredFields,
                 factoryId,
                 enabled,
-                programmaticActivation));
+                programmaticActivation,
+                referenceDetails));
     }
 
     /**
@@ -175,6 +179,23 @@ public final class OsgiComponentVisitor {
     public Map<String, String> extractReferences(TypeDeclaration<?> type, String packageName,
                                                  Map<String, String> imports, Map<String, String> localTypes) {
         Map<String, String> references = new LinkedHashMap<>();
+        extractReferenceDetails(type, packageName, imports, localTypes, null)
+                .forEach(reference -> references.put(reference.name(), reference.targetType()));
+        return references;
+    }
+
+    /**
+     * Every {@code @Reference} with its cardinality and source location, for rules that must tell a
+     * mandatory injection (a missing provider blocks activation) from an optional one.
+     *
+     * @param filePath the declaring source file, used for the reference location; may be null when
+     *                 the caller only needs the name-to-type map
+     */
+    public List<OSGiComponentNode.ServiceReference> extractReferenceDetails(
+            TypeDeclaration<?> type, String packageName, Map<String, String> imports,
+            Map<String, String> localTypes, Path filePath) {
+        List<OSGiComponentNode.ServiceReference> references = new ArrayList<>();
+        Set<String> seen = new LinkedHashSet<>();
         List<BodyDeclaration<?>> members = new ArrayList<>();
         members.addAll(type.getFields());
         members.addAll(type.getMethods());
@@ -187,13 +208,18 @@ public final class OsgiComponentVisitor {
             String targetService = AnnotationUtils.memberValue(reference.get(), "service")
                     .map(s -> AnnotationUtils.resolveTypeName(s, packageName, imports, localTypes))
                     .orElse(null);
+            OSGiComponentNode.ReferenceCardinality cardinality = cardinalityOf(reference.get());
 
             if (member instanceof FieldDeclaration field) {
                 field.getVariables().forEach(variable -> {
                     String fieldType = AnnotationUtils.resolveTypeName(
                             AnnotationUtils.elementType(variable.getType().asString()), packageName, imports);
                     String target = targetService != null ? targetService : fieldType;
-                    references.put(variable.getNameAsString(), target);
+                    if (seen.add(variable.getNameAsString())) {
+                        references.add(new OSGiComponentNode.ServiceReference(
+                                variable.getNameAsString(), target, cardinality,
+                                MetatypeOcdVisitor.sourceLocation(variable, filePath)));
+                    }
                 });
             } else if (member instanceof com.github.javaparser.ast.body.MethodDeclaration method
                     && method.getParameters().isNonEmpty()) {
@@ -202,7 +228,11 @@ public final class OsgiComponentVisitor {
                 String target = targetService != null ? targetService
                         : AnnotationUtils.resolveTypeName(AnnotationUtils.elementType(parameter.getType().asString()),
                                 packageName, imports);
-                references.put(method.getNameAsString(), target);
+                if (seen.add(method.getNameAsString())) {
+                    references.add(new OSGiComponentNode.ServiceReference(
+                            method.getNameAsString(), target, cardinality,
+                            MetatypeOcdVisitor.sourceLocation(method, filePath)));
+                }
             }
         }
 
@@ -218,10 +248,32 @@ public final class OsgiComponentVisitor {
                         .map(s -> AnnotationUtils.resolveTypeName(s, packageName, imports, localTypes))
                         .orElseGet(() -> AnnotationUtils.resolveTypeName(
                                 AnnotationUtils.elementType(parameter.getType().asString()), packageName, imports));
-                references.put(parameter.getNameAsString(), target);
+                if (seen.add(parameter.getNameAsString())) {
+                    references.add(new OSGiComponentNode.ServiceReference(
+                            parameter.getNameAsString(), target, cardinalityOf(reference.get()),
+                            MetatypeOcdVisitor.sourceLocation(parameter, filePath)));
+                }
             }
         }
         return references;
+    }
+
+    /**
+     * DS cardinality from the annotation literal. Anything other than OPTIONAL/MULTIPLE/AT_LEAST_ONE
+     * is MANDATORY, which is the DS default when the member is absent.
+     */
+    private static OSGiComponentNode.ReferenceCardinality cardinalityOf(AnnotationExpr reference) {
+        String value = AnnotationUtils.memberValue(reference, "cardinality").orElse("");
+        if (value.contains("OPTIONAL")) {
+            return OSGiComponentNode.ReferenceCardinality.OPTIONAL;
+        }
+        if (value.contains("MULTIPLE")) {
+            return OSGiComponentNode.ReferenceCardinality.MULTIPLE;
+        }
+        if (value.contains("AT_LEAST_ONE")) {
+            return OSGiComponentNode.ReferenceCardinality.AT_LEAST_ONE;
+        }
+        return OSGiComponentNode.ReferenceCardinality.MANDATORY;
     }
 
     private String superclassOf(TypeDeclaration<?> type, String packageName, Map<String, String> imports) {

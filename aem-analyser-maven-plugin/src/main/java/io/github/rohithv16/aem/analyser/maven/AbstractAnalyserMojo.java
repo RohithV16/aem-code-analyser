@@ -37,6 +37,10 @@ import java.util.Set;
  */
 public abstract class AbstractAnalyserMojo extends AbstractMojo {
 
+    /** Canonical, human-facing list of format names, used by every error message. */
+    private static final String SUPPORTED_FORMATS =
+            "CONSOLE, TEXT, JSON, SARIF, SONAR, HTML, GITHUB, GITLAB, AZURE, JUNIT";
+
     /** Explicit project root override. */
     @Parameter(property = "aem-analyser.projectRoot")
     protected File projectRoot;
@@ -84,7 +88,7 @@ public abstract class AbstractAnalyserMojo extends AbstractMojo {
     @Parameter(property = "aem-analyser.sonarRules", defaultValue = "default")
     protected String sonarRules;
 
-    /** Comma-separated report formats: CONSOLE, SARIF, SONAR, HTML. */
+    /** Comma-separated report formats: CONSOLE, TEXT, JSON, SARIF, SONAR, HTML, GITHUB, GITLAB, AZURE, JUNIT. */
     @Parameter(property = "aem-analyser.formats", alias = "format")
     protected String formats;
 
@@ -258,12 +262,12 @@ public abstract class AbstractAnalyserMojo extends AbstractMojo {
                 result.add(ReportFormat.valueOf(trimmed.toUpperCase(Locale.ROOT)));
             } catch (IllegalArgumentException e) {
                 throw new MojoFailureException("Unknown report format '" + trimmed
-                        + "'. Supported formats: CONSOLE, SARIF, SONAR, HTML, GITHUB, GITLAB, AZURE.");
+                        + "'. Supported formats: " + SUPPORTED_FORMATS + ".");
             }
         }
         if (result.isEmpty()) {
             throw new MojoFailureException("No report format configured. "
-                    + "Supported formats: CONSOLE, SARIF, SONAR, HTML, GITHUB, GITLAB, AZURE.");
+                    + "Supported formats: " + SUPPORTED_FORMATS + ".");
         }
         return result;
     }
@@ -421,6 +425,9 @@ public abstract class AbstractAnalyserMojo extends AbstractMojo {
             case GITHUB -> "github-annotations.txt";
             case GITLAB -> "gitlab-code-quality.json";
             case AZURE -> "azure-pipelines.log";
+            case JSON -> "aem-analyser-report.json";
+            case TEXT -> "aem-analyser.txt";
+            case JUNIT -> "aem-analyser-junit.xml";
         };
     }
 
@@ -433,6 +440,9 @@ public abstract class AbstractAnalyserMojo extends AbstractMojo {
             case GITHUB -> new io.github.rohithv16.aem.analyser.core.export.GitHubAnnotationExporter();
             case GITLAB -> new io.github.rohithv16.aem.analyser.core.export.GitLabCodeQualityExporter();
             case AZURE -> new io.github.rohithv16.aem.analyser.core.export.AzurePipelinesExporter();
+            case JSON -> new io.github.rohithv16.aem.analyser.core.export.JsonReportExporter();
+            case TEXT -> new io.github.rohithv16.aem.analyser.core.export.TextReportExporter();
+            case JUNIT -> new io.github.rohithv16.aem.analyser.core.export.JUnitXmlExporter();
         };
     }
 

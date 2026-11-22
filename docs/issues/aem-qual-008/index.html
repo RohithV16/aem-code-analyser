@@ -1,0 +1,50 @@
+---
+layout: default
+nav: issues
+title: "AEM-QUAL-008 UnprovidedMandatoryReference — Mandatory @Reference target is declared by project sources but registered …"
+description: "AEM-QUAL-008 (ERROR): Mandatory @Reference target is declared by project sources but registered by no component."
+rule_id: "AEM-QUAL-008"
+rule_family: "QUAL"
+rule_family_title: "Quality and Cloud Manager parity"
+rule_severity: "ERROR"
+rule_tags: "quality, osgi"
+---
+
+<div class="shell docs">
+  <div class="docs__main">
+    <p class="muted"><a href="../">← All 33 rules</a></p>
+    <div class="issues-head">
+      <h1><span class="rule-card__id">AEM-QUAL-008</span> UnprovidedMandatoryReference</h1>
+      <p class="lede">Mandatory @Reference target is declared by project sources but registered by no component.</p>
+      <p class="muted"><span class="pill pill--error">ERROR</span> · 20 min fix · Bug · <a href="../#family-qual">Quality and Cloud Manager parity</a></p>
+    </div>
+
+    <article class="rule-card rule-card--page" id="aem-qual-008" data-family="QUAL">
+        <p class="rule-card__summary">Mandatory @Reference target is declared by project sources but registered by no component.</p>
+        <h2>Why it matters</h2>
+        <p>A Declarative Services component with an unsatisfied mandatory reference never activates. The bundle stays Active and the code compiles because the target type is on the classpath, so the failure is invisible until the servlet 404s or the scheduled job never fires.</p>
+        <h2>How to fix it</h2>
+        <p>Register an implementation with @Component(service = Target.class), or declare the reference cardinality = ReferenceCardinality.OPTIONAL when activation must not depend on it. Confirm in the Felix console that the component is satisfied.</p>
+        <div class="examples">
+          <div class="code code--bad">
+            <div class="code__bar"><span class="code__label">java · before</span></div>
+            <pre><code>@Component(immediate = true, service = ElasticIndexOrchestrator.class)
+public class ElasticIndexOrchestrator {
+    // ResourceResolverProvider is declared in this project...
+    @Reference private ResourceResolverProvider resolverProvider;
+}
+// ...but no @Component implements or registers it</code></pre>
+          </div>
+          <div class="code code--good">
+            <div class="code__bar"><span class="code__label">java · after</span></div>
+            <pre><code>@Component(service = ResourceResolverProvider.class)
+public class ResourceResolverProviderImpl implements ResourceResolverProvider {
+    public ResourceResolver obtainResourceResolver() { ... }
+}</code></pre>
+          </div>
+        </div>
+        <p class="suppress">Suppress one line: <code>// aem-analyser-disable-next-line AEM-QUAL-008</code> · tags quality, osgi · <code>--explain AEM-QUAL-008</code></p>
+    </article>
+    <p class="muted">Every rule in the catalogue, with what it detects and how to fix it: <a href="../">all 33 rules</a>. Suppress a single line with <code>// aem-analyser-disable-next-line AEM-QUAL-008</code>.</p>
+  </div>
+</div>

@@ -70,7 +70,10 @@ OUT="$(mktemp -d)"
 trap 'rm -rf "$OUT"' EXIT
 
 # The fixture has findings, so the gate exits 1 by design; the report is still written.
-(cd "$ROOT" && java -jar "$JAR" validation/reactor --format HTML -o "$OUT" >/dev/null || true)
+# The published page has a stable URL, so the report that goes there declares it as its canonical
+# (and gains og:url) instead of shipping a page with no address.
+(cd "$ROOT" && java -Daem.analyser.siteUrl="https://rohithv16.github.io/aem-code-analyser/demo/" \
+  -jar "$JAR" validation/reactor --format HTML -o "$OUT" >/dev/null || true)
 
 # The report prints an absolute project root. The demo is published, so keep the path relative to
 # the clone (the way the docs describe the fixture) instead of shipping a machine-specific path.

@@ -68,9 +68,9 @@ class AnalyserCliRetiredRulesTest {
 
         CliTestSupport.Run run = CliTestSupport.run(project, "--no-html", "--no-sonar");
 
-        assertTrue(run.output().contains("references retired rule 'AEM-QUAL-006'"),
-                "a config entry for a retired rule must warn, not resolve silently:\n" + run.output());
-        assertTrue(run.output().contains("AEM-QUAL-004"), run.output());
+        assertTrue(run.errors().contains("references retired rule 'AEM-QUAL-006'"),
+                "a config entry for a retired rule must warn, not resolve silently:\n" + run.errors());
+        assertTrue(run.errors().contains("AEM-QUAL-004"), run.errors());
     }
 
     @Test
@@ -84,7 +84,7 @@ class AnalyserCliRetiredRulesTest {
 
         CliTestSupport.Run run = CliTestSupport.run(project, "--no-html", "--no-sonar");
 
-        assertTrue(run.output().contains("Baseline .aem-analyser-baseline.json references retired rule"),
-                run.output());
+        assertTrue(run.errors().contains("Baseline .aem-analyser-baseline.json references retired rule"),
+                run.errors());
     }
 }

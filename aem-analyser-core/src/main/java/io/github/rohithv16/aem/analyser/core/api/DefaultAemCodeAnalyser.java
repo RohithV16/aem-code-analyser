@@ -66,6 +66,8 @@ public final class DefaultAemCodeAnalyser implements AemCodeAnalyser {
             var htlScanner = new HtlScanner();
             List<HtlUsage> htlUsages = new ArrayList<>();
             List<HtlUnsafeContextFinding> htlUnsafeContexts = new ArrayList<>();
+            List<io.github.rohithv16.aem.analyser.core.model.htl.HtlIncludeRef> htlIncludes = new ArrayList<>();
+            List<io.github.rohithv16.aem.analyser.core.model.htl.HtlResourceRef> htlResources = new ArrayList<>();
             var compScanner = new JcrComponentScanner();
             List<CqComponentDefinition> cqComponents = new ArrayList<>();
             for (ModuleDescriptor module : discoveryResult.modules()) {
@@ -80,6 +82,12 @@ public final class DefaultAemCodeAnalyser implements AemCodeAnalyser {
                 htlResult.unsafeContexts().stream()
                         .filter(finding -> isChanged(context, finding.filePath()))
                         .forEach(htlUnsafeContexts::add);
+                htlResult.includes().stream()
+                        .filter(ref -> isChanged(context, ref.filePath()))
+                        .forEach(htlIncludes::add);
+                htlResult.resources().stream()
+                        .filter(ref -> isChanged(context, ref.filePath()))
+                        .forEach(htlResources::add);
                 compScanner.scanDirectory(module.moduleDirectory(), diagnostics,
                                 context.maxFileSizeBytes()).stream()
                         .filter(component -> isChanged(context, component.contentXml()))
@@ -100,7 +108,8 @@ public final class DefaultAemCodeAnalyser implements AemCodeAnalyser {
             // ── Rule evaluation ───────────────────────────────────────────────────
             RuleContext ruleContext = new RuleContext(buildResult.graph(), buildResult,
                     Set.copyOf(exportedPatterns), dependencyIndex, context.ignoredServices(), context.projectRoot(),
-                    htlUsages, cqComponents, htlUnsafeContexts, discoveryResult.modules());
+                    htlUsages, cqComponents, htlUnsafeContexts, discoveryResult.modules(),
+                    htlIncludes, htlResources);
             List<Violation> violations = new ArrayList<>();
             for (RuleEvaluator rule : rules) {
                 violations.addAll(rule.evaluate(ruleContext));
@@ -129,15 +138,25 @@ public final class DefaultAemCodeAnalyser implements AemCodeAnalyser {
                     .thenComparing(v -> v.region().startLine())
                     .thenComparing(Violation::ruleId));
             violations = deduplicate(violations);
+            // Annotate inline directives instead of dropping the findings: the actionable list is
+            // split off below so gate counts and the exit code stay identical, while the accepted
+            // ones stay in the report for exporters that can express a suppression (#17).
             violations = io.github.rohithv16.aem.analyser.core.baseline.InlineSuppressions
-                    .filter(context.projectRoot(), violations);
+                    .annotate(context.projectRoot(), violations);
+            List<Violation> acceptedByDirective = violations.stream()
+                    .filter(Violation::isAccepted)
+                    .toList();
+            if (!acceptedByDirective.isEmpty()) {
+                violations = violations.stream().filter(v -> !v.isAccepted()).toList();
+            }
 
             var coverageEngine = new io.github.rohithv16.aem.analyser.core.discovery.CoverageDiscoveryEngine();
             var coverageReport = coverageEngine.discover(context.projectRoot(), discoveryResult.modules());
 
             long durationMillis = (System.nanoTime() - start) / 1_000_000;
             return new AnalysisReport(context.projectRoot(), scanStatistics(discoveryResult, buildResult, htlUsages.size(), cqComponents.size()),
-                    violations, durationMillis, coverageReport, codeMetrics, diagnostics.diagnostics());
+                    violations, durationMillis, coverageReport, codeMetrics, diagnostics.diagnostics())
+                    .withAcceptedViolations(acceptedByDirective);
         } catch (IOException | RuntimeException e) {
             throw new AnalysisException("Analysis failed: " + e.getMessage(), e);
         }

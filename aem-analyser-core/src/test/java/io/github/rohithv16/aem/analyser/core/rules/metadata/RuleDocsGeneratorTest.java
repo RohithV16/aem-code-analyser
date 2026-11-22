@@ -47,6 +47,70 @@ class RuleDocsGeneratorTest {
     }
 
     @Test
+    void everyRuleGetsItsOwnIndexablePageWithAUniqueTitle() throws Exception {
+        RuleDocsGenerator.writeAll(output);
+
+        List<RuleDescriptor> rules = RuleRegistry.all();
+        List<String> titles = new java.util.ArrayList<>();
+        List<Path> pages = new java.util.ArrayList<>();
+        for (RuleDescriptor rule : rules) {
+            Path page = output.resolve("issues").resolve(RuleDocsGenerator.anchorFor(rule.id()))
+                    .resolve("index.html");
+            assertTrue(Files.isRegularFile(page), "missing page for " + rule.id());
+            pages.add(page);
+
+            String html = Files.readString(page);
+            assertTrue(html.startsWith("---\nlayout: default\n"),
+                    "the rule page needs front matter so Jekyll renders and indexes it: " + rule.id());
+            assertTrue(html.contains("nav: issues"));
+            assertTrue(html.contains("rule_id: \"" + rule.id() + "\""), "page must carry its rule id");
+            assertTrue(html.contains("<h1><span class=\"rule-card__id\">" + rule.id() + "</span>"),
+                    "the id must be the page's own heading");
+
+            String title = frontMatter(html, "title");
+            assertTrue(title.startsWith(rule.id() + " "), "title must lead with the id: " + title);
+            titles.add(title);
+
+            String description = frontMatter(html, "description");
+            assertTrue(description.length() >= 40, "empty meta description for " + rule.id());
+            assertTrue(description.length() <= 160, "description is too long for a snippet: " + rule.id());
+        }
+
+        assertEquals(rules.size(), pages.size());
+        assertEquals(pages.size(), new java.util.HashSet<>(titles).size(),
+                "two rule pages share a <title>, which is what the single index page did wrong");
+    }
+
+    /** The index is the filterable catalogue; a card must lead to the page that owns its rule. */
+    @Test
+    void everyIndexCardLinksToItsRulePageAndBack() throws Exception {
+        RuleDocsGenerator.writeAll(output);
+        String index = Files.readString(output.resolve("issues/index.html"));
+
+        for (RuleDescriptor rule : RuleRegistry.all()) {
+            String anchor = RuleDocsGenerator.anchorFor(rule.id());
+            assertTrue(index.contains("href=\"" + anchor + "/\""),
+                    "the index card for " + rule.id() + " must link to its page");
+            assertTrue(Files.readString(output.resolve("issues").resolve(anchor).resolve("index.html"))
+                    .contains("href=\"../\""), "the rule page must link back to the index");
+            assertEquals("https://rohithv16.github.io/aem-code-analyser/issues/" + anchor + "/",
+                    RuleDocsGenerator.urlFor(rule.id()));
+        }
+    }
+
+    @Test
+    void aRetiredRulePageIsPruned() throws Exception {
+        RuleDocsGenerator.writeAll(output);
+        Path stale = output.resolve("issues/aem-dead-999");
+        Files.createDirectories(stale);
+        Files.writeString(stale.resolve("index.html"), "---\nlayout: default\n---\nold\n");
+
+        RuleDocsGenerator.writeAll(output);
+
+        assertFalse(Files.exists(stale), "a page for a rule that is no longer in the registry must go");
+    }
+
+    @Test
     void everyRuleShowsTheFixAndHowToSuppressIt() throws Exception {
         RuleDocsGenerator.writeAll(output);
         String html = Files.readString(output.resolve("issues/index.html"));
@@ -100,6 +164,22 @@ class RuleDocsGeneratorTest {
         assertTrue(html.contains("&lt;sly data-sly-use"));
         assertFalse(html.contains("<sly data-sly-use"), "raw HTL must not leak into the page");
         assertFalse(html.contains("@ context='unsafe'"), "quotes must be escaped in attributes");
+    }
+
+    private static String frontMatter(String html, String key) {
+        int end = html.indexOf("\n---", 3);
+        String frontMatter = end < 0 ? "" : html.substring(0, end);
+        for (String line : frontMatter.split("\n")) {
+            if (line.startsWith(key + ": ")) {
+                String value = line.substring(key.length() + 2).trim();
+                if (value.startsWith("\"") && value.endsWith("\"")) {
+                    value = value.substring(1, value.length() - 1)
+                            .replace("\\\"", "\"").replace("\\\\", "\\");
+                }
+                return value;
+            }
+        }
+        return "";
     }
 
     private static int countOccurrences(String haystack, String needle) {

@@ -1,0 +1,59 @@
+---
+layout: default
+nav: issues
+title: "AEM-QUAL-004 UnsafeComponentState — Non-thread-safe or session-bound object stored in OSGi component field (AEM-3)."
+description: "AEM-QUAL-004 (ERROR): Non-thread-safe or session-bound object stored in OSGi component field (AEM-3)."
+rule_id: "AEM-QUAL-004"
+rule_family: "QUAL"
+rule_family_title: "Quality and Cloud Manager parity"
+rule_severity: "ERROR"
+rule_tags: "quality, aem-cloud"
+---
+
+<div class="shell docs">
+  <div class="docs__main">
+    <p class="muted"><a href="../">← All 33 rules</a></p>
+    <div class="issues-head">
+      <h1><span class="rule-card__id">AEM-QUAL-004</span> UnsafeComponentState</h1>
+      <p class="lede">Non-thread-safe or session-bound object stored in OSGi component field (AEM-3).</p>
+      <p class="muted"><span class="pill pill--error">ERROR</span> · 20 min fix · Bug · <a href="../#family-qual">Quality and Cloud Manager parity</a></p>
+    </div>
+
+    <article class="rule-card rule-card--page" id="aem-qual-004" data-family="QUAL">
+        <p class="rule-card__summary">Non-thread-safe or session-bound object stored in OSGi component field (AEM-3).</p>
+        <h2>Why it matters</h2>
+        <p>SlingHttpServletRequest, ResourceResolver and JCR Session are bound to one thread and one request. Stored in a component field, they leak across requests: closed resolvers are reused, sessions go stale after a restart, and the component is no longer thread-safe (Cloud Manager check AEM-3).</p>
+        <h2>How to fix it</h2>
+        <p>Keep only immutable, thread-safe collaborators in fields. Obtain request-scoped objects as parameters or from the request, and close them where they were created.</p>
+        <div class="examples">
+          <div class="code code--bad">
+            <div class="code__bar"><span class="code__label">java · before</span></div>
+            <pre><code>@Component(service = NavigationService.class)
+public class NavigationService {
+
+    private ResourceResolver resolver;   // one request&#39;s resolver, shared by all
+
+    @Activate
+    void activate(ResourceResolverFactory factory) { }
+}</code></pre>
+          </div>
+          <div class="code code--good">
+            <div class="code__bar"><span class="code__label">java · after</span></div>
+            <pre><code>@Component(service = NavigationService.class)
+public class NavigationService {
+
+    @Reference
+    private ResourceResolverFactory resolverFactory;
+
+    public List&lt;String&gt; paths(Resource resource) {
+        // the caller owns the request-scoped resolver
+        return collect(resource);
+    }
+}</code></pre>
+          </div>
+        </div>
+        <p class="suppress">Suppress one line: <code>// aem-analyser-disable-next-line AEM-QUAL-004</code> · tags quality, aem-cloud · <code>--explain AEM-QUAL-004</code></p>
+    </article>
+    <p class="muted">Every rule in the catalogue, with what it detects and how to fix it: <a href="../">all 33 rules</a>. Suppress a single line with <code>// aem-analyser-disable-next-line AEM-QUAL-004</code>.</p>
+  </div>
+</div>

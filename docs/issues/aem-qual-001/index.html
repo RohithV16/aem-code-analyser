@@ -1,0 +1,48 @@
+---
+layout: default
+nav: issues
+title: "AEM-QUAL-001 PathBoundServletRegistration — Sling servlet registered using paths instead of resource types (CQBP-75)."
+description: "AEM-QUAL-001 (WARNING): Sling servlet registered using paths instead of resource types (CQBP-75)."
+rule_id: "AEM-QUAL-001"
+rule_family: "QUAL"
+rule_family_title: "Quality and Cloud Manager parity"
+rule_severity: "WARNING"
+rule_tags: "quality, aem-cloud"
+---
+
+<div class="shell docs">
+  <div class="docs__main">
+    <p class="muted"><a href="../">← All 33 rules</a></p>
+    <div class="issues-head">
+      <h1><span class="rule-card__id">AEM-QUAL-001</span> PathBoundServletRegistration</h1>
+      <p class="lede">Sling servlet registered using paths instead of resource types (CQBP-75).</p>
+      <p class="muted"><span class="pill pill--warning">WARNING</span> · 15 min fix · Code smell · <a href="../#family-qual">Quality and Cloud Manager parity</a></p>
+    </div>
+
+    <article class="rule-card rule-card--page" id="aem-qual-001" data-family="QUAL">
+        <p class="rule-card__summary">Sling servlet registered using paths instead of resource types (CQBP-75).</p>
+        <h2>Why it matters</h2>
+        <p>Cloud Manager&#39;s CQBP-75 rejects path-bound servlets because they bypass Sling&#39;s resource-centric security model and cannot be dispatched or cached like a resource. They also break the dispatcher rules teams rely on for /content URLs.</p>
+        <h2>How to fix it</h2>
+        <p>Register the servlet by resourceType and address it through a resource, with selectors and extensions for the variants. For a redirect or a download that genuinely has no resource, use a Sling mapping and a filter instead of /bin paths.</p>
+        <div class="examples">
+          <div class="code code--bad">
+            <div class="code__bar"><span class="code__label">java · before</span></div>
+            <pre><code>@SlingServlet(paths = &quot;/bin/acme/products&quot;, methods = &quot;GET&quot;)
+public class ProductsServlet extends SlingAllMethodsServlet { }</code></pre>
+          </div>
+          <div class="code code--good">
+            <div class="code__bar"><span class="code__label">java · after</span></div>
+            <pre><code>@Component(service = Servlet.class, property = {
+        ServletResolverConstants.SLING_SERVLET_RESOURCE_TYPES + &quot;=acme/components/products&quot;,
+        ServletResolverConstants.SLING_SERVLET_SELECTORS + &quot;=list&quot;,
+        ServletResolverConstants.SLING_SERVLET_EXTENSIONS + &quot;=json&quot;
+})
+public class ProductsServlet extends SlingAllMethodsServlet { }</code></pre>
+          </div>
+        </div>
+        <p class="suppress">Suppress one line: <code>// aem-analyser-disable-next-line AEM-QUAL-001</code> · tags quality, aem-cloud · <code>--explain AEM-QUAL-001</code></p>
+    </article>
+    <p class="muted">Every rule in the catalogue, with what it detects and how to fix it: <a href="../">all 33 rules</a>. Suppress a single line with <code>// aem-analyser-disable-next-line AEM-QUAL-001</code>.</p>
+  </div>
+</div>

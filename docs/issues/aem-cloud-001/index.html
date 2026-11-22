@@ -1,0 +1,46 @@
+---
+layout: default
+nav: issues
+title: "AEM-CLOUD-001 HardcodedCloudSecret — Plaintext secret or password found in OSGi configuration file."
+description: "AEM-CLOUD-001 (ERROR): Plaintext secret or password found in OSGi configuration file."
+rule_id: "AEM-CLOUD-001"
+rule_family: "CLOUD"
+rule_family_title: "AEM as a Cloud Service"
+rule_severity: "ERROR"
+rule_tags: "aem-cloud"
+---
+
+<div class="shell docs">
+  <div class="docs__main">
+    <p class="muted"><a href="../">← All 33 rules</a></p>
+    <div class="issues-head">
+      <h1><span class="rule-card__id">AEM-CLOUD-001</span> HardcodedCloudSecret</h1>
+      <p class="lede">Plaintext secret or password found in OSGi configuration file.</p>
+      <p class="muted"><span class="pill pill--error">ERROR</span> · 15 min fix · Vulnerability · <a href="../#family-cloud">AEM as a Cloud Service</a></p>
+    </div>
+
+    <article class="rule-card rule-card--page" id="aem-cloud-001" data-family="CLOUD">
+        <p class="rule-card__summary">Plaintext secret or password found in OSGi configuration file.</p>
+        <h2>Why it matters</h2>
+        <p>A plaintext secret in a content package is readable by anyone with repository access, ends up in every environment&#39;s backup, and cannot be rotated without a code change. AEM as a Cloud Service refuses to start a service with a secret that was not supplied through a secret variable.</p>
+        <h2>How to fix it</h2>
+        <p>Replace the value with a secret placeholder and define the variable in Cloud Manager (or in the local .env for the SDK). Never commit the real value.</p>
+        <div class="examples">
+          <div class="code code--bad">
+            <div class="code__bar"><span class="code__label">json · before</span></div>
+            <pre><code>{
+  &quot;apiKey&quot;: &quot;sk_live_9f3ac1e8b0&quot;
+}</code></pre>
+          </div>
+          <div class="code code--good">
+            <div class="code__bar"><span class="code__label">json · after</span></div>
+            <pre><code>{
+  &quot;apiKey&quot;: &quot;$[secret:acme.apiKey]&quot;
+}</code></pre>
+          </div>
+        </div>
+        <p class="suppress">Suppress one line: <code>// aem-analyser-disable-next-line AEM-CLOUD-001</code> · tags aem-cloud · <code>--explain AEM-CLOUD-001</code></p>
+    </article>
+    <p class="muted">Every rule in the catalogue, with what it detects and how to fix it: <a href="../">all 33 rules</a>. Suppress a single line with <code>// aem-analyser-disable-next-line AEM-CLOUD-001</code>.</p>
+  </div>
+</div>

@@ -119,6 +119,7 @@ and offers a persistent dark mode, print stylesheet and keyboard-accessible tabs
 | `--ignored-services <classes>` | — | Service implementation classes never flagged unused. |
 | `--dependency-jars <paths>` | — | JARs/directories for external PID suppression. |
 | `--config <file>` | `.aem-analyser.yml` | Project configuration YAML. |
+| `--severity <RULE=SEVERITY>` | — | Per-rule override for one run (`ERROR`, `WARNING`, `INFO`, `OFF`); repeatable, wins over the config file, unknown ids rejected. |
 | `--changed-only` | off | Analyse only files changed in Git. |
 | `--since <ref>` | — | Git ref/commit to compare against (implies changed-only). |
 | `--fix` | off | Apply safe automated fixes, then re-analyse. |
@@ -137,10 +138,12 @@ and offers a persistent dark mode, print stylesheet and keyboard-accessible tabs
 | `--max-warnings <n>` | — | Quality gate: maximum warnings. |
 | `--sonar` / `--no-sonar` | on | Toggle embedded SonarJava analysis. |
 | `--sonar-rules <list>` | `default` | SonarJava ruleset filter. |
-| `--list-rules` | — | Print the rule catalogue and exit. |
-| `--explain <RULE>` | — | Print one rule's metadata and exit. |
+| `--list-rules` | — | Print the effective rule catalogue and exit. |
+| `--explain <RULE>` | — | Print one rule's effective metadata and exit. |
+| `--tag <tag>` | — | With `--list-rules`: only rules carrying the tag. |
 | `--generate-rule-docs <dir>` | — | Generate the issue reference page into `<dir>/issues` and exit. |
-| `-v, --verbose` | off | Print analysis diagnostics. |
+| `-v, --verbose` | off | Print analysis diagnostics on stderr. |
+| `-q, --quiet` | off | Silence progress and warning lines on stderr; the report on stdout is unaffected. |
 | `--no-color` | off | Disable ANSI colours. |
 
 ---

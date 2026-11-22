@@ -1,0 +1,48 @@
+---
+layout: default
+nav: issues
+title: "AEM-PERF-002 UnclosedJcrSession — JCR Session obtained via repository login or adaptation is not logged out or closed."
+description: "AEM-PERF-002 (ERROR): JCR Session obtained via repository login or adaptation is not logged out or closed."
+rule_id: "AEM-PERF-002"
+rule_family: "PERF"
+rule_family_title: "Performance"
+rule_severity: "ERROR"
+rule_tags: "performance"
+---
+
+<div class="shell docs">
+  <div class="docs__main">
+    <p class="muted"><a href="../">← All 33 rules</a></p>
+    <div class="issues-head">
+      <h1><span class="rule-card__id">AEM-PERF-002</span> UnclosedJcrSession</h1>
+      <p class="lede">JCR Session obtained via repository login or adaptation is not logged out or closed.</p>
+      <p class="muted"><span class="pill pill--error">ERROR</span> · 30 min fix · Bug · <a href="../#family-perf">Performance</a></p>
+    </div>
+
+    <article class="rule-card rule-card--page" id="aem-perf-002" data-family="PERF">
+        <p class="rule-card__summary">JCR Session obtained via repository login or adaptation is not logged out or closed.</p>
+        <h2>Why it matters</h2>
+        <p>A JCR Session opened through repository.login() or adapted from a resolver must be logged out. An open session pins the observation queue and any pending changes, and on AEM as a Cloud Service leaked sessions show up as repository connection pressure.</p>
+        <h2>How to fix it</h2>
+        <p>Close the session in a finally block, or avoid the session entirely: the resource resolver API covers almost every read and write a component needs.</p>
+        <div class="examples">
+          <div class="code code--bad">
+            <div class="code__bar"><span class="code__label">java · before</span></div>
+            <pre><code>Session session = resolver.adaptTo(Session.class);
+Node node = session.getNode(path);</code></pre>
+          </div>
+          <div class="code code--good">
+            <div class="code__bar"><span class="code__label">java · after</span></div>
+            <pre><code>try (ResourceResolver resolver = resolverFactory.getServiceResourceResolver(authInfo)) {
+    Resource resource = resolver.getResource(path);
+    if (resource != null) {
+        ValueMap properties = resource.adaptTo(ValueMap.class);
+    }
+}</code></pre>
+          </div>
+        </div>
+        <p class="suppress">Suppress one line: <code>// aem-analyser-disable-next-line AEM-PERF-002</code> · tags performance · <code>--explain AEM-PERF-002</code></p>
+    </article>
+    <p class="muted">Every rule in the catalogue, with what it detects and how to fix it: <a href="../">all 33 rules</a>. Suppress a single line with <code>// aem-analyser-disable-next-line AEM-PERF-002</code>.</p>
+  </div>
+</div>

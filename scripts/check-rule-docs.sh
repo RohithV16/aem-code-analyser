@@ -17,8 +17,15 @@ trap 'rm -rf "$OUT"' EXIT
 java -jar "$JAR" --generate-rule-docs "$OUT" >/dev/null
 
 if diff -ru docs/issues "$OUT/issues"; then
-  echo "issue reference is up to date ($(grep -c 'class="rule-card"' docs/issues/index.html) rules)"
+  echo "issue reference is up to date ($(grep -c 'class="rule-card"' docs/issues/index.html) rules,"
+  echo "  $(find docs/issues -mindepth 2 -name index.html | wc -l | tr -d ' ') per-rule pages)"
 else
   echo "issue reference is stale: run --generate-rule-docs docs and commit the result" >&2
   exit 1
+fi
+
+# The generated pages only earn their URLs if the site publishes and describes them; this asserts the
+# page set, the titles, the JSON-LD and the sitemap URL set derived from the same source tree.
+if command -v python3 >/dev/null 2>&1; then
+  python3 "$(dirname "${BASH_SOURCE[0]}")/check-site-seo.py" docs
 fi

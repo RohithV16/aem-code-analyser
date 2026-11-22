@@ -1,0 +1,47 @@
+---
+layout: default
+nav: issues
+title: "AEM-PERF-001 UnclosedResourceResolver — ResourceResolver obtained via factory is not closed in try-with-resources or …"
+description: "AEM-PERF-001 (ERROR): ResourceResolver obtained via factory is not closed in try-with-resources or finally."
+rule_id: "AEM-PERF-001"
+rule_family: "PERF"
+rule_family_title: "Performance"
+rule_severity: "ERROR"
+rule_tags: "performance"
+---
+
+<div class="shell docs">
+  <div class="docs__main">
+    <p class="muted"><a href="../">← All 33 rules</a></p>
+    <div class="issues-head">
+      <h1><span class="rule-card__id">AEM-PERF-001</span> UnclosedResourceResolver</h1>
+      <p class="lede">ResourceResolver obtained via factory is not closed in try-with-resources or finally.</p>
+      <p class="muted"><span class="pill pill--error">ERROR</span> · 30 min fix · Bug · <a href="../#family-perf">Performance</a></p>
+    </div>
+
+    <article class="rule-card rule-card--page" id="aem-perf-001" data-family="PERF">
+        <p class="rule-card__summary">ResourceResolver obtained via factory is not closed in try-with-resources or finally.</p>
+        <h2>Why it matters</h2>
+        <p>A resolver obtained from the factory and never closed keeps its JCR session and its caches alive for the life of the JVM. AEM as a Cloud Service logs leaked resolvers and eventually refuses new ones, so the instance degrades instead of failing fast.</p>
+        <h2>How to fix it</h2>
+        <p>Always obtain the resolver in a try-with-resources block, or close it in a finally block, and never hand it to another thread.</p>
+        <div class="examples">
+          <div class="code code--bad">
+            <div class="code__bar"><span class="code__label">java · before</span></div>
+            <pre><code>ResourceResolver resolver = resolverFactory.getServiceResourceResolver(authInfo);
+Resource resource = resolver.getResource(path);
+return resource.adaptTo(ValueMap.class);</code></pre>
+          </div>
+          <div class="code code--good">
+            <div class="code__bar"><span class="code__label">java · after</span></div>
+            <pre><code>try (ResourceResolver resolver = resolverFactory.getServiceResourceResolver(authInfo)) {
+    Resource resource = resolver.getResource(path);
+    return resource == null ? Map.of() : resource.adaptTo(ValueMap.class);
+}</code></pre>
+          </div>
+        </div>
+        <p class="suppress">Suppress one line: <code>// aem-analyser-disable-next-line AEM-PERF-001</code> · tags performance · <code>--explain AEM-PERF-001</code></p>
+    </article>
+    <p class="muted">Every rule in the catalogue, with what it detects and how to fix it: <a href="../">all 33 rules</a>. Suppress a single line with <code>// aem-analyser-disable-next-line AEM-PERF-001</code>.</p>
+  </div>
+</div>

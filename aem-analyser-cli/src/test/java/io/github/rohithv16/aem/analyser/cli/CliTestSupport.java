@@ -23,14 +23,14 @@ final class CliTestSupport {
     private CliTestSupport() {
     }
 
-    /** The exit code and captured standard output of one in-process CLI invocation. */
-    record Run(int exitCode, String output) {
+    /** The exit code and the two captured streams of one in-process CLI invocation. */
+    record Run(int exitCode, String output, String errors) {
     }
 
     /**
      * Runs the CLI against {@code project} and captures its console report.
      *
-     * <p>The command binds its writer in the constructor, so the stream redirection has to be in
+     * <p>The command binds its writers in the constructor, so the stream redirection has to be in
      * place before the command object is created.
      */
     static Run run(Path project, String... options) throws Exception {
@@ -43,13 +43,19 @@ final class CliTestSupport {
 
     static Run runArgs(String... args) {
         PrintStream originalOut = System.out;
-        ByteArrayOutputStream captured = new ByteArrayOutputStream();
-        try (PrintStream capture = new PrintStream(captured, true, StandardCharsets.UTF_8)) {
-            System.setOut(capture);
+        PrintStream originalErr = System.err;
+        ByteArrayOutputStream capturedOut = new ByteArrayOutputStream();
+        ByteArrayOutputStream capturedErr = new ByteArrayOutputStream();
+        try (PrintStream out = new PrintStream(capturedOut, true, StandardCharsets.UTF_8);
+             PrintStream err = new PrintStream(capturedErr, true, StandardCharsets.UTF_8)) {
+            System.setOut(out);
+            System.setErr(err);
             int exit = new CommandLine(new AnalyserCli()).execute(args);
-            return new Run(exit, captured.toString(StandardCharsets.UTF_8));
+            return new Run(exit, capturedOut.toString(StandardCharsets.UTF_8),
+                    capturedErr.toString(StandardCharsets.UTF_8));
         } finally {
             System.setOut(originalOut);
+            System.setErr(originalErr);
         }
     }
 
@@ -57,6 +63,37 @@ final class CliTestSupport {
     static void writeMinimalProject(Path project) throws java.io.IOException {
         Files.writeString(project.resolve("pom.xml"),
                 "<project><modelVersion>4.0.0</modelVersion><artifactId>fixture</artifactId></project>");
+    }
+
+    /**
+     * A two-module AEM-shaped project whose only finding is one AEM-QUAL-003 warning, so a test can
+     * assert on severity overrides without depending on the analyser's discovery heuristics.
+     */
+    static void writeSchedulerProject(Path project) throws java.io.IOException {
+        Files.writeString(project.resolve("pom.xml"),
+                "<project><modelVersion>4.0.0</modelVersion><groupId>com.acme</groupId>"
+                        + "<artifactId>fixture</artifactId><version>1.0.0</version>"
+                        + "<packaging>pom</packaging><modules><module>core</module></modules></project>");
+        Path core = Files.createDirectories(project.resolve("core"));
+        Files.writeString(core.resolve("pom.xml"),
+                "<project><modelVersion>4.0.0</modelVersion>"
+                        + "<parent><groupId>com.acme</groupId><artifactId>fixture</artifactId>"
+                        + "<version>1.0.0</version></parent>"
+                        + "<artifactId>fixture.core</artifactId><packaging>bundle</packaging></project>");
+        Path sources = Files.createDirectories(core.resolve("src/main/java/com/acme"));
+        Files.writeString(sources.resolve("Poller.java"),
+                "package com.acme;\n"
+                        + "import org.apache.sling.commons.scheduler.Scheduler;\n"
+                        + "import org.osgi.service.component.annotations.Component;\n"
+                        + "import org.osgi.service.component.annotations.Reference;\n"
+                        + "@Component(service = Runnable.class)\n"
+                        + "public class Poller implements Runnable {\n"
+                        + "    @Reference\n"
+                        + "    private Scheduler scheduler;\n"
+                        + "    @Override\n"
+                        + "    public void run() {\n"
+                        + "    }\n"
+                        + "}\n");
     }
 
     static AnalysisReport reportWith(Violation... violations) {

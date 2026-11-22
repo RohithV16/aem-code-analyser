@@ -3,11 +3,11 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{% if page.title %}{{ page.title }} · {% endif %}{{ site.title }}</title>
-  <meta name="description" content="{{ page.description | default: site.description }}">
+  <title>{% if page.title %}{{ page.title | escape }} · {% endif %}{{ site.title }}</title>
+  <meta name="description" content="{{ page.description | default: site.description | escape }}">
   <link rel="canonical" href="{{ site.url }}{{ site.baseurl }}{{ page.url }}">
-  <meta property="og:title" content="{% if page.title %}{{ page.title }} · {% endif %}{{ site.title }}">
-  <meta property="og:description" content="{{ page.description | default: site.description }}">
+  <meta property="og:title" content="{% if page.title %}{{ page.title | escape }} · {% endif %}{{ site.title }}">
+  <meta property="og:description" content="{{ page.description | default: site.description | escape }}">
   <meta property="og:type" content="website">
   <meta property="og:url" content="{{ site.url }}{{ site.baseurl }}{{ page.url }}">
   <meta property="og:site_name" content="{{ site.title }}">
@@ -22,6 +22,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
   <link rel="stylesheet" href="{{ site.baseurl }}/assets/css/site.css">
+  {% include structured-data.html %}
   <script>
     (function () {
       var stored = null;

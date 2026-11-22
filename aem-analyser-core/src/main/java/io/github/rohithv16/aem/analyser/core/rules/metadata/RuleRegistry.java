@@ -74,7 +74,8 @@ public final class RuleRegistry {
     private static RuleDescriptor descriptor(RuleId rule) {
         RuleType type = switch (rule) {
             case AEM_DEAD_001, AEM_DEAD_004, AEM_DUP_001, AEM_QUAL_002, AEM_QUAL_004,
-                 AEM_PERF_001, AEM_PERF_002, AEM_DEAD_003A -> RuleType.BUG;
+                 AEM_PERF_001, AEM_PERF_002, AEM_DEAD_003A,
+                 AEM_COMP_002, AEM_QUAL_008, AEM_DEAD_007 -> RuleType.BUG;
             case AEM_QUAL_005, AEM_CLOUD_001, AEM_SEC_001 -> RuleType.VULNERABILITY;
             case AEM_QUAL_003 -> RuleType.SECURITY_HOTSPOT;
             default -> RuleType.CODE_SMELL;
@@ -94,6 +95,9 @@ public final class RuleRegistry {
             case AEM_DEAD_005 -> 10;
             case AEM_SEC_002 -> 25;
             case AEM_PERF_004 -> 20;
+            case AEM_COMP_002 -> 15;
+            case AEM_QUAL_008 -> 20;
+            case AEM_DEAD_007 -> 15;
         };
         String cwe = switch (rule) {
             case AEM_SEC_001 -> "CWE-79";
@@ -121,6 +125,9 @@ public final class RuleRegistry {
             case AEM_SEC_002 -> List.of("security", "ssrf");
             case AEM_PERF_004 -> List.of("performance", "query");
             case AEM_COMP_001 -> List.of("quality", "classic-ui");
+            case AEM_COMP_002 -> List.of("quality", "component");
+            case AEM_QUAL_008 -> List.of("quality", "osgi");
+            case AEM_DEAD_007 -> List.of("dead-code", "htl");
         };
         return new RuleDescriptor(
                 rule.id(),
@@ -133,7 +140,34 @@ public final class RuleRegistry {
                 remediation(rule),
                 cwe,
                 type,
-                effort);
+                effort,
+                securitySeverity(rule),
+                precision());
+    }
+
+    /**
+     * GitHub code-scanning security score (0.1–10.0) for rules tagged {@code security}, 0.0 for every
+     * other rule. Without it GitHub uploads each alert "with no security severity", so the alert list
+     * is unranked; the score decides Critical/High/Medium/Low. Both security rules are High band
+     * (7.0–8.9) because a hit is directly exploitable from a request.
+     */
+    private static double securitySeverity(RuleId rule) {
+        return switch (rule) {
+            // CWE-79: HTL unescaped context — reflected/stored XSS.
+            case AEM_SEC_001 -> 8.0;
+            // CWE-601/CWE-918: request value reaches sendRedirect or an outbound URL.
+            case AEM_SEC_002 -> 8.0;
+            default -> 0.0;
+        };
+    }
+
+    /**
+     * SARIF {@code precision}: first-party rules resolve references through the reactor's own graph,
+     * so a hit is a true positive; embedded SonarJava findings come from heuristics and are marked
+     * medium. Reporting this stops consumers from treating every alert as equally trustworthy.
+     */
+    private static String precision() {
+        return "high";
     }
 
     private static String remediation(RuleId rule) {
@@ -168,6 +202,9 @@ public final class RuleRegistry {
             case AEM_SEC_002 -> "Validate redirects and outbound URLs against an allowlist; never pass request parameters directly.";
             case AEM_PERF_004 -> "Add a result limit (p.limit / query LIMIT) to bound the query.";
             case AEM_SEC_001 -> "Remove context='unsafe' and use a properly escaped context.";
+            case AEM_COMP_002 -> "Point the reference at an existing component under the project's /apps prefix, or restore the component that was renamed or moved.";
+            case AEM_QUAL_008 -> "Register a @Component service implementation for the target type, or mark the @Reference optional if activation must not depend on it.";
+            case AEM_DEAD_007 -> "Correct the include path to an existing template, or break the include cycle.";
         };
     }
 
@@ -185,6 +222,8 @@ public final class RuleRegistry {
                 "",
                 null,
                 RuleType.CODE_SMELL,
-                sonar ? 10 : 5);
+                sonar ? 10 : 5,
+                0.0,
+                sonar ? "medium" : "low");
     }
 }

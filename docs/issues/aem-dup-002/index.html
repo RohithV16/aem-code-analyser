@@ -1,0 +1,43 @@
+---
+layout: default
+nav: issues
+title: "AEM-DUP-002 DuplicateOsgiConfiguration — Conflicting or duplicate OSGi configuration targeting the same PID in the …"
+description: "AEM-DUP-002 (WARNING): Conflicting or duplicate OSGi configuration targeting the same PID in the same runmode context."
+rule_id: "AEM-DUP-002"
+rule_family: "DUP"
+rule_family_title: "Duplication"
+rule_severity: "WARNING"
+rule_tags: "duplication"
+---
+
+<div class="shell docs">
+  <div class="docs__main">
+    <p class="muted"><a href="../">← All 33 rules</a></p>
+    <div class="issues-head">
+      <h1><span class="rule-card__id">AEM-DUP-002</span> DuplicateOsgiConfiguration</h1>
+      <p class="lede">Conflicting or duplicate OSGi configuration targeting the same PID in the same runmode context.</p>
+      <p class="muted"><span class="pill pill--warning">WARNING</span> · 15 min fix · Code smell · <a href="../#family-dup">Duplication</a></p>
+    </div>
+
+    <article class="rule-card rule-card--page" id="aem-dup-002" data-family="DUP">
+        <p class="rule-card__summary">Conflicting or duplicate OSGi configuration targeting the same PID in the same runmode context.</p>
+        <h2>Why it matters</h2>
+        <p>Two files configuring the same PID in the same runmode context are both installed and the winner depends on install order. Values then differ between a fresh install and an incremental one — the classic &quot;works on my instance&quot; configuration bug.</p>
+        <h2>How to fix it</h2>
+        <p>Keep exactly one file per PID and runmode context and merge the properties into it. Split by runmode (config, config.author, config.publish) when the values genuinely differ.</p>
+        <div class="examples">
+          <div class="code code--bad">
+            <div class="code__bar"><span class="code__label">text · before</span></div>
+            <pre><code>ui.config/.../config/com.acme.SearchService.cfg.json         (limit = 100)
+ui.config/.../config/com.acme.core.SearchService.cfg.json    (limit = 250)</code></pre>
+          </div>
+          <div class="code code--good">
+            <div class="code__bar"><span class="code__label">text · after</span></div>
+            <pre><code>ui.config/.../config/com.acme.core.services.SearchService.cfg.json   (limit = 250)</code></pre>
+          </div>
+        </div>
+        <p class="suppress">Suppress one line: <code>// aem-analyser-disable-next-line AEM-DUP-002</code> · tags duplication · <code>--explain AEM-DUP-002</code></p>
+    </article>
+    <p class="muted">Every rule in the catalogue, with what it detects and how to fix it: <a href="../">all 33 rules</a>. Suppress a single line with <code>// aem-analyser-disable-next-line AEM-DUP-002</code>.</p>
+  </div>
+</div>

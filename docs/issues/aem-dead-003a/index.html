@@ -1,0 +1,48 @@
+---
+layout: default
+nav: issues
+title: "AEM-DEAD-003A UnusedOsgiService — OSGi Service has zero injections across bundles and is not a system entry point."
+description: "AEM-DEAD-003A (WARNING): OSGi Service has zero injections across bundles and is not a system entry point."
+rule_id: "AEM-DEAD-003A"
+rule_family: "DEAD"
+rule_family_title: "Dead code"
+rule_severity: "WARNING"
+rule_tags: "dead-code, osgi"
+---
+
+<div class="shell docs">
+  <div class="docs__main">
+    <p class="muted"><a href="../">← All 33 rules</a></p>
+    <div class="issues-head">
+      <h1><span class="rule-card__id">AEM-DEAD-003A</span> UnusedOsgiService</h1>
+      <p class="lede">OSGi Service has zero injections across bundles and is not a system entry point.</p>
+      <p class="muted"><span class="pill pill--warning">WARNING</span> · 30 min fix · Bug · <a href="../#family-dead">Dead code</a></p>
+    </div>
+
+    <article class="rule-card rule-card--page" id="aem-dead-003a" data-family="DEAD">
+        <p class="rule-card__summary">OSGi Service has zero injections across bundles and is not a system entry point.</p>
+        <h2>Why it matters</h2>
+        <p>A registered OSGi service that nothing injects and that no framework calls is code the build still compiles, tests and deploys. On AEM as a Cloud Service it also keeps its dependencies and configuration alive.</p>
+        <h2>How to fix it</h2>
+        <p>Inject the service where it was meant to be used, drop the service = ... registration so the class becomes a plain component, or export its package when it is a deliberate API for other bundles.</p>
+        <div class="examples">
+          <div class="code code--bad">
+            <div class="code__bar"><span class="code__label">java · before</span></div>
+            <pre><code>@Component(service = LegacyImportService.class)
+public class LegacyImportService {
+    // no @Reference to this type anywhere in the reactor
+}</code></pre>
+          </div>
+          <div class="code code--good">
+            <div class="code__bar"><span class="code__label">java · after</span></div>
+            <pre><code>@Component
+public class ImportJobConsumer implements JobConsumer {
+    // used through the Sling Job API, not through an injected reference
+}</code></pre>
+          </div>
+        </div>
+        <p class="suppress">Suppress one line: <code>// aem-analyser-disable-next-line AEM-DEAD-003A</code> · tags dead-code, osgi · <code>--explain AEM-DEAD-003A</code></p>
+    </article>
+    <p class="muted">Every rule in the catalogue, with what it detects and how to fix it: <a href="../">all 33 rules</a>. Suppress a single line with <code>// aem-analyser-disable-next-line AEM-DEAD-003A</code>.</p>
+  </div>
+</div>

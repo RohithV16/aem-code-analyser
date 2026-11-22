@@ -1,0 +1,51 @@
+---
+layout: default
+nav: issues
+title: "AEM-DUP-003 DuplicateSlingModel — Multiple Sling Models bind to the exact same resourceType and adapter interface …"
+description: "AEM-DUP-003 (WARNING): Multiple Sling Models bind to the exact same resourceType and adapter interface without condition."
+rule_id: "AEM-DUP-003"
+rule_family: "DUP"
+rule_family_title: "Duplication"
+rule_severity: "WARNING"
+rule_tags: "duplication"
+---
+
+<div class="shell docs">
+  <div class="docs__main">
+    <p class="muted"><a href="../">← All 33 rules</a></p>
+    <div class="issues-head">
+      <h1><span class="rule-card__id">AEM-DUP-003</span> DuplicateSlingModel</h1>
+      <p class="lede">Multiple Sling Models bind to the exact same resourceType and adapter interface without condition.</p>
+      <p class="muted"><span class="pill pill--warning">WARNING</span> · 15 min fix · Code smell · <a href="../#family-dup">Duplication</a></p>
+    </div>
+
+    <article class="rule-card rule-card--page" id="aem-dup-003" data-family="DUP">
+        <p class="rule-card__summary">Multiple Sling Models bind to the exact same resourceType and adapter interface without condition.</p>
+        <h2>Why it matters</h2>
+        <p>Two Sling Models bound to the same resourceType and adaptable means HTL can resolve either one; the winner is undefined. Exported JSON then differs depending on which model the model factory picked.</p>
+        <h2>How to fix it</h2>
+        <p>Keep one model per resource type, or separate them by selector, resource type or a condition, and let HTL choose explicitly.</p>
+        <div class="examples">
+          <div class="code code--bad">
+            <div class="code__bar"><span class="code__label">java · before</span></div>
+            <pre><code>@Model(adaptables = Resource.class, resourceType = &quot;acme/components/card&quot;)
+public class CardModel { }
+
+@Model(adaptables = Resource.class, resourceType = &quot;acme/components/card&quot;)
+public class CardViewModel { }</code></pre>
+          </div>
+          <div class="code code--good">
+            <div class="code__bar"><span class="code__label">java · after</span></div>
+            <pre><code>@Model(adaptables = Resource.class, resourceType = &quot;acme/components/card&quot;,
+       defaultInjectionStrategy = DefaultInjectionStrategy.OPTIONAL)
+public class CardModel { }
+
+@Model(adaptables = Resource.class, resourceType = &quot;acme/components/card/view&quot;)
+public class CardViewModel { }</code></pre>
+          </div>
+        </div>
+        <p class="suppress">Suppress one line: <code>// aem-analyser-disable-next-line AEM-DUP-003</code> · tags duplication · <code>--explain AEM-DUP-003</code></p>
+    </article>
+    <p class="muted">Every rule in the catalogue, with what it detects and how to fix it: <a href="../">all 33 rules</a>. Suppress a single line with <code>// aem-analyser-disable-next-line AEM-DUP-003</code>.</p>
+  </div>
+</div>

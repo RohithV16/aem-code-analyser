@@ -1,0 +1,42 @@
+---
+layout: default
+nav: issues
+title: "AEM-CLOUD-005 InvalidRunmodeFolder — OSGi configuration lives in a runmode folder that is not a recognised AEM …"
+description: "AEM-CLOUD-005 (WARNING): OSGi configuration lives in a runmode folder that is not a recognised AEM runmode."
+rule_id: "AEM-CLOUD-005"
+rule_family: "CLOUD"
+rule_family_title: "AEM as a Cloud Service"
+rule_severity: "WARNING"
+rule_tags: "aem-cloud, api"
+---
+
+<div class="shell docs">
+  <div class="docs__main">
+    <p class="muted"><a href="../">← All 33 rules</a></p>
+    <div class="issues-head">
+      <h1><span class="rule-card__id">AEM-CLOUD-005</span> InvalidRunmodeFolder</h1>
+      <p class="lede">OSGi configuration lives in a runmode folder that is not a recognised AEM runmode.</p>
+      <p class="muted"><span class="pill pill--warning">WARNING</span> · 5 min fix · Code smell · <a href="../#family-cloud">AEM as a Cloud Service</a></p>
+    </div>
+
+    <article class="rule-card rule-card--page" id="aem-cloud-005" data-family="CLOUD">
+        <p class="rule-card__summary">OSGi configuration lives in a runmode folder that is not a recognised AEM runmode.</p>
+        <h2>Why it matters</h2>
+        <p>Only the documented runmodes are applied by AEM as a Cloud Service. A configuration in an unrecognised folder is never activated, so the setting silently does not apply.</p>
+        <h2>How to fix it</h2>
+        <p>Move the file to a recognised folder — config, config.author, config.publish, config.dev, config.stage, config.prod — or delete it when the runmode no longer exists.</p>
+        <div class="examples">
+          <div class="code code--bad">
+            <div class="code__bar"><span class="code__label">text · before</span></div>
+            <pre><code>ui.config/.../config.author.dev.local/com.acme.SearchService.cfg.json</code></pre>
+          </div>
+          <div class="code code--good">
+            <div class="code__bar"><span class="code__label">text · after</span></div>
+            <pre><code>ui.config/.../config.author/com.acme.SearchService.cfg.json</code></pre>
+          </div>
+        </div>
+        <p class="suppress">Suppress one line: <code>// aem-analyser-disable-next-line AEM-CLOUD-005</code> · tags aem-cloud, api · <code>--explain AEM-CLOUD-005</code></p>
+    </article>
+    <p class="muted">Every rule in the catalogue, with what it detects and how to fix it: <a href="../">all 33 rules</a>. Suppress a single line with <code>// aem-analyser-disable-next-line AEM-CLOUD-005</code>.</p>
+  </div>
+</div>

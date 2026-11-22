@@ -9,8 +9,8 @@ import java.io.StringWriter;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**
- * The process exit code is a documented contract (0 pass, 1 gate failure, 2 the analysis could not
- * run). A usage error must never look like a verdict on the code.
+ * The process exit code is a documented contract (0 pass, 1 gate failure, 2 bad invocation, 3 the
+ * analyser broke). A usage error must never look like a verdict on the code.
  */
 class AnalyserCliExitCodeTest {
 
@@ -40,6 +40,18 @@ class AnalyserCliExitCodeTest {
         cmd.setErr(new PrintWriter(new StringWriter()));
 
         assertEquals(2, cmd.execute("--min-coverage", "150", "--no-html"));
+    }
+
+    @Test
+    void internalCrashIsNotAVerdictOnTheCode() throws Exception {
+        CommandLine cmd = AnalyserCli.createCommandLine();
+        cmd.setErr(new java.io.PrintWriter(new StringWriter()));
+
+        int code = cmd.getExecutionExceptionHandler()
+                .handleExecutionException(new IllegalStateException("boom"), cmd, null);
+
+        assertEquals(3, code,
+                "an internal crash must be distinguishable from a failed gate (1) and a usage error (2)");
     }
 
     @Test
