@@ -107,6 +107,10 @@ public class AnalyserCli implements java.util.concurrent.Callable<Integer> {
             description = "Print structured analysis diagnostics (unparseable files, skipped trees).")
     private boolean verbose;
 
+    @Option(names = {"--debug"},
+            description = "Print stack traces for internal failures (never printed by default).")
+    private boolean debug;
+
     @Option(names = {"--ignored-services"}, split = ",",
             description = "Service implementation class names to whitelist (never flagged unused).")
     private Set<String> ignoredServices;
@@ -241,19 +245,54 @@ public class AnalyserCli implements java.util.concurrent.Callable<Integer> {
     }
 
     /**
+     * Documented exit codes. They are distinct on purpose: a CI step must be able to tell "your code
+     * failed the gate" from "you invoked the tool wrongly" from "the tool itself broke".
+     */
+    static final int EXIT_OK = 0;
+
+    /** The analyser ran and the gate failed. */
+    static final int EXIT_GATE_FAILED = 1;
+
+    /** The invocation was wrong: a bad flag, an unusable path, an invalid configuration. */
+    static final int EXIT_USAGE = 2;
+
+    /** The analyser itself broke, so this run says nothing about the analysed code. */
+    static final int EXIT_INTERNAL = 3;
+
+    /**
      * The process exit code is the command's return value: discarding it turned a usage error into a
      * silent "gate passed" for any CI step that reads the status.
      */
     public static void main(String[] args) {
         CommandLine commandLine = new CommandLine(new AnalyserCli());
-        // An uncaught crash is not a verdict on the code. Without this handler picocli returns 1,
-        // which is indistinguishable from a failed gate, so map it to the usage/analysis error code.
-        commandLine.setExecutionExceptionHandler((exception, cmd, parseResult) -> {
-            cmd.getErr().println("[ERROR] Internal error: " + exception);
-            exception.printStackTrace(cmd.getErr());
-            return 2;
-        });
+        installExceptionHandlers(commandLine);
         System.exit(commandLine.execute(args));
+    }
+
+    /**
+     * An uncaught crash is not a verdict on the code. Without this handler picocli returns 1, which
+     * is the "gate failed" code, so a defect in the analyser looked like a failing project.
+     */
+    static void installExceptionHandlers(CommandLine commandLine) {
+        commandLine.setExecutionExceptionHandler((exception, cmd, parseResult) ->
+                internalFailure(exception, cmd.getErr(), debugEnabled(cmd)));
+    }
+
+    private static boolean debugEnabled(CommandLine cmd) {
+        Object command = cmd.getCommand();
+        return command instanceof AnalyserCli cli && cli.debug;
+    }
+
+    /** Prints one line (plus the trace only with {@code --debug}) and returns the internal code. */
+    static int internalFailure(Throwable exception, PrintWriter err, boolean debug) {
+        err.println("[ERROR] The analyser failed: " + FailureMessage.oneLine(exception)
+                + ". This is a defect in AEM Code Analyser, not a finding in your project;"
+                + " rerun with --debug for the stack trace.");
+        if (debug) {
+            exception.printStackTrace(err);
+        }
+        err.flush();
+        return EXIT_INTERNAL;
     }
 
     int execute() {
@@ -261,18 +300,74 @@ public class AnalyserCli implements java.util.concurrent.Callable<Integer> {
         if (metaCommandResult.isPresent()) {
             return metaCommandResult.getAsInt();
         }
+        return executePhase("analysis", this::runAnalysis);
+    }
+
+    /** One unit of work whose failure is classified into an exit code and one sentence. */
+    @FunctionalInterface
+    interface Phase {
+        int run() throws Exception;
+    }
+
+    /**
+     * Runs one phase and classifies a failure.
+     *
+     * <ul>
+     *   <li>{@link IllegalArgumentException}: the input cannot be used as given — usage error (2).</li>
+     *   <li>{@link AnalysisException} caused by a runtime failure: the analyser crashed on the input
+     *       — internal error (3); an I/O cause means the project could not be read — usage error (2).</li>
+     *   <li>{@link ExportException} / {@link IOException}: the run could not be completed (3): the
+     *       project was readable enough to start, so this is not a bad invocation.</li>
+     *   <li>Any other runtime failure: a defect (3), never a gate failure.</li>
+     * </ul>
+     */
+    int executePhase(String phase, Phase body) {
         try {
-            return runAnalysis();
+            return body.run();
         } catch (AnalysisException e) {
-            stdout.println("[ERROR] Analysis failed: " + e.getMessage());
-            return 2;
-        } catch (IOException | ExportException e) {
-            stdout.println("[ERROR] Report export failed: " + e.getMessage());
-            return 2;
+            stdout.println("[ERROR] Analysis failed: " + FailureMessage.stripFailurePrefixes(e.getMessage()));
+            debugTrace(e);
+            return e.getCause() instanceof RuntimeException ? EXIT_INTERNAL : EXIT_USAGE;
+        } catch (ExportException | IOException e) {
+            stdout.println("[ERROR] Could not write a report: " + FailureMessage.oneLine(e)
+                    + ". Check that the output directory is writable and has free space"
+                    + " (--output selects it).");
+            debugTrace(e);
+            return EXIT_INTERNAL;
         } catch (IllegalArgumentException e) {
-            stdout.println("[ERROR] " + e.getMessage());
-            return 2;
+            stdout.println("[ERROR] " + FailureMessage.oneLine(e));
+            debugTrace(e);
+            return EXIT_USAGE;
+        } catch (RuntimeException e) {
+            return phaseFailed(phase, e);
+        } catch (Exception e) {
+            // A checked failure nobody anticipated is still the analyser breaking, never a verdict.
+            return phaseFailed(phase, e);
         }
+    }
+
+    /** One sentence for a phase that crashed; the trace stays behind {@code --debug}. */
+    private int phaseFailed(String phase, Exception failure) {
+        stdout.println("[ERROR] The analyser failed during " + phase + ": "
+                + FailureMessage.oneLine(failure)
+                + ". This is a defect in AEM Code Analyser, not a finding in your project;"
+                + " rerun with --debug for the stack trace.");
+        debugTrace(failure);
+        return EXIT_INTERNAL;
+    }
+
+    /** A stack trace is for the person fixing the analyser, not for every CI log. */
+    private void debugTrace(Throwable failure) {
+        if (debug) {
+            failure.printStackTrace(stdout);
+            stdout.flush();
+        }
+    }
+
+    /** An I/O message that only repeats the path ("/x: /x") says nothing; name the real problem. */
+    private static String ioDetail(Path target, IOException failure) {
+        String detail = FailureMessage.oneLine(failure);
+        return target != null && detail.equals(target.toString()) ? "not a writable directory" : detail;
     }
 
     /** Meta commands ({@code --generate-rule-docs}, {@code --list-rules}, {@code --explain}) exit early. */
@@ -302,7 +397,7 @@ public class AnalyserCli implements java.util.concurrent.Callable<Integer> {
     }
 
     private int runAnalysis() throws IOException, ExportException, AnalysisException {
-        Path root = resolveProjectRoot();
+        Path root = validatedProjectRoot();
         List<ReportFormat> reportFormats = parseFormats();
         // Validated before the scan: an unknown --group-by is a usage error, not a post-analysis one.
         ConsoleGroupBy consoleGroupBy = consoleGroupBy();
@@ -315,15 +410,26 @@ public class AnalyserCli implements java.util.concurrent.Callable<Integer> {
         try {
             config = loadConfig(root);
         } catch (IOException e) {
-            stdout.println("[ERROR] Could not read configuration: " + e.getMessage());
-            return 2;
+            // One sentence naming the file, the offending field and the fix; never the Jackson chain.
+            stdout.println("[ERROR] " + FailureMessage.configuration(configurationPath(root), e));
+            debugTrace(e);
+            return EXIT_USAGE;
         }
         AnalysisContext context = scopeToChangedFiles(buildContext(root, config), root);
         AnalysisReport report = analyzeAndFilter(context, root);
         report = applyAutoFix(root, context, report);
         report = config.apply(report);
         report = applyBaseline(root, report);
-        List<io.github.rohithv16.aem.analyser.core.history.RunSummary> history = applyHistory(report);
+        List<io.github.rohithv16.aem.analyser.core.history.RunSummary> history;
+        try {
+            history = applyHistory(report);
+        } catch (IOException e) {
+            stdout.println("[ERROR] Could not write the run history to " + historyDirectory + ": "
+                    + ioDetail(historyDirectory, e)
+                    + ". Point --history at a writable directory.");
+            debugTrace(e);
+            return EXIT_INTERNAL;
+        }
         // The gate is evaluated once, before anything renders: the console block, the dashboard and
         // the exit code all have to describe the same run.
         printQualityGate(report);
@@ -340,6 +446,13 @@ public class AnalyserCli implements java.util.concurrent.Callable<Integer> {
                 : io.github.rohithv16.aem.analyser.core.config.AnalyserConfigLoader.loadIfPresent(root);
         warnRetiredRuleIds(config.rules().keySet(), "Configuration");
         return config;
+    }
+
+    /** The configuration file this run reads, for failure messages that must name it. */
+    private Path configurationPath(Path root) {
+        return configFile != null
+                ? configFile
+                : root.resolve(io.github.rohithv16.aem.analyser.core.config.AnalyserConfigLoader.DEFAULT_FILE);
     }
 
     /**
@@ -638,6 +751,28 @@ public class AnalyserCli implements java.util.concurrent.Callable<Integer> {
             }
         }
         return report;
+    }
+
+    /**
+     * The reactor root this run analyses, validated before any work starts: a path typo or a
+     * directory that is not a Maven root fails with the path and the expectation in the message,
+     * not with a stack trace twenty seconds into the scan.
+     */
+    private Path validatedProjectRoot() {
+        Path explicit = projectRoot != null ? projectRoot : positionalProjectRoot;
+        Path requested = explicit != null
+                ? explicit.toAbsolutePath().normalize()
+                : Path.of("").toAbsolutePath().normalize();
+        String pathProblem = FailureMessage.pathProblem(requested);
+        if (pathProblem != null) {
+            throw new IllegalArgumentException(pathProblem);
+        }
+        Path root = resolveProjectRoot();
+        String missingPom = FailureMessage.missingPom(root);
+        if (missingPom != null) {
+            throw new IllegalArgumentException(missingPom);
+        }
+        return root;
     }
 
     /**

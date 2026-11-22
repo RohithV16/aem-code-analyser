@@ -9,8 +9,8 @@ import java.io.StringWriter;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**
- * The process exit code is a documented contract (0 pass, 1 gate failure, 2 the analysis could not
- * run). A usage error must never look like a verdict on the code.
+ * The process exit code is a documented contract (0 pass, 1 gate failure, 2 bad invocation, 3 the
+ * analyser broke). A usage error must never look like a verdict on the code.
  */
 class AnalyserCliExitCodeTest {
 
