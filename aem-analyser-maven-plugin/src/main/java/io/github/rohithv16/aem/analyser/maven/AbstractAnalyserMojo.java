@@ -500,9 +500,11 @@ public abstract class AbstractAnalyserMojo extends AbstractMojo {
                 if (findings.isEmpty() && acceptedFindings.isEmpty()) {
                     continue;
                 }
+                // A module report is a slice of one run: phase timings and the cache summary belong to
+                // the whole run, not to one module, so they stay empty here.
                 AnalysisReport moduleReport = new AnalysisReport(root, report.scanStatistics(), findings,
                         report.durationMillis(), report.coverageReport(), report.codeMetrics(),
-                        report.diagnostics(), null, acceptedFindings);
+                        report.diagnostics(), null, acceptedFindings, Map.of(), null);
                 Path moduleDirectory = modulesDirectory.resolve(directoryName(moduleId));
                 Files.createDirectories(moduleDirectory);
                 for (ReportFormat format : formats) {
