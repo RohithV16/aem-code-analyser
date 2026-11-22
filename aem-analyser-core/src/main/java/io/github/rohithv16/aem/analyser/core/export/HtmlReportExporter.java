@@ -4,6 +4,7 @@ import io.github.rohithv16.aem.analyser.core.history.RunSummary;
 import io.github.rohithv16.aem.analyser.core.model.report.AnalysisReport;
 import io.github.rohithv16.aem.analyser.core.model.report.CodeMetrics;
 import io.github.rohithv16.aem.analyser.core.model.report.CoverageReport;
+import io.github.rohithv16.aem.analyser.core.model.report.GateVerdict;
 import io.github.rohithv16.aem.analyser.core.model.report.Severity;
 import io.github.rohithv16.aem.analyser.core.model.report.Violation;
 
@@ -96,12 +97,25 @@ public final class HtmlReportExporter implements ReportExporter {
         long totalViolations = activeViolations.size();
         int diagnosticsCount = report.diagnostics().size();
 
-        String verdictClass = errors > 0 ? "verdict--fail"
-                : (!report.diagnostics().isEmpty() || warnings > 0) ? "verdict--warn" : "verdict--pass";
-        String statusText = errors > 0 ? "QUALITY GATE FAILED (" + errors + " Errors)"
-                : !report.diagnostics().isEmpty()
-                        ? "PASSED WITH " + diagnosticsCount + " DIAGNOSTIC(S)"
-                        : warnings > 0 ? "PASSED WITH WARNINGS" : "QUALITY GATE PASSED";
+        GateVerdict verdict = report.gateVerdict();
+        String verdictClass = switch (verdict.status()) {
+            case FAILED -> "verdict--fail";
+            case PASSED -> (!report.diagnostics().isEmpty() || warnings > 0) ? "verdict--warn" : "verdict--pass";
+            default -> "verdict--warn";
+        };
+        String statusText = switch (verdict.status()) {
+            case FAILED -> "QUALITY GATE FAILED — " + verdict.reason();
+            // Report-only run (--fail-on NONE): findings exist but nobody asked the build to fail,
+            // so the header must not claim a failure the exit code does not signal.
+            case NOT_ENFORCED -> "GATE NOT ENFORCED — report only ("
+                    + errors + " Errors, " + warnings + " Warnings)";
+            case PASSED_WITH_WARNINGS -> !report.diagnostics().isEmpty()
+                    ? "PASSED WITH " + diagnosticsCount + " DIAGNOSTIC(S)"
+                    : "PASSED WITH WARNINGS";
+            case PASSED -> !report.diagnostics().isEmpty()
+                    ? "PASSED WITH " + diagnosticsCount + " DIAGNOSTIC(S)"
+                    : "QUALITY GATE PASSED";
+        };
 
         List<Violation> sortedViolations = activeViolations.stream()
                 .sorted(Comparator.comparingInt((Violation v) -> switch (v.severity()) {
