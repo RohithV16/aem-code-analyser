@@ -27,8 +27,13 @@ public final class HtlScanner {
             Pattern.DOTALL
     );
 
+    /**
+     * A string-literal expression: {@code ${'com.acme.HeroModel'}} or, with the documented
+     * option syntax, {@code ${'com.acme.HeroModel' @ title=properties.title, index=1}}.
+     * The options are not part of the class name, so only the literal is captured.
+     */
     private static final Pattern EXPR_TARGET_PATTERN = Pattern.compile(
-            "^\\s*\\$\\{\\s*[\"']([^\"']+)[\"']\\s*\\}\\s*$"
+            "^\\s*\\$\\{\\s*[\"']([^\"']+)[\"']\\s*(?:@[^}]*)?\\}\\s*$"
     );
 
     private static final Pattern UNSAFE_CONTEXT_PATTERN = Pattern.compile(
