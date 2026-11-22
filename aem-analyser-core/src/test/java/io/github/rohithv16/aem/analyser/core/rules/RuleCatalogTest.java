@@ -50,7 +50,7 @@ class RuleCatalogTest {
 
     @Test
     void catalogCoversEveryRuleIdExactlyOnce() {
-        assertEquals(31, RuleCatalog.evaluators().size());
+        assertEquals(32, RuleCatalog.evaluators().size());
         assertEquals(RuleId.values().length - RuleCatalog.PRODUCED_ELSEWHERE.size(),
                 RuleCatalog.evaluators().size(),
                 "registered + produced elsewhere must cover every RuleId");

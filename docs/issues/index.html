@@ -13,15 +13,15 @@ description: Every AEM Code Analyser rule — what it detects, why it matters on
       <div class="issue-tools">
         <label class="visually-hidden" for="issueSearch">Filter issues</label>
         <input type="search" id="issueSearch" placeholder="Filter by id, name, tag or symptom…" autocomplete="off">
-        <button class="chip" type="button" data-family="all" aria-pressed="true">All 33</button>
+        <button class="chip" type="button" data-family="all" aria-pressed="true">All 34</button>
         <button class="chip" type="button" data-family="DEAD" aria-pressed="false">Dead code 9</button>
         <button class="chip" type="button" data-family="DUP" aria-pressed="false">Duplication 4</button>
         <button class="chip" type="button" data-family="QUAL" aria-pressed="false">Quality 7</button>
         <button class="chip" type="button" data-family="PERF" aria-pressed="false">Performance 4</button>
-        <button class="chip" type="button" data-family="CLOUD" aria-pressed="false">Cloud Service 5</button>
+        <button class="chip" type="button" data-family="CLOUD" aria-pressed="false">Cloud Service 6</button>
         <button class="chip" type="button" data-family="SEC" aria-pressed="false">Security 2</button>
         <button class="chip" type="button" data-family="COMP" aria-pressed="false">Components 2</button>
-        <span class="issue-count" id="issueCount" aria-live="polite">33 of 33 issues</span>
+        <span class="issue-count" id="issueCount" aria-live="polite">34 of 34 issues</span>
       </div>
     </div>
 
@@ -831,7 +831,7 @@ params.put(&quot;p.guessTotal&quot;, &quot;1000&quot;);</code></pre>
     <section class="family" id="family-cloud">
       <div class="family__head">
         <h2>AEM as a Cloud Service</h2>
-        <span>5 issues</span>
+        <span>6 issues</span>
       </div>
       <p class="muted">Patterns that break on AEM as a Cloud Service, including plaintext secrets.</p>
 
@@ -974,6 +974,42 @@ ui.config/.../config/org.apache.sling.jcr.repoinit.RepositoryInitializer-acme.cf
           </div>
         </div>
         <p class="suppress">Suppress one line: <code>// aem-analyser-disable-next-line AEM-CLOUD-005</code> · tags aem-cloud, api · <code>--explain AEM-CLOUD-005</code></p>
+      </article>
+
+      <article class="rule-card" id="aem-cloud-006" data-family="CLOUD" data-search="aem-cloud-006 brokendispatcherconfig dispatcher configuration has an unresolved include, a duplicate servername, a vhost without documentroot or a legacy dispatcher.any. aem-cloud dispatcher warning create the missing include file, give each virtual host a distinct servername and a documentroot, and split a monolithic dispatcher.any into conf.dispatcher.d and conf.d. the dispatcher is validated only when cloud manager deploys, so a broken include, a duplicated servername, a virtual host with no documentroot or a monolithic dispatcher.any turns into a failed pipeline rather than a failed build. the same defects are also the usual cause of &quot;works in dev, 404 in prod&quot;: the vhost never loads, or two vhosts answer for one host name and whichever loads last wins. create the missing include target or fix the path, give every virtual host its own servername, add documentroot &quot;${docroot&quot;} to each block, and split a legacy monolithic dispatcher.any into conf.dispatcher.d (farms, filters, cache, renders, virtualhosts) plus conf.d (vhosts, rewrites, variables).">
+        <header class="rule-card__head">
+          <h3 class="rule-card__title"><a class="rule-card__permalink" href="aem-cloud-006/" aria-label="Open the AEM-CLOUD-006 reference page"><span class="rule-card__id">AEM-CLOUD-006</span></a><a class="rule-card__anchor" href="#aem-cloud-006" aria-label="Link to AEM-CLOUD-006">#</a><span class="rule-card__name">BrokenDispatcherConfig</span></h3>
+          <span class="pill pill--warning">WARNING</span>
+          <span class="rule-card__meta">
+            <span>20 min fix</span>
+            <span>Code smell</span>
+          </span>
+        </header>
+        <p class="rule-card__summary">Dispatcher configuration has an unresolved include, a duplicate ServerName, a vhost without DocumentRoot or a legacy dispatcher.any.</p>
+        <h4>Why it matters</h4>
+        <p>The dispatcher is validated only when Cloud Manager deploys, so a broken include, a duplicated ServerName, a virtual host with no DocumentRoot or a monolithic dispatcher.any turns into a failed pipeline rather than a failed build. The same defects are also the usual cause of &quot;works in dev, 404 in prod&quot;: the vhost never loads, or two vhosts answer for one host name and whichever loads last wins.</p>
+        <h4>How to fix it</h4>
+        <p>Create the missing include target or fix the path, give every virtual host its own ServerName, add DocumentRoot &quot;${DOCROOT&quot;} to each block, and split a legacy monolithic dispatcher.any into conf.dispatcher.d (farms, filters, cache, renders, virtualhosts) plus conf.d (vhosts, rewrites, variables).</p>
+        <div class="examples">
+          <div class="code code--bad">
+            <div class="code__bar"><span class="code__label">text · before</span></div>
+            <pre><code># dispatcher/src/conf.d/available_vhosts/acme.vhost
+Include conf.d/includes/cache-rules.conf   # no such file
+&lt;VirtualHost *:80&gt;
+    ServerName &quot;www.acme.com&quot;
+&lt;/VirtualHost&gt;</code></pre>
+          </div>
+          <div class="code code--good">
+            <div class="code__bar"><span class="code__label">text · after</span></div>
+            <pre><code># dispatcher/src/conf.d/available_vhosts/acme.vhost
+Include conf.d/includes/cache.conf
+&lt;VirtualHost *:80&gt;
+    ServerName &quot;www.acme.com&quot;
+    DocumentRoot &quot;${DOCROOT}&quot;
+&lt;/VirtualHost&gt;</code></pre>
+          </div>
+        </div>
+        <p class="suppress">Suppress one line: <code>// aem-analyser-disable-next-line AEM-CLOUD-006</code> · tags aem-cloud, dispatcher · <code>--explain AEM-CLOUD-006</code></p>
       </article>
     </section>
 
@@ -1138,7 +1174,7 @@ if (target != null &amp;&amp; target.startsWith(&quot;/content/&quot;) &amp;&amp
       <li><a href="#family-dup">Duplication <span class="muted">4</span></a></li>
       <li><a href="#family-qual">Quality and Cloud Manager parity <span class="muted">7</span></a></li>
       <li><a href="#family-perf">Performance <span class="muted">4</span></a></li>
-      <li><a href="#family-cloud">AEM as a Cloud Service <span class="muted">5</span></a></li>
+      <li><a href="#family-cloud">AEM as a Cloud Service <span class="muted">6</span></a></li>
       <li><a href="#family-sec">Security <span class="muted">2</span></a></li>
       <li><a href="#family-comp">Component compatibility <span class="muted">2</span></a></li>
     </ul>
@@ -1173,6 +1209,7 @@ if (target != null &amp;&amp; target.startsWith(&quot;/content/&quot;) &amp;&amp
       <li><a href="#aem-cloud-003">AEM-CLOUD-003</a></li>
       <li><a href="#aem-cloud-004">AEM-CLOUD-004</a></li>
       <li><a href="#aem-cloud-005">AEM-CLOUD-005</a></li>
+      <li><a href="#aem-cloud-006">AEM-CLOUD-006</a></li>
       <li><a href="#aem-sec-001">AEM-SEC-001</a></li>
       <li><a href="#aem-sec-002">AEM-SEC-002</a></li>
       <li><a href="#aem-comp-001">AEM-COMP-001</a></li>

@@ -68,6 +68,7 @@ This tests the probes in the target’s real module layout and Maven profile con
 | AEM-CLOUD-003 | `getServiceResourceResolver` with an unmapped subservice |
 | AEM-CLOUD-004 | deprecated `org.apache.commons.lang.StringUtils` import |
 | AEM-CLOUD-005 | config under `config.foo` |
+| AEM-CLOUD-006 | dispatcher vhost includes a missing file, duplicates `ServerName`, omits `DocumentRoot`; legacy `src/dispatcher.any` |
 | AEM-SEC-001 | HTL `context='unsafe'` |
 | AEM-SEC-002 | `sendRedirect(request.getParameter("next"))` |
 

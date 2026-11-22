@@ -1,0 +1,5 @@
+# Probe: second virtual host reusing the ServerName and omitting DocumentRoot (AEM-CLOUD-006).
+<VirtualHost *:80>
+    ServerName "probe"
+    ServerAlias "*.probe.invalid"
+</VirtualHost>

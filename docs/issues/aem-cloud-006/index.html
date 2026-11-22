@@ -1,0 +1,51 @@
+---
+layout: default
+nav: issues
+title: "AEM-CLOUD-006 BrokenDispatcherConfig — Dispatcher configuration has an unresolved include, a duplicate ServerName, a …"
+description: "AEM-CLOUD-006 (WARNING): Dispatcher configuration has an unresolved include, a duplicate ServerName, a vhost without DocumentRoot or a legacy dispatcher.any."
+rule_id: "AEM-CLOUD-006"
+rule_family: "CLOUD"
+rule_family_title: "AEM as a Cloud Service"
+rule_severity: "WARNING"
+rule_tags: "aem-cloud, dispatcher"
+---
+
+<div class="shell docs">
+  <div class="docs__main">
+    <p class="muted"><a href="../">← All 34 rules</a></p>
+    <div class="issues-head">
+      <h1><span class="rule-card__id">AEM-CLOUD-006</span> BrokenDispatcherConfig</h1>
+      <p class="lede">Dispatcher configuration has an unresolved include, a duplicate ServerName, a vhost without DocumentRoot or a legacy dispatcher.any.</p>
+      <p class="muted"><span class="pill pill--warning">WARNING</span> · 20 min fix · Code smell · <a href="../#family-cloud">AEM as a Cloud Service</a></p>
+    </div>
+
+    <article class="rule-card rule-card--page" id="aem-cloud-006" data-family="CLOUD">
+        <p class="rule-card__summary">Dispatcher configuration has an unresolved include, a duplicate ServerName, a vhost without DocumentRoot or a legacy dispatcher.any.</p>
+        <h2>Why it matters</h2>
+        <p>The dispatcher is validated only when Cloud Manager deploys, so a broken include, a duplicated ServerName, a virtual host with no DocumentRoot or a monolithic dispatcher.any turns into a failed pipeline rather than a failed build. The same defects are also the usual cause of &quot;works in dev, 404 in prod&quot;: the vhost never loads, or two vhosts answer for one host name and whichever loads last wins.</p>
+        <h2>How to fix it</h2>
+        <p>Create the missing include target or fix the path, give every virtual host its own ServerName, add DocumentRoot &quot;${DOCROOT&quot;} to each block, and split a legacy monolithic dispatcher.any into conf.dispatcher.d (farms, filters, cache, renders, virtualhosts) plus conf.d (vhosts, rewrites, variables).</p>
+        <div class="examples">
+          <div class="code code--bad">
+            <div class="code__bar"><span class="code__label">text · before</span></div>
+            <pre><code># dispatcher/src/conf.d/available_vhosts/acme.vhost
+Include conf.d/includes/cache-rules.conf   # no such file
+&lt;VirtualHost *:80&gt;
+    ServerName &quot;www.acme.com&quot;
+&lt;/VirtualHost&gt;</code></pre>
+          </div>
+          <div class="code code--good">
+            <div class="code__bar"><span class="code__label">text · after</span></div>
+            <pre><code># dispatcher/src/conf.d/available_vhosts/acme.vhost
+Include conf.d/includes/cache.conf
+&lt;VirtualHost *:80&gt;
+    ServerName &quot;www.acme.com&quot;
+    DocumentRoot &quot;${DOCROOT}&quot;
+&lt;/VirtualHost&gt;</code></pre>
+          </div>
+        </div>
+        <p class="suppress">Suppress one line: <code>// aem-analyser-disable-next-line AEM-CLOUD-006</code> · tags aem-cloud, dispatcher · <code>--explain AEM-CLOUD-006</code></p>
+    </article>
+    <p class="muted">Every rule in the catalogue, with what it detects and how to fix it: <a href="../">all 34 rules</a>. Suppress a single line with <code>// aem-analyser-disable-next-line AEM-CLOUD-006</code>.</p>
+  </div>
+</div>

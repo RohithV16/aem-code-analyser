@@ -1,0 +1,14 @@
+#
+# Probe: broken dispatcher configuration (AEM-CLOUD-006).
+#
+# 1. Include conf.d/includes/missing.any resolves to no file.
+# 2. Two virtual hosts claim ServerName "probe".
+# 3. The second virtual host has no DocumentRoot.
+# A legacy monolithic dispatcher.any lives at dispatcher/src/dispatcher.any.
+#
+Include conf.d/includes/missing.any
+
+<VirtualHost *:80>
+    ServerName "probe"
+    DocumentRoot "${DOCROOT}"
+</VirtualHost>
