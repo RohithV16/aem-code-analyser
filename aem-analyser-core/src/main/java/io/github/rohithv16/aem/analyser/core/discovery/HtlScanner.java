@@ -96,6 +96,21 @@ public final class HtlScanner {
     public HtlScanResult scan(FileInventory inventory, Path directory,
                               io.github.rohithv16.aem.analyser.core.util.DiagnosticSink diagnostics,
                               long maxFileSizeBytes) {
+        return scan(inventory, directory, diagnostics, maxFileSizeBytes,
+                io.github.rohithv16.aem.analyser.core.parser.cache.ParseCache.disabled());
+    }
+
+    /**
+     * Scans every template below {@code directory} from the run's shared inventory, reusing each
+     * file's cached rows when its content is unchanged.
+     *
+     * <p>The size cap is applied before the cache is consulted, so a file that is too large is
+     * diagnosed on every run instead of silently succeeding once it has an empty cache entry.</p>
+     */
+    public HtlScanResult scan(FileInventory inventory, Path directory,
+                              io.github.rohithv16.aem.analyser.core.util.DiagnosticSink diagnostics,
+                              long maxFileSizeBytes,
+                              io.github.rohithv16.aem.analyser.core.parser.cache.ParseCache cache) {
         List<HtlUsage> usages = new ArrayList<>();
         List<HtlUnsafeContextFinding> unsafeContexts = new ArrayList<>();
         List<HtlIncludeRef> includes = new ArrayList<>();
@@ -106,10 +121,46 @@ public final class HtlScanner {
 
         for (Path htmlFile : inventory.filesUnder(directory,
                 file -> file.getFileName().toString().endsWith(".html"))) {
-            if (isNotIgnored(htmlFile)) {
-                scanFile(htmlFile, usages, unsafeContexts, includes, resources,
-                        diagnostics, maxFileSizeBytes);
+            if (!isNotIgnored(htmlFile)) {
+                continue;
             }
+            try {
+                if (Files.size(htmlFile) > maxFileSizeBytes) {
+                    if (diagnostics != null) {
+                        diagnostics.add(io.github.rohithv16.aem.analyser.core.model.report.DiagnosticKind.FILE_TOO_LARGE,
+                                htmlFile, "exceeds " + (maxFileSizeBytes / (1024 * 1024)) + " MiB");
+                    }
+                    continue;
+                }
+            } catch (IOException e) {
+                if (diagnostics != null) {
+                    diagnostics.add(io.github.rohithv16.aem.analyser.core.model.report.DiagnosticKind.UNREADABLE_TREE,
+                            htmlFile, io.github.rohithv16.aem.analyser.core.util.DiagnosticSink.reasonOf(e));
+                }
+                continue;
+            }
+
+            var cached = cache.getHtl(htmlFile);
+            if (cached.isPresent()) {
+                HtlScanResult result = cached.get();
+                usages.addAll(result.usages());
+                unsafeContexts.addAll(result.unsafeContexts());
+                includes.addAll(result.includes());
+                resources.addAll(result.resources());
+                continue;
+            }
+
+            List<HtlUsage> fileUsages = new ArrayList<>();
+            List<HtlUnsafeContextFinding> fileUnsafe = new ArrayList<>();
+            List<HtlIncludeRef> fileIncludes = new ArrayList<>();
+            List<HtlResourceRef> fileResources = new ArrayList<>();
+            scanFile(htmlFile, fileUsages, fileUnsafe, fileIncludes, fileResources,
+                    diagnostics, maxFileSizeBytes);
+            cache.putHtl(htmlFile, new HtlScanResult(fileUsages, fileUnsafe, fileIncludes, fileResources));
+            usages.addAll(fileUsages);
+            unsafeContexts.addAll(fileUnsafe);
+            includes.addAll(fileIncludes);
+            resources.addAll(fileResources);
         }
 
         return new HtlScanResult(usages, unsafeContexts, includes, resources);

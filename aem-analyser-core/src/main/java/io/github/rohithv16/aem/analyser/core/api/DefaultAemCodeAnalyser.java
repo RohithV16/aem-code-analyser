@@ -59,6 +59,13 @@ public final class DefaultAemCodeAnalyser implements AemCodeAnalyser {
         io.github.rohithv16.aem.analyser.core.discovery.FileInventory inventory =
                 io.github.rohithv16.aem.analyser.core.discovery.FileInventory.scan(
                         context.projectRoot(), diagnostics);
+        // Content-hash parse cache: an unchanged file is parsed once per machine. Rules still see
+        // the whole graph, so a hit cannot drop a finding the way --changed-only can.
+        io.github.rohithv16.aem.analyser.core.parser.cache.ParseCache parseCache =
+                context.enableCache()
+                        ? io.github.rohithv16.aem.analyser.core.parser.cache.ParseCache.forProject(
+                                context.projectRoot(), context.maxFileSizeBytes())
+                        : io.github.rohithv16.aem.analyser.core.parser.cache.ParseCache.disabled();
         try (ProjectDiscoveryEngine discovery = new ProjectDiscoveryEngine(inventory, diagnostics)) {
             ProjectDiscoveryEngine.DiscoveryResult discoveryResult =
                     discovery.discover(context.projectRoot(), context.activeProfiles());
@@ -67,9 +74,10 @@ public final class DefaultAemCodeAnalyser implements AemCodeAnalyser {
             // ── Phase A: parallel extraction (worker threads; ASTs freed immediately) ──
             phaseStart = System.nanoTime();
             List<JavaSourceParseResult> javaResults =
-                    parseJavaSourcesParallel(context, inventory, discoveryResult.modules(), diagnostics);
+                    parseJavaSourcesParallel(context, inventory, discoveryResult.modules(), diagnostics,
+                            parseCache);
             List<OsgiConfigDefinition> configs =
-                    parseOsgiConfigs(context, discoveryResult.modules(), diagnostics);
+                    parseOsgiConfigs(context, discoveryResult.modules(), diagnostics, parseCache);
             phases.put("parse", elapsedMillis(phaseStart));
 
             // ── Phase A2: HTL & Component scanning ──────────────────────────────
@@ -86,7 +94,7 @@ public final class DefaultAemCodeAnalyser implements AemCodeAnalyser {
                     continue;
                 }
                 var htlResult = htlScanner.scan(inventory, module.moduleDirectory(), diagnostics,
-                        context.maxFileSizeBytes());
+                        context.maxFileSizeBytes(), parseCache);
                 htlResult.usages().stream()
                         .filter(usage -> isChanged(context, usage.filePath()))
                         .forEach(htlUsages::add);
@@ -182,11 +190,18 @@ public final class DefaultAemCodeAnalyser implements AemCodeAnalyser {
             var coverageReport = coverageEngine.discover(context.projectRoot(), discoveryResult.modules());
             phases.put("coverage", elapsedMillis(phaseStart));
 
+            // A changed-only run sees a subset of the tree; pruning from it would delete the
+            // parse results of every file it did not look at.
+            if (parseCache.isEnabled() && context.changedFiles().isEmpty()) {
+                parseCache.prune();
+            }
+
             long durationMillis = (System.nanoTime() - start) / 1_000_000;
             return new AnalysisReport(context.projectRoot(), scanStatistics(discoveryResult, buildResult, htlUsages.size(), cqComponents.size()),
                     violations, durationMillis, coverageReport, codeMetrics, diagnostics.diagnostics())
                     .withAcceptedViolations(acceptedByDirective)
-                    .withPhaseMillis(phases);
+                    .withPhaseMillis(phases)
+                    .withCacheSummary(parseCache.isEnabled() ? parseCache.summary() : null);
         } catch (IOException | RuntimeException e) {
             throw new AnalysisException("Analysis failed: " + e.getMessage(), e);
         }
@@ -238,7 +253,8 @@ public final class DefaultAemCodeAnalyser implements AemCodeAnalyser {
     private List<JavaSourceParseResult> parseJavaSourcesParallel(AnalysisContext context,
                                                                  io.github.rohithv16.aem.analyser.core.discovery.FileInventory inventory,
                                                                  List<io.github.rohithv16.aem.analyser.core.model.discovery.ModuleDescriptor> modules,
-                                                                 io.github.rohithv16.aem.analyser.core.util.DiagnosticSink diagnostics)
+                                                                 io.github.rohithv16.aem.analyser.core.util.DiagnosticSink diagnostics,
+                                                                 io.github.rohithv16.aem.analyser.core.parser.cache.ParseCache cache)
             throws IOException {
         List<Path> javaFiles = new ArrayList<>();
         for (ModuleDescriptor module : modules) {
@@ -279,7 +295,15 @@ public final class DefaultAemCodeAnalyser implements AemCodeAnalyser {
         try {
             List<Future<JavaSourceParseResult>> futures = new ArrayList<>(javaFiles.size());
             for (Path javaFile : javaFiles) {
-                futures.add(workers.submit(() -> parser.parseStrict(javaFile)));
+                futures.add(workers.submit(() -> {
+                    java.util.Optional<JavaSourceParseResult> cached = cache.getJava(javaFile);
+                    if (cached.isPresent()) {
+                        return cached.get();
+                    }
+                    JavaSourceParseResult result = parser.parseStrict(javaFile);
+                    cache.putJava(result);
+                    return result;
+                }));
             }
             for (int i = 0; i < futures.size(); i++) {
                 Path javaFile = javaFiles.get(i);
@@ -321,7 +345,8 @@ public final class DefaultAemCodeAnalyser implements AemCodeAnalyser {
 
     private List<OsgiConfigDefinition> parseOsgiConfigs(AnalysisContext context,
                                                         List<io.github.rohithv16.aem.analyser.core.model.discovery.ModuleDescriptor> modules,
-                                                        io.github.rohithv16.aem.analyser.core.util.DiagnosticSink diagnostics) {
+                                                        io.github.rohithv16.aem.analyser.core.util.DiagnosticSink diagnostics,
+                                                        io.github.rohithv16.aem.analyser.core.parser.cache.ParseCache cache) {
         OsgiConfigScanner scanner = new OsgiConfigScanner();
         OsgiConfigParser parser = new OsgiConfigParser();
         io.github.rohithv16.aem.analyser.core.util.PathPatternMatcher ignoredConfigs =
@@ -350,10 +375,17 @@ public final class DefaultAemCodeAnalyser implements AemCodeAnalyser {
                             configPath, io.github.rohithv16.aem.analyser.core.util.DiagnosticSink.reasonOf(e));
                     continue;
                 }
+                var cached = cache.getConfig(configPath);
+                if (cached.isPresent()) {
+                    configs.add(cached.get());
+                    continue;
+                }
                 Set<String> runmodes = scanner.resolveRunmodes(
                         configPath.getParent().getFileName().toString());
                 try {
-                    configs.add(parser.parse(configPath, runmodes));
+                    OsgiConfigDefinition definition = parser.parse(configPath, runmodes);
+                    cache.putConfig(definition);
+                    configs.add(definition);
                 } catch (IOException | RuntimeException e) {
                     diagnostics.add(io.github.rohithv16.aem.analyser.core.model.report.DiagnosticKind.CONFIG_PARSE_ERROR,
                             configPath, io.github.rohithv16.aem.analyser.core.util.DiagnosticSink.reasonOf(e));

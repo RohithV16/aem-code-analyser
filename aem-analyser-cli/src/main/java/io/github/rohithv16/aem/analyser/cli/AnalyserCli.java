@@ -179,6 +179,11 @@ public class AnalyserCli implements java.util.concurrent.Callable<Integer> {
             description = "Enable embedded SonarJava analysis. Use --no-sonar to disable it (default: enabled).")
     private boolean sonar = true;
 
+    @Option(names = {"--cache"}, negatable = true, defaultValue = "true", fallbackValue = "true",
+            description = "Reuse the content-hash parse cache in target/aem-analyser/cache. "
+                    + "Use --no-cache to force a cold parse (default: enabled).")
+    private boolean cache = true;
+
     @Option(names = {"--sonar-rules"},
             description = "SonarJava ruleset filter (default: 'default', or comma-separated rule IDs e.g. S106,S1147).")
     private String sonarRules;
@@ -707,7 +712,7 @@ public class AnalyserCli implements java.util.concurrent.Callable<Integer> {
         if (dependencyJarRoots != null && !dependencyJarRoots.isEmpty()) {
             builder = builder.dependencyJarRoots(dependencyJarRoots);
         }
-        builder = builder.enableSonar(sonar);
+        builder = builder.enableSonar(sonar).enableCache(cache);
         if (sonarRules != null && !sonarRules.isBlank()) {
             builder = builder.sonarRules(sonarRules);
         }
