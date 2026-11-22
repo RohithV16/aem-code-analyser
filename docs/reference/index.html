@@ -126,7 +126,7 @@ description: Every flag, output format, exit code, configuration key and suppres
               <code>&lt;skipped/&gt;</code>. Jenkins, GitLab and Azure DevOps test-report tabs.
             </td></tr>
             <tr><td class="mono">HTML</td><td class="mono">aem-analyser-report.html</td><td>People: a standalone dashboard</td></tr>
-            <tr><td class="mono">SARIF</td><td class="mono">aem-analyser.sarif</td><td>GitHub code scanning, Azure DevOps</td></tr>
+            <tr><td class="mono">SARIF</td><td class="mono">aem-analyser.sarif</td><td>GitHub code scanning, Azure DevOps. Findings the auto-fixer can repair carry <code>fixes[].artifactChanges[].replacements[]</code> — the same edit <code>--fix</code> writes — so code scanning can show and apply the diff.</td></tr>
             <tr><td class="mono">SONAR</td><td class="mono">sonar-aem-analyser-report.json</td><td>SonarQube external issues</td></tr>
             <tr><td class="mono">GITHUB</td><td class="mono">github-annotations.txt</td><td><code>::error</code> / <code>::warning</code> lines — <code>cat</code> the file in the step</td></tr>
             <tr><td class="mono">GITLAB</td><td class="mono">gitlab-code-quality.json</td><td>GitLab code quality artefact</td></tr>

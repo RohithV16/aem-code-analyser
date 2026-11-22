@@ -51,6 +51,13 @@ All notable changes to this project are documented here. The format follows
   option is completable, `--fail-on` completes `NONE ERROR WARNING INFO` and `--format` completes
   the ten format names. An unknown shell exits 2 with a message instead of a stack trace.
 
+- **SARIF `fixes`.** Findings the auto-fixer can repair (`java:S1128`, `java:S1125`, `java:S4719`)
+  now carry `fixes[].artifactChanges[].replacements[]` — the file, `deletedRegion` and
+  `insertedContent` of the exact edit `--fix` writes — so GitHub code scanning and Azure DevOps can
+  render the diff and offer to apply it. Each edit is emitted once across the whole report, so
+  applying every suggestion reproduces `--fix`'s output byte for byte; rules with no deterministic
+  transform still carry no `fixes` entry.
+
 - **First Maven Central release (1.0.10).** `io.github.rohithv16:aem-code-analyser`,
   `aem-analyser-core` and `aem-analyser-maven-plugin` are published with sources, javadoc and GPG
   signatures, so the plugin needs no repository entry and no token. Verified by resolving both the
