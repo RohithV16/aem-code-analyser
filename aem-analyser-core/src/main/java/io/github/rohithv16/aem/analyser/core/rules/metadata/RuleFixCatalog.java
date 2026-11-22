@@ -436,6 +436,41 @@ public final class RuleFixCatalog {
                     public class LegacyTransport implements TransportHandler {
                         // never invoked on AEM as a Cloud Service
                     }""");
+            case AEM_WF_001 -> new Fix(
+                    """
+                    A workflow launcher references its model by path and a PROCESS step references its \
+                    class by name; both are plain strings in .content.xml. Rename the model or move the \
+                    class and nothing complains at deploy time - the launcher simply never starts, and \
+                    the workflow that "stopped running weeks ago" is the first symptom. Cloud Manager and \
+                    the AEM Analyzer do not inspect workflow content at all.""",
+                    """
+                    Point cq:workflowModel at a model the project ships (or at an existing out-of-the-box \
+                    model), and update the PROCESS step to the class that now implements it. Grep the \
+                    model path and the class name across the package before renaming either.""",
+                    "xml", """
+                    <!-- conf/global/settings/workflow/launcher/acme-publish/.content.xml -->
+                    <jcr:root xmlns:cq="http://www.day.com/jcr/cq/1.0"
+                              jcr:primaryType="cq:WorkflowLauncher"
+                              cq:workflowModel="/var/workflow/models/acme-missing"
+                              glob="/content/acme/.*/jcr:content"/>
+
+                    <!-- conf/global/settings/workflow/models/acme-publish/.content.xml -->
+                    <jcr:root jcr:primaryType="cq:WorkflowModel">
+                        <node0 jcr:primaryType="cq:WorkflowNode" type="PROCESS"
+                               process="com.acme.steps.Gone"/>
+                    </jcr:root>""",
+                    "xml", """
+                    <!-- launcher points at the model that exists -->
+                    <jcr:root xmlns:cq="http://www.day.com/jcr/cq/1.0"
+                              jcr:primaryType="cq:WorkflowLauncher"
+                              cq:workflowModel="/var/workflow/models/acme-publish"
+                              glob="/content/acme/.*/jcr:content"/>
+
+                    <!-- step names a class the bundle declares -->
+                    <jcr:root jcr:primaryType="cq:WorkflowModel">
+                        <node0 jcr:primaryType="cq:WorkflowNode" type="PROCESS"
+                               process="com.acme.steps.PublishStep"/>
+                    </jcr:root>""");
             case AEM_QUAL_006 -> new Fix(
                     """
                     Storing a request-scoped resolver or session in an OSGi component field keeps one \

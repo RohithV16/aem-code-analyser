@@ -67,10 +67,10 @@ an empty `<relativePath/>`, because that parent comes from a repository.
 
 ## What it checks
 
-**30 rules in seven families:** dead code (8), duplication (4), Cloud Manager parity (6),
-performance (4), AEM as a Cloud Service (5), security (2), component compatibility (1). Findings are
-reported as console output, an HTML dashboard, SARIF 2.1.0, SonarQube issues, or GitHub/GitLab/Azure
-annotations.
+**38 rules in eight families:** dead code (9), duplication (4), Cloud Manager parity (6),
+performance (4), AEM as a Cloud Service (10), security (2), component compatibility (2), workflow
+integrity (1). Findings are reported as console output, an HTML dashboard, SARIF 2.1.0, SonarQube
+issues, or GitHub/GitLab/Azure annotations.
 
 **→ [Issue reference — every rule, what it detects, how to fix it](https://rohithv16.github.io/aem-code-analyser/issues/)** ·
 `aem-analyser --explain AEM-DEAD-001` for the same detail in the terminal.

@@ -13,7 +13,7 @@ description: Every AEM Code Analyser rule — what it detects, why it matters on
       <div class="issue-tools">
         <label class="visually-hidden" for="issueSearch">Filter issues</label>
         <input type="search" id="issueSearch" placeholder="Filter by id, name, tag or symptom…" autocomplete="off">
-        <button class="chip" type="button" data-family="all" aria-pressed="true">All 38</button>
+        <button class="chip" type="button" data-family="all" aria-pressed="true">All 39</button>
         <button class="chip" type="button" data-family="DEAD" aria-pressed="false">Dead code 9</button>
         <button class="chip" type="button" data-family="DUP" aria-pressed="false">Duplication 4</button>
         <button class="chip" type="button" data-family="QUAL" aria-pressed="false">Quality 7</button>
@@ -21,7 +21,8 @@ description: Every AEM Code Analyser rule — what it detects, why it matters on
         <button class="chip" type="button" data-family="CLOUD" aria-pressed="false">Cloud Service 10</button>
         <button class="chip" type="button" data-family="SEC" aria-pressed="false">Security 2</button>
         <button class="chip" type="button" data-family="COMP" aria-pressed="false">Components 2</button>
-        <span class="issue-count" id="issueCount" aria-live="polite">38 of 38 issues</span>
+        <button class="chip" type="button" data-family="WF" aria-pressed="false">WF 1</button>
+        <span class="issue-count" id="issueCount" aria-live="polite">39 of 39 issues</span>
       </div>
     </div>
 
@@ -1334,6 +1335,61 @@ if (target != null &amp;&amp; target.startsWith(&quot;/content/&quot;) &amp;&amp
         <p class="suppress">Suppress one line: <code>// aem-analyser-disable-next-line AEM-COMP-002</code> · tags quality, component · <code>--explain AEM-COMP-002</code></p>
       </article>
     </section>
+
+    <section class="family" id="family-wf">
+      <div class="family__head">
+        <h2>Workflow integrity</h2>
+        <span>1 issue</span>
+      </div>
+      <p class="muted">Workflow launchers, models and steps that resolve to nothing.</p>
+
+      <article class="rule-card" id="aem-wf-001" data-family="WF" data-search="aem-wf-001 unresolvedworkflowreference workflow launcher points at a model, or a process step at a class, that the project does not ship. workflow content warning point the launcher at a model the project ships (or an existing out-of-the-box model), and the process step at a class that exists in a bundle the project deploys. a workflow launcher references its model by path and a process step references its class by name; both are plain strings in .content.xml. rename the model or move the class and nothing complains at deploy time - the launcher simply never starts, and the workflow that &quot;stopped running weeks ago&quot; is the first symptom. cloud manager and the aem analyzer do not inspect workflow content at all. point cq:workflowmodel at a model the project ships (or at an existing out-of-the-box model), and update the process step to the class that now implements it. grep the model path and the class name across the package before renaming either.">
+        <header class="rule-card__head">
+          <h3 class="rule-card__title"><a class="rule-card__permalink" href="aem-wf-001/" aria-label="Open the AEM-WF-001 reference page"><span class="rule-card__id">AEM-WF-001</span></a><a class="rule-card__anchor" href="#aem-wf-001" aria-label="Link to AEM-WF-001">#</a><span class="rule-card__name">UnresolvedWorkflowReference</span></h3>
+          <span class="pill pill--warning">WARNING</span>
+          <span class="rule-card__meta">
+            <span>15 min fix</span>
+            <span>Bug</span>
+          </span>
+        </header>
+        <p class="rule-card__summary">Workflow launcher points at a model, or a PROCESS step at a class, that the project does not ship.</p>
+        <h4>Why it matters</h4>
+        <p>A workflow launcher references its model by path and a PROCESS step references its class by name; both are plain strings in .content.xml. Rename the model or move the class and nothing complains at deploy time - the launcher simply never starts, and the workflow that &quot;stopped running weeks ago&quot; is the first symptom. Cloud Manager and the AEM Analyzer do not inspect workflow content at all.</p>
+        <h4>How to fix it</h4>
+        <p>Point cq:workflowModel at a model the project ships (or at an existing out-of-the-box model), and update the PROCESS step to the class that now implements it. Grep the model path and the class name across the package before renaming either.</p>
+        <div class="examples">
+          <div class="code code--bad">
+            <div class="code__bar"><span class="code__label">xml · before</span></div>
+            <pre><code>&lt;!-- conf/global/settings/workflow/launcher/acme-publish/.content.xml --&gt;
+&lt;jcr:root xmlns:cq=&quot;http://www.day.com/jcr/cq/1.0&quot;
+          jcr:primaryType=&quot;cq:WorkflowLauncher&quot;
+          cq:workflowModel=&quot;/var/workflow/models/acme-missing&quot;
+          glob=&quot;/content/acme/.*/jcr:content&quot;/&gt;
+
+&lt;!-- conf/global/settings/workflow/models/acme-publish/.content.xml --&gt;
+&lt;jcr:root jcr:primaryType=&quot;cq:WorkflowModel&quot;&gt;
+    &lt;node0 jcr:primaryType=&quot;cq:WorkflowNode&quot; type=&quot;PROCESS&quot;
+           process=&quot;com.acme.steps.Gone&quot;/&gt;
+&lt;/jcr:root&gt;</code></pre>
+          </div>
+          <div class="code code--good">
+            <div class="code__bar"><span class="code__label">xml · after</span></div>
+            <pre><code>&lt;!-- launcher points at the model that exists --&gt;
+&lt;jcr:root xmlns:cq=&quot;http://www.day.com/jcr/cq/1.0&quot;
+          jcr:primaryType=&quot;cq:WorkflowLauncher&quot;
+          cq:workflowModel=&quot;/var/workflow/models/acme-publish&quot;
+          glob=&quot;/content/acme/.*/jcr:content&quot;/&gt;
+
+&lt;!-- step names a class the bundle declares --&gt;
+&lt;jcr:root jcr:primaryType=&quot;cq:WorkflowModel&quot;&gt;
+    &lt;node0 jcr:primaryType=&quot;cq:WorkflowNode&quot; type=&quot;PROCESS&quot;
+           process=&quot;com.acme.steps.PublishStep&quot;/&gt;
+&lt;/jcr:root&gt;</code></pre>
+          </div>
+        </div>
+        <p class="suppress">Suppress one line: <code>// aem-analyser-disable-next-line AEM-WF-001</code> · tags workflow, content · <code>--explain AEM-WF-001</code></p>
+      </article>
+    </section>
   </div>
   <aside class="docs__aside">
     <p class="aside__title">Families</p>
@@ -1345,6 +1401,7 @@ if (target != null &amp;&amp; target.startsWith(&quot;/content/&quot;) &amp;&amp
       <li><a href="#family-cloud">AEM as a Cloud Service <span class="muted">10</span></a></li>
       <li><a href="#family-sec">Security <span class="muted">2</span></a></li>
       <li><a href="#family-comp">Component compatibility <span class="muted">2</span></a></li>
+      <li><a href="#family-wf">Workflow integrity <span class="muted">1</span></a></li>
     </ul>
     <p class="aside__title">All rules</p>
     <ul>
@@ -1386,6 +1443,7 @@ if (target != null &amp;&amp; target.startsWith(&quot;/content/&quot;) &amp;&amp
       <li><a href="#aem-sec-002">AEM-SEC-002</a></li>
       <li><a href="#aem-comp-001">AEM-COMP-001</a></li>
       <li><a href="#aem-comp-002">AEM-COMP-002</a></li>
+      <li><a href="#aem-wf-001">AEM-WF-001</a></li>
     </ul>
   </aside>
 </div>

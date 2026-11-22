@@ -50,7 +50,10 @@ class RuleCatalogTest {
 
     @Test
     void catalogCoversEveryRuleIdExactlyOnce() {
-        assertEquals(33, RuleCatalog.evaluators().size());
+        // Bumped deliberately when a rule is added or retired: 35 ids minus the two produced
+        // elsewhere (AEM-DUP-010 by PMD CPD, the retired AEM-QUAL-006) plus AEM-CLOUD-008/009/010
+        // and AEM-WF-001.
+        assertEquals(37, RuleCatalog.evaluators().size());
         assertEquals(RuleId.values().length - RuleCatalog.PRODUCED_ELSEWHERE.size(),
                 RuleCatalog.evaluators().size(),
                 "registered + produced elsewhere must cover every RuleId");

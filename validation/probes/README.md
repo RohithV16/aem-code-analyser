@@ -73,6 +73,7 @@ This tests the probes in the target’s real module layout and Maven profile con
 | AEM-CLOUD-008 | `ProbeImmutablePathWrite` writes `/apps/probe/config` and `/libs/probe/settings` at runtime |
 | AEM-CLOUD-009 | `all/pom.xml` embeds `probe.core` outside an `/install` path, and `zzprobe.content` is in the reactor but not in `all` |
 | AEM-CLOUD-010 | `etc/replication/agents.author/zzprobe` ships a `transportUri`, and `ProbeTransportHandler` implements `com.day.cq.replication.TransportHandler` |
+| AEM-WF-001 | launcher `zzprobe` starts `/var/workflow/models/probe-missing`, and `probe-model` runs `com.probe.steps.Gone` |
 | AEM-SEC-001 | HTL `context='unsafe'` |
 | AEM-SEC-002 | `sendRedirect(request.getParameter("next"))` |
 

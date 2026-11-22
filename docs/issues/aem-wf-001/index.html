@@ -1,0 +1,62 @@
+---
+layout: default
+nav: issues
+title: "AEM-WF-001 UnresolvedWorkflowReference — Workflow launcher points at a model, or a PROCESS step at a class, that the …"
+description: "AEM-WF-001 (WARNING): Workflow launcher points at a model, or a PROCESS step at a class, that the project does not ship."
+rule_id: "AEM-WF-001"
+rule_family: "WF"
+rule_family_title: "Workflow integrity"
+rule_severity: "WARNING"
+rule_tags: "workflow, content"
+---
+
+<div class="shell docs">
+  <div class="docs__main">
+    <p class="muted"><a href="../">← All 39 rules</a></p>
+    <div class="issues-head">
+      <h1><span class="rule-card__id">AEM-WF-001</span> UnresolvedWorkflowReference</h1>
+      <p class="lede">Workflow launcher points at a model, or a PROCESS step at a class, that the project does not ship.</p>
+      <p class="muted"><span class="pill pill--warning">WARNING</span> · 15 min fix · Bug · <a href="../#family-wf">Workflow integrity</a></p>
+    </div>
+
+    <article class="rule-card rule-card--page" id="aem-wf-001" data-family="WF">
+        <p class="rule-card__summary">Workflow launcher points at a model, or a PROCESS step at a class, that the project does not ship.</p>
+        <h2>Why it matters</h2>
+        <p>A workflow launcher references its model by path and a PROCESS step references its class by name; both are plain strings in .content.xml. Rename the model or move the class and nothing complains at deploy time - the launcher simply never starts, and the workflow that &quot;stopped running weeks ago&quot; is the first symptom. Cloud Manager and the AEM Analyzer do not inspect workflow content at all.</p>
+        <h2>How to fix it</h2>
+        <p>Point cq:workflowModel at a model the project ships (or at an existing out-of-the-box model), and update the PROCESS step to the class that now implements it. Grep the model path and the class name across the package before renaming either.</p>
+        <div class="examples">
+          <div class="code code--bad">
+            <div class="code__bar"><span class="code__label">xml · before</span></div>
+            <pre><code>&lt;!-- conf/global/settings/workflow/launcher/acme-publish/.content.xml --&gt;
+&lt;jcr:root xmlns:cq=&quot;http://www.day.com/jcr/cq/1.0&quot;
+          jcr:primaryType=&quot;cq:WorkflowLauncher&quot;
+          cq:workflowModel=&quot;/var/workflow/models/acme-missing&quot;
+          glob=&quot;/content/acme/.*/jcr:content&quot;/&gt;
+
+&lt;!-- conf/global/settings/workflow/models/acme-publish/.content.xml --&gt;
+&lt;jcr:root jcr:primaryType=&quot;cq:WorkflowModel&quot;&gt;
+    &lt;node0 jcr:primaryType=&quot;cq:WorkflowNode&quot; type=&quot;PROCESS&quot;
+           process=&quot;com.acme.steps.Gone&quot;/&gt;
+&lt;/jcr:root&gt;</code></pre>
+          </div>
+          <div class="code code--good">
+            <div class="code__bar"><span class="code__label">xml · after</span></div>
+            <pre><code>&lt;!-- launcher points at the model that exists --&gt;
+&lt;jcr:root xmlns:cq=&quot;http://www.day.com/jcr/cq/1.0&quot;
+          jcr:primaryType=&quot;cq:WorkflowLauncher&quot;
+          cq:workflowModel=&quot;/var/workflow/models/acme-publish&quot;
+          glob=&quot;/content/acme/.*/jcr:content&quot;/&gt;
+
+&lt;!-- step names a class the bundle declares --&gt;
+&lt;jcr:root jcr:primaryType=&quot;cq:WorkflowModel&quot;&gt;
+    &lt;node0 jcr:primaryType=&quot;cq:WorkflowNode&quot; type=&quot;PROCESS&quot;
+           process=&quot;com.acme.steps.PublishStep&quot;/&gt;
+&lt;/jcr:root&gt;</code></pre>
+          </div>
+        </div>
+        <p class="suppress">Suppress one line: <code>// aem-analyser-disable-next-line AEM-WF-001</code> · tags workflow, content · <code>--explain AEM-WF-001</code></p>
+    </article>
+    <p class="muted">Every rule in the catalogue, with what it detects and how to fix it: <a href="../">all 39 rules</a>. Suppress a single line with <code>// aem-analyser-disable-next-line AEM-WF-001</code>.</p>
+  </div>
+</div>
