@@ -99,6 +99,9 @@ def published_pages() -> list[Path]:
             continue
         if path.name == "README.md":
             continue
+        # Meta-refresh stubs and the 404 are publishing surfaces, not pages a reader should find.
+        if front_matter(path).get("sitemap") == "false":
+            continue
         pages.append(path)
     return pages
 

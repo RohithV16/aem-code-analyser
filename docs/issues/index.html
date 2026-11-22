@@ -58,6 +58,15 @@ description: Every AEM Code Analyser rule — what it detects, why it matters on
           </div>
         </div>
         <p class="suppress">Suppress one line: <code>// aem-analyser-disable-next-line AEM-DEAD-001</code> · tags dead-code, osgi · <code>--explain AEM-DEAD-001</code></p>
+        <div class="rule-card__tune">
+          <span class="rule-card__tune-label">Tune this rule</span>
+          <a href="../reference/#configuration">Disable or re-scope it in <code>.aem-analyser.yml</code></a>
+          <a href="../reference/#flags">Fail the build on it with <code>--fail-on</code></a>
+          <a href="../reference/#suppression">Suppress one occurrence inline</a>
+          <a href="../reference/#baseline">Accept it in a baseline</a>
+          <a href="../reference/#exit-codes">What its severity means for the exit code</a>
+        </div>
+        <p class="rule-card__siblings">Same family: <a href="aem-dead-002a/" title="GhostConfigurationProperty">AEM-DEAD-002A</a> <a href="aem-dead-002b/" title="UnconsumedOcdProperty">AEM-DEAD-002B</a> · <a href="#family-dead">all rules in this family</a></p>
       </article>
 
       <article class="rule-card" id="aem-dead-002a" data-family="DEAD" data-search="aem-dead-002a ghostconfigurationproperty configuration property does not exist in target @objectclassdefinition. dead-code osgi warning remove the property, fix its spelling, or declare a matching @attributedefinition. a property that the component&#39;s @objectclassdefinition does not declare is dropped during binding. the configuration looks correct in the repository, so the symptom is an unexplained default value at runtime rather than a validation error. remove the property, correct its spelling, or add an @attributedefinition that declares it. configuration and ocd must describe the same set of properties.">
@@ -89,6 +98,15 @@ description: Every AEM Code Analyser rule — what it detects, why it matters on
           </div>
         </div>
         <p class="suppress">Suppress one line: <code>// aem-analyser-disable-next-line AEM-DEAD-002A</code> · tags dead-code, osgi · <code>--explain AEM-DEAD-002A</code></p>
+        <div class="rule-card__tune">
+          <span class="rule-card__tune-label">Tune this rule</span>
+          <a href="../reference/#configuration">Disable or re-scope it in <code>.aem-analyser.yml</code></a>
+          <a href="../reference/#flags">Fail the build on it with <code>--fail-on</code></a>
+          <a href="../reference/#suppression">Suppress one occurrence inline</a>
+          <a href="../reference/#baseline">Accept it in a baseline</a>
+          <a href="../reference/#exit-codes">What its severity means for the exit code</a>
+        </div>
+        <p class="rule-card__siblings">Same family: <a href="aem-dead-001/" title="OrphanedOsgiConfiguration">AEM-DEAD-001</a> <a href="aem-dead-002b/" title="UnconsumedOcdProperty">AEM-DEAD-002B</a> · <a href="#family-dead">all rules in this family</a></p>
       </article>
 
       <article class="rule-card" id="aem-dead-002b" data-family="DEAD" data-search="aem-dead-002b unconsumedocdproperty ocd attribute method is never consumed by designating java component. dead-code osgi warning consume the attribute in code or delete it from the ocd. an ocd attribute that no code reads is a setting users can change with no effect. it usually survives a refactor that removed the code path but not the interface method. inject the configuration and read the attribute, or delete it from the @objectclassdefinition so the configuration console stops offering a dead switch.">
@@ -124,6 +142,15 @@ void activate(Config config) {
           </div>
         </div>
         <p class="suppress">Suppress one line: <code>// aem-analyser-disable-next-line AEM-DEAD-002B</code> · tags dead-code, osgi · <code>--explain AEM-DEAD-002B</code></p>
+        <div class="rule-card__tune">
+          <span class="rule-card__tune-label">Tune this rule</span>
+          <a href="../reference/#configuration">Disable or re-scope it in <code>.aem-analyser.yml</code></a>
+          <a href="../reference/#flags">Fail the build on it with <code>--fail-on</code></a>
+          <a href="../reference/#suppression">Suppress one occurrence inline</a>
+          <a href="../reference/#baseline">Accept it in a baseline</a>
+          <a href="../reference/#exit-codes">What its severity means for the exit code</a>
+        </div>
+        <p class="rule-card__siblings">Same family: <a href="aem-dead-001/" title="OrphanedOsgiConfiguration">AEM-DEAD-001</a> <a href="aem-dead-002a/" title="GhostConfigurationProperty">AEM-DEAD-002A</a> · <a href="#family-dead">all rules in this family</a></p>
       </article>
 
       <article class="rule-card" id="aem-dead-003a" data-family="DEAD" data-search="aem-dead-003a unusedosgiservice osgi service has zero injections across bundles and is not a system entry point. dead-code osgi warning inject the service, delete it, or export its interface package. a registered osgi service that nothing injects and that no framework calls is code the build still compiles, tests and deploys. on aem as a cloud service it also keeps its dependencies and configuration alive. inject the service where it was meant to be used, drop the service = ... registration so the class becomes a plain component, or export its package when it is a deliberate api for other bundles.">
@@ -157,6 +184,15 @@ public class ImportJobConsumer implements JobConsumer {
           </div>
         </div>
         <p class="suppress">Suppress one line: <code>// aem-analyser-disable-next-line AEM-DEAD-003A</code> · tags dead-code, osgi · <code>--explain AEM-DEAD-003A</code></p>
+        <div class="rule-card__tune">
+          <span class="rule-card__tune-label">Tune this rule</span>
+          <a href="../reference/#configuration">Disable or re-scope it in <code>.aem-analyser.yml</code></a>
+          <a href="../reference/#flags">Fail the build on it with <code>--fail-on</code></a>
+          <a href="../reference/#suppression">Suppress one occurrence inline</a>
+          <a href="../reference/#baseline">Accept it in a baseline</a>
+          <a href="../reference/#exit-codes">What its severity means for the exit code</a>
+        </div>
+        <p class="rule-card__siblings">Same family: <a href="aem-dead-001/" title="OrphanedOsgiConfiguration">AEM-DEAD-001</a> <a href="aem-dead-002a/" title="GhostConfigurationProperty">AEM-DEAD-002A</a> · <a href="#family-dead">all rules in this family</a></p>
       </article>
 
       <article class="rule-card" id="aem-dead-003b" data-family="DEAD" data-search="aem-dead-003b unusedslingmodel sling model has zero java adaptations and no resourcetype binding. dead-code osgi info bind the model to a resourcetype, adapt it somewhere, or delete it. a sling model that no template adapts from and that no resourcetype binds is never instantiated. it is often a model that survived the deletion of its component. bind it with @model(resourcetype = ...) so the component uses it, adapt it explicitly from htl with data-sly-use, or delete it.">
@@ -187,6 +223,15 @@ public class TeaserModel { }</code></pre>
           </div>
         </div>
         <p class="suppress">Suppress one line: <code>// aem-analyser-disable-next-line AEM-DEAD-003B</code> · tags dead-code, osgi · <code>--explain AEM-DEAD-003B</code></p>
+        <div class="rule-card__tune">
+          <span class="rule-card__tune-label">Tune this rule</span>
+          <a href="../reference/#configuration">Disable or re-scope it in <code>.aem-analyser.yml</code></a>
+          <a href="../reference/#flags">Fail the build on it with <code>--fail-on</code></a>
+          <a href="../reference/#suppression">Suppress one occurrence inline</a>
+          <a href="../reference/#baseline">Accept it in a baseline</a>
+          <a href="../reference/#exit-codes">What its severity means for the exit code</a>
+        </div>
+        <p class="rule-card__siblings">Same family: <a href="aem-dead-001/" title="OrphanedOsgiConfiguration">AEM-DEAD-001</a> <a href="aem-dead-002a/" title="GhostConfigurationProperty">AEM-DEAD-002A</a> · <a href="#family-dead">all rules in this family</a></p>
       </article>
 
       <article class="rule-card" id="aem-dead-003c" data-family="DEAD" data-search="aem-dead-003c inactivedelayedcomponent component provides no service interfaces and immediate = false. dead-code osgi warning set immediate = true, provide a service, or delete the component. with immediate = false and no service interface, an osgi component is delayed and nothing can ever obtain it, so its @activate never runs. any startup work it performs — schedulers, caches, listeners — silently does not happen. set immediate = true for components that must start with the bundle, or register a service interface so the component is created on first injection. delete it if neither is intended.">
@@ -222,6 +267,15 @@ public class CacheWarmer {
           </div>
         </div>
         <p class="suppress">Suppress one line: <code>// aem-analyser-disable-next-line AEM-DEAD-003C</code> · tags dead-code, osgi · <code>--explain AEM-DEAD-003C</code></p>
+        <div class="rule-card__tune">
+          <span class="rule-card__tune-label">Tune this rule</span>
+          <a href="../reference/#configuration">Disable or re-scope it in <code>.aem-analyser.yml</code></a>
+          <a href="../reference/#flags">Fail the build on it with <code>--fail-on</code></a>
+          <a href="../reference/#suppression">Suppress one occurrence inline</a>
+          <a href="../reference/#baseline">Accept it in a baseline</a>
+          <a href="../reference/#exit-codes">What its severity means for the exit code</a>
+        </div>
+        <p class="rule-card__siblings">Same family: <a href="aem-dead-001/" title="OrphanedOsgiConfiguration">AEM-DEAD-001</a> <a href="aem-dead-002a/" title="GhostConfigurationProperty">AEM-DEAD-002A</a> · <a href="#family-dead">all rules in this family</a></p>
       </article>
 
       <article class="rule-card" id="aem-dead-004" data-family="DEAD" data-search="aem-dead-004 brokenhtlreference htl template references non-existent java class or sling model. dead-code htl error correct the class name in the htl data-sly-use expression. an htl expression that names a class which does not exist fails at render time, not at build time, so the page breaks in the author or publish instance rather than in ci. it is usually a package move or a rename that missed the template. point data-sly-use at the current fully qualified class name, and confirm the class lives in a bundle the template&#39;s package can see.">
@@ -249,6 +303,15 @@ public class CacheWarmer {
           </div>
         </div>
         <p class="suppress">Suppress one line: <code>&lt;!-- aem-analyser-disable-next-line AEM-DEAD-004 --&gt;</code> · tags dead-code, htl · <code>--explain AEM-DEAD-004</code></p>
+        <div class="rule-card__tune">
+          <span class="rule-card__tune-label">Tune this rule</span>
+          <a href="../reference/#configuration">Disable or re-scope it in <code>.aem-analyser.yml</code></a>
+          <a href="../reference/#flags">Fail the build on it with <code>--fail-on</code></a>
+          <a href="../reference/#suppression">Suppress one occurrence inline</a>
+          <a href="../reference/#baseline">Accept it in a baseline</a>
+          <a href="../reference/#exit-codes">What its severity means for the exit code</a>
+        </div>
+        <p class="rule-card__siblings">Same family: <a href="aem-dead-001/" title="OrphanedOsgiConfiguration">AEM-DEAD-001</a> <a href="aem-dead-002a/" title="GhostConfigurationProperty">AEM-DEAD-002A</a> · <a href="#family-dead">all rules in this family</a></p>
       </article>
 
       <article class="rule-card" id="aem-dead-005" data-family="DEAD" data-search="aem-dead-005 orphanedclientlibcategory a client library category is never referenced by an htl/jsp template or another client library. dead-code clientlib info reference the category from an htl/jsp template or another clientlib, or delete the clientlib. a client library no page, component or other clientlib includes is still built and deployed. dead clientlibs usually carry js and css that also hide unused configuration and third-party dependencies. reference the category from an htl template (data-sly-call with categories) or from another clientlib&#39;s categories dependency, or delete the clientlib folder.">
@@ -276,6 +339,15 @@ public class CacheWarmer {
           </div>
         </div>
         <p class="suppress">Suppress one line: <code>&lt;!-- aem-analyser-disable-next-line AEM-DEAD-005 --&gt;</code> · tags dead-code, clientlib · <code>--explain AEM-DEAD-005</code></p>
+        <div class="rule-card__tune">
+          <span class="rule-card__tune-label">Tune this rule</span>
+          <a href="../reference/#configuration">Disable or re-scope it in <code>.aem-analyser.yml</code></a>
+          <a href="../reference/#flags">Fail the build on it with <code>--fail-on</code></a>
+          <a href="../reference/#suppression">Suppress one occurrence inline</a>
+          <a href="../reference/#baseline">Accept it in a baseline</a>
+          <a href="../reference/#exit-codes">What its severity means for the exit code</a>
+        </div>
+        <p class="rule-card__siblings">Same family: <a href="aem-dead-001/" title="OrphanedOsgiConfiguration">AEM-DEAD-001</a> <a href="aem-dead-002a/" title="GhostConfigurationProperty">AEM-DEAD-002A</a> · <a href="#family-dead">all rules in this family</a></p>
       </article>
 
       <article class="rule-card" id="aem-dead-007" data-family="DEAD" data-search="aem-dead-007 brokenhtlinclude htl data-sly-include target is missing or forms an include cycle. dead-code htl warning correct the include path to an existing template, or break the include cycle. sightly resolves data-sly-include while rendering, so a renamed or mis-pathed include is invisible to the build. it surfaces only as an empty region on one page, long after the template was moved. an include cycle is worse: rendering recurses until the request is aborted. correct the include path to an existing template relative to the including file, or break the cycle by factoring the shared markup into a leaf template that both sides include.">
@@ -306,6 +378,15 @@ public class CacheWarmer {
           </div>
         </div>
         <p class="suppress">Suppress one line: <code>// aem-analyser-disable-next-line AEM-DEAD-007</code> · tags dead-code, htl · <code>--explain AEM-DEAD-007</code></p>
+        <div class="rule-card__tune">
+          <span class="rule-card__tune-label">Tune this rule</span>
+          <a href="../reference/#configuration">Disable or re-scope it in <code>.aem-analyser.yml</code></a>
+          <a href="../reference/#flags">Fail the build on it with <code>--fail-on</code></a>
+          <a href="../reference/#suppression">Suppress one occurrence inline</a>
+          <a href="../reference/#baseline">Accept it in a baseline</a>
+          <a href="../reference/#exit-codes">What its severity means for the exit code</a>
+        </div>
+        <p class="rule-card__siblings">Same family: <a href="aem-dead-001/" title="OrphanedOsgiConfiguration">AEM-DEAD-001</a> <a href="aem-dead-002a/" title="GhostConfigurationProperty">AEM-DEAD-002A</a> · <a href="#family-dead">all rules in this family</a></p>
       </article>
     </section>
 
@@ -351,6 +432,15 @@ public class SearchSuggestServlet extends SlingAllMethodsServlet { }</code></pre
           </div>
         </div>
         <p class="suppress">Suppress one line: <code>// aem-analyser-disable-next-line AEM-DUP-001</code> · tags duplication · <code>--explain AEM-DUP-001</code></p>
+        <div class="rule-card__tune">
+          <span class="rule-card__tune-label">Tune this rule</span>
+          <a href="../reference/#configuration">Disable or re-scope it in <code>.aem-analyser.yml</code></a>
+          <a href="../reference/#flags">Fail the build on it with <code>--fail-on</code></a>
+          <a href="../reference/#suppression">Suppress one occurrence inline</a>
+          <a href="../reference/#baseline">Accept it in a baseline</a>
+          <a href="../reference/#exit-codes">What its severity means for the exit code</a>
+        </div>
+        <p class="rule-card__siblings">Same family: <a href="aem-dup-002/" title="DuplicateOsgiConfiguration">AEM-DUP-002</a> <a href="aem-dup-003/" title="DuplicateSlingModel">AEM-DUP-003</a> · <a href="#family-dup">all rules in this family</a></p>
       </article>
 
       <article class="rule-card" id="aem-dup-002" data-family="DUP" data-search="aem-dup-002 duplicateosgiconfiguration conflicting or duplicate osgi configuration targeting the same pid in the same runmode context. duplication warning keep one config per pid and runmode; remove the duplicate. two files configuring the same pid in the same runmode context are both installed and the winner depends on install order. values then differ between a fresh install and an incremental one — the classic &quot;works on my instance&quot; configuration bug. keep exactly one file per pid and runmode context and merge the properties into it. split by runmode (config, config.author, config.publish) when the values genuinely differ.">
@@ -379,6 +469,15 @@ ui.config/.../config/com.acme.core.SearchService.cfg.json    (limit = 250)</code
           </div>
         </div>
         <p class="suppress">Suppress one line: <code>// aem-analyser-disable-next-line AEM-DUP-002</code> · tags duplication · <code>--explain AEM-DUP-002</code></p>
+        <div class="rule-card__tune">
+          <span class="rule-card__tune-label">Tune this rule</span>
+          <a href="../reference/#configuration">Disable or re-scope it in <code>.aem-analyser.yml</code></a>
+          <a href="../reference/#flags">Fail the build on it with <code>--fail-on</code></a>
+          <a href="../reference/#suppression">Suppress one occurrence inline</a>
+          <a href="../reference/#baseline">Accept it in a baseline</a>
+          <a href="../reference/#exit-codes">What its severity means for the exit code</a>
+        </div>
+        <p class="rule-card__siblings">Same family: <a href="aem-dup-001/" title="DuplicateServletEndpoint">AEM-DUP-001</a> <a href="aem-dup-003/" title="DuplicateSlingModel">AEM-DUP-003</a> · <a href="#family-dup">all rules in this family</a></p>
       </article>
 
       <article class="rule-card" id="aem-dup-003" data-family="DUP" data-search="aem-dup-003 duplicateslingmodel multiple sling models bind to the exact same resourcetype and adapter interface without condition. duplication warning differentiate the resourcetype/adapters or merge the models. two sling models bound to the same resourcetype and adaptable means htl can resolve either one; the winner is undefined. exported json then differs depending on which model the model factory picked. keep one model per resource type, or separate them by selector, resource type or a condition, and let htl choose explicitly.">
@@ -415,6 +514,15 @@ public class CardViewModel { }</code></pre>
           </div>
         </div>
         <p class="suppress">Suppress one line: <code>// aem-analyser-disable-next-line AEM-DUP-003</code> · tags duplication · <code>--explain AEM-DUP-003</code></p>
+        <div class="rule-card__tune">
+          <span class="rule-card__tune-label">Tune this rule</span>
+          <a href="../reference/#configuration">Disable or re-scope it in <code>.aem-analyser.yml</code></a>
+          <a href="../reference/#flags">Fail the build on it with <code>--fail-on</code></a>
+          <a href="../reference/#suppression">Suppress one occurrence inline</a>
+          <a href="../reference/#baseline">Accept it in a baseline</a>
+          <a href="../reference/#exit-codes">What its severity means for the exit code</a>
+        </div>
+        <p class="rule-card__siblings">Same family: <a href="aem-dup-001/" title="DuplicateServletEndpoint">AEM-DUP-001</a> <a href="aem-dup-002/" title="DuplicateOsgiConfiguration">AEM-DUP-002</a> · <a href="#family-dup">all rules in this family</a></p>
       </article>
 
       <article class="rule-card" id="aem-dup-010" data-family="DUP" data-search="aem-dup-010 duplicatecodeblock duplicate java code block or method clone detected across repository classes. duplication warning extract the duplicated block into a shared helper. cloned code drifts: a fix applied to one copy silently misses the others, and every copy has to be re-tested. duplication across bundles is usually a missing shared module. extract the duplicated block into a helper or an interface in the bundle that already owns the concept, and have both call sites use it.">
@@ -432,6 +540,15 @@ public class CardViewModel { }</code></pre>
         <h4>How to fix it</h4>
         <p>Extract the duplicated block into a helper or an interface in the bundle that already owns the concept, and have both call sites use it.</p>
         <p class="suppress">Suppress one line: <code>// aem-analyser-disable-next-line AEM-DUP-010</code> · tags duplication · <code>--explain AEM-DUP-010</code></p>
+        <div class="rule-card__tune">
+          <span class="rule-card__tune-label">Tune this rule</span>
+          <a href="../reference/#configuration">Disable or re-scope it in <code>.aem-analyser.yml</code></a>
+          <a href="../reference/#flags">Fail the build on it with <code>--fail-on</code></a>
+          <a href="../reference/#suppression">Suppress one occurrence inline</a>
+          <a href="../reference/#baseline">Accept it in a baseline</a>
+          <a href="../reference/#exit-codes">What its severity means for the exit code</a>
+        </div>
+        <p class="rule-card__siblings">Same family: <a href="aem-dup-001/" title="DuplicateServletEndpoint">AEM-DUP-001</a> <a href="aem-dup-002/" title="DuplicateOsgiConfiguration">AEM-DUP-002</a> · <a href="#family-dup">all rules in this family</a></p>
       </article>
     </section>
 
@@ -474,6 +591,15 @@ public class ProductsServlet extends SlingAllMethodsServlet { }</code></pre>
           </div>
         </div>
         <p class="suppress">Suppress one line: <code>// aem-analyser-disable-next-line AEM-QUAL-001</code> · tags quality, aem-cloud · <code>--explain AEM-QUAL-001</code></p>
+        <div class="rule-card__tune">
+          <span class="rule-card__tune-label">Tune this rule</span>
+          <a href="../reference/#configuration">Disable or re-scope it in <code>.aem-analyser.yml</code></a>
+          <a href="../reference/#flags">Fail the build on it with <code>--fail-on</code></a>
+          <a href="../reference/#suppression">Suppress one occurrence inline</a>
+          <a href="../reference/#baseline">Accept it in a baseline</a>
+          <a href="../reference/#exit-codes">What its severity means for the exit code</a>
+        </div>
+        <p class="rule-card__siblings">Same family: <a href="aem-qual-002/" title="ProviderTypeImplementation">AEM-QUAL-002</a> <a href="aem-qual-003/" title="SlingSchedulerUsage">AEM-QUAL-003</a> · <a href="#family-qual">all rules in this family</a></p>
       </article>
 
       <article class="rule-card" id="aem-qual-002" data-family="QUAL" data-search="aem-qual-002 providertypeimplementation custom code implements or extends @providertype product interface (cqbp-84). quality aem-cloud error implement only consumer-facing apis; do not implement @providertype (cqbp-84). cqbp-84 implementing or extending a @providertype interface ties your bundle to product internals that aem as a cloud service upgrades without notice; cqbp-84 fails the build for exactly this reason. provider types are contracts you consume, not implement. depend on the interface and delegate to it instead of implementing it. when you need to decorate behaviour, wrap the product object or move the logic into your own service that takes the provider type as a dependency.">
@@ -520,6 +646,15 @@ public class PageTitleService {
           </div>
         </div>
         <p class="suppress">Suppress one line: <code>// aem-analyser-disable-next-line AEM-QUAL-002</code> · tags quality, aem-cloud · <code>--explain AEM-QUAL-002</code></p>
+        <div class="rule-card__tune">
+          <span class="rule-card__tune-label">Tune this rule</span>
+          <a href="../reference/#configuration">Disable or re-scope it in <code>.aem-analyser.yml</code></a>
+          <a href="../reference/#flags">Fail the build on it with <code>--fail-on</code></a>
+          <a href="../reference/#suppression">Suppress one occurrence inline</a>
+          <a href="../reference/#baseline">Accept it in a baseline</a>
+          <a href="../reference/#exit-codes">What its severity means for the exit code</a>
+        </div>
+        <p class="rule-card__siblings">Same family: <a href="aem-qual-001/" title="PathBoundServletRegistration">AEM-QUAL-001</a> <a href="aem-qual-003/" title="SlingSchedulerUsage">AEM-QUAL-003</a> · <a href="#family-qual">all rules in this family</a></p>
       </article>
 
       <article class="rule-card" id="aem-qual-003" data-family="QUAL" data-search="aem-qual-003 slingschedulerusage sling whiteboard scheduler used instead of sling scheduled jobs (amscore-554). quality aem-cloud warning use sling scheduled jobs instead of the whiteboard scheduler (amscore-554). amscore-554 amscore-554 flags the sling whiteboard scheduler. aem as a cloud service expects sling scheduled jobs, which are cluster-aware: a job runs once across the publish tier instead of once per instance, and it survives a restart. implement a jobconsumer for the topic and schedule the run through the sling job api instead of scheduler.addjob.">
@@ -556,6 +691,15 @@ public class ImportJobConsumer implements JobConsumer {
           </div>
         </div>
         <p class="suppress">Suppress one line: <code>// aem-analyser-disable-next-line AEM-QUAL-003</code> · tags quality, aem-cloud · <code>--explain AEM-QUAL-003</code></p>
+        <div class="rule-card__tune">
+          <span class="rule-card__tune-label">Tune this rule</span>
+          <a href="../reference/#configuration">Disable or re-scope it in <code>.aem-analyser.yml</code></a>
+          <a href="../reference/#flags">Fail the build on it with <code>--fail-on</code></a>
+          <a href="../reference/#suppression">Suppress one occurrence inline</a>
+          <a href="../reference/#baseline">Accept it in a baseline</a>
+          <a href="../reference/#exit-codes">What its severity means for the exit code</a>
+        </div>
+        <p class="rule-card__siblings">Same family: <a href="aem-qual-001/" title="PathBoundServletRegistration">AEM-QUAL-001</a> <a href="aem-qual-002/" title="ProviderTypeImplementation">AEM-QUAL-002</a> · <a href="#family-qual">all rules in this family</a></p>
       </article>
 
       <article class="rule-card" id="aem-qual-004" data-family="QUAL" data-search="aem-qual-004 unsafecomponentstate non-thread-safe or session-bound object stored in osgi component field (aem-3). quality aem-cloud error do not store session-bound or non-thread-safe objects in component fields. aem-3 slinghttpservletrequest, resourceresolver and jcr session are bound to one thread and one request. stored in a component field, they leak across requests: closed resolvers are reused, sessions go stale after a restart, and the component is no longer thread-safe (cloud manager check aem-3). keep only immutable, thread-safe collaborators in fields. obtain request-scoped objects as parameters or from the request, and close them where they were created.">
@@ -601,6 +745,15 @@ public class NavigationService {
           </div>
         </div>
         <p class="suppress">Suppress one line: <code>// aem-analyser-disable-next-line AEM-QUAL-004</code> · tags quality, aem-cloud · <code>--explain AEM-QUAL-004</code></p>
+        <div class="rule-card__tune">
+          <span class="rule-card__tune-label">Tune this rule</span>
+          <a href="../reference/#configuration">Disable or re-scope it in <code>.aem-analyser.yml</code></a>
+          <a href="../reference/#flags">Fail the build on it with <code>--fail-on</code></a>
+          <a href="../reference/#suppression">Suppress one occurrence inline</a>
+          <a href="../reference/#baseline">Accept it in a baseline</a>
+          <a href="../reference/#exit-codes">What its severity means for the exit code</a>
+        </div>
+        <p class="rule-card__siblings">Same family: <a href="aem-qual-001/" title="PathBoundServletRegistration">AEM-QUAL-001</a> <a href="aem-qual-002/" title="ProviderTypeImplementation">AEM-QUAL-002</a> · <a href="#family-qual">all rules in this family</a></p>
       </article>
 
       <article class="rule-card" id="aem-qual-005" data-family="QUAL" data-search="aem-qual-005 administrativeaccessusage deprecated administrative login or resource resolver api used; rejected on aem as a cloud service. quality aem-cloud error use a dedicated service user with a mapped subservice (amscore-553). administrative logins and loginadministrative bypass every permission check and are rejected by aem as a cloud service. they also hide the real acls a feature needs. create a dedicated service user with a serviceusermapper mapping and request a service resource resolver for that subservice, then grant the service user exactly the permissions the feature needs.">
@@ -634,6 +787,15 @@ try (ResourceResolver resolver =
           </div>
         </div>
         <p class="suppress">Suppress one line: <code>// aem-analyser-disable-next-line AEM-QUAL-005</code> · tags quality, aem-cloud · <code>--explain AEM-QUAL-005</code></p>
+        <div class="rule-card__tune">
+          <span class="rule-card__tune-label">Tune this rule</span>
+          <a href="../reference/#configuration">Disable or re-scope it in <code>.aem-analyser.yml</code></a>
+          <a href="../reference/#flags">Fail the build on it with <code>--fail-on</code></a>
+          <a href="../reference/#suppression">Suppress one occurrence inline</a>
+          <a href="../reference/#baseline">Accept it in a baseline</a>
+          <a href="../reference/#exit-codes">What its severity means for the exit code</a>
+        </div>
+        <p class="rule-card__siblings">Same family: <a href="aem-qual-001/" title="PathBoundServletRegistration">AEM-QUAL-001</a> <a href="aem-qual-002/" title="ProviderTypeImplementation">AEM-QUAL-002</a> · <a href="#family-qual">all rules in this family</a></p>
       </article>
 
       <article class="rule-card" id="aem-qual-006" data-family="QUAL" data-search="aem-qual-006 resolverstoredincomponentfield osgi component stores a request-scoped resourceresolver or jcr session in an instance field. quality resource-lifecycle warning do not store request-scoped resolvers or sessions in component fields; obtain them per request and close them. storing a request-scoped resolver or session in an osgi component field keeps one request&#39;s state alive for every later request, which leaks resolvers and can serve stale content. obtain the resolver or session per request and close it in the same scope. the thread-safety owner for this check is aem-qual-004 (error); this id is retained so existing baselines and sarif consumers keep working.">
@@ -652,6 +814,15 @@ try (ResourceResolver resolver =
         <h4>How to fix it</h4>
         <p>Obtain the resolver or session per request and close it in the same scope. The thread-safety owner for this check is AEM-QUAL-004 (ERROR); this id is retained so existing baselines and SARIF consumers keep working.</p>
         <p class="suppress">Suppress one line: <code>// aem-analyser-disable-next-line AEM-QUAL-006</code> · tags quality, resource-lifecycle · <code>--explain AEM-QUAL-006</code></p>
+        <div class="rule-card__tune">
+          <span class="rule-card__tune-label">Tune this rule</span>
+          <a href="../reference/#configuration">Disable or re-scope it in <code>.aem-analyser.yml</code></a>
+          <a href="../reference/#flags">Fail the build on it with <code>--fail-on</code></a>
+          <a href="../reference/#suppression">Suppress one occurrence inline</a>
+          <a href="../reference/#baseline">Accept it in a baseline</a>
+          <a href="../reference/#exit-codes">What its severity means for the exit code</a>
+        </div>
+        <p class="rule-card__siblings">Same family: <a href="aem-qual-001/" title="PathBoundServletRegistration">AEM-QUAL-001</a> <a href="aem-qual-002/" title="ProviderTypeImplementation">AEM-QUAL-002</a> · <a href="#family-qual">all rules in this family</a></p>
       </article>
 
       <article class="rule-card" id="aem-qual-008" data-family="QUAL" data-search="aem-qual-008 unprovidedmandatoryreference mandatory @reference target is declared by project sources but registered by no component. quality osgi error register a @component service implementation for the target type, or mark the @reference optional if activation must not depend on it. a declarative services component with an unsatisfied mandatory reference never activates. the bundle stays active and the code compiles because the target type is on the classpath, so the failure is invisible until the servlet 404s or the scheduled job never fires. register an implementation with @component(service = target.class), or declare the reference cardinality = referencecardinality.optional when activation must not depend on it. confirm in the felix console that the component is satisfied.">
@@ -687,6 +858,15 @@ public class ResourceResolverProviderImpl implements ResourceResolverProvider {
           </div>
         </div>
         <p class="suppress">Suppress one line: <code>// aem-analyser-disable-next-line AEM-QUAL-008</code> · tags quality, osgi · <code>--explain AEM-QUAL-008</code></p>
+        <div class="rule-card__tune">
+          <span class="rule-card__tune-label">Tune this rule</span>
+          <a href="../reference/#configuration">Disable or re-scope it in <code>.aem-analyser.yml</code></a>
+          <a href="../reference/#flags">Fail the build on it with <code>--fail-on</code></a>
+          <a href="../reference/#suppression">Suppress one occurrence inline</a>
+          <a href="../reference/#baseline">Accept it in a baseline</a>
+          <a href="../reference/#exit-codes">What its severity means for the exit code</a>
+        </div>
+        <p class="rule-card__siblings">Same family: <a href="aem-qual-001/" title="PathBoundServletRegistration">AEM-QUAL-001</a> <a href="aem-qual-002/" title="ProviderTypeImplementation">AEM-QUAL-002</a> · <a href="#family-qual">all rules in this family</a></p>
       </article>
     </section>
 
@@ -727,6 +907,15 @@ return resource.adaptTo(ValueMap.class);</code></pre>
           </div>
         </div>
         <p class="suppress">Suppress one line: <code>// aem-analyser-disable-next-line AEM-PERF-001</code> · tags performance · <code>--explain AEM-PERF-001</code></p>
+        <div class="rule-card__tune">
+          <span class="rule-card__tune-label">Tune this rule</span>
+          <a href="../reference/#configuration">Disable or re-scope it in <code>.aem-analyser.yml</code></a>
+          <a href="../reference/#flags">Fail the build on it with <code>--fail-on</code></a>
+          <a href="../reference/#suppression">Suppress one occurrence inline</a>
+          <a href="../reference/#baseline">Accept it in a baseline</a>
+          <a href="../reference/#exit-codes">What its severity means for the exit code</a>
+        </div>
+        <p class="rule-card__siblings">Same family: <a href="aem-perf-002/" title="UnclosedJcrSession">AEM-PERF-002</a> <a href="aem-perf-003/" title="OakQueryTraversalRisk">AEM-PERF-003</a> · <a href="#family-perf">all rules in this family</a></p>
       </article>
 
       <article class="rule-card" id="aem-perf-002" data-family="PERF" data-search="aem-perf-002 unclosedjcrsession jcr session obtained via repository login or adaptation is not logged out or closed. performance error close the owning resolver or call session.logout() in a finally block. a jcr session opened through repository.login() or adapted from a resolver must be logged out. an open session pins the observation queue and any pending changes, and on aem as a cloud service leaked sessions show up as repository connection pressure. close the session in a finally block, or avoid the session entirely: the resource resolver api covers almost every read and write a component needs.">
@@ -760,6 +949,15 @@ Node node = session.getNode(path);</code></pre>
           </div>
         </div>
         <p class="suppress">Suppress one line: <code>// aem-analyser-disable-next-line AEM-PERF-002</code> · tags performance · <code>--explain AEM-PERF-002</code></p>
+        <div class="rule-card__tune">
+          <span class="rule-card__tune-label">Tune this rule</span>
+          <a href="../reference/#configuration">Disable or re-scope it in <code>.aem-analyser.yml</code></a>
+          <a href="../reference/#flags">Fail the build on it with <code>--fail-on</code></a>
+          <a href="../reference/#suppression">Suppress one occurrence inline</a>
+          <a href="../reference/#baseline">Accept it in a baseline</a>
+          <a href="../reference/#exit-codes">What its severity means for the exit code</a>
+        </div>
+        <p class="rule-card__siblings">Same family: <a href="aem-perf-001/" title="UnclosedResourceResolver">AEM-PERF-001</a> <a href="aem-perf-003/" title="OakQueryTraversalRisk">AEM-PERF-003</a> · <a href="#family-perf">all rules in this family</a></p>
       </article>
 
       <article class="rule-card" id="aem-perf-003" data-family="PERF" data-search="aem-perf-003 oakquerytraversalrisk jcr-sql2 or xpath query lacks path or nodetype restriction, causing oak traversal errors. performance warning add a path or nodetype restriction to the query. a jcr-sql2 or xpath query with no path or node type restriction forces oak to walk every index it has. at scale that is the difference between a millisecond lookup and a traversal warning in the cloud service logs. add a path= or type= constraint (or isdescendantnode) so oak can use a property index, and confirm the index exists.">
@@ -790,6 +988,15 @@ WHERE ISDESCENDANTNODE(s, &#39;/content/acme&#39;) AND [sling:resourceType] = &#
           </div>
         </div>
         <p class="suppress">Suppress one line: <code>// aem-analyser-disable-next-line AEM-PERF-003</code> · tags performance · <code>--explain AEM-PERF-003</code></p>
+        <div class="rule-card__tune">
+          <span class="rule-card__tune-label">Tune this rule</span>
+          <a href="../reference/#configuration">Disable or re-scope it in <code>.aem-analyser.yml</code></a>
+          <a href="../reference/#flags">Fail the build on it with <code>--fail-on</code></a>
+          <a href="../reference/#suppression">Suppress one occurrence inline</a>
+          <a href="../reference/#baseline">Accept it in a baseline</a>
+          <a href="../reference/#exit-codes">What its severity means for the exit code</a>
+        </div>
+        <p class="rule-card__siblings">Same family: <a href="aem-perf-001/" title="UnclosedResourceResolver">AEM-PERF-001</a> <a href="aem-perf-002/" title="UnclosedJcrSession">AEM-PERF-002</a> · <a href="#family-perf">all rules in this family</a></p>
       </article>
 
       <article class="rule-card" id="aem-perf-004" data-family="PERF" data-search="aem-perf-004 unboundedquery jcr/oak query has no limit and may scan an unbounded result set. performance query warning add a result limit (p.limit / query limit) to bound the query. an unbounded query result can be enormous on a content repository that grows daily. it is the usual cause of a slow component that only shows up in production. bound the result set with p.limit (or limit in jcr-sql2) and paginate with p.offset. report the total separately with p.guesstotal rather than materialising every hit.">
@@ -825,6 +1032,15 @@ params.put(&quot;p.guessTotal&quot;, &quot;1000&quot;);</code></pre>
           </div>
         </div>
         <p class="suppress">Suppress one line: <code>// aem-analyser-disable-next-line AEM-PERF-004</code> · tags performance, query · <code>--explain AEM-PERF-004</code></p>
+        <div class="rule-card__tune">
+          <span class="rule-card__tune-label">Tune this rule</span>
+          <a href="../reference/#configuration">Disable or re-scope it in <code>.aem-analyser.yml</code></a>
+          <a href="../reference/#flags">Fail the build on it with <code>--fail-on</code></a>
+          <a href="../reference/#suppression">Suppress one occurrence inline</a>
+          <a href="../reference/#baseline">Accept it in a baseline</a>
+          <a href="../reference/#exit-codes">What its severity means for the exit code</a>
+        </div>
+        <p class="rule-card__siblings">Same family: <a href="aem-perf-001/" title="UnclosedResourceResolver">AEM-PERF-001</a> <a href="aem-perf-002/" title="UnclosedJcrSession">AEM-PERF-002</a> · <a href="#family-perf">all rules in this family</a></p>
       </article>
     </section>
 
@@ -865,6 +1081,15 @@ params.put(&quot;p.guessTotal&quot;, &quot;1000&quot;);</code></pre>
           </div>
         </div>
         <p class="suppress">Suppress one line: <code>// aem-analyser-disable-next-line AEM-CLOUD-001</code> · tags aem-cloud · <code>--explain AEM-CLOUD-001</code></p>
+        <div class="rule-card__tune">
+          <span class="rule-card__tune-label">Tune this rule</span>
+          <a href="../reference/#configuration">Disable or re-scope it in <code>.aem-analyser.yml</code></a>
+          <a href="../reference/#flags">Fail the build on it with <code>--fail-on</code></a>
+          <a href="../reference/#suppression">Suppress one occurrence inline</a>
+          <a href="../reference/#baseline">Accept it in a baseline</a>
+          <a href="../reference/#exit-codes">What its severity means for the exit code</a>
+        </div>
+        <p class="rule-card__siblings">Same family: <a href="aem-cloud-002/" title="DeprecatedJspUsage">AEM-CLOUD-002</a> <a href="aem-cloud-003/" title="UnmappedSubserviceUser">AEM-CLOUD-003</a> · <a href="#family-cloud">all rules in this family</a></p>
       </article>
 
       <article class="rule-card" id="aem-cloud-002" data-family="CLOUD" data-search="aem-cloud-002 deprecatedjspusage legacy jsp file found in repository; aemaacs requires htl. aem-cloud warning migrate the jsp to htl. aem as a cloud service has no jsp support: a .jsp file is simply not rendered, so the page that uses it breaks after migration. jsps also bypass htl&#39;s contextual escaping. rewrite the jsp as an htl template with a sling model for the logic, then delete the jsp and any classic ui client libraries it depended on.">
@@ -896,6 +1121,15 @@ params.put(&quot;p.guessTotal&quot;, &quot;1000&quot;);</code></pre>
           </div>
         </div>
         <p class="suppress">Suppress one line: <code>&lt;!-- aem-analyser-disable-next-line AEM-CLOUD-002 --&gt;</code> · tags aem-cloud · <code>--explain AEM-CLOUD-002</code></p>
+        <div class="rule-card__tune">
+          <span class="rule-card__tune-label">Tune this rule</span>
+          <a href="../reference/#configuration">Disable or re-scope it in <code>.aem-analyser.yml</code></a>
+          <a href="../reference/#flags">Fail the build on it with <code>--fail-on</code></a>
+          <a href="../reference/#suppression">Suppress one occurrence inline</a>
+          <a href="../reference/#baseline">Accept it in a baseline</a>
+          <a href="../reference/#exit-codes">What its severity means for the exit code</a>
+        </div>
+        <p class="rule-card__siblings">Same family: <a href="aem-cloud-001/" title="HardcodedCloudSecret">AEM-CLOUD-001</a> <a href="aem-cloud-003/" title="UnmappedSubserviceUser">AEM-CLOUD-003</a> · <a href="#family-cloud">all rules in this family</a></p>
       </article>
 
       <article class="rule-card" id="aem-cloud-003" data-family="CLOUD" data-search="aem-cloud-003 unmappedsubserviceuser java call to getserviceresourceresolver() has no matching serviceusermapperimpl.amended mapping or system user definition. aem-cloud error add a serviceusermapper mapping and declare the service user via repoinit. getserviceresourceresolver only works when a serviceusermapper mapping exists for the bundle&#39;s subservice and the service user exists in the repository. without the mapping the call fails at runtime with a loginexception, and the feature only breaks on the environment where the config is missing. declare the service user through repoinit and add the mapping in a configuration file for the serviceusermapperimpl.amended factory, then grant the acls the feature needs.">
@@ -929,6 +1163,15 @@ ui.config/.../config/org.apache.sling.jcr.repoinit.RepositoryInitializer-acme.cf
           </div>
         </div>
         <p class="suppress">Suppress one line: <code>// aem-analyser-disable-next-line AEM-CLOUD-003</code> · tags aem-cloud · <code>--explain AEM-CLOUD-003</code></p>
+        <div class="rule-card__tune">
+          <span class="rule-card__tune-label">Tune this rule</span>
+          <a href="../reference/#configuration">Disable or re-scope it in <code>.aem-analyser.yml</code></a>
+          <a href="../reference/#flags">Fail the build on it with <code>--fail-on</code></a>
+          <a href="../reference/#suppression">Suppress one occurrence inline</a>
+          <a href="../reference/#baseline">Accept it in a baseline</a>
+          <a href="../reference/#exit-codes">What its severity means for the exit code</a>
+        </div>
+        <p class="rule-card__siblings">Same family: <a href="aem-cloud-001/" title="HardcodedCloudSecret">AEM-CLOUD-001</a> <a href="aem-cloud-002/" title="DeprecatedJspUsage">AEM-CLOUD-002</a> · <a href="#family-cloud">all rules in this family</a></p>
       </article>
 
       <article class="rule-card" id="aem-cloud-004" data-family="CLOUD" data-search="aem-cloud-004 deprecatedaemapiusage java source imports or uses an api deprecated in aem as a cloud service (amscore-553). aem-cloud api warning replace the deprecated api with the supported aem as a cloud service equivalent. amscore-553 an api deprecated for aem as a cloud service is removed or unmaintained in the product version the environment runs. the code compiles today and fails on the next upgrade. replace the call with its supported equivalent (for example the sling resourceresolverfactory instead of the deprecated cq resolver helpers, and com.adobe.granite apis instead of classic ui ones). check the aem as a cloud service api reference for the replacement.">
@@ -947,6 +1190,15 @@ ui.config/.../config/org.apache.sling.jcr.repoinit.RepositoryInitializer-acme.cf
         <h4>How to fix it</h4>
         <p>Replace the call with its supported equivalent (for example the Sling ResourceResolverFactory instead of the deprecated CQ resolver helpers, and com.adobe.granite APIs instead of Classic UI ones). Check the AEM as a Cloud Service API reference for the replacement.</p>
         <p class="suppress">Suppress one line: <code>// aem-analyser-disable-next-line AEM-CLOUD-004</code> · tags aem-cloud, api · <code>--explain AEM-CLOUD-004</code></p>
+        <div class="rule-card__tune">
+          <span class="rule-card__tune-label">Tune this rule</span>
+          <a href="../reference/#configuration">Disable or re-scope it in <code>.aem-analyser.yml</code></a>
+          <a href="../reference/#flags">Fail the build on it with <code>--fail-on</code></a>
+          <a href="../reference/#suppression">Suppress one occurrence inline</a>
+          <a href="../reference/#baseline">Accept it in a baseline</a>
+          <a href="../reference/#exit-codes">What its severity means for the exit code</a>
+        </div>
+        <p class="rule-card__siblings">Same family: <a href="aem-cloud-001/" title="HardcodedCloudSecret">AEM-CLOUD-001</a> <a href="aem-cloud-002/" title="DeprecatedJspUsage">AEM-CLOUD-002</a> · <a href="#family-cloud">all rules in this family</a></p>
       </article>
 
       <article class="rule-card" id="aem-cloud-005" data-family="CLOUD" data-search="aem-cloud-005 invalidrunmodefolder osgi configuration lives in a runmode folder that is not a recognised aem runmode. aem-cloud api warning move the configuration to a valid runmode folder (config, config.author, config.publish, config.dev, ...) or delete it. only the documented runmodes are applied by aem as a cloud service. a configuration in an unrecognised folder is never activated, so the setting silently does not apply. move the file to a recognised folder — config, config.author, config.publish, config.dev, config.stage, config.prod — or delete it when the runmode no longer exists.">
@@ -974,6 +1226,15 @@ ui.config/.../config/org.apache.sling.jcr.repoinit.RepositoryInitializer-acme.cf
           </div>
         </div>
         <p class="suppress">Suppress one line: <code>// aem-analyser-disable-next-line AEM-CLOUD-005</code> · tags aem-cloud, api · <code>--explain AEM-CLOUD-005</code></p>
+        <div class="rule-card__tune">
+          <span class="rule-card__tune-label">Tune this rule</span>
+          <a href="../reference/#configuration">Disable or re-scope it in <code>.aem-analyser.yml</code></a>
+          <a href="../reference/#flags">Fail the build on it with <code>--fail-on</code></a>
+          <a href="../reference/#suppression">Suppress one occurrence inline</a>
+          <a href="../reference/#baseline">Accept it in a baseline</a>
+          <a href="../reference/#exit-codes">What its severity means for the exit code</a>
+        </div>
+        <p class="rule-card__siblings">Same family: <a href="aem-cloud-001/" title="HardcodedCloudSecret">AEM-CLOUD-001</a> <a href="aem-cloud-002/" title="DeprecatedJspUsage">AEM-CLOUD-002</a> · <a href="#family-cloud">all rules in this family</a></p>
       </article>
 
       <article class="rule-card" id="aem-cloud-006" data-family="CLOUD" data-search="aem-cloud-006 brokendispatcherconfig dispatcher configuration has an unresolved include, a duplicate servername, a vhost without documentroot or a legacy dispatcher.any. aem-cloud dispatcher warning create the missing include file, give each virtual host a distinct servername and a documentroot, and split a monolithic dispatcher.any into conf.dispatcher.d and conf.d. the dispatcher is validated only when cloud manager deploys, so a broken include, a duplicated servername, a virtual host with no documentroot or a monolithic dispatcher.any turns into a failed pipeline rather than a failed build. the same defects are also the usual cause of &quot;works in dev, 404 in prod&quot;: the vhost never loads, or two vhosts answer for one host name and whichever loads last wins. create the missing include target or fix the path, give every virtual host its own servername, add documentroot &quot;${docroot&quot;} to each block, and split a legacy monolithic dispatcher.any into conf.dispatcher.d (farms, filters, cache, renders, virtualhosts) plus conf.d (vhosts, rewrites, variables).">
@@ -1010,6 +1271,15 @@ Include conf.d/includes/cache.conf
           </div>
         </div>
         <p class="suppress">Suppress one line: <code>// aem-analyser-disable-next-line AEM-CLOUD-006</code> · tags aem-cloud, dispatcher · <code>--explain AEM-CLOUD-006</code></p>
+        <div class="rule-card__tune">
+          <span class="rule-card__tune-label">Tune this rule</span>
+          <a href="../reference/#configuration">Disable or re-scope it in <code>.aem-analyser.yml</code></a>
+          <a href="../reference/#flags">Fail the build on it with <code>--fail-on</code></a>
+          <a href="../reference/#suppression">Suppress one occurrence inline</a>
+          <a href="../reference/#baseline">Accept it in a baseline</a>
+          <a href="../reference/#exit-codes">What its severity means for the exit code</a>
+        </div>
+        <p class="rule-card__siblings">Same family: <a href="aem-cloud-001/" title="HardcodedCloudSecret">AEM-CLOUD-001</a> <a href="aem-cloud-002/" title="DeprecatedJspUsage">AEM-CLOUD-002</a> · <a href="#family-cloud">all rules in this family</a></p>
       </article>
 
       <article class="rule-card" id="aem-cloud-007" data-family="CLOUD" data-search="aem-cloud-007 overlappingcontentpackagefilter a content-package filter root is shared across modules, uses replace on a shared root, or points at a platform path. aem-cloud content-package warning give each content module a disjoint filter root; use mode=&quot;merge&quot; on anything shared and filter the project&#39;s own subtree instead of a platform root. filter roots decide which repository paths a package installs. when two modules filter the same root, the package installed last wins, so content from the other package silently disappears in the deployed environment — and the build, the package manager and both modules&#39; own tests all still pass. mode=&quot;replace&quot; on a shared root makes that deletion explicit. a root at /apps, /content/dam or under /libs ships content the project does not own. give each content module a disjoint root under the project namespace. where a root genuinely must be shared, use mode=&quot;merge&quot; and include only the paths the module owns instead of the platform root itself.">
@@ -1053,6 +1323,15 @@ Include conf.d/includes/cache.conf
           </div>
         </div>
         <p class="suppress">Suppress one line: <code>// aem-analyser-disable-next-line AEM-CLOUD-007</code> · tags aem-cloud, content-package · <code>--explain AEM-CLOUD-007</code></p>
+        <div class="rule-card__tune">
+          <span class="rule-card__tune-label">Tune this rule</span>
+          <a href="../reference/#configuration">Disable or re-scope it in <code>.aem-analyser.yml</code></a>
+          <a href="../reference/#flags">Fail the build on it with <code>--fail-on</code></a>
+          <a href="../reference/#suppression">Suppress one occurrence inline</a>
+          <a href="../reference/#baseline">Accept it in a baseline</a>
+          <a href="../reference/#exit-codes">What its severity means for the exit code</a>
+        </div>
+        <p class="rule-card__siblings">Same family: <a href="aem-cloud-001/" title="HardcodedCloudSecret">AEM-CLOUD-001</a> <a href="aem-cloud-002/" title="DeprecatedJspUsage">AEM-CLOUD-002</a> · <a href="#family-cloud">all rules in this family</a></p>
       </article>
     </section>
 
@@ -1089,6 +1368,15 @@ Include conf.d/includes/cache.conf
           </div>
         </div>
         <p class="suppress">Suppress one line: <code>&lt;!-- aem-analyser-disable-next-line AEM-SEC-001 --&gt;</code> · tags security, xss · <code>--explain AEM-SEC-001</code></p>
+        <div class="rule-card__tune">
+          <span class="rule-card__tune-label">Tune this rule</span>
+          <a href="../reference/#configuration">Disable or re-scope it in <code>.aem-analyser.yml</code></a>
+          <a href="../reference/#flags">Fail the build on it with <code>--fail-on</code></a>
+          <a href="../reference/#suppression">Suppress one occurrence inline</a>
+          <a href="../reference/#baseline">Accept it in a baseline</a>
+          <a href="../reference/#exit-codes">What its severity means for the exit code</a>
+        </div>
+        <p class="rule-card__siblings">Same family: <a href="aem-sec-002/" title="OpenRedirectOrSsrf">AEM-SEC-002</a> · <a href="#family-sec">all rules in this family</a></p>
       </article>
 
       <article class="rule-card" id="aem-sec-002" data-family="SEC" data-search="aem-sec-002 openredirectorssrf user-controlled input flows into a redirect or outbound http request. security ssrf warning validate redirects and outbound urls against an allowlist; never pass request parameters directly. a request parameter that reaches sendredirect or an outbound http call lets an attacker choose the destination: an open redirect for phishing, or server-side request forgery against internal services (cwe-601). validate the destination against an allowlist of hosts or a fixed set of relative paths before redirecting, and never build an outbound url from unvalidated input.">
@@ -1123,6 +1411,15 @@ if (target != null &amp;&amp; target.startsWith(&quot;/content/&quot;) &amp;&amp
           </div>
         </div>
         <p class="suppress">Suppress one line: <code>// aem-analyser-disable-next-line AEM-SEC-002</code> · tags security, ssrf · <code>--explain AEM-SEC-002</code></p>
+        <div class="rule-card__tune">
+          <span class="rule-card__tune-label">Tune this rule</span>
+          <a href="../reference/#configuration">Disable or re-scope it in <code>.aem-analyser.yml</code></a>
+          <a href="../reference/#flags">Fail the build on it with <code>--fail-on</code></a>
+          <a href="../reference/#suppression">Suppress one occurrence inline</a>
+          <a href="../reference/#baseline">Accept it in a baseline</a>
+          <a href="../reference/#exit-codes">What its severity means for the exit code</a>
+        </div>
+        <p class="rule-card__siblings">Same family: <a href="aem-sec-001/" title="UnsafeHtlContextBypass">AEM-SEC-001</a> · <a href="#family-sec">all rules in this family</a></p>
       </article>
     </section>
 
@@ -1178,6 +1475,15 @@ if (target != null &amp;&amp; target.startsWith(&quot;/content/&quot;) &amp;&amp
           </div>
         </div>
         <p class="suppress">Suppress one line: <code>&lt;!-- aem-analyser-disable-next-line AEM-COMP-001 --&gt;</code> · tags quality, classic-ui · <code>--explain AEM-COMP-001</code></p>
+        <div class="rule-card__tune">
+          <span class="rule-card__tune-label">Tune this rule</span>
+          <a href="../reference/#configuration">Disable or re-scope it in <code>.aem-analyser.yml</code></a>
+          <a href="../reference/#flags">Fail the build on it with <code>--fail-on</code></a>
+          <a href="../reference/#suppression">Suppress one occurrence inline</a>
+          <a href="../reference/#baseline">Accept it in a baseline</a>
+          <a href="../reference/#exit-codes">What its severity means for the exit code</a>
+        </div>
+        <p class="rule-card__siblings">Same family: <a href="aem-comp-002/" title="MissingResourceTypeComponent">AEM-COMP-002</a> · <a href="#family-comp">all rules in this family</a></p>
       </article>
 
       <article class="rule-card" id="aem-comp-002" data-family="COMP" data-search="aem-comp-002 missingresourcetypecomponent literal sling:resourcetype or data-sly-resource type names no component under the project&#39;s /apps prefix. quality component error point the reference at an existing component under the project&#39;s /apps prefix, or restore the component that was renamed or moved. content and templates bind to a resource type by string. when the component behind that string is renamed or moved, aem resolves nothing at request time: the page renders blank, and neither javac nor the content-package build notices. point the reference at a component that exists under the project&#39;s /apps/&lt;project&gt;/ prefix, or restore the component directory. search the content package for the old type after a rename so no author content is left behind.">
@@ -1207,6 +1513,15 @@ if (target != null &amp;&amp; target.startsWith(&quot;/content/&quot;) &amp;&amp
           </div>
         </div>
         <p class="suppress">Suppress one line: <code>// aem-analyser-disable-next-line AEM-COMP-002</code> · tags quality, component · <code>--explain AEM-COMP-002</code></p>
+        <div class="rule-card__tune">
+          <span class="rule-card__tune-label">Tune this rule</span>
+          <a href="../reference/#configuration">Disable or re-scope it in <code>.aem-analyser.yml</code></a>
+          <a href="../reference/#flags">Fail the build on it with <code>--fail-on</code></a>
+          <a href="../reference/#suppression">Suppress one occurrence inline</a>
+          <a href="../reference/#baseline">Accept it in a baseline</a>
+          <a href="../reference/#exit-codes">What its severity means for the exit code</a>
+        </div>
+        <p class="rule-card__siblings">Same family: <a href="aem-comp-001/" title="DeprecatedClassicUiDialog">AEM-COMP-001</a> · <a href="#family-comp">all rules in this family</a></p>
       </article>
     </section>
   </div>

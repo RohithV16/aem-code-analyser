@@ -262,6 +262,30 @@ def check_404_and_redirects(pages: list[dict[str, str]]) -> int:
     return len(rule_pages)
 
 
+def check_cross_references(pages: list[dict[str, str]], rule_pages: list[dict[str, str]]) -> None:
+    """A rule page that links nowhere is a dead end: it must reach the tuning docs and a sibling."""
+    tuning = ("configuration", "flags", "suppression", "baseline")
+    index = next(page for page in pages if page["url"] == "/issues/")
+    index_html = Path(str(index["path"])).read_text(encoding="utf-8")
+    cards = len(re.findall(r'class="rule-card"', index_html))
+    tuned = index_html.count('class="rule-card__tune"')
+    assert tuned == cards, f"every rule card needs a tuning row ({tuned} of {cards})"
+
+    for page in rule_pages:
+        anchor = page["url"].strip("/").split("/")[-1]
+        html = Path(str(page["path"])).read_text(encoding="utf-8")
+        for target in tuning:
+            assert f"reference/#{target}" in html, f"{page['url']} does not link reference/#{target}"
+        siblings = re.search(r'class="rule-card__siblings"(.*?)</p>', html, re.S)
+        assert siblings, f"{page['url']} has no sibling row"
+        hrefs = re.findall(r'href="\.\./([a-z0-9-]+)/"', siblings.group(1))
+        hrefs = [href for href in hrefs if href != anchor]
+        assert hrefs, f"{page['url']} links no sibling rule"
+        for href in hrefs:
+            assert (DOCS / "issues" / href / "index.html").is_file(), (
+                f"{page['url']} links a missing sibling page: {href}")
+
+
 def main() -> int:
     config = site_config()
     pages = published_pages()
@@ -270,6 +294,7 @@ def main() -> int:
     check_fonts()
     check_search_index(pages)
     redirects = check_404_and_redirects(pages)
+    check_cross_references(pages, rule_pages)
 
     base = config["url"] + config["baseurl"]
     indexable = [p for p in pages if p.get("sitemap") != "false"]

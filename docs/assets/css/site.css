@@ -1759,6 +1759,40 @@ th .mono {
   color: var(--ink-2);
 }
 
+/* Tuning routes out of a rule card: one row of links to the reference page. */
+.rule-card__tune {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.3rem 0.9rem;
+  margin-top: 0.9rem;
+  padding-top: 0.7rem;
+  border-top: 1px dashed var(--line);
+  font-size: 0.82rem;
+}
+
+.rule-card__tune-label {
+  font-family: var(--mono);
+  font-size: 0.66rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+
+.rule-card__tune code {
+  font-size: 0.78rem;
+}
+
+.rule-card__siblings {
+  margin: 0.5rem 0 0;
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+.rule-card__siblings a {
+  color: var(--ink-2);
+}
+
 /* ------------------------------------------------------------------ footer */
 
 .site-footer {
