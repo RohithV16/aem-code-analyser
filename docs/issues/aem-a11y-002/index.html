@@ -1,0 +1,46 @@
+---
+layout: default
+nav: issues
+title: "AEM-A11Y-002 LinkWithoutAccessibleName — HTL anchor has no href/data-sly-attribute.href, or no accessible name for …"
+description: "AEM-A11Y-002 (WARNING): HTL anchor has no href/data-sly-attribute.href, or no accessible name for icon-only content (WCAG 2.4.4)."
+rule_id: "AEM-A11Y-002"
+rule_family: "A11Y"
+rule_family_title: "Accessibility"
+rule_severity: "WARNING"
+rule_tags: "accessibility, htl, wcag"
+---
+
+<div class="shell docs">
+  <div class="docs__main">
+    <p class="muted"><a href="../">← All 37 rules</a></p>
+    <div class="issues-head">
+      <h1><span class="rule-card__id">AEM-A11Y-002</span> LinkWithoutAccessibleName</h1>
+      <p class="lede">HTL anchor has no href/data-sly-attribute.href, or no accessible name for icon-only content (WCAG 2.4.4).</p>
+      <p class="muted"><span class="pill pill--warning">WARNING</span> · 10 min fix · Bug · <a href="../#family-a11y">Accessibility</a></p>
+    </div>
+
+    <article class="rule-card rule-card--page" id="aem-a11y-002" data-family="A11Y">
+        <p class="rule-card__summary">HTL anchor has no href/data-sly-attribute.href, or no accessible name for icon-only content (WCAG 2.4.4).</p>
+        <h2>Why it matters</h2>
+        <p>An &lt;a&gt; without href is not focusable, so keyboard users cannot reach it even though pointer users can click the styled element. An icon-only link is the mirror defect: it has no text for a screen reader to announce, so the link reads as an empty control. Both are WCAG 2.4.4 failures that a rendered-DOM audit finds only after deploy, while the template edit is cheap.</p>
+        <h2>How to fix it</h2>
+        <p>Keep href on every element styled as a link (bind it with data-sly-attribute.href when it is dynamic), and give an icon-only link an aria-label or visually hidden text that names its destination.</p>
+        <div class="examples">
+          <div class="code code--bad">
+            <div class="code__bar"><span class="code__label">html · before</span></div>
+            <pre><code>&lt;!-- components/icon-link/icon-link.html --&gt;
+&lt;a class=&quot;icon-link&quot;&gt;&lt;img src=&quot;${model.icon}&quot; alt=&quot;&quot;&gt;&lt;/a&gt;</code></pre>
+          </div>
+          <div class="code code--good">
+            <div class="code__bar"><span class="code__label">html · after</span></div>
+            <pre><code>&lt;!-- components/icon-link/icon-link.html --&gt;
+&lt;a class=&quot;icon-link&quot; href=&quot;${model.url}&quot; aria-label=&quot;${model.label}&quot;&gt;
+    &lt;img src=&quot;${model.icon}&quot; alt=&quot;&quot;&gt;
+&lt;/a&gt;</code></pre>
+          </div>
+        </div>
+        <p class="suppress">Suppress one line: <code>// aem-analyser-disable-next-line AEM-A11Y-002</code> · tags accessibility, htl, wcag · <code>--explain AEM-A11Y-002</code></p>
+    </article>
+    <p class="muted">Every rule in the catalogue, with what it detects and how to fix it: <a href="../">all 37 rules</a>. Suppress a single line with <code>// aem-analyser-disable-next-line AEM-A11Y-002</code>.</p>
+  </div>
+</div>

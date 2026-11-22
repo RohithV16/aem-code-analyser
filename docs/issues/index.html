@@ -13,7 +13,7 @@ description: Every AEM Code Analyser rule — what it detects, why it matters on
       <div class="issue-tools">
         <label class="visually-hidden" for="issueSearch">Filter issues</label>
         <input type="search" id="issueSearch" placeholder="Filter by id, name, tag or symptom…" autocomplete="off">
-        <button class="chip" type="button" data-family="all" aria-pressed="true">All 35</button>
+        <button class="chip" type="button" data-family="all" aria-pressed="true">All 37</button>
         <button class="chip" type="button" data-family="DEAD" aria-pressed="false">Dead code 9</button>
         <button class="chip" type="button" data-family="DUP" aria-pressed="false">Duplication 4</button>
         <button class="chip" type="button" data-family="QUAL" aria-pressed="false">Quality 7</button>
@@ -21,7 +21,8 @@ description: Every AEM Code Analyser rule — what it detects, why it matters on
         <button class="chip" type="button" data-family="CLOUD" aria-pressed="false">Cloud Service 7</button>
         <button class="chip" type="button" data-family="SEC" aria-pressed="false">Security 2</button>
         <button class="chip" type="button" data-family="COMP" aria-pressed="false">Components 2</button>
-        <span class="issue-count" id="issueCount" aria-live="polite">35 of 35 issues</span>
+        <button class="chip" type="button" data-family="A11Y" aria-pressed="false">A11Y 2</button>
+        <span class="issue-count" id="issueCount" aria-live="polite">37 of 37 issues</span>
       </div>
     </div>
 
@@ -1209,6 +1210,77 @@ if (target != null &amp;&amp; target.startsWith(&quot;/content/&quot;) &amp;&amp
         <p class="suppress">Suppress one line: <code>// aem-analyser-disable-next-line AEM-COMP-002</code> · tags quality, component · <code>--explain AEM-COMP-002</code></p>
       </article>
     </section>
+
+    <section class="family" id="family-a11y">
+      <div class="family__head">
+        <h2>Accessibility</h2>
+        <span>2 issues</span>
+      </div>
+      <p class="muted">WCAG defects visible in the HTL markup, before a page is rendered.</p>
+
+      <article class="rule-card" id="aem-a11y-001" data-family="A11Y" data-search="aem-a11y-001 imagewithoutalt htl img element has no alt attribute or data-sly-attribute.alt fallback (wcag 1.1.1). accessibility htl wcag warning add an alt attribute (empty alt for a decorative image), or bind one with data-sly-attribute.alt. wcag 1.1.1 requires a text alternative for every image that conveys meaning. sightly renders an &lt;img&gt; exactly as written, so a missing alt reaches the page even though every other output expression is escaped. screen readers then announce the file name or skip the image entirely, and tools such as axe can only find it after the page is rendered and deployed. add alt with a short description, bind it with data-sly-attribute.alt when it comes from the component, or use an empty alt=&quot;&quot; for a purely decorative image. a dynamic expression counts as present: the value is resolved per request.">
+        <header class="rule-card__head">
+          <h3 class="rule-card__title"><a class="rule-card__permalink" href="aem-a11y-001/" aria-label="Open the AEM-A11Y-001 reference page"><span class="rule-card__id">AEM-A11Y-001</span></a><a class="rule-card__anchor" href="#aem-a11y-001" aria-label="Link to AEM-A11Y-001">#</a><span class="rule-card__name">ImageWithoutAlt</span></h3>
+          <span class="pill pill--warning">WARNING</span>
+          <span class="rule-card__meta">
+            <span>10 min fix</span>
+            <span>Bug</span>
+          </span>
+        </header>
+        <p class="rule-card__summary">HTL img element has no alt attribute or data-sly-attribute.alt fallback (WCAG 1.1.1).</p>
+        <h4>Why it matters</h4>
+        <p>WCAG 1.1.1 requires a text alternative for every image that conveys meaning. Sightly renders an &lt;img&gt; exactly as written, so a missing alt reaches the page even though every other output expression is escaped. Screen readers then announce the file name or skip the image entirely, and tools such as axe can only find it after the page is rendered and deployed.</p>
+        <h4>How to fix it</h4>
+        <p>Add alt with a short description, bind it with data-sly-attribute.alt when it comes from the component, or use an empty alt=&quot;&quot; for a purely decorative image. A dynamic expression counts as present: the value is resolved per request.</p>
+        <div class="examples">
+          <div class="code code--bad">
+            <div class="code__bar"><span class="code__label">html · before</span></div>
+            <pre><code>&lt;!-- components/hero/hero.html --&gt;
+&lt;img src=&quot;${model.image}&quot; class=&quot;hero__image&quot;&gt;</code></pre>
+          </div>
+          <div class="code code--good">
+            <div class="code__bar"><span class="code__label">html · after</span></div>
+            <pre><code>&lt;!-- components/hero/hero.html --&gt;
+&lt;img src=&quot;${model.image}&quot; class=&quot;hero__image&quot; alt=&quot;${model.imageAlt}&quot;&gt;
+
+&lt;!-- decorative divider: empty alt, not a missing one --&gt;
+&lt;img src=&quot;/etc.clientlibs/acme/divider.svg&quot; alt=&quot;&quot;&gt;</code></pre>
+          </div>
+        </div>
+        <p class="suppress">Suppress one line: <code>// aem-analyser-disable-next-line AEM-A11Y-001</code> · tags accessibility, htl, wcag · <code>--explain AEM-A11Y-001</code></p>
+      </article>
+
+      <article class="rule-card" id="aem-a11y-002" data-family="A11Y" data-search="aem-a11y-002 linkwithoutaccessiblename htl anchor has no href/data-sly-attribute.href, or no accessible name for icon-only content (wcag 2.4.4). accessibility htl wcag warning add an href (or data-sly-attribute.href), and give an icon-only link an aria-label or visually hidden text. an &lt;a&gt; without href is not focusable, so keyboard users cannot reach it even though pointer users can click the styled element. an icon-only link is the mirror defect: it has no text for a screen reader to announce, so the link reads as an empty control. both are wcag 2.4.4 failures that a rendered-dom audit finds only after deploy, while the template edit is cheap. keep href on every element styled as a link (bind it with data-sly-attribute.href when it is dynamic), and give an icon-only link an aria-label or visually hidden text that names its destination.">
+        <header class="rule-card__head">
+          <h3 class="rule-card__title"><a class="rule-card__permalink" href="aem-a11y-002/" aria-label="Open the AEM-A11Y-002 reference page"><span class="rule-card__id">AEM-A11Y-002</span></a><a class="rule-card__anchor" href="#aem-a11y-002" aria-label="Link to AEM-A11Y-002">#</a><span class="rule-card__name">LinkWithoutAccessibleName</span></h3>
+          <span class="pill pill--warning">WARNING</span>
+          <span class="rule-card__meta">
+            <span>10 min fix</span>
+            <span>Bug</span>
+          </span>
+        </header>
+        <p class="rule-card__summary">HTL anchor has no href/data-sly-attribute.href, or no accessible name for icon-only content (WCAG 2.4.4).</p>
+        <h4>Why it matters</h4>
+        <p>An &lt;a&gt; without href is not focusable, so keyboard users cannot reach it even though pointer users can click the styled element. An icon-only link is the mirror defect: it has no text for a screen reader to announce, so the link reads as an empty control. Both are WCAG 2.4.4 failures that a rendered-DOM audit finds only after deploy, while the template edit is cheap.</p>
+        <h4>How to fix it</h4>
+        <p>Keep href on every element styled as a link (bind it with data-sly-attribute.href when it is dynamic), and give an icon-only link an aria-label or visually hidden text that names its destination.</p>
+        <div class="examples">
+          <div class="code code--bad">
+            <div class="code__bar"><span class="code__label">html · before</span></div>
+            <pre><code>&lt;!-- components/icon-link/icon-link.html --&gt;
+&lt;a class=&quot;icon-link&quot;&gt;&lt;img src=&quot;${model.icon}&quot; alt=&quot;&quot;&gt;&lt;/a&gt;</code></pre>
+          </div>
+          <div class="code code--good">
+            <div class="code__bar"><span class="code__label">html · after</span></div>
+            <pre><code>&lt;!-- components/icon-link/icon-link.html --&gt;
+&lt;a class=&quot;icon-link&quot; href=&quot;${model.url}&quot; aria-label=&quot;${model.label}&quot;&gt;
+    &lt;img src=&quot;${model.icon}&quot; alt=&quot;&quot;&gt;
+&lt;/a&gt;</code></pre>
+          </div>
+        </div>
+        <p class="suppress">Suppress one line: <code>// aem-analyser-disable-next-line AEM-A11Y-002</code> · tags accessibility, htl, wcag · <code>--explain AEM-A11Y-002</code></p>
+      </article>
+    </section>
   </div>
   <aside class="docs__aside">
     <p class="aside__title">Families</p>
@@ -1220,6 +1292,7 @@ if (target != null &amp;&amp; target.startsWith(&quot;/content/&quot;) &amp;&amp
       <li><a href="#family-cloud">AEM as a Cloud Service <span class="muted">7</span></a></li>
       <li><a href="#family-sec">Security <span class="muted">2</span></a></li>
       <li><a href="#family-comp">Component compatibility <span class="muted">2</span></a></li>
+      <li><a href="#family-a11y">Accessibility <span class="muted">2</span></a></li>
     </ul>
     <p class="aside__title">All rules</p>
     <ul>
@@ -1258,6 +1331,8 @@ if (target != null &amp;&amp; target.startsWith(&quot;/content/&quot;) &amp;&amp
       <li><a href="#aem-sec-002">AEM-SEC-002</a></li>
       <li><a href="#aem-comp-001">AEM-COMP-001</a></li>
       <li><a href="#aem-comp-002">AEM-COMP-002</a></li>
+      <li><a href="#aem-a11y-001">AEM-A11Y-001</a></li>
+      <li><a href="#aem-a11y-002">AEM-A11Y-002</a></li>
     </ul>
   </aside>
 </div>

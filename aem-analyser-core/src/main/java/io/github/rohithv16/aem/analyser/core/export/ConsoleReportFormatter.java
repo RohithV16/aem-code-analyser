@@ -349,6 +349,8 @@ public final class ConsoleReportFormatter implements ReportExporter {
                 case AEM_COMP_002 -> "Resource Type Names No Component";
                 case AEM_QUAL_008 -> "Unsatisfied Mandatory @Reference";
                 case AEM_DEAD_007 -> "Broken HTL Include";
+                case AEM_A11Y_001 -> "Image Without Alt Text";
+                case AEM_A11Y_002 -> "Link Without Accessible Name";
             };
         } catch (IllegalArgumentException e) {
             return ruleId;

@@ -667,6 +667,46 @@ public final class RuleFixCatalog {
                     <!-- components/card/details.html (renamed to card-details.html) -->""",
                     "html", """
                     <sly data-sly-include="card-details.html"/>""");
+            case AEM_A11Y_001 -> new Fix(
+                    """
+                    WCAG 1.1.1 requires a text alternative for every image that conveys meaning. \
+                    Sightly renders an {@code <img>} exactly as written, so a missing {@code alt} \
+                    reaches the page even though every other output expression is escaped. Screen \
+                    readers then announce the file name or skip the image entirely, and tools such \
+                    as axe can only find it after the page is rendered and deployed.""",
+                    """
+                    Add {@code alt} with a short description, bind it with {@code \
+                    data-sly-attribute.alt} when it comes from the component, or use an empty \
+                    {@code alt=""} for a purely decorative image. A dynamic expression counts as \
+                    present: the value is resolved per request.""",
+                    "html", """
+                    <!-- components/hero/hero.html -->
+                    <img src="${model.image}" class="hero__image">""",
+                    "html", """
+                    <!-- components/hero/hero.html -->
+                    <img src="${model.image}" class="hero__image" alt="${model.imageAlt}">
+
+                    <!-- decorative divider: empty alt, not a missing one -->
+                    <img src="/etc.clientlibs/acme/divider.svg" alt="">""");
+            case AEM_A11Y_002 -> new Fix(
+                    """
+                    An {@code <a>} without {@code href} is not focusable, so keyboard users cannot \
+                    reach it even though pointer users can click the styled element. An icon-only \
+                    link is the mirror defect: it has no text for a screen reader to announce, so \
+                    the link reads as an empty control. Both are WCAG 2.4.4 failures that a \
+                    rendered-DOM audit finds only after deploy, while the template edit is cheap.""",
+                    """
+                    Keep {@code href} on every element styled as a link (bind it with {@code \
+                    data-sly-attribute.href} when it is dynamic), and give an icon-only link an \
+                    {@code aria-label} or visually hidden text that names its destination.""",
+                    "html", """
+                    <!-- components/icon-link/icon-link.html -->
+                    <a class="icon-link"><img src="${model.icon}" alt=""></a>""",
+                    "html", """
+                    <!-- components/icon-link/icon-link.html -->
+                    <a class="icon-link" href="${model.url}" aria-label="${model.label}">
+                        <img src="${model.icon}" alt="">
+                    </a>""");
         };
     }
 }

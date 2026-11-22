@@ -108,6 +108,12 @@ public enum RuleId {
             Severity.ERROR),
     AEM_DEAD_007("AEM-DEAD-007", "BrokenHtlInclude",
             "HTL data-sly-include target is missing or forms an include cycle.",
+            Severity.WARNING),
+    AEM_A11Y_001("AEM-A11Y-001", "ImageWithoutAlt",
+            "HTL img element has no alt attribute or data-sly-attribute.alt fallback (WCAG 1.1.1).",
+            Severity.WARNING),
+    AEM_A11Y_002("AEM-A11Y-002", "LinkWithoutAccessibleName",
+            "HTL anchor has no href/data-sly-attribute.href, or no accessible name for icon-only content (WCAG 2.4.4).",
             Severity.WARNING);
 
     private final String id;

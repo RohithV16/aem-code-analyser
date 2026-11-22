@@ -72,6 +72,8 @@ This tests the probes in the target’s real module layout and Maven profile con
 | AEM-CLOUD-007 | `ui.content` and `content.extra` both filter `/content/probe`; `ui.content` uses `mode="replace"` |
 | AEM-SEC-001 | HTL `context='unsafe'` |
 | AEM-SEC-002 | `sendRedirect(request.getParameter("next"))` |
+| AEM-A11Y-001 | `components/zzprobe/a11y-broken.html` has an `<img>` with no alt |
+| AEM-A11Y-002 | the same template has an icon-only anchor with no href |
 
 ## Adding a probe
 
