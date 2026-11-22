@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Throwaway project for the composite action's smoke workflow. It is deliberately NOT a module of
+  the root reactor: the analyser reads sources without compiling, so a bare pom is enough, and the
+  fixture can never influence the real build or be published.
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <groupId>com.example.aem</groupId>
+  <artifactId>aem-analyser-action-fixture</artifactId>
+  <version>1.0.0</version>
+  <packaging>jar</packaging>
+  <name>AEM Code Analyser action fixture</name>
+
+  <properties>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <maven.compiler.release>21</maven.compiler.release>
+  </properties>
+</project>

@@ -336,6 +336,33 @@ To automatically enforce dead-code quality checks in any AEM project during `mvn
 </build>
 ```
 
+### Gradle
+
+`io.github.rohithv16.aem-analyser` registers a cacheable `aemAnalyserCheck` task and wires it into
+`check`. It calls the core API in-process — not `java -jar` — so the project tree is a declared
+input and the reports are declared outputs:
+
+```kotlin
+// settings.gradle.kts
+pluginManagement {
+    repositories { mavenLocal(); gradlePluginPortal() }
+}
+
+// build.gradle.kts
+plugins { id("io.github.rohithv16.aem-analyser") version "1.1.0" }
+
+aemAnalyser {
+    failOn = "WARNING"   // NONE | ERROR | WARNING | INFO
+    enableSonar = false  // halve the runtime when the Sonar phase is not wanted
+    maxWarnings = -1     // fail only above N warnings
+}
+```
+
+What that buys over wrapping the CLI in a `JavaExec`: an unchanged tree reports
+`> Task :aemAnalyserCheck UP-TO-DATE`, a clean build replays `FROM-CACHE`, and a content change
+re-runs the analysis — all verified by `scripts/run-gradle-plugin-check.sh`, which asserts each of
+those four states plus the gate's exit code.
+
 ### GitHub Actions
 
 The published composite action runs the gate, writes the findings as native annotations and appends
