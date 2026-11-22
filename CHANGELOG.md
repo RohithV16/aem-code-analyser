@@ -30,6 +30,26 @@ All notable changes to this project are documented here. The format follows
   generated rule catalogue (`docs/rules/`), which the site links to instead of repeating 30 rows on
   the landing page.
 
+### Fixed
+
+- The CLI exits with the command's own code, so an unknown flag is a usage error (2) instead of a
+  silent 0 that reads as a passed gate; an internal crash is 2 as well, not a gate failure.
+
+- Console colour is only emitted when stdout is a terminal, and `NO_COLOR` / `TERM=dumb` are honoured,
+  so redirected reports no longer carry ANSI escapes into CI logs and PR comments.
+
+- `-o out/aem.sarif` writes that file instead of creating a directory that holds the report under its
+  default name; a path without a report extension keeps working as a directory.
+
+- `--list-rules` and `--explain` mark retired rule ids as retired and name their replacement, and a
+  configuration or baseline that still references a retired id now warns instead of resolving
+  silently.
+
+- One gate verdict drives both the console verdict line and the exit code, computed from
+  `--fail-on`, `--fail-on-warning` and the quality thresholds: `--fail-on NONE` renders
+  `GATE NOT ENFORCED` instead of `GATE FAILED`, and a `--min-coverage` / `--max-duplication` /
+  `--max-warnings` breach names itself in the verdict.
+
 ## [1.0.8] — 2026-11-16
 
 ### Changed
