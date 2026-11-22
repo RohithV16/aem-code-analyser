@@ -37,6 +37,11 @@ All notable changes to this project are documented here. The format follows
   fail the build. Any other unsupported value is now rejected with the accepted set instead of being
   silently ignored. The failure message names the rule ids that actually fired instead of always
   blaming `AEM-DEAD`.
+- **AEM-CLOUD-004 sees fully-qualified usage.** The rule filtered source lines with
+  `startsWith("import ")`, so `com.day.cq.wcm.api.WCMMode.EDIT` written inline without an import was
+  invisible and such a project passed the gate while still using the deprecated type. The rule now
+  scans every line for a qualified reference (comments excluded, lookalike names ignored) and still
+  reports an imported type once, at the import.
 
 ## [1.0.8] — 2026-11-16
 
