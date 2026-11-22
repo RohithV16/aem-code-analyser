@@ -23,10 +23,13 @@ import io.github.rohithv16.aem.analyser.core.model.report.GateVerdict;
 import io.github.rohithv16.aem.analyser.core.model.report.Severity;
 import io.github.rohithv16.aem.analyser.core.model.report.Violation;
 import io.github.rohithv16.aem.analyser.core.rules.RuleCatalog;
+import picocli.AutoComplete;
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
+import picocli.CommandLine.Model.CommandSpec;
 import picocli.CommandLine.Option;
 import picocli.CommandLine.Parameters;
+import picocli.CommandLine.Spec;
 
 import java.io.IOException;
 import java.io.PrintWriter;
@@ -56,6 +59,10 @@ import java.util.TreeSet;
                 + "AEM as a Cloud Service analysis for Adobe Experience Manager projects.")
 public class AnalyserCli implements java.util.concurrent.Callable<Integer> {
 
+    /** The parsed invocation, used to tell "flag given" from "flag has a default value". */
+    @Spec
+    private CommandSpec spec;
+
     @Option(names = {"-p", "--project-root"},
             description = "Project (reactor) root. Default: the current directory, or the "
                     + "reactor that owns it when run inside a module.")
@@ -65,7 +72,7 @@ public class AnalyserCli implements java.util.concurrent.Callable<Integer> {
             description = "Project root; shorthand for --project-root.")
     private Path positionalProjectRoot;
 
-    @Option(names = {"-f", "--format"}, split = ",",
+    @Option(names = {"-f", "--format"}, split = ",", completionCandidates = FormatCandidates.class,
             description = "Output formats (comma-separated): CONSOLE, TEXT, JSON, SARIF, SONAR, HTML, GITHUB, GITLAB, AZURE, JUNIT. "
                     + "Default: CONSOLE (the HTML dashboard is also generated unless --no-html).")
     private List<String> formats = List.of("CONSOLE");
@@ -216,6 +223,16 @@ public class AnalyserCli implements java.util.concurrent.Callable<Integer> {
             description = "Keep baseline-suppressed findings in reports at INFO severity.")
     private boolean baselineReport;
 
+    @Option(names = {"--import-report"}, paramLabel = "FILE",
+            description = "SARIF report from another analyser to read for migration coverage (nothing is "
+                    + "suppressed unless --import-map equates its rules with an analyser rule).")
+    private Path importReport;
+
+    @Option(names = {"--import-map"}, paramLabel = "FILE",
+            description = "YAML/JSON map of foreign-rule: AEM-RULE, e.g. 'java:S3649: AEM-QUAL-004'. "
+                    + "Requires --import-report.")
+    private Path importMap;
+
     @Option(names = {"--history"}, paramLabel = "DIR",
             description = "Append a run summary to DIR/runs.jsonl and render the trend in the HTML report.")
     private Path historyDirectory;
@@ -228,6 +245,12 @@ public class AnalyserCli implements java.util.concurrent.Callable<Integer> {
             description = "Project configuration YAML (default: .aem-analyser.yml when present).")
     private Path configFile;
 
+    @Option(names = {"--mcp"},
+            description = "Serve the Model Context Protocol on stdio (line-delimited JSON-RPC 2.0) "
+                    + "with the tools analyse, list_rules, explain_rule and explain_finding, then exit "
+                    + "at EOF. stdout carries protocol frames only; logs go to stderr.")
+    private boolean mcp;
+
     @Option(names = {"--list-rules"},
             description = "List every rule with its effective severity and effort, then exit.")
     private boolean listRules;
@@ -236,13 +259,40 @@ public class AnalyserCli implements java.util.concurrent.Callable<Integer> {
             description = "Print the effective metadata for one rule (e.g. AEM-DEAD-002A), then exit.")
     private String explainRule;
 
+    @Option(names = {"--diagnose"}, paramLabel = "RULE:PATH:LINE",
+            description = "Write a redacted, offline repro bundle for one finding, e.g. "
+                    + "\"AEM-DEAD-004:ui.apps/card.html:42\", then exit. Nothing is transmitted.")
+    private String diagnoseTarget;
+
     @Option(names = {"--generate-rule-docs"}, paramLabel = "DIR",
             description = "Generate the HTML issue reference into DIR/issues, then exit.")
     private Path generateRuleDocs;
 
-    @Option(names = {"--fail-on"},
+    @Option(names = "--fail-on", completionCandidates = FailOnCandidates.class,
             description = "Fail build if violations at or above severity exist: ERROR, WARNING, INFO.")
     private String failOn;
+
+    @Option(names = "--generate-completion", paramLabel = "SHELL",
+            description = "Print a shell completion script for bash, zsh or fish on stdout, then exit. "
+                    + "Install with e.g. 'source <(aem-analyser --generate-completion bash)'.")
+    private String generateCompletion;
+
+    /** Completion values for {@code --fail-on}; also the accepted set. */
+    static final class FailOnCandidates implements Iterable<String> {
+        @Override
+        public java.util.Iterator<String> iterator() {
+            return List.of("NONE", "ERROR", "WARNING", "INFO").iterator();
+        }
+    }
+
+    /** Completion values for {@code --format}, in the order {@link #SUPPORTED_FORMATS} names them. */
+    static final class FormatCandidates implements Iterable<String> {
+        @Override
+        public java.util.Iterator<String> iterator() {
+            return List.of("CONSOLE", "TEXT", "JSON", "SARIF", "SONAR", "HTML",
+                    "GITHUB", "GITLAB", "AZURE", "JUNIT").iterator();
+        }
+    }
 
     boolean isSonar() {
         return sonar;
@@ -409,6 +459,13 @@ public class AnalyserCli implements java.util.concurrent.Callable<Integer> {
     }
 
     int execute() {
+        if (importMap != null && importReport == null) {
+            error("--import-map requires --import-report: a map alone has no foreign results to match.");
+            return EXIT_USAGE;
+        }
+        if (mcp) {
+            return runMcpServer();
+        }
         OptionalInt metaCommandResult = executeMetaCommand();
         if (metaCommandResult.isPresent()) {
             return metaCommandResult.getAsInt();
@@ -485,6 +542,9 @@ public class AnalyserCli implements java.util.concurrent.Callable<Integer> {
 
     /** Meta commands ({@code --generate-rule-docs}, {@code --list-rules}, {@code --explain}) exit early. */
     private OptionalInt executeMetaCommand() {
+        if (generateCompletion != null) {
+            return OptionalInt.of(writeCompletionScript(generateCompletion));
+        }
         if (generateRuleDocs != null) {
             return OptionalInt.of(writeRuleDocs(generateRuleDocs));
         }
@@ -514,6 +574,73 @@ public class AnalyserCli implements java.util.concurrent.Callable<Integer> {
         return OptionalInt.of(printExplain(stdout, explainRule, effective));
     }
 
+    /**
+     * Prints a completion script for one shell. The flag surface is the product here: a reader who
+     * has to run {@code --help} to spell {@code --baseline-report} will not use the flag at all.
+     */
+    int writeCompletionScript(String shell) {
+        String requested = shell == null ? "" : shell.strip();
+        CommandLine model = createCommandLine();
+        String script = switch (requested.toLowerCase(Locale.ROOT)) {
+            case "bash" -> AutoComplete.bash(model.getCommandName(), model);
+            case "zsh" -> ShellCompletion.zsh(model.getCommandSpec());
+            case "fish" -> ShellCompletion.fish(model.getCommandSpec());
+            default -> null;
+        };
+        if (script == null) {
+            error("Unknown shell '" + requested + "' for --generate-completion."
+                    + " Supported shells: bash, zsh, fish.");
+            return EXIT_USAGE;
+        }
+        stdout.print(script);
+        stdout.flush();
+        return EXIT_OK;
+    }
+
+    /**
+     * Serves MCP over stdio until the client closes stdin. The project root and the effective
+     * configuration are resolved exactly as an analysis run would resolve them, so {@code analyse}
+     * and {@code explain_rule} answer with what the gate would use; {@code --severity} and
+     * {@code --config} therefore apply to the session, not just to a one-shot run.
+     */
+    private int runMcpServer() {
+        Path root = resolveProjectRoot();
+        EffectiveConfig effective;
+        try {
+            effective = loadConfig(root);
+        } catch (IOException e) {
+            stderr.println("[ERROR] " + FailureMessage.configuration(configurationPath(root), e));
+            debugTrace(e);
+            return EXIT_USAGE;
+        } catch (IllegalArgumentException e) {
+            error(FailureMessage.oneLine(e));
+            debugTrace(e);
+            return EXIT_USAGE;
+        }
+        try {
+            if (!quiet) {
+                stderr.println("[INFO] MCP server on stdio for " + root
+                        + " (protocol " + io.github.rohithv16.aem.analyser.core.mcp.McpServer.PROTOCOL_VERSION
+                        + "; close stdin to stop).");
+            }
+            io.github.rohithv16.aem.analyser.core.mcp.McpServer server =
+                    io.github.rohithv16.aem.analyser.core.mcp.McpServer.stdio(
+                            root, effective.config(), sonar, cache,
+                            line -> {
+                                if (!quiet) {
+                                    stderr.println(line);
+                                }
+                            });
+            int exit = server.serve();
+            stderr.flush();
+            return exit;
+        } catch (IOException e) {
+            error("MCP server failed: " + FailureMessage.oneLine(e));
+            debugTrace(e);
+            return EXIT_INTERNAL;
+        }
+    }
+
     private int writeRuleDocs(Path directory) {
         try {
             io.github.rohithv16.aem.analyser.core.rules.metadata.RuleDocsGenerator.writeAll(directory);
@@ -527,15 +654,6 @@ public class AnalyserCli implements java.util.concurrent.Callable<Integer> {
 
     private int runAnalysis() throws IOException, ExportException, AnalysisException {
         Path root = validatedProjectRoot();
-        List<ReportFormat> reportFormats = parseFormats();
-        // Validated before the scan: an unknown --group-by is a usage error, not a post-analysis one.
-        ConsoleGroupBy consoleGroupBy = consoleGroupBy();
-        java.time.Clock reportClock = reportClock();
-        validateFailOn();
-        validateNumericOptions();
-        if (collectCoverage) {
-            runCoverageCollection(root);
-        }
         EffectiveConfig effective;
         try {
             effective = loadConfig(root);
@@ -546,11 +664,27 @@ public class AnalyserCli implements java.util.concurrent.Callable<Integer> {
             return EXIT_USAGE;
         }
         AnalyserConfig config = effective.config();
+        // The committed gate is a default layer: it must be resolved before the flags are validated
+        // or the formats chosen, so a run with no flags behaves exactly like the pipeline's.
+        applyConfigGate(config.gate(), effective.source());
+        List<ReportFormat> reportFormats = parseFormats();
+        // Validated before the scan: an unknown --group-by is a usage error, not a post-analysis one.
+        ConsoleGroupBy consoleGroupBy = consoleGroupBy();
+        java.time.Clock reportClock = reportClock();
+        validateFailOn();
+        validateNumericOptions();
+        if (collectCoverage) {
+            runCoverageCollection(root);
+        }
         AnalysisContext context = scopeToChangedFiles(buildContext(root, config), root);
         AnalysisReport report = analyzeAndFilter(context, root);
         report = applyAutoFix(root, context, report);
         report = config.apply(report);
         report = applyBaseline(root, report);
+        report = applyImportedReport(root, report);
+        if (diagnoseTarget != null && !diagnoseTarget.isBlank()) {
+            return writeDiagnoseBundle(root, effective, report);
+        }
         List<io.github.rohithv16.aem.analyser.core.history.RunSummary> history;
         try {
             history = applyHistory(report);
@@ -609,7 +743,8 @@ public class AnalyserCli implements java.util.concurrent.Callable<Integer> {
         Map<String, AnalyserConfig.RuleOverride> merged = new LinkedHashMap<>(fileConfig.rules());
         Set<String> cliRuleIds = new TreeSet<>();
         applySeverityOverrides(merged, cliRuleIds);
-        AnalyserConfig config = new AnalyserConfig(fileConfig.schemaVersion(), merged, fileConfig.allowlists());
+        AnalyserConfig config = new AnalyserConfig(fileConfig.schemaVersion(), merged,
+                fileConfig.allowlists(), fileConfig.gate());
         warnRetiredRuleIds(config.rules().keySet(), source == null ? "Configuration" : "Configuration " + source);
         return EffectiveConfig.of(config, source, cliRuleIds);
     }
@@ -672,13 +807,12 @@ public class AnalyserCli implements java.util.concurrent.Callable<Integer> {
         Set<String> warned = new TreeSet<>();
         for (String ruleId : ruleIds) {
             if (RuleCatalog.isRetired(ruleId) && warned.add(ruleId.strip().toUpperCase(Locale.ROOT))) {
-                progress("[WARNING] " + source + " references retired rule '" + ruleId + "' — "
-                        + RuleCatalog.retirementNote(ruleId)
-                        + "; it produces no findings, so the entry has no effect.");
+                String replacement = RuleCatalog.replacementFor(ruleId).orElse(null);
+                progress("[WARNING] " + source + ": " + ruleId + " is retired; findings now come from "
+                        + (replacement == null ? "no rule" : replacement)
+                        + (replacement == null ? "." : " (the entry's enablement applies to the replacement; "
+                                + "its severity is ignored)."));
             }
-        }
-        if (!warned.isEmpty()) {
-            progress("[WARNING] Run --list-rules to see the active rule set.");
         }
     }
 
@@ -808,6 +942,96 @@ public class AnalyserCli implements java.util.concurrent.Callable<Integer> {
         return filtered;
     }
 
+    /**
+     * Writes one redacted repro bundle for a finding selected by {@code RULE:PATH:LINE}. A selector
+     * that matches nothing is a usage error (exit 2), not an empty bundle: a bundle for a finding that
+     * never existed would waste the maintainer's time and look like the tool confirmed the report.
+     */
+    private int writeDiagnoseBundle(Path root, EffectiveConfig effective, AnalysisReport report) {
+        DiagnoseTarget selector = DiagnoseTarget.parse(diagnoseTarget).relativeTo(root);
+        var descriptor = io.github.rohithv16.aem.analyser.core.rules.metadata.RuleRegistry
+                .find(selector.ruleId());
+        if (descriptor.isEmpty()) {
+            error("Unknown rule '" + selector.ruleId() + "' in --diagnose. Run --list-rules to see the ids.");
+            return EXIT_USAGE;
+        }
+        var rule = descriptor.get();
+        List<Violation> candidates = new ArrayList<>(report.violations());
+        candidates.addAll(report.acceptedViolations());
+        Violation finding = null;
+        for (Violation candidate : candidates) {
+            if (!rule.id().equalsIgnoreCase(candidate.ruleId())) {
+                continue;
+            }
+            if (!selector.path().equals(DiagnoseTarget.normalizePath(candidate.filePath()))) {
+                continue;
+            }
+            int start = candidate.region() == null ? 0 : candidate.region().startLine();
+            int end = candidate.region() == null ? start : Math.max(start, candidate.region().endLine());
+            if (selector.line() >= start && selector.line() <= end) {
+                finding = candidate;
+                break;
+            }
+        }
+        if (finding == null) {
+            error(diagnoseTarget + " is not a finding in this run. Run the analyser without --diagnose "
+                    + "to see the findings it actually reports.");
+            return EXIT_USAGE;
+        }
+        Path output = outputDirectory != null ? outputDirectory : root.resolve("target/aem-analyser");
+        Path target;
+        if (output.getFileName() != null && output.getFileName().toString().endsWith(".zip")) {
+            target = output;
+        } else {
+            target = output.resolve(io.github.rohithv16.aem.analyser.core.diagnose.DiagnoseBundle
+                    .fileName(rule.id()));
+        }
+        try {
+            io.github.rohithv16.aem.analyser.core.diagnose.DiagnoseBundle.write(root, finding, rule,
+                    effective.config(), report.diagnostics(), target);
+        } catch (IOException e) {
+            throw new IllegalArgumentException("Could not write the diagnose bundle to " + target + ": "
+                    + FailureMessage.oneLine(e) + ". --output must be a writable directory.");
+        }
+        progress("[INFO] Diagnose bundle written to " + target
+                + " (redacted, offline; nothing was transmitted).");
+        return EXIT_OK;
+    }
+
+    /**
+     * Imports another analyser's SARIF and accepts our findings that the explicit id map equates with
+     * an overlapping foreign result. Nothing is suppressed by location alone, and without an
+     * {@code --import-map} the import is a coverage count only.
+     */
+    private AnalysisReport applyImportedReport(Path root, AnalysisReport report) {
+        if (importReport == null) {
+            return report;
+        }
+        if (!Files.isRegularFile(importReport)) {
+            throw new IllegalArgumentException("Imported report not found: " + importReport
+                    + ". Point --import-report at the other analyser's SARIF file.");
+        }
+        try {
+            var foreign = io.github.rohithv16.aem.analyser.core.interop.SarifImporter.read(importReport, root);
+            var map = importMap == null
+                    ? io.github.rohithv16.aem.analyser.core.interop.ImportMap.empty()
+                    : io.github.rohithv16.aem.analyser.core.interop.ImportMap.load(importMap);
+            var result = io.github.rohithv16.aem.analyser.core.interop.ExternalSuppressions
+                    .apply(report, foreign, map);
+            int unmapped = result.foreignCount() - result.mappedCount();
+            progress("[INFO] Imported " + result.foreignCount() + " foreign result(s) from "
+                    + importReport.getFileName() + ": " + result.mappedCount() + " mapped, "
+                    + unmapped + " unmapped; " + result.suppressedCount()
+                    + " finding(s) accepted as external.");
+            return result.report();
+        } catch (IllegalArgumentException invalid) {
+            throw invalid;
+        } catch (IOException unreadable) {
+            throw new IllegalArgumentException("Could not read the imported report or map: "
+                    + FailureMessage.oneLine(unreadable) + ". Both must be readable files.");
+        }
+    }
+
     private void printDiagnostics(AnalysisReport report) {
         if (!verbose || report.diagnostics().isEmpty()) {
             return;
@@ -847,6 +1071,9 @@ public class AnalyserCli implements java.util.concurrent.Callable<Integer> {
         if (effective.source() != null) {
             header += " (config: " + effective.source() + ")";
         }
+        if (wantsJson()) {
+            return printRulesJson(out, rules, effective);
+        }
         out.println(header + ":");
         for (var rule : rules) {
             out.printf("  %-16s %-8s %3dm  %s",
@@ -862,6 +1089,61 @@ public class AnalyserCli implements java.util.concurrent.Callable<Integer> {
         return 0;
     }
 
+    /** True when {@code --format JSON} turns a meta command into machine-readable output. */
+    private boolean wantsJson() {
+        return formats.stream().anyMatch(format -> format != null && "JSON".equalsIgnoreCase(format.strip()));
+    }
+
+    /**
+     * The catalogue as JSON, emitted from the same {@link RuleRegistry} the HTML reference renders.
+     * A reader can assert precision evidence, lifecycle state and the effective severity without
+     * scraping the text table.
+     */
+    private int printRulesJson(
+            PrintWriter out,
+            List<io.github.rohithv16.aem.analyser.core.rules.metadata.RuleDescriptor> rules,
+            EffectiveConfig effective) {
+        List<Map<String, Object>> rows = new ArrayList<>();
+        for (var rule : rules) {
+            Map<String, Object> row = new LinkedHashMap<>();
+            row.put("id", rule.id());
+            row.put("name", rule.name());
+            row.put("severity", severityCell(rule, effective));
+            row.put("defaultSeverity", rule.defaultSeverity().name());
+            row.put("effortMinutes", rule.effortMinutes());
+            row.put("tags", rule.tags());
+            row.put("helpUri", rule.helpUri());
+            row.put("docAnchor", rule.id().toLowerCase(Locale.ROOT));
+            var evidence = io.github.rohithv16.aem.analyser.core.rules.metadata.RuleEvidence
+                    .find(rule.id()).orElse(null);
+            row.put("positiveProbe", evidence == null ? null : evidence.positiveProbe());
+            row.put("positiveLine", evidence == null ? null : evidence.positiveLine());
+            row.put("positiveSubtype", evidence == null ? null : evidence.positiveSubtype());
+            row.put("negativeProbe", evidence == null ? null : evidence.negativeProbe());
+            row.put("status", RuleCatalog.statusOf(rule.id()).wireName());
+            try {
+                var ruleId = io.github.rohithv16.aem.analyser.core.model.report.RuleId.fromId(rule.id());
+                row.put("since", ruleId.since());
+                row.put("replacedBy", ruleId.replacedBy().orElse(null));
+            } catch (IllegalArgumentException unknown) {
+                row.put("since", null);
+                row.put("replacedBy", null);
+            }
+            row.put("enabled", !RuleCatalog.isRetired(rule.id()) && effective.config().isEnabled(rule.id()));
+            rows.add(row);
+        }
+        try {
+            out.println(new com.fasterxml.jackson.databind.ObjectMapper()
+                    .enable(com.fasterxml.jackson.databind.SerializationFeature.INDENT_OUTPUT)
+                    .writeValueAsString(rows));
+        } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
+            error("Could not serialise the rule catalogue: " + e.getOriginalMessage());
+            return 2;
+        }
+        out.flush();
+        return 0;
+    }
+
     /** The severity column of one {@code --list-rules} line, reflecting disablement and overrides. */
     private static String severityCell(
             io.github.rohithv16.aem.analyser.core.rules.metadata.RuleDescriptor rule,
@@ -869,7 +1151,7 @@ public class AnalyserCli implements java.util.concurrent.Callable<Integer> {
         if (RuleCatalog.isRetired(rule.id())) {
             return "RETIRED";
         }
-        AnalyserConfig.RuleOverride override = effective.config().rules().get(rule.id());
+        AnalyserConfig.RuleOverride override = effective.config().overrideFor(rule.id());
         if (override != null && override.disabled()) {
             return "DISABLED";
         }
@@ -1015,6 +1297,94 @@ public class AnalyserCli implements java.util.concurrent.Callable<Integer> {
                 && !candidate.equals("NONE")) {
             throw new IllegalArgumentException("Unknown --fail-on severity '" + failOn
                     + "'. Supported values: NONE, ERROR, WARNING, INFO.");
+        }
+    }
+
+    /**
+     * True when the user actually typed one of {@code names}. A flag with a default value cannot be
+     * told from an explicit one by reading the field, so precedence ("flag beats file") is decided
+     * from the parse result instead.
+     */
+    private boolean cliOptionSet(String... names) {
+        CommandLine.ParseResult parseResult =
+                spec == null || spec.commandLine() == null ? null : spec.commandLine().getParseResult();
+        if (parseResult == null) {
+            return false;
+        }
+        for (String name : names) {
+            if (parseResult.hasMatchedOption(name)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Applies the committed {@code gate:} block to this run, field by field: a value the command line
+     * set wins, an absent flag takes the file's value, and an absent field keeps the analyser default.
+     *
+     * <p>A gate only decides pass/fail and where reports go. It never edits rule severities, so a
+     * committed gate cannot reshape the findings it grades.</p>
+     */
+    private void applyConfigGate(AnalyserConfig.Gate gate, String source) {
+        if (gate == null || gate.isEmpty()) {
+            return;
+        }
+        String origin = source == null ? "the project configuration" : source;
+        List<String> applied = new ArrayList<>();
+
+        if (!cliOptionSet("--fail-on") && gate.failOn() != null && !gate.failOn().isBlank()) {
+            String candidate = gate.failOn().strip().toUpperCase(Locale.ROOT);
+            if (!candidate.equals("NONE") && !candidate.equals("ERROR")
+                    && !candidate.equals("WARNING") && !candidate.equals("INFO")) {
+                throw new IllegalArgumentException("Configuration " + origin
+                        + ": gate.failOn must be NONE, ERROR, WARNING or INFO, got '"
+                        + gate.failOn() + "'.");
+            }
+            failOn = candidate;
+            applied.add("failOn=" + candidate);
+        }
+        if (!cliOptionSet("-w", "--fail-on-warning") && gate.failOnWarning() != null) {
+            failOnWarning = gate.failOnWarning();
+            applied.add("failOnWarning=" + failOnWarning);
+        }
+        if (!cliOptionSet("--max-warnings") && gate.maxWarnings() != null) {
+            if (gate.maxWarnings() < 0) {
+                throw new IllegalArgumentException("Configuration " + origin
+                        + ": gate.maxWarnings must be 0 or greater, got " + gate.maxWarnings() + ".");
+            }
+            maxWarnings = gate.maxWarnings();
+            applied.add("maxWarnings=" + maxWarnings);
+        }
+        if (!cliOptionSet("--min-coverage") && gate.minCoverage() != null) {
+            if (gate.minCoverage() < 0 || gate.minCoverage() > 100) {
+                throw new IllegalArgumentException("Configuration " + origin
+                        + ": gate.minCoverage must be between 0 and 100, got "
+                        + gate.minCoverage() + ".");
+            }
+            minCoverage = gate.minCoverage();
+            applied.add("minCoverage=" + minCoverage);
+        }
+        if (!cliOptionSet("--max-duplication") && gate.maxDuplication() != null) {
+            if (gate.maxDuplication() < 0 || gate.maxDuplication() > 100) {
+                throw new IllegalArgumentException("Configuration " + origin
+                        + ": gate.maxDuplication must be between 0 and 100, got "
+                        + gate.maxDuplication() + ".");
+            }
+            maxDuplication = gate.maxDuplication();
+            applied.add("maxDuplication=" + maxDuplication);
+        }
+        if (!cliOptionSet("-f", "--format") && gate.formats() != null && !gate.formats().isEmpty()) {
+            formats = gate.formats();
+            applied.add("formats=" + String.join(",", gate.formats()));
+        }
+        if (!cliOptionSet("-o", "--output") && gate.output() != null && !gate.output().isBlank()) {
+            outputDirectory = Path.of(gate.output().strip());
+            applied.add("output=" + gate.output().strip());
+        }
+        if (!applied.isEmpty()) {
+            progress("[INFO] Quality gate from " + origin + ": " + String.join(", ", applied)
+                    + " (a command-line flag overrides each value).");
         }
     }
 

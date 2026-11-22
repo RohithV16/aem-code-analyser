@@ -1,0 +1,127 @@
+---
+layout: default
+nav: compare
+title: "Compared with SonarQube, Cloud Manager and AEM Analyzer"
+description: "AEM static analysis that runs locally, without an AEM instance or a Sonar server — how it differs from the Cloud Manager gate, SonarQube with SonarJava, and Adobe's own Analyzer."
+---
+
+<div class="shell prose">
+
+  <p class="eyebrow">Decision page</p>
+  <h1>Compared with the Cloud Manager gate, SonarQube and Adobe’s Analyzer</h1>
+  <p class="lede">
+    “Why not just SonarQube plus the Cloud Manager gate?” is the fair question. Short answer: those
+    two see one module at a time, and neither knows what an OSGi PID or a Sling resource type is. This
+    page is the honest table — including where each of them is the better tool.
+  </p>
+
+  <div class="callout">
+    <p>
+      <strong>One sentence.</strong> AEM Code Analyser adds the whole-reactor, AEM-specific checks
+      that per-module analysers cannot see, and it runs on a laptop with no AEM instance, no
+      credentials and no server. It does not replace SonarQube’s dataflow analysis or the Cloud
+      Manager gate itself.
+    </p>
+  </div>
+
+  <h2>What each tool sees</h2>
+  <div class="table-wrap">
+    <table class="compare">
+      <thead>
+        <tr>
+          <th scope="col">Capability</th>
+          <th scope="col">AEM Code Analyser</th>
+          <th scope="col"><a href="https://experienceleague.adobe.com/en/docs/experience-manager-cloud-service/content/implementing/using-cloud-manager/test-results/code-quality-testing" rel="noopener">Cloud Manager gate</a></th>
+          <th scope="col"><a href="https://docs.sonarsource.com/sonarqube-server/" rel="noopener">SonarQube</a> + <a href="https://rules.sonarsource.com/java/" rel="noopener">SonarJava</a></th>
+          <th scope="col"><a href="https://experienceleague.adobe.com/en/docs/experience-manager-cloud-service/content/migration-journey/cloud-acceleration-manager/introduction-cam/overview-cam" rel="noopener">Adobe’s Analyzer (CAM)</a></th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <th scope="row">Cross-module dead code</th>
+          <td class="yes">Yes — unused services, servlets, Sling Models and clientlibs across the whole reactor.</td>
+          <td class="no">No — the quality gate is per-module and syntactic.</td>
+          <td class="partial">Partly — unused privates and unreachable branches, one module at a time.</td>
+          <td class="no">No — reports content and pattern readiness, not Java reachability.</td>
+        </tr>
+        <tr>
+          <th scope="row">Orphaned OSGi configuration</th>
+          <td class="yes">Yes — every PID matched against components, OCDs and platform PIDs (including jars you supply).</td>
+          <td class="no">No.</td>
+          <td class="no">No — it does not parse <code>.cfg.json</code> against an OCD.</td>
+          <td class="partial">Partly — configuration patterns, not a full PID-to-component join.</td>
+        </tr>
+        <tr>
+          <th scope="row">Duplication and collisions</th>
+          <td class="yes">Yes — duplicate servlet paths, PIDs, resource types and cloned blocks (PMD CPD).</td>
+          <td class="no">No — duplication is reported, not request routing.</td>
+          <td class="partial">Yes for copied code, no for two things claiming one endpoint or resource type.</td>
+          <td class="no">No.</td>
+        </tr>
+        <tr>
+          <th scope="row">Cloud Manager parity (<a href="https://experienceleague.adobe.com/en/docs/experience-manager-cloud-service/content/implementing/using-cloud-manager/test-results/custom-code-quality-rules" rel="noopener">CQBP-75, CQBP-84, AMSCORE-554</a>)</th>
+          <td class="yes">Yes — the same checks, with the Cloud Manager id quoted on the finding, before you push.</td>
+          <td class="yes">Yes — it is the gate. You find out at pipeline time.</td>
+          <td class="no">No — it does not know Cloud Manager rule ids.</td>
+          <td class="partial">Partly — overlapping migration guidance, reported per project in CAM.</td>
+        </tr>
+        <tr>
+          <th scope="row">Security patterns</th>
+          <td class="yes">HTL <code>context</code>, request input into redirects and outbound calls, plaintext secrets — plus embedded SonarJava security rules.</td>
+          <td class="partial">Some checks; the verdict arrives after the commit.</td>
+          <td class="yes">Deeper — taint analysis and a much larger rule set.</td>
+          <td class="no">Not its job.</td>
+        </tr>
+        <tr>
+          <th scope="row">Where it runs</th>
+          <td>Laptop, CI, or both — one jar or one Maven goal.</td>
+          <td>Cloud Manager pipelines only.</td>
+          <td>A SonarQube server plus a scanner in CI.</td>
+          <td>Against a running AEM instance, through Cloud Acceleration Manager.</td>
+        </tr>
+        <tr>
+          <th scope="row">What it needs</th>
+          <td>Java 21. No AEM instance, no credentials, no network.</td>
+          <td>An AEM as a Cloud Service pipeline and repository access.</td>
+          <td>A server (or SonarCloud), a token, and scanner configuration.</td>
+          <td>An AEM instance, a CAM project and an Adobe IMS login.</td>
+        </tr>
+        <tr>
+          <th scope="row">Cost</th>
+          <td>Apache-2.0, free. Published to Maven Central and as a GitHub release.</td>
+          <td>Included with AEM as a Cloud Service.</td>
+          <td>Community Build free; Server and Cloud editions licensed per lines of code.</td>
+          <td>Included with the migration tooling licence; requires the AEM environment.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2>What this does not do</h2>
+  <ul class="does-not">
+    <li><strong>It is not a SonarQube replacement.</strong> No interprocedural taint tracking, no
+      thirty-language coverage, no quality-gate server. If you already run SonarJava, this adds the
+      AEM-specific, cross-module rules it cannot express.</li>
+    <li><strong>It does not run anything.</strong> No AEM instance is started, no HTL is rendered
+      and no request is issued — so it cannot measure runtime behaviour or page performance.</li>
+    <li><strong>It does not host your results.</strong> Reports are files in <code>--output</code>;
+      run history is a local directory. There is no dashboard service and no upload.</li>
+    <li><strong>It does not decide your gate for you.</strong> The default fails on any ERROR; the
+      threshold, the baseline and the severities are yours to set. It also does not auto-fix
+      everything — only the fixes it can prove safe.</li>
+  </ul>
+
+  <h2>If you want the short version</h2>
+  <p>
+    Keep SonarQube for language-wide quality and security depth. Keep the Cloud Manager gate as the
+    final verdict. Add AEM Code Analyser one step earlier, where it is cheapest to fix: on the
+    developer’s machine, over the whole reactor, with the AEM semantics neither of the other two
+    models.
+  </p>
+  <p>
+    <a class="btn btn--primary" href="{{ site.baseurl }}/getting-started/">Install it</a>
+    <a class="btn" href="{{ site.baseurl }}/verify/">Verify it in two minutes</a>
+    <a class="btn btn--ghost" href="{{ site.baseurl }}/issues/">Browse the rules →</a>
+  </p>
+
+</div>

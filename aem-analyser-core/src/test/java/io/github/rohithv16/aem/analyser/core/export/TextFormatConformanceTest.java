@@ -27,7 +27,7 @@ class TextFormatConformanceTest {
 
     /** The documented shape: {@code file:line:col: <severityInitial> <ruleId> <message>}. */
     private static final Pattern LINE = Pattern.compile(
-            "^[^ :][^:]*:[1-9][0-9]*:[1-9][0-9]*: [EWI] AEM-[A-Z]+-[0-9]+[A-Z]? .+$");
+            "^[^ :][^:]*:[1-9][0-9]*:[1-9][0-9]*: [EWI] AEM-[A-Z][A-Z0-9]*-[0-9]+[A-Z]? .+$");
 
     private static AnalysisReport portfolioShapedReport() {
         List<String> ruleIds = new ArrayList<>(RuleRegistry.all().stream()

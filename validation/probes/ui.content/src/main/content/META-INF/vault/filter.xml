@@ -2,4 +2,5 @@
 <!-- Probe: ships /content/probe with mode="replace", shared with content.extra (AEM-CLOUD-007). -->
 <workspaceFilter version="1.0">
     <filter root="/content/probe" mode="replace"/>
+    <filter root="/conf/global/settings/workflow"/>
 </workspaceFilter>

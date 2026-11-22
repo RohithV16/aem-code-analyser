@@ -204,4 +204,171 @@
 
     apply();
   }
+
+  /* ------------------------------------------------------------ site search */
+  var searchDialog = document.getElementById('searchDialog');
+  var searchOpen = document.getElementById('searchOpen');
+  var searchInput = document.getElementById('searchInput');
+  var searchResults = document.getElementById('searchResults');
+  var searchEmpty = document.getElementById('searchEmpty');
+
+  if (searchDialog && searchOpen && searchInput && searchResults) {
+    var siteBase = searchDialog.getAttribute('data-baseurl') || '';
+    var indexUrl = searchDialog.getAttribute('data-index') || siteBase + '/assets/search-index.json';
+    var entries = null;
+    var loading = null;
+    var visible = [];
+    var active = -1;
+
+    function loadIndex() {
+      if (entries) return Promise.resolve(entries);
+      if (loading) return loading;
+      loading = fetch(indexUrl, { credentials: 'same-origin' })
+        .then(function (response) {
+          if (!response.ok) throw new Error(String(response.status));
+          return response.json();
+        })
+        .then(function (data) { entries = data; return data; })
+        .catch(function () { entries = []; return entries; });
+      return loading;
+    }
+
+    function score(entry, terms) {
+      if (!terms.length) {
+        // An empty query is the "start here" list: pages before rule cards.
+        return ['page', 'guide', 'decision', 'demo'].indexOf(entry.kind) === -1 ? 1 : 0;
+      }
+      var haystack = (entry.id + ' ' + entry.title + ' ' + entry.text).toLowerCase();
+      var total = 0;
+      for (var i = 0; i < terms.length; i++) {
+        var at = haystack.indexOf(terms[i]);
+        if (at === -1) return -1;
+        total += at === 0 ? 0 : 1;
+      }
+      // A rule card answers an id or a symptom better than the page that happens to mention it.
+      var byKind = { rule: -3, 'rule-page': -1.5, section: 0 };
+      return total + (byKind[entry.kind] !== undefined ? byKind[entry.kind] : 1);
+    }
+
+    function kindLabel(kind) {
+      return { rule: 'Rule', 'rule-page': 'Rule', page: 'Page', guide: 'Guide',
+        decision: 'Compare', demo: 'Demo', section: 'Section' }[kind] || 'Page';
+    }
+
+    function setActive(index) {
+      var options = searchResults.querySelectorAll('[role="option"]');
+      if (!options.length) { active = -1; return; }
+      if (index < 0) index = options.length - 1;
+      if (index >= options.length) index = 0;
+      active = index;
+      Array.prototype.forEach.call(options, function (option, i) {
+        option.setAttribute('aria-selected', i === active ? 'true' : 'false');
+        if (i === active) option.scrollIntoView({ block: 'nearest' });
+      });
+      searchInput.setAttribute('aria-activedescendant', options[active].id);
+    }
+
+    function render() {
+      var query = searchInput.value.trim().toLowerCase();
+      var terms = query ? query.split(/\s+/) : [];
+      var ranked = [];
+
+      (entries || []).forEach(function (entry) {
+        var value = score(entry, terms);
+        if (value >= 0) ranked.push({ entry: entry, score: value });
+      });
+
+      ranked.sort(function (a, b) {
+        if (a.score !== b.score) return a.score - b.score;
+        return a.entry.title.localeCompare(b.entry.title);
+      });
+
+      visible = ranked.slice(0, 10).map(function (item) { return item.entry; });
+      searchResults.textContent = '';
+      active = -1;
+
+      visible.forEach(function (entry, i) {
+        var item = document.createElement('li');
+        item.className = 'search-result';
+        item.id = 'search-result-' + i;
+        item.setAttribute('role', 'option');
+        item.setAttribute('aria-selected', 'false');
+
+        var link = document.createElement('a');
+        link.href = siteBase + entry.url;
+        link.tabIndex = -1;
+
+        var kind = document.createElement('span');
+        kind.className = 'search-result__kind search-result__kind--' + entry.kind;
+        kind.textContent = kindLabel(entry.kind);
+
+        var title = document.createElement('span');
+        title.className = 'search-result__title';
+        title.textContent = entry.title;
+
+        var url = document.createElement('span');
+        url.className = 'search-result__url';
+        url.textContent = entry.url;
+
+        link.appendChild(kind);
+        link.appendChild(title);
+        link.appendChild(url);
+        item.appendChild(link);
+        item.addEventListener('mouseenter', function () { setActive(i); });
+        searchResults.appendChild(item);
+      });
+
+      searchEmpty.hidden = visible.length > 0 || !query;
+      if (visible.length) setActive(0);
+      else searchInput.removeAttribute('aria-activedescendant');
+    }
+
+    function go() {
+      if (visible.length) {
+        window.location.href = siteBase + visible[active < 0 ? 0 : active].url;
+        return;
+      }
+      var query = searchInput.value.trim();
+      window.location.href = siteBase + '/issues/' + (query ? '?q=' + encodeURIComponent(query) : '');
+    }
+
+    function openSearch() {
+      if (typeof searchDialog.showModal === 'function') {
+        if (!searchDialog.open) searchDialog.showModal();
+      } else {
+        searchDialog.setAttribute('open', '');
+      }
+      searchInput.focus();
+      searchInput.select();
+      loadIndex().then(render);
+    }
+
+    searchOpen.addEventListener('click', openSearch);
+
+    searchInput.addEventListener('input', render);
+    searchInput.addEventListener('keydown', function (event) {
+      if (event.key === 'ArrowDown') { event.preventDefault(); setActive(active + 1); }
+      else if (event.key === 'ArrowUp') { event.preventDefault(); setActive(active - 1); }
+      else if (event.key === 'Enter') { event.preventDefault(); go(); }
+    });
+
+    searchDialog.addEventListener('click', function (event) {
+      if (event.target === searchDialog) searchDialog.close();
+    });
+
+    document.addEventListener('keydown', function (event) {
+      var target = event.target || {};
+      var typing = /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName || '') || target.isContentEditable;
+
+      if ((event.metaKey || event.ctrlKey) && (event.key === 'k' || event.key === 'K')) {
+        event.preventDefault();
+        openSearch();
+        return;
+      }
+      if (event.key === '/' && !typing && !event.metaKey && !event.ctrlKey && !event.altKey) {
+        event.preventDefault();
+        openSearch();
+      }
+    });
+  }
 })();

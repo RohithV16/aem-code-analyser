@@ -70,6 +70,9 @@ public enum RuleId {
     AEM_CLOUD_002("AEM-CLOUD-002", "DeprecatedJspUsage",
             "Legacy JSP file found in repository; AEMaaCS requires HTL.",
             Severity.WARNING),
+    AEM_WF_001("AEM-WF-001", "UnresolvedWorkflowReference",
+            "Workflow launcher points at a model, or a PROCESS step at a class, that the project does not ship.",
+            Severity.WARNING),
     AEM_SEC_001("AEM-SEC-001", "UnsafeHtlContextBypass",
             "HTL expression uses @ context='unsafe' bypassing XSS protection.",
             Severity.ERROR),
@@ -88,9 +91,18 @@ public enum RuleId {
     AEM_CLOUD_007("AEM-CLOUD-007", "OverlappingContentPackageFilter",
             "A content-package filter root is shared across modules, uses replace on a shared root, or points at a platform path.",
             Severity.WARNING),
+    AEM_CLOUD_008("AEM-CLOUD-008", "ImmutablePathWrite",
+            "Java writes to /apps or /libs at runtime, an area AEM as a Cloud Service keeps immutable.",
+            Severity.ERROR),
+    AEM_CLOUD_009("AEM-CLOUD-009", "UnreachableDeployableModule",
+            "A reactor module ships content or a bundle the all container never installs, or a bundle is embedded outside /install.",
+            Severity.WARNING),
+    AEM_CLOUD_010("AEM-CLOUD-010", "LegacyReplicationConfiguration",
+            "Replication agent content, replication OSGi configuration or a custom transport handler that AEM as a Cloud Service cannot honour.",
+            Severity.WARNING),
     AEM_QUAL_006("AEM-QUAL-006", "ResolverStoredInComponentField",
             "OSGi component stores a request-scoped ResourceResolver or JCR Session in an instance field.",
-            Severity.WARNING),
+            Severity.WARNING, RuleStatus.RETIRED, "1.0.0", "AEM-QUAL-004"),
     AEM_DEAD_005("AEM-DEAD-005", "OrphanedClientlibCategory",
             "A client library category is never referenced by an HTL/JSP template or another client library.",
             Severity.INFO),
@@ -108,18 +120,52 @@ public enum RuleId {
             Severity.ERROR),
     AEM_DEAD_007("AEM-DEAD-007", "BrokenHtlInclude",
             "HTL data-sly-include target is missing or forms an include cycle.",
+            Severity.WARNING),
+    AEM_A11Y_001("AEM-A11Y-001", "ImageWithoutAlt",
+            "HTL img element has no alt attribute or data-sly-attribute.alt fallback (WCAG 1.1.1).",
+            Severity.WARNING),
+    AEM_A11Y_002("AEM-A11Y-002", "LinkWithoutAccessibleName",
+            "HTL anchor has no href/data-sly-attribute.href, or no accessible name for icon-only content (WCAG 2.4.4).",
+            Severity.WARNING),
+    AEM_DEAD_006("AEM-DEAD-006", "MissingTranslationKey",
+            "Translation key used by a template or model has no entry in the baseline (en) dictionary.",
+            Severity.WARNING),
+    AEM_QUAL_007("AEM-QUAL-007", "UnregistrableSlingModel",
+            "Sling Model injects a request-only type or @RequestAttribute without declaring a request adaptable.",
             Severity.WARNING);
 
     private final String id;
     private final String name;
     private final String shortDescription;
     private final Severity defaultLevel;
+    private final RuleStatus status;
+    private final String since;
+    private final String replacedById;
 
     RuleId(String id, String name, String shortDescription, Severity defaultLevel) {
+        this(id, name, shortDescription, defaultLevel, RuleStatus.ACTIVE, introducedIn(id), null);
+    }
+
+    RuleId(String id, String name, String shortDescription, Severity defaultLevel,
+           RuleStatus status, String since, String replacedById) {
         this.id = id;
         this.name = name;
         this.shortDescription = shortDescription;
         this.defaultLevel = defaultLevel;
+        this.status = status;
+        this.since = since;
+        this.replacedById = replacedById;
+    }
+
+    /**
+     * First release a rule shipped in. Rules added after the 1.0 line are stamped 1.1.0; the value is
+     * part of {@code rule-ids.lock}, so moving it is a reviewed change, not a comment.
+     */
+    private static String introducedIn(String id) {
+        return switch (id) {
+            case "AEM-COMP-002", "AEM-QUAL-008", "AEM-DEAD-007", "AEM-CLOUD-006", "AEM-CLOUD-007" -> "1.1.0";
+            default -> "1.0.0";
+        };
     }
 
     public String id() {
@@ -136,6 +182,29 @@ public enum RuleId {
 
     public Severity defaultLevel() {
         return defaultLevel;
+    }
+
+    /** Lifecycle state: active, deprecated or retired. */
+    public RuleStatus status() {
+        return status;
+    }
+
+    /** First analyser release that declared this id. */
+    public String since() {
+        return since;
+    }
+
+    /**
+     * @return the id that supersedes this one, empty when there is none. A retired id always names
+     *         its replacement so a warning can tell the user what to configure instead.
+     */
+    public java.util.Optional<String> replacedBy() {
+        return java.util.Optional.ofNullable(replacedById);
+    }
+
+    /** True when this id no longer has a producer. */
+    public boolean isRetired() {
+        return status.isRetired();
     }
 
     public static RuleId fromId(String id) {

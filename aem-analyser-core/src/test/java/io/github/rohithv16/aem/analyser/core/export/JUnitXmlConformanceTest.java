@@ -87,7 +87,7 @@ class JUnitXmlConformanceTest {
 
         for (int i = 0; i < cases.getLength(); i++) {
             var element = (org.w3c.dom.Element) cases.item(i);
-            assertTrue(element.getAttribute("classname").matches("AEM-[A-Z]+-[0-9]+[A-Z]?"),
+            assertTrue(element.getAttribute("classname").matches("AEM-[A-Z][A-Z0-9]*-[0-9]+[A-Z]?"),
                     "classname must be the rule id, got " + element.getAttribute("classname"));
             assertTrue(element.getAttribute("name").matches(".+\\.html:[1-9][0-9]*"),
                     "name must be file:line, got " + element.getAttribute("name"));

@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Clean twin: this package owns a disjoint root and does not replace shared content. -->
+<workspaceFilter version="1.0">
+    <filter root="/content/probe-clean" mode="merge"/>
+</workspaceFilter>

@@ -99,6 +99,25 @@ class SarifRuleMetadataTest {
     }
 
     @Test
+    void retiredIdsAreAdvertisedWithTheirReplacement() throws Exception {
+        JsonNode rules = rules();
+
+        JsonNode live = find(rules, "AEM-QUAL-004");
+        assertNotNull(live);
+        assertEquals("AEM-QUAL-006", live.path("deprecatedIds").path(0).asText(),
+                "the rule that replaced a retired id must advertise it as deprecatedIds");
+        assertEquals("active", live.path("properties").path("status").asText());
+        assertEquals("1.0.0", live.path("properties").path("since").asText());
+
+        JsonNode retired = find(rules, "AEM-QUAL-006");
+        assertNotNull(retired);
+        assertFalse(retired.path("defaultConfiguration").path("enabled").asBoolean(true),
+                "a retired rule has no evaluator and must be disabled");
+        assertEquals("retired", retired.path("properties").path("status").asText());
+        assertEquals("AEM-QUAL-004", retired.path("properties").path("replacedBy").asText());
+    }
+
+    @Test
     void helpMarkdownReusesTheRegistryRemediationText() throws Exception {
         RuleDescriptor descriptor = RuleRegistry.get("AEM-SEC-001");
         assertNotNull(descriptor.remediation());

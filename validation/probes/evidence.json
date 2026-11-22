@@ -1,0 +1,510 @@
+{
+  "schemaVersion": 1,
+  "description": "Two-sided probe evidence: one positive probe and one clean twin per active rule.",
+  "rules": [
+    {
+      "id": "AEM-A11Y-001",
+      "docAnchor": "aem-a11y-001",
+      "positiveProbe": {
+        "path": "ui.apps/src/main/content/jcr_root/apps/probe/components/zzprobe/a11y-broken.html",
+        "line": 1,
+        "subtype": "IMAGE_WITHOUT_ALT"
+      },
+      "negativeProbe": {
+        "path": "ui.apps/src/main/content/jcr_root/apps/probe/components/zzprobe/a11y-broken.html"
+      }
+    },
+    {
+      "id": "AEM-A11Y-002",
+      "docAnchor": "aem-a11y-002",
+      "positiveProbe": {
+        "path": "ui.apps/src/main/content/jcr_root/apps/probe/components/zzprobe/a11y-broken.html",
+        "line": 2,
+        "subtype": "ANCHOR_WITHOUT_HREF"
+      },
+      "negativeProbe": {
+        "path": "ui.apps/src/main/content/jcr_root/apps/probe/components/zzprobe/a11y-broken.html"
+      }
+    },
+    {
+      "id": "AEM-CLOUD-001",
+      "docAnchor": "aem-cloud-001",
+      "positiveProbe": {
+        "path": "ui.config/src/main/content/jcr_root/apps/probe/osgiconfig/config/com.probe.CloudSecret.cfg.json",
+        "line": 1,
+        "subtype": "HARDCODED_CLOUD_SECRET"
+      },
+      "negativeProbe": {
+        "path": "ui.config/src/main/content/jcr_root/apps/probe/osgiconfig/config/com.probe.CloudSecret.cfg.json"
+      }
+    },
+    {
+      "id": "AEM-CLOUD-002",
+      "docAnchor": "aem-cloud-002",
+      "positiveProbe": {
+        "path": "ui.apps/src/main/content/jcr_root/apps/probe/components/probe/probe.jsp",
+        "line": 1,
+        "subtype": "DEPRECATED_JSP_USAGE"
+      },
+      "negativeProbe": {
+        "path": "ui.apps/src/main/content/jcr_root/apps/probe/components/probe/probe.html"
+      }
+    },
+    {
+      "id": "AEM-CLOUD-003",
+      "docAnchor": "aem-cloud-003",
+      "positiveProbe": {
+        "path": "core/src/main/java/com/probe/ProbeComponents.java",
+        "line": 51,
+        "subtype": "UNMAPPED_SUBSERVICE_USER"
+      },
+      "negativeProbe": {
+        "path": "core/src/main/java/com/probe/ProbeComponents.java"
+      }
+    },
+    {
+      "id": "AEM-CLOUD-004",
+      "docAnchor": "aem-cloud-004",
+      "positiveProbe": {
+        "path": "core/src/main/java/com/probe/ProbeComponents.java",
+        "line": 4,
+        "subtype": "DEPRECATED_AEM_API"
+      },
+      "negativeProbe": {
+        "path": "core/src/main/java/com/probe/ProbeComponents.java"
+      }
+    },
+    {
+      "id": "AEM-CLOUD-005",
+      "docAnchor": "aem-cloud-005",
+      "positiveProbe": {
+        "path": "ui.config/src/main/content/jcr_root/apps/probe/osgiconfig/config.foo/com.probe.InvalidRunmode.cfg.json",
+        "line": 1,
+        "subtype": "INVALID_RUNMODE_FOLDER"
+      },
+      "negativeProbe": {
+        "path": "ui.config/src/main/content/jcr_root/apps/probe/osgiconfig/config.author/com.probe.InvalidRunmode.cfg.json"
+      }
+    },
+    {
+      "id": "AEM-CLOUD-006",
+      "docAnchor": "aem-cloud-006",
+      "positiveProbe": {
+        "path": "dispatcher/src/conf.d/available_vhosts/broken.vhost",
+        "line": 9,
+        "subtype": "UNRESOLVED_DISPATCHER_INCLUDE"
+      },
+      "negativeProbe": {
+        "path": "dispatcher/src/conf.d/available_vhosts/broken.vhost"
+      }
+    },
+    {
+      "id": "AEM-CLOUD-007",
+      "docAnchor": "aem-cloud-007",
+      "positiveProbe": {
+        "path": "ui.content/src/main/content/META-INF/vault/filter.xml",
+        "line": 4,
+        "subtype": "OVERLAPPING_FILTER_ROOT"
+      },
+      "negativeProbe": {
+        "path": "ui.content/src/main/content/META-INF/vault/filter.xml"
+      }
+    },
+    {
+      "id": "AEM-CLOUD-008",
+      "docAnchor": "aem-cloud-008",
+      "positiveProbe": {
+        "path": "core/src/main/java/com/probe/ProbeImmutablePathWrite.java",
+        "line": 16,
+        "subtype": "IMMUTABLE_PATH_WRITE"
+      },
+      "negativeProbe": {
+        "path": "core/src/main/java/com/probe/ProbeImmutablePathWrite.java"
+      }
+    },
+    {
+      "id": "AEM-CLOUD-009",
+      "docAnchor": "aem-cloud-009",
+      "positiveProbe": {
+        "path": "zzprobe.content/pom.xml",
+        "line": 6,
+        "subtype": "UNREACHABLE_MODULE"
+      },
+      "negativeProbe": {
+        "path": "zzprobe.content/pom.xml"
+      }
+    },
+    {
+      "id": "AEM-CLOUD-010",
+      "docAnchor": "aem-cloud-010",
+      "positiveProbe": {
+        "path": "core/src/main/java/com/probe/ProbeTransportHandler.java",
+        "line": 9,
+        "subtype": "CUSTOM_TRANSPORT_HANDLER"
+      },
+      "negativeProbe": {
+        "path": "core/src/main/java/com/probe/ProbeTransportHandler.java"
+      }
+    },
+    {
+      "id": "AEM-COMP-001",
+      "docAnchor": "aem-comp-001",
+      "positiveProbe": {
+        "path": "ui.apps/src/main/content/jcr_root/apps/probe/components/classic/dialog.xml",
+        "line": 1,
+        "subtype": "DEPRECATED_CLASSIC_UI_DIALOG"
+      },
+      "negativeProbe": {
+        "path": "ui.apps/src/main/content/jcr_root/apps/probe/components/classic/_cq_dialog/.content.xml"
+      }
+    },
+    {
+      "id": "AEM-COMP-002",
+      "docAnchor": "aem-comp-002",
+      "positiveProbe": {
+        "path": "ui.apps/src/main/content/jcr_root/apps/probe/components/zzprobe/broken-resource.html",
+        "line": 1,
+        "subtype": "MISSING_RESOURCE_TYPE"
+      },
+      "negativeProbe": {
+        "path": "ui.apps/src/main/content/jcr_root/apps/probe/components/zzprobe/broken-resource.html"
+      }
+    },
+    {
+      "id": "AEM-DEAD-001",
+      "docAnchor": "aem-dead-001",
+      "positiveProbe": {
+        "path": "ui.config/src/main/content/jcr_root/apps/probe/osgiconfig/config/com.probe.missing.Service.cfg.json",
+        "line": 1,
+        "subtype": "ORPHANED_CONFIGURATION"
+      },
+      "negativeProbe": {
+        "path": "ui.config/src/main/content/jcr_root/apps/probe/osgiconfig/config/com.probe.missing.Service.cfg.json"
+      }
+    },
+    {
+      "id": "AEM-DEAD-002A",
+      "docAnchor": "aem-dead-002a",
+      "positiveProbe": {
+        "path": "ui.config/src/main/content/jcr_root/apps/probe/osgiconfig/config/com.probe.ProbeConfigComponent.cfg.json",
+        "line": 1,
+        "subtype": "GHOST_CONFIGURATION_PROPERTY"
+      },
+      "negativeProbe": {
+        "path": "ui.config/src/main/content/jcr_root/apps/probe/osgiconfig/config/com.probe.ProbeConfigComponent.cfg.json"
+      }
+    },
+    {
+      "id": "AEM-DEAD-002B",
+      "docAnchor": "aem-dead-002b",
+      "positiveProbe": {
+        "path": "core/src/main/java/com/probe/ProbeConfig.java",
+        "line": 1,
+        "subtype": "UNCONSUMED_OCD_PROPERTY"
+      },
+      "negativeProbe": {
+        "path": "core/src/main/java/com/probe/ProbeConfig.java"
+      }
+    },
+    {
+      "id": "AEM-DEAD-003A",
+      "docAnchor": "aem-dead-003a",
+      "positiveProbe": {
+        "path": "core/src/main/java/com/probe/ProbeComponents.java",
+        "line": 16,
+        "subtype": "UNUSED_OSGI_SERVICE"
+      },
+      "negativeProbe": {
+        "path": "core/src/main/java/com/probe/ProbeComponents.java"
+      }
+    },
+    {
+      "id": "AEM-DEAD-003B",
+      "docAnchor": "aem-dead-003b",
+      "positiveProbe": {
+        "path": "core/src/main/java/com/probe/ProbeModels.java",
+        "line": 8,
+        "subtype": "UNUSED_SLING_MODEL"
+      },
+      "negativeProbe": {
+        "path": "core/src/main/java/com/probe/ProbeModels.java"
+      }
+    },
+    {
+      "id": "AEM-DEAD-003C",
+      "docAnchor": "aem-dead-003c",
+      "positiveProbe": {
+        "path": "core/src/main/java/com/probe/ProbeComponents.java",
+        "line": 19,
+        "subtype": "INACTIVE_DELAYED_COMPONENT"
+      },
+      "negativeProbe": {
+        "path": "core/src/main/java/com/probe/ProbeComponents.java"
+      }
+    },
+    {
+      "id": "AEM-DEAD-004",
+      "docAnchor": "aem-dead-004",
+      "positiveProbe": {
+        "path": "ui.apps/src/main/content/jcr_root/apps/probe/components/probe/probe.html",
+        "line": 1,
+        "subtype": "BROKEN_HTL_REFERENCE"
+      },
+      "negativeProbe": {
+        "path": "ui.apps/src/main/content/jcr_root/apps/probe/components/probe/probe.html"
+      }
+    },
+    {
+      "id": "AEM-DEAD-005",
+      "docAnchor": "aem-dead-005",
+      "positiveProbe": {
+        "path": "ui.apps/src/main/content/jcr_root/apps/probe/clientlibs/probe/.content.xml",
+        "line": 1,
+        "subtype": "ORPHANED_CLIENTLIB_CATEGORY"
+      },
+      "negativeProbe": {
+        "path": "ui.apps/src/main/content/jcr_root/apps/probe/clientlibs/probe/.content.xml"
+      }
+    },
+    {
+      "id": "AEM-DEAD-006",
+      "docAnchor": "aem-dead-006",
+      "positiveProbe": {
+        "path": "ui.apps/src/main/content/jcr_root/apps/probe/components/zzprobe/i18n-broken.html",
+        "line": 2,
+        "subtype": "MISSING_TRANSLATION_KEY"
+      },
+      "negativeProbe": {
+        "path": "ui.apps/src/main/content/jcr_root/apps/probe/components/zzprobe/i18n-broken.html"
+      }
+    },
+    {
+      "id": "AEM-DEAD-007",
+      "docAnchor": "aem-dead-007",
+      "positiveProbe": {
+        "path": "ui.apps/src/main/content/jcr_root/apps/probe/components/zzprobe/inc/broken.html",
+        "line": 1,
+        "subtype": "BROKEN_HTL_INCLUDE"
+      },
+      "negativeProbe": {
+        "path": "ui.apps/src/main/content/jcr_root/apps/probe/components/zzprobe/inc/broken.html"
+      }
+    },
+    {
+      "id": "AEM-DUP-001",
+      "docAnchor": "aem-dup-001",
+      "positiveProbe": {
+        "path": "core/src/main/java/com/probe/ProbeServlets.java",
+        "line": 15,
+        "subtype": "DUPLICATE_SERVLET_PATH"
+      },
+      "negativeProbe": {
+        "path": "core/src/main/java/com/probe/ProbeServlets.java"
+      }
+    },
+    {
+      "id": "AEM-DUP-002",
+      "docAnchor": "aem-dup-002",
+      "positiveProbe": {
+        "path": "ui.config/src/main/content/jcr_root/apps/probe/osgiconfig/config/com.probe.DupPid.config",
+        "line": 1,
+        "subtype": "DUPLICATE_OSGI_CONFIG"
+      },
+      "negativeProbe": {
+        "path": "ui.config/src/main/content/jcr_root/apps/probe/osgiconfig/config/com.probe.DupPidTwo.config"
+      }
+    },
+    {
+      "id": "AEM-DUP-003",
+      "docAnchor": "aem-dup-003",
+      "positiveProbe": {
+        "path": "core/src/main/java/com/probe/ProbeModels.java",
+        "line": 14,
+        "subtype": "DUPLICATE_SLING_MODEL_RESOURCE_TYPE"
+      },
+      "negativeProbe": {
+        "path": "core/src/main/java/com/probe/ProbeModels.java"
+      }
+    },
+    {
+      "id": "AEM-DUP-010",
+      "docAnchor": "aem-dup-010",
+      "positiveProbe": {
+        "path": "core/src/main/java/com/probe/ProbeComponents.java",
+        "line": 100,
+        "subtype": "DUPLICATE_CODE_BLOCK"
+      },
+      "negativeProbe": {
+        "path": "core/src/main/java/com/probe/ProbeComponents.java"
+      }
+    },
+    {
+      "id": "AEM-PERF-001",
+      "docAnchor": "aem-perf-001",
+      "positiveProbe": {
+        "path": "core/src/main/java/com/probe/ProbeComponents.java",
+        "line": 43,
+        "subtype": "UNCLOSED_RESOURCE_RESOLVER"
+      },
+      "negativeProbe": {
+        "path": "core/src/main/java/com/probe/ProbeComponents.java"
+      }
+    },
+    {
+      "id": "AEM-PERF-002",
+      "docAnchor": "aem-perf-002",
+      "positiveProbe": {
+        "path": "core/src/main/java/com/probe/ProbeComponents.java",
+        "line": 63,
+        "subtype": "UNCLOSED_JCR_SESSION"
+      },
+      "negativeProbe": {
+        "path": "core/src/main/java/com/probe/ProbeComponents.java"
+      }
+    },
+    {
+      "id": "AEM-PERF-003",
+      "docAnchor": "aem-perf-003",
+      "positiveProbe": {
+        "path": "core/src/main/java/com/probe/ProbeComponents.java",
+        "line": 76,
+        "subtype": "OAK_QUERY_TRAVERSAL"
+      },
+      "negativeProbe": {
+        "path": "core/src/main/java/com/probe/ProbeComponents.java"
+      }
+    },
+    {
+      "id": "AEM-PERF-004",
+      "docAnchor": "aem-perf-004",
+      "positiveProbe": {
+        "path": "core/src/main/java/com/probe/ProbeComponents.java",
+        "line": 76,
+        "subtype": "UNBOUNDED_QUERY"
+      },
+      "negativeProbe": {
+        "path": "core/src/main/java/com/probe/ProbeComponents.java"
+      }
+    },
+    {
+      "id": "AEM-QUAL-001",
+      "docAnchor": "aem-qual-001",
+      "positiveProbe": {
+        "path": "core/src/main/java/com/probe/ProbeServlets.java",
+        "line": 6,
+        "subtype": "PATH_BOUND_SERVLET"
+      },
+      "negativeProbe": {
+        "path": "core/src/main/java/com/probe/ProbeServlets.java"
+      }
+    },
+    {
+      "id": "AEM-QUAL-002",
+      "docAnchor": "aem-qual-002",
+      "positiveProbe": {
+        "path": "core/src/main/java/com/probe/ProbeProvider.java",
+        "line": 3,
+        "subtype": "PROVIDER_TYPE_IMPLEMENTATION"
+      },
+      "negativeProbe": {
+        "path": "core/src/main/java/com/probe/ProbeProvider.java"
+      }
+    },
+    {
+      "id": "AEM-QUAL-003",
+      "docAnchor": "aem-qual-003",
+      "positiveProbe": {
+        "path": "core/src/main/java/com/probe/ProbeComponents.java",
+        "line": 22,
+        "subtype": "SLING_SCHEDULER_USAGE"
+      },
+      "negativeProbe": {
+        "path": "core/src/main/java/com/probe/ProbeComponents.java"
+      }
+    },
+    {
+      "id": "AEM-QUAL-004",
+      "docAnchor": "aem-qual-004",
+      "positiveProbe": {
+        "path": "core/src/main/java/com/probe/ProbeComponents.java",
+        "line": 30,
+        "subtype": "UNSAFE_COMPONENT_STATE"
+      },
+      "negativeProbe": {
+        "path": "core/src/main/java/com/probe/ProbeComponents.java"
+      }
+    },
+    {
+      "id": "AEM-QUAL-005",
+      "docAnchor": "aem-qual-005",
+      "positiveProbe": {
+        "path": "core/src/main/java/com/probe/ProbeComponents.java",
+        "line": 43,
+        "subtype": "ADMINISTRATIVE_ACCESS_USAGE"
+      },
+      "negativeProbe": {
+        "path": "core/src/main/java/com/probe/ProbeComponents.java"
+      }
+    },
+    {
+      "id": "AEM-QUAL-007",
+      "docAnchor": "aem-qual-007",
+      "positiveProbe": {
+        "path": "core/src/main/java/com/probe/ProbeModels.java",
+        "line": 20,
+        "subtype": "REQUEST_INJECTION_WITHOUT_REQUEST_ADAPTABLE"
+      },
+      "negativeProbe": {
+        "path": "core/src/main/java/com/probe/ProbeModels.java"
+      }
+    },
+    {
+      "id": "AEM-QUAL-008",
+      "docAnchor": "aem-qual-008",
+      "positiveProbe": {
+        "path": "core/src/main/java/com/probe/ProbeUnprovidedReference.java",
+        "line": 15,
+        "subtype": "UNPROVIDED_MANDATORY_REFERENCE"
+      },
+      "negativeProbe": {
+        "path": "core/src/main/java/com/probe/ProbeUnprovidedReference.java"
+      }
+    },
+    {
+      "id": "AEM-SEC-001",
+      "docAnchor": "aem-sec-001",
+      "positiveProbe": {
+        "path": "ui.apps/src/main/content/jcr_root/apps/probe/components/probe/probe.html",
+        "line": 2,
+        "subtype": "UNSAFE_HTL_CONTEXT_BYPASS"
+      },
+      "negativeProbe": {
+        "path": "ui.apps/src/main/content/jcr_root/apps/probe/components/probe/probe.html"
+      }
+    },
+    {
+      "id": "AEM-SEC-002",
+      "docAnchor": "aem-sec-002",
+      "positiveProbe": {
+        "path": "core/src/main/java/com/probe/ProbeComponents.java",
+        "line": 86,
+        "subtype": "OPEN_REDIRECT"
+      },
+      "negativeProbe": {
+        "path": "core/src/main/java/com/probe/ProbeComponents.java"
+      }
+    },
+    {
+      "id": "AEM-WF-001",
+      "docAnchor": "aem-wf-001",
+      "positiveProbe": {
+        "path": "ui.content/src/main/content/jcr_root/conf/global/settings/workflow/launcher/zzprobe/.content.xml",
+        "line": 5,
+        "subtype": "MISSING_WORKFLOW_MODEL"
+      },
+      "negativeProbe": {
+        "path": "ui.content/src/main/content/jcr_root/conf/global/settings/workflow/launcher/zzprobe/.content.xml"
+      }
+    }
+  ]
+}

@@ -22,6 +22,7 @@ description: Install AEM Code Analyser from Maven Central or as a CLI jar, run y
     <ul>
       <li><a href="{{ site.baseurl }}/issues/">Issues and fixes</a></li>
       <li><a href="{{ site.baseurl }}/reference/">CLI reference</a></li>
+      <li><a href="{{ site.baseurl }}/releases/">Release notes</a></li>
     </ul>
   </aside>
 
@@ -60,6 +61,11 @@ description: Install AEM Code Analyser from Maven Central or as a CLI jar, run y
               <td>Only for <code>--changed-only</code>, <code>--since</code> and the from-source route.</td>
               <td><code>git --version</code></td>
             </tr>
+            <tr>
+              <td><strong>Docker or Podman</strong></td>
+              <td>Only for the container route, which replaces the Java requirement entirely.</td>
+              <td><code>docker --version</code></td>
+            </tr>
           </tbody>
         </table>
       </div>
@@ -89,6 +95,39 @@ curl -LO "$HOST/releases/latest/download/aem-analyser-cli.jar"</code></pre>
             One self-contained jar. It can live anywhere — put it in the project, in
             <code>~/tools</code>, wherever you keep it.
           </p>
+          <div class="callout">
+            <p>
+              <strong>Prefer an <code>aem-analyser</code> command?</strong> The installer checks the
+              jar against the release's <code>SHA256SUMS.txt</code> first, then writes a launcher to
+              <code>~/.local/bin</code>:
+            </p>
+            <div class="code code--shell">
+              <div class="code__bar"><span class="code__label">bash</span></div>
+<pre><code>curl -fsSLO https://raw.githubusercontent.com/RohithV16/aem-code-analyser/main/install.sh
+sh install.sh
+aem-analyser --version</code></pre>
+            </div>
+            <p class="muted">
+              Pin a release with <code>--version 1.0.10</code>, install elsewhere with
+              <code>--prefix /usr/local</code>. Below, every <code>java -jar aem-analyser-cli.jar</code>
+              is the same run as <code>aem-analyser</code>.
+            </p>
+          </div>
+          <div class="callout callout--accent">
+            <p>
+              <strong>No JDK on the agent?</strong> The same jar ships as a container image, so a
+              container runtime is the only prerequisite:
+            </p>
+            <div class="code code--shell">
+              <div class="code__bar"><span class="code__label">bash</span></div>
+<pre><code>docker run --rm -v "$PWD:/src" ghcr.io/rohithv16/aem-code-analyser:1.0.10</code></pre>
+            </div>
+            <p class="muted">
+              The project is mounted at <code>/src</code> and the dashboard is written back under
+              <code>target/aem-analyser/</code>. Add <code>--user "$(id -u):$(id -g)"</code> when the
+              host user is not 1000, so the reports are not root-owned.
+            </p>
+          </div>
         </li>
 
         <li>

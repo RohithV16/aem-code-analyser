@@ -129,6 +129,12 @@ public final class InlineSuppressions {
             if (token.equals("*") || token.equalsIgnoreCase(ruleId)) {
                 return true;
             }
+            // A directive written before an id was retired still means the rule that replaced it.
+            if (io.github.rohithv16.aem.analyser.core.rules.RuleCatalog.isAlias(token)
+                    && io.github.rohithv16.aem.analyser.core.rules.RuleCatalog.resolve(token)
+                            .equalsIgnoreCase(ruleId)) {
+                return true;
+            }
         }
         return false;
     }

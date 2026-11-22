@@ -100,7 +100,10 @@ jobs:
       - name: Rule documentation is current
         run: scripts/check-rule-docs.sh
 
-      - name: Every rule fires on its probe
+      - name: Release notes are current
+        run: scripts/build-releases-page.sh docs --check
+
+      - name: Every rule fires on its probe and stays silent on its clean twin
         run: scripts/run-rule-probes.sh
 
       - name: Validation reactor produces exactly the expected findings
@@ -147,6 +150,9 @@ jobs:
         run: |
           gem install jekyll -v 4.4.1 --no-document
           gem install jekyll-sitemap -v 1.4.0 --no-document
+
+      - name: Generate release notes from the changelog
+        run: scripts/build-releases-page.sh docs
 
       - name: Build the site
         run: jekyll build --source docs --destination _site --quiet
@@ -243,6 +249,9 @@ jobs:
         run: |
           mkdir -p target/release-assets
           cp "aem-analyser-cli/target/aem-analyser-cli.jar" target/release-assets/
+          # The stable name keeps the `/releases/latest/download/aem-analyser-cli.jar` link
+          # working; the versioned name lets a download be pinned (install.sh prefers it).
+          cp "aem-analyser-cli/target/aem-analyser-cli.jar" "target/release-assets/aem-analyser-cli-${VERSION}.jar"
           cp "aem-analyser-core/target/aem-analyser-core-${VERSION}.jar" target/release-assets/
           cp "aem-analyser-maven-plugin/target/aem-analyser-maven-plugin-${VERSION}.jar" target/release-assets/
           cp "pom.xml" "target/release-assets/aem-code-analyser-${VERSION}.pom"
@@ -251,6 +260,50 @@ jobs:
           cd target/release-assets
           sha256sum *.jar > SHA256SUMS.txt
           cat SHA256SUMS.txt
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # The shaded jar the previous step staged is the only input. Publishing from the same
+      # job that tags the release means a version can never exist on GHCR without the jar
+      # (or the other way round), and a failed push aborts before the tag is created.
+      - name: Build and push the container image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          build-args: |
+            VERSION=${{ steps.bump.outputs.version }}
+            REVISION=${{ github.sha }}
+          tags: |
+            ghcr.io/rohithv16/aem-code-analyser:${{ steps.bump.outputs.version }}
+            ghcr.io/rohithv16/aem-code-analyser:latest
+          provenance: true
+          sbom: true
+
+      - name: Smoke-test the published image
+        shell: bash
+        env:
+          VERSION: ${{ steps.bump.outputs.version }}
+        run: |
+          IMAGE="ghcr.io/rohithv16/aem-code-analyser:${VERSION}"
+          docker pull "$IMAGE"
+          REPORTED=$(docker run --rm "$IMAGE" --version)
+          echo "$REPORTED"
+          case "$REPORTED" in
+            *"$VERSION"*) ;;
+            *) echo "image reports '$REPORTED', expected version $VERSION" >&2; exit 1 ;;
+          esac
+          USER_ID=$(docker image inspect "$IMAGE" --format '{{.Config.User}}')
+          echo "image user: ${USER_ID:-<root>}"
+          [ "$USER_ID" = "1000:1000" ] || { echo "image must run as 1000:1000, not '${USER_ID}'" >&2; exit 1; }
 
       - name: Commit version bump and push tag
         shell: bash
@@ -287,6 +340,7 @@ jobs:
           generate_release_notes: true
           files: |
             target/release-assets/aem-analyser-cli.jar
+            target/release-assets/aem-analyser-cli-*.jar
             target/release-assets/aem-analyser-maven-plugin-*.jar
             target/release-assets/aem-analyser-core-*.jar
             target/release-assets/*.pom
@@ -305,6 +359,14 @@ jobs:
             Verify integrity:
             ```bash
             sha256sum -c SHA256SUMS.txt
+            ```
+
+            Or let the installer verify it and put an `aem-analyser` command on your PATH:
+
+            ```bash
+            curl -fsSLO https://raw.githubusercontent.com/RohithV16/aem-code-analyser/main/install.sh
+            sh install.sh --version ${{ steps.bump.outputs.version }}
+            aem-analyser .
             ```
 
             #### 🧰 Install the plugin without any registry access

@@ -1,0 +1,64 @@
+---
+layout: default
+nav: issues
+title: "AEM-DEAD-006 MissingTranslationKey — Translation key used by a template or model has no entry in the baseline (en) …"
+description: "AEM-DEAD-006 (WARNING): Translation key used by a template or model has no entry in the baseline (en) dictionary."
+rule_id: "AEM-DEAD-006"
+rule_family: "DEAD"
+rule_family_title: "Dead code"
+rule_severity: "WARNING"
+rule_tags: "dead-code, i18n, htl"
+---
+
+<div class="shell docs">
+  <div class="docs__main">
+    <p class="muted"><a href="../">← All 43 rules</a></p>
+    <div class="issues-head">
+      <h1><span class="rule-card__id">AEM-DEAD-006</span> MissingTranslationKey</h1>
+      <p class="lede">Translation key used by a template or model has no entry in the baseline (en) dictionary.</p>
+      <p class="muted"><span class="pill pill--warning">WARNING</span> · 20 min fix · Bug · <a href="../#family-dead">Dead code</a></p>
+    </div>
+
+    <article class="rule-card rule-card--page" id="aem-dead-006" data-family="DEAD">
+        <p class="rule-card__summary">Translation key used by a template or model has no entry in the baseline (en) dictionary.</p>
+        <h2>Why it matters</h2>
+        <p>AEM prints the raw key when ${&#39;key&#39; @ i18n} has no dictionary entry, so a missing translation ships to production as visible text. The build and the bundle both pass, and the only signal is a customer reading &quot;checkout.title&quot; on the page. Keeping every locale in step by hand also guarantees that the en dictionary silently drifts behind the templates.</p>
+        <h2>How to fix it</h2>
+        <p>Add the key to the baseline en.json under the project&#39;s i18n folder, then add the translated value to each locale file. Use one spelling of the key in templates and models; the dictionary lookup is exact and case-sensitive.</p>
+        <div class="examples">
+          <div class="code code--bad">
+            <div class="code__bar"><span class="code__label">html · before</span></div>
+            <pre><code>&lt;!-- components/checkout/checkout.html --&gt;
+&lt;h1&gt;${&#39;checkout.title&#39; @ i18n}&lt;/h1&gt;
+
+&lt;!-- ui.apps/.../i18n/en.json --&gt;
+{
+  &quot;checkout.cart&quot;: &quot;Your cart&quot;
+}</code></pre>
+          </div>
+          <div class="code code--good">
+            <div class="code__bar"><span class="code__label">html · after</span></div>
+            <pre><code>&lt;!-- components/checkout/checkout.html --&gt;
+&lt;h1&gt;${&#39;checkout.title&#39; @ i18n}&lt;/h1&gt;
+
+&lt;!-- ui.apps/.../i18n/en.json --&gt;
+{
+  &quot;checkout.cart&quot;: &quot;Your cart&quot;,
+  &quot;checkout.title&quot;: &quot;Checkout&quot;
+}</code></pre>
+          </div>
+        </div>
+        <p class="suppress">Suppress one line: <code>// aem-analyser-disable-next-line AEM-DEAD-006</code> · tags dead-code, i18n, htl · <code>--explain AEM-DEAD-006</code></p>
+        <div class="rule-card__tune">
+          <span class="rule-card__tune-label">Tune this rule</span>
+          <a href="../../reference/#configuration">Disable or re-scope it in <code>.aem-analyser.yml</code></a>
+          <a href="../../reference/#flags">Fail the build on it with <code>--fail-on</code></a>
+          <a href="../../reference/#suppression">Suppress one occurrence inline</a>
+          <a href="../../reference/#baseline">Accept it in a baseline</a>
+          <a href="../../reference/#exit-codes">What its severity means for the exit code</a>
+        </div>
+        <p class="rule-card__siblings">Same family: <a href="../aem-dead-001/" title="OrphanedOsgiConfiguration">AEM-DEAD-001</a> <a href="../aem-dead-002a/" title="GhostConfigurationProperty">AEM-DEAD-002A</a> · <a href="../#family-dead">all rules in this family</a></p>
+    </article>
+    <p class="muted">Every rule in the catalogue, with what it detects and how to fix it: <a href="../">all 43 rules</a>. Suppress a single line with <code>// aem-analyser-disable-next-line AEM-DEAD-006</code>.</p>
+  </div>
+</div>

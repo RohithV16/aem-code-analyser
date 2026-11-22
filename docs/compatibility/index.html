@@ -1,0 +1,131 @@
+---
+layout: default
+nav: reference
+title: Compatibility contract
+description: What may change in a patch, minor or major release — rule ids, severities, baselines and report schemas.
+---
+
+<div class="shell docs">
+  <aside class="docs__aside">
+    <h2>On this page</h2>
+    <ul>
+      <li><a href="#rule-ids">Rule ids</a></li>
+      <li><a href="#status">Status and since</a></li>
+      <li><a href="#lock">rule-ids.lock</a></li>
+      <li><a href="#baseline">Baselines</a></li>
+      <li><a href="#release">Release-by-release</a></li>
+    </ul>
+    <h2>Elsewhere</h2>
+    <ul>
+      <li><a href="{{ site.baseurl }}/reference/">CLI reference</a></li>
+      <li><a href="{{ site.baseurl }}/issues/">Issues and fixes</a></li>
+    </ul>
+  </aside>
+
+  <div class="docs__main">
+    <h1>Compatibility contract</h1>
+    <p class="lede">
+      A gate is only useful if a green build stays green. Rule ids, their meaning and the files that
+      remember a decision — the configuration, inline directives and the baseline — therefore change
+      on a stated schedule, never as a side effect of a refactor.
+    </p>
+
+    <section id="rule-ids">
+      <h2 class="mt-0">Rule ids never silently change meaning</h2>
+      <p>
+        Every finding carries a stable id such as <code>AEM-QUAL-004</code>. The id is part of the
+        public contract: it appears in SARIF, in baseline entries and in the suppression comments a
+        team commits. Renaming an id is a <strong>major</strong> change. Fixing a false negative,
+        adding a subtype or changing a message is a <strong>patch</strong> change, because none of
+        those alter which id a baseline or directive names.
+      </p>
+      <p>
+        A rule that is superseded is first marked <code>deprecated</code> for one minor release
+        (both ids resolve, new reports use the canonical id), then <code>retired</code> for one minor
+        release (the old id resolves to its replacement and produces a warning), and only then may
+        its enum constant be deleted. That is what "two-release event" means.
+      </p>
+    </section>
+
+    <section id="status">
+      <h2>Status, since and replacedBy</h2>
+      <p>
+        <code>--list-rules --format json</code>, <code>rule-evidence.json</code> and the SARIF rule
+        descriptor all carry the same three fields:
+      </p>
+      <div class="table-wrap">
+        <table class="table--compact">
+          <thead><tr><th scope="col">Field</th><th scope="col">Values</th><th scope="col">Meaning</th></tr></thead>
+          <tbody>
+            <tr><td class="mono">status</td><td><code>active</code>, <code>deprecated</code>, <code>retired</code></td><td>Whether the rule produces findings and whether a new configuration should use it.</td></tr>
+            <tr><td class="mono">since</td><td>release, e.g. <code>1.0.0</code></td><td>First analyser release that declared the id.</td></tr>
+            <tr><td class="mono">replacedBy</td><td>rule id or <code>null</code></td><td>The rule that took over. A retired id always names one.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>
+        A configuration, inline directive or baseline that names a non-active id still
+        <strong>resolves</strong>: enablement applies to the replacement, a suppression still hides the
+        replacement's finding, and a baseline entry still accepts it. The CLI prints exactly one
+        warning naming the replacement so the stale spelling is visible without failing the build.
+        A severity written for a retired id is ignored — re-ranking the live rule from a dead id would
+        be a silent gate change.
+      </p>
+      <div class="code">
+        <div class="code__bar"><span class="code__label">bash</span></div>
+<pre><code># What the contract looks like from the outside
+aem-analyser --list-rules --format json | jq -r '.[] | select(.id=="AEM-QUAL-006") | .status'
+# retired
+
+# A configuration that still says AEM-QUAL-006 warns once, then keeps working
+# [WARNING] Configuration .aem-analyser.yml: AEM-QUAL-006 is retired; findings now come from AEM-QUAL-004</code></pre>
+      </div>
+    </section>
+
+    <section id="lock">
+      <h2>rule-ids.lock</h2>
+      <p>
+        <code>rule-ids.lock</code> at the repository root lists every id with its status, first
+        release and replacement. It is generated from the <code>RuleId</code> enum and compared by a
+        test, so deleting or re-status-ing an id without updating the lock fails the build with the
+        id named. The lock is a review artefact, not a second source of truth: change the enum, then
+        run <code>scripts/check-rule-ids.sh</code> and commit the resulting diff.
+      </p>
+      <div class="code">
+        <div class="code__bar"><span class="code__label">rule-ids.lock</span></div>
+<pre><code>AEM-QUAL-004|active|1.0.0|
+AEM-QUAL-006|retired|1.0.0|AEM-QUAL-004</code></pre>
+      </div>
+    </section>
+
+    <section id="baseline">
+      <h2>Baselines and report schemas</h2>
+      <p>
+        The baseline file carries its own <code>schemaVersion</code>. A change to the fingerprint
+        algorithm bumps it, and an older file is rejected with instructions to regenerate — it is
+        never silently mis-matched. The current version is <strong>2</strong>; version 2 hashes the
+        rule id, subtype, normalised path and the finding's verbatim message, so one accepted entry
+        cannot hide a later, unrelated finding.
+      </p>
+      <p>
+        Minor releases may add fields to JSON, SARIF and the baseline. They do not remove or rename an
+        existing field, change a severity's meaning, or change the id a finding carries. Removing a
+        field or renaming a rule id is a major release with a migration note in the changelog.
+      </p>
+    </section>
+
+    <section id="release">
+      <h2>What may change in each release</h2>
+      <div class="table-wrap">
+        <table class="table--compact">
+          <thead><tr><th scope="col">Release</th><th scope="col">May change</th><th scope="col">Must not change</th></tr></thead>
+          <tbody>
+            <tr><td class="mono">patch</td><td>Detection accuracy, message text, documentation, probe fixtures.</td><td>Rule ids, default severities, baseline <code>schemaVersion</code>, existing report fields.</td></tr>
+            <tr><td class="mono">minor</td><td>New rules and fields, status <code>active → deprecated</code>, new report formats.</td><td>Existing ids' meaning, existing baseline entries, previously green gates.</td></tr>
+            <tr><td class="mono">major</td><td>Id removal or rename, field removal, fingerprint/schema change.</td><td>Nothing: every removal ships with a migration note and a deprecated/retired period.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+</div>

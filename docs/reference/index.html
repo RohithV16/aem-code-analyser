@@ -11,6 +11,7 @@ description: Every flag, output format, exit code, configuration key and suppres
     <ul>
       <li><a href="#flags">Flags</a></li>
       <li><a href="#formats">Output formats</a></li>
+      <li><a href="#mcp">MCP server</a></li>
       <li><a href="#exit-codes">Exit codes</a></li>
       <li><a href="#configuration">Configuration file</a></li>
       <li><a href="#baseline">Baseline</a></li>
@@ -22,7 +23,9 @@ description: Every flag, output format, exit code, configuration key and suppres
     <h2>Elsewhere</h2>
     <ul>
       <li><a href="{{ site.baseurl }}/getting-started/">Getting started</a></li>
+      <li><a href="{{ site.baseurl }}/compatibility/">Compatibility contract</a></li>
       <li><a href="{{ site.baseurl }}/issues/">Issues and fixes</a></li>
+      <li><a href="{{ site.baseurl }}/releases/">Release notes</a></li>
     </ul>
   </aside>
 
@@ -78,9 +81,14 @@ description: Every flag, output format, exit code, configuration key and suppres
             <tr><td class="mono nowrap">--max-file-size &lt;bytes&gt;</td><td class="mono">10485760</td><td>Skip larger files. They are reported as diagnostics.</td></tr>
             <tr><td class="mono nowrap">--timeout &lt;seconds&gt;</td><td class="mono">0</td><td>Overall time budget. 0 means none.</td></tr>
             <tr><td class="mono nowrap">--explain &lt;RULE&gt;</td><td class="mono">—</td><td>Print one rule's <em>effective</em> metadata (severity, provenance, disablement), then exit.</td></tr>
+            <tr><td class="mono nowrap">--diagnose &lt;RULE:PATH:LINE&gt;</td><td class="mono">—</td><td>Write one redacted, offline repro bundle for a finding and exit. Nothing is transmitted.</td></tr>
+            <tr><td class="mono nowrap">--import-report &lt;sarif&gt;</td><td class="mono">—</td><td>Read another analyser's SARIF for migration coverage; nothing is suppressed without <code>--import-map</code>.</td></tr>
+            <tr><td class="mono nowrap">--import-map &lt;file&gt;</td><td class="mono">—</td><td>Map foreign rule ids to analyser ids, e.g. <code>java:S3649: AEM-QUAL-004</code>. Requires <code>--import-report</code>.</td></tr>
             <tr><td class="mono nowrap">--list-rules</td><td class="mono">—</td><td>Print the <em>effective</em> rule catalogue — disabled rules marked, overridden severities with provenance — then exit. Honours <code>--config</code> and <code>--severity</code>.</td></tr>
             <tr><td class="mono nowrap">--tag &lt;tag&gt;</td><td class="mono">—</td><td>With <code>--list-rules</code>: only rules carrying the tag (e.g. <code>osgi</code>, <code>security</code>, <code>performance</code>).</td></tr>
+            <tr><td class="mono nowrap">--mcp</td><td class="mono">off</td><td>Serve the Model Context Protocol on stdio: four read-only tools over the same rules and AnalysisReport the gate uses. stdout carries JSON-RPC frames only; logs go to stderr; EOF exits 0.</td></tr>
             <tr><td class="mono nowrap">--generate-rule-docs &lt;dir&gt;</td><td class="mono">—</td><td>Generate the issue reference into <code>&lt;dir&gt;/issues</code> and exit.</td></tr>
+            <tr><td class="mono nowrap">--generate-completion &lt;shell&gt;</td><td class="mono">—</td><td>Print a completion script for <code>bash</code>, <code>zsh</code> or <code>fish</code> on stdout, then exit. An unknown shell is a usage error (exit 2).</td></tr>
             <tr><td class="mono nowrap">-v, --verbose</td><td class="mono">off</td><td>Print parse and scan diagnostics on <em>stderr</em>.</td></tr>
             <tr><td class="mono nowrap">-q, --quiet</td><td class="mono">off</td><td>Silence progress and warning lines on stderr. Errors are still reported.</td></tr>
             <tr><td class="mono nowrap">--no-color</td><td class="mono">off</td><td>Disable ANSI colours.</td></tr>
@@ -88,6 +96,28 @@ description: Every flag, output format, exit code, configuration key and suppres
           </tbody>
         </table>
       </div>
+
+      <h2>Which rules a flag governs</h2>
+      <p>
+        Severity, gates and filters apply to the whole catalogue: <code>--fail-on</code>,
+        <code>--fail-on-warning</code>, <code>--severity</code>, <code>--tag</code> and
+        <code>rules.&lt;ID&gt;.enabled</code> in the config file all read the same rule set, so the
+        same instructions work on every card. Each entry on
+        <a href="{{ site.baseurl }}/issues/">issues and fixes</a> links back to this section, to
+        <a href="#configuration">configuration</a>, <a href="#suppression">suppression</a> and
+        <a href="#baseline">baseline</a>, so the finding and the flag that governs it are one page
+        apart.
+      </p>
+      <p class="muted">
+        Or narrow by area first:
+        <a href="{{ site.baseurl }}/issues/#family-dead">dead code</a> ·
+        <a href="{{ site.baseurl }}/issues/#family-dup">duplication</a> ·
+        <a href="{{ site.baseurl }}/issues/#family-qual">quality</a> ·
+        <a href="{{ site.baseurl }}/issues/#family-perf">performance</a> ·
+        <a href="{{ site.baseurl }}/issues/#family-cloud">Cloud Service</a> ·
+        <a href="{{ site.baseurl }}/issues/#family-sec">security</a> ·
+        <a href="{{ site.baseurl }}/issues/#family-comp">components</a>.
+      </p>
     </section>
 
     <section id="formats">
@@ -125,7 +155,7 @@ description: Every flag, output format, exit code, configuration key and suppres
               <code>&lt;skipped/&gt;</code>. Jenkins, GitLab and Azure DevOps test-report tabs.
             </td></tr>
             <tr><td class="mono">HTML</td><td class="mono">aem-analyser-report.html</td><td>People: a standalone dashboard</td></tr>
-            <tr><td class="mono">SARIF</td><td class="mono">aem-analyser.sarif</td><td>GitHub code scanning, Azure DevOps</td></tr>
+            <tr><td class="mono">SARIF</td><td class="mono">aem-analyser.sarif</td><td>GitHub code scanning, Azure DevOps. Findings the auto-fixer can repair carry <code>fixes[].artifactChanges[].replacements[]</code> — the same edit <code>--fix</code> writes — so code scanning can show and apply the diff.</td></tr>
             <tr><td class="mono">SONAR</td><td class="mono">sonar-aem-analyser-report.json</td><td>SonarQube external issues</td></tr>
             <tr><td class="mono">GITHUB</td><td class="mono">github-annotations.txt</td><td><code>::error</code> / <code>::warning</code> lines — <code>cat</code> the file in the step</td></tr>
             <tr><td class="mono">GITLAB</td><td class="mono">gitlab-code-quality.json</td><td>GitLab code quality artefact</td></tr>
@@ -133,6 +163,49 @@ description: Every flag, output format, exit code, configuration key and suppres
           </tbody>
         </table>
       </div>
+    </section>
+
+    <section id="mcp">
+      <h2>MCP server</h2>
+      <p>
+        <code>aem-analyser --mcp</code> serves the Model Context Protocol on stdio, so an agent
+        already open in the editor (Claude Code, Cursor, Copilot) asks the analyser instead of
+        re-deriving AEM semantics. The tools answer from the same registry, the same
+        <code>AnalysisReport</code> and the same configuration layer the gate uses —
+        <code>--project-root</code>, <code>--config</code>, <code>--severity</code>,
+        <code>--sonar/--no-sonar</code> and <code>--no-cache</code> apply to the session.
+      </p>
+      <div class="code">
+        <div class="code__bar"><span class="code__label">.mcp.json</span></div>
+<pre><code>{
+  "mcpServers": {
+    "aem-analyser": {
+      "command": "java",
+      "args": ["-jar", "/path/to/aem-analyser-cli.jar", "--mcp",
+               "--project-root", "/path/to/aem-project"]
+    }
+  }
+}</code></pre>
+      </div>
+      <div class="table-wrap">
+        <table class="table--compact">
+          <thead><tr><th scope="col">Tool</th><th scope="col">Argument</th><th scope="col">Answers</th></tr></thead>
+          <tbody>
+            <tr><td class="mono">analyse</td><td class="mono">root (optional)</td><td>The compact finding list: <code>ruleId</code>, <code>severity</code>, <code>file</code>, <code>line</code>, <code>message</code>, <code>remediation</code> and the baseline <code>fingerprint</code>, plus per-severity counts. Defaults to the server's project root; another root is analysed with its own <code>.aem-analyser.yml</code>.</td></tr>
+            <tr><td class="mono">list_rules</td><td class="mono">tag (optional)</td><td>The rule catalogue — id, name, severity, type, tags, CWE, effort, one-line description — optionally filtered by tag. An unknown tag lists the known ones.</td></tr>
+            <tr><td class="mono">explain_rule</td><td class="mono">id</td><td>Full registry metadata for one rule: description, remediation, tags, CWE, effort and the documentation link. An unknown id is a JSON-RPC error, not an empty answer.</td></tr>
+            <tr><td class="mono">explain_finding</td><td class="mono">fingerprint</td><td>The finding and the rule that produced it. Uses the most recent <code>analyse</code>; with none in the session it analyses the server's project root once.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="muted">
+        Transport: one JSON-RPC 2.0 object per line (MCP revision <code>2025-06-18</code>, with
+        <code>2025-03-26</code> and <code>2024-11-05</code> accepted). <strong>stdout carries protocol
+        frames and nothing else</strong> — startup, analysis progress and errors go to stderr, which
+        <code>-q</code> silences. Unknown methods, unknown tools, unknown rule ids and malformed JSON
+        are answered with JSON-RPC error objects and the session keeps serving; closing stdin exits 0.
+        The tools are read-only: no report files are written and a non-zero exit is never a gate verdict.
+      </p>
     </section>
 
     <section id="exit-codes">
@@ -188,7 +261,15 @@ allowlists:
   services:
     - com.example.LegacyService
   configPaths:
-    - ui.config/**/config.local/**</code></pre>
+    - ui.config/**/config.local/**
+gate:
+  failOn: WARNING
+  failOnWarning: true
+  maxWarnings: 20
+  minCoverage: 80.0
+  maxDuplication: 3.0
+  formats: [CONSOLE, SARIF]
+  output: target/aem-analyser</code></pre>
       </div>
       <ul>
         <li><code>rules.&lt;ID&gt;.enabled</code> — turn a rule off without touching source.</li>
@@ -197,6 +278,47 @@ allowlists:
         <li><code>allowlists.configPaths</code> — configuration globs the dead-configuration rules ignore.</li>
         <li><code>schemaVersion</code> — configuration format version (currently <code>1</code>).</li>
       </ul>
+      <h3>The <code>gate</code> block</h3>
+      <p>
+        The gate lives in the committed file so <code>aem-analyser .</code> with no flags fails the
+        way the pipeline does — the equivalent of <code>sonar-project.properties</code> for this
+        tool. Every key is optional and independent, and a command-line flag for the same value
+        wins for a one-off run:
+      </p>
+      <div class="table-wrap">
+        <table class="table--compact">
+          <thead><tr><th scope="col">Key</th><th scope="col">Flag it stands in for</th></tr></thead>
+          <tbody>
+            <tr><td class="mono">gate.failOn</td><td><code>--fail-on</code> — <code>NONE</code>, <code>ERROR</code>, <code>WARNING</code> or <code>INFO</code>; any other value exits 2</td></tr>
+            <tr><td class="mono">gate.failOnWarning</td><td><code>-w/--fail-on-warning</code></td></tr>
+            <tr><td class="mono">gate.maxWarnings</td><td><code>--max-warnings</code></td></tr>
+            <tr><td class="mono">gate.minCoverage</td><td><code>--min-coverage</code></td></tr>
+            <tr><td class="mono">gate.maxDuplication</td><td><code>--max-duplication</code></td></tr>
+            <tr><td class="mono">gate.formats</td><td><code>-f/--format</code>, when no <code>-f</code> is given</td></tr>
+            <tr><td class="mono">gate.output</td><td><code>-o/--output</code>, when no <code>-o</code> is given</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="muted">
+        Precedence is per key: a flag on the command line, then the file's <code>gate</code> value,
+        then the analyser default. The block only chooses pass/fail and where reports go; it never
+        changes a rule's severity, so it cannot reshape the findings it grades. The run prints
+        <code>[INFO] Quality gate from .aem-analyser.yml: failOn=WARNING …</code> on stderr when the
+        block applied.
+      </p>
+
+      <h3>Shell completion</h3>
+      <p>
+        The completion script is generated from the same option model the parser uses (bash from
+        picocli, zsh and fish from the command spec), so it always matches <code>--help</code>, and
+        <code>--fail-on</code>/<code>--format</code> complete their accepted values.
+      </p>
+      <div class="code code--shell">
+        <div class="code__bar"><span class="code__label">bash · zsh · fish</span></div>
+<pre><code>source &lt;(aem-analyser --generate-completion bash)
+source &lt;(aem-analyser --generate-completion zsh)
+aem-analyser --generate-completion fish &gt; ~/.config/fish/completions/aem-analyser.fish</code></pre>
+      </div>
     </section>
 
     <section id="baseline">

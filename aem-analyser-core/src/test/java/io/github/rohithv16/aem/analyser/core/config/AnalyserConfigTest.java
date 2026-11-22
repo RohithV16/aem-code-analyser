@@ -54,6 +54,51 @@ class AnalyserConfigTest {
                 .anyMatch(v -> v.ruleId().equals("AEM-SEC-001") && v.severity() == Severity.WARNING));
     }
 
+    @Test
+    void loadsTheGateBlockFromTheSameFileAsTheRules() throws Exception {
+        Files.writeString(root.resolve(AnalyserConfigLoader.DEFAULT_FILE), """
+                schemaVersion: 1
+                gate:
+                  failOn: WARNING
+                  failOnWarning: true
+                  maxWarnings: 0
+                  minCoverage: 80.0
+                  maxDuplication: 3.0
+                  formats: [CONSOLE, SARIF]
+                  output: target/aem-analyser
+                rules:
+                  AEM-DEAD-003B:
+                    enabled: false
+                """);
+
+        AnalyserConfig config = AnalyserConfigLoader.loadIfPresent(root);
+
+        AnalyserConfig.Gate gate = config.gate();
+        assertEquals("WARNING", gate.failOn());
+        assertEquals(Boolean.TRUE, gate.failOnWarning());
+        assertEquals(0, gate.maxWarnings());
+        assertEquals(80.0, gate.minCoverage());
+        assertEquals(3.0, gate.maxDuplication());
+        assertEquals(List.of("CONSOLE", "SARIF"), gate.formats());
+        assertEquals("target/aem-analyser", gate.output());
+        // The gate is a separate layer: it must not disable or re-severity anything.
+        assertFalse(config.isEnabled("AEM-DEAD-003B"));
+    }
+
+    @Test
+    void aConfigurationWithoutAGateKeepsTheDefaults() throws Exception {
+        Files.writeString(root.resolve(AnalyserConfigLoader.DEFAULT_FILE), """
+                schemaVersion: 1
+                rules:
+                  AEM-DEAD-003B:
+                    severity: INFO
+                """);
+
+        AnalyserConfig config = AnalyserConfigLoader.loadIfPresent(root);
+
+        assertEquals(null, config.gate());
+    }
+
     private Violation violation(String ruleId, Severity severity) {
         return new Violation(ruleId, severity, "X", "message", "core/A.java",
                 new TextRegion(1, 1, 1, 2), null, null, List.of());

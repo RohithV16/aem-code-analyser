@@ -8,6 +8,11 @@ import io.github.rohithv16.aem.analyser.core.rules.impl.AemCloud004Rule;
 import io.github.rohithv16.aem.analyser.core.rules.impl.AemCloud005Rule;
 import io.github.rohithv16.aem.analyser.core.rules.impl.AemCloud006Rule;
 import io.github.rohithv16.aem.analyser.core.rules.impl.AemCloud007Rule;
+import io.github.rohithv16.aem.analyser.core.rules.impl.AemA11y001Rule;
+import io.github.rohithv16.aem.analyser.core.rules.impl.AemA11y002Rule;
+import io.github.rohithv16.aem.analyser.core.rules.impl.AemCloud008Rule;
+import io.github.rohithv16.aem.analyser.core.rules.impl.AemCloud009Rule;
+import io.github.rohithv16.aem.analyser.core.rules.impl.AemCloud010Rule;
 import io.github.rohithv16.aem.analyser.core.rules.impl.AemComp001Rule;
 import io.github.rohithv16.aem.analyser.core.rules.impl.AemComp002Rule;
 import io.github.rohithv16.aem.analyser.core.rules.impl.AemDead001Rule;
@@ -19,6 +24,7 @@ import io.github.rohithv16.aem.analyser.core.rules.impl.AemDead003CRule;
 import io.github.rohithv16.aem.analyser.core.rules.impl.AemDead004Rule;
 import io.github.rohithv16.aem.analyser.core.rules.impl.AemDead005Rule;
 import io.github.rohithv16.aem.analyser.core.rules.impl.AemDead007Rule;
+import io.github.rohithv16.aem.analyser.core.rules.impl.AemDead006Rule;
 import io.github.rohithv16.aem.analyser.core.rules.impl.AemDup001Rule;
 import io.github.rohithv16.aem.analyser.core.rules.impl.AemDup002Rule;
 import io.github.rohithv16.aem.analyser.core.rules.impl.AemDup003Rule;
@@ -32,6 +38,8 @@ import io.github.rohithv16.aem.analyser.core.rules.impl.AemQual003Rule;
 import io.github.rohithv16.aem.analyser.core.rules.impl.AemQual004Rule;
 import io.github.rohithv16.aem.analyser.core.rules.impl.AemQual005Rule;
 import io.github.rohithv16.aem.analyser.core.rules.impl.AemQual008Rule;
+import io.github.rohithv16.aem.analyser.core.rules.impl.AemQual007Rule;
+import io.github.rohithv16.aem.analyser.core.rules.impl.AemWf001Rule;
 import io.github.rohithv16.aem.analyser.core.rules.impl.AemSec001Rule;
 import io.github.rohithv16.aem.analyser.core.rules.impl.AemSec002Rule;
 
@@ -65,19 +73,46 @@ public final class RuleCatalog {
 
     /**
      * Ids that no longer have any producer. Unlike {@link #PRODUCED_ELSEWHERE}, these are reported as
-     * disabled in SARIF because nothing can ever emit them.
+     * disabled in SARIF because nothing can ever emit them. Derived from {@link RuleId#status()} so
+     * the enum remains the single source of truth.
      */
     public static final Set<String> RETIRED = Collections.unmodifiableSet(
-            new java.util.LinkedHashSet<>(List.of(RuleId.AEM_QUAL_006.id())));
+            new java.util.LinkedHashSet<>(java.util.Arrays.stream(RuleId.values())
+                    .filter(RuleId::isRetired)
+                    .map(RuleId::id)
+                    .collect(java.util.stream.Collectors.toCollection(java.util.LinkedHashSet::new))));
 
     /**
      * Replacement for each retired id, so every surface can name the rule that took over instead of
      * leaving a user to guess. A retired id resolves silently otherwise: a config or baseline that
      * disables it looks like a covered rule while nothing runs.
      */
-    private static final Map<String, String> RETIRED_REPLACEMENTS = Map.of(
-            // Identical check, originally split across two ids; AEM-QUAL-004 is the live one.
-            RuleId.AEM_QUAL_006.id(), RuleId.AEM_QUAL_004.id());
+    private static final Map<String, String> RETIRED_REPLACEMENTS = replacements();
+    private static final Map<String, String> ALIASES = aliases();
+
+    private static Map<String, String> replacements() {
+        Map<String, String> replacements = new java.util.LinkedHashMap<>();
+        for (RuleId rule : RuleId.values()) {
+            rule.replacedBy().ifPresent(replacement -> replacements.put(rule.id(), replacement));
+        }
+        return Collections.unmodifiableMap(replacements);
+    }
+
+    /**
+     * Every id that is no longer the preferred spelling, including deprecated ids that still have a
+     * producer. Alias resolution deliberately keeps the old id in the report when it can still fire;
+     * only a retired id can be rewritten to its replacement, because rewriting a live id would
+     * change the fingerprint and re-open a baselined finding.
+     */
+    private static Map<String, String> aliases() {
+        Map<String, String> aliases = new java.util.LinkedHashMap<>(RETIRED_REPLACEMENTS);
+        for (RuleId rule : RuleId.values()) {
+            if (rule.status() == io.github.rohithv16.aem.analyser.core.model.report.RuleStatus.DEPRECATED) {
+                rule.replacedBy().ifPresent(replacement -> aliases.put(rule.id(), replacement));
+            }
+        }
+        return Collections.unmodifiableMap(aliases);
+    }
 
     /** True when {@code ruleId} names a retired rule (case-insensitive). */
     public static boolean isRetired(String ruleId) {
@@ -89,6 +124,36 @@ public final class RuleCatalog {
         return ruleId == null
                 ? java.util.Optional.empty()
                 : java.util.Optional.ofNullable(RETIRED_REPLACEMENTS.get(normalize(ruleId)));
+    }
+
+    /** True when {@code ruleId} is an old spelling that resolves to a different canonical id. */
+    public static boolean isAlias(String ruleId) {
+        return ruleId != null && ALIASES.containsKey(normalize(ruleId));
+    }
+
+    /**
+     * Canonical id for a configured or stored id: an active id is returned unchanged, a retired or
+     * deprecated alias resolves to its replacement, and an unknown id is returned as-is so the
+     * caller can report it. Case is normalised, because configuration is written by humans.
+     */
+    public static String resolve(String ruleId) {
+        if (ruleId == null) {
+            return "";
+        }
+        String normalized = normalize(ruleId);
+        return ALIASES.getOrDefault(normalized, normalized);
+    }
+
+    /** Lifecycle status for an id, ACTIVE for an unknown id (callers validate separately). */
+    public static io.github.rohithv16.aem.analyser.core.model.report.RuleStatus statusOf(String ruleId) {
+        if (ruleId == null) {
+            return io.github.rohithv16.aem.analyser.core.model.report.RuleStatus.ACTIVE;
+        }
+        try {
+            return RuleId.fromId(normalize(ruleId)).status();
+        } catch (IllegalArgumentException unknown) {
+            return io.github.rohithv16.aem.analyser.core.model.report.RuleStatus.ACTIVE;
+        }
     }
 
     /** The retirement note every surface prints, e.g. {@code RETIRED — replaced by AEM-QUAL-004}. */
@@ -114,6 +179,7 @@ public final class RuleCatalog {
             new AemDead003CRule(),
             new AemDead004Rule(),
             new AemDead005Rule(),
+            new AemDead006Rule(),
             new AemDead007Rule(),
             new AemComp001Rule(),
             new AemComp002Rule(),
@@ -125,6 +191,7 @@ public final class RuleCatalog {
             new AemQual003Rule(),
             new AemQual004Rule(),
             new AemQual005Rule(),
+            new AemQual007Rule(),
             new AemQual008Rule(),
             new AemPerf001Rule(),
             new AemPerf002Rule(),
@@ -137,8 +204,14 @@ public final class RuleCatalog {
             new AemCloud005Rule(),
             new AemCloud006Rule(),
             new AemCloud007Rule(),
+            new AemCloud008Rule(),
+            new AemCloud009Rule(),
+            new AemCloud010Rule(),
             new AemSec001Rule(),
-            new AemSec002Rule()));
+            new AemSec002Rule(),
+            new AemWf001Rule(),
+            new AemA11y001Rule(),
+            new AemA11y002Rule()));
 
     private RuleCatalog() {
     }

@@ -22,9 +22,12 @@ mvn clean verify
 
 1. Implement `RuleEvaluator` in `core/rules/impl` and add it to `RuleCatalog` (the registry is
    validated against `RuleId` at startup, so a missing or duplicate producer fails immediately).
-2. Add the id (and default severity) to `model/report/RuleId`.
-3. Add at least one true-positive and one false-positive-guard fixture.
-4. Run `scripts/run-rule-probes.sh` and the validation project before opening a PR.
+2. Add the id (and default severity) to `model/report/RuleId`, then regenerate `rule-ids.lock` (the
+   lock test names an id removed or re-status-ed without a review).
+3. Add a positive probe under `validation/probes` and a fixed twin under `validation/probes-clean`;
+   record both in `validation/probes/evidence.json`.
+4. Run `scripts/generate-rule-evidence.py`, `scripts/run-rule-probes.sh` and the validation project
+   before opening a PR.
 5. Update `README.md`, regenerate the issue reference (`--generate-rule-docs docs`) and add a
    `CHANGELOG.md` entry.
 

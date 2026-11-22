@@ -9,7 +9,7 @@ that single-language tools cannot see.
 
 ## Quick start
 
-Pick whichever is easiest — all three need no configuration and no flags.
+Pick whichever is easiest — all four need no configuration and no flags.
 
 ### 1 · Run it now, nothing to install
 
@@ -22,16 +22,28 @@ scripts/run-from-source.sh ~/my-aem-project
 The script builds once (Maven, Java 21) and then analyses the path you gave it. Later runs reuse the
 build and start instantly. Leave the path out to analyse the directory you are standing in.
 
-### 2 · Or download the jar
+### 2 · Or install the CLI
+
+```bash
+curl -fsSLO https://raw.githubusercontent.com/RohithV16/aem-code-analyser/main/install.sh
+sh install.sh                 # newest release; --version 1.0.10 pins one
+cd ~/my-aem-project && aem-analyser .
+```
+
+The installer checks the jar against the release's own `SHA256SUMS.txt` before installing anything,
+puts it under `~/.local/share/aem-analyser/<version>/` and writes `~/.local/bin/aem-analyser`
+(`--prefix` to install elsewhere). The launcher honours `JAVA_HOME` and needs Java 21.
+
+Prefer no installer? The jar is a single file:
 
 ```bash
 curl -LO https://github.com/RohithV16/aem-code-analyser/releases/latest/download/aem-analyser-cli.jar
 cd ~/my-aem-project && java -jar aem-analyser-cli.jar
 ```
 
-Self-contained; all it needs is Java 21. Run it inside the project and it finds everything by itself.
-Every run prints a console report and writes an HTML dashboard to `target/aem-analyser/` by default
-(`--no-html` skips the dashboard).
+Either way it is self-contained and needs nothing but Java 21. Run it inside the project and it finds
+everything by itself. Every run prints a console report and writes an HTML dashboard to
+`target/aem-analyser/` by default (`--no-html` skips the dashboard).
 
 ### 3 · Or wire it into the build
 
@@ -53,6 +65,19 @@ Every run prints a console report and writes an HTML dashboard to `target/aem-an
 `mvn verify` now fails on new findings. It resolves straight from **Maven Central** — no
 `<pluginRepositories>`, no token, nothing to configure.
 
+### 4 · Or run the container
+
+```bash
+docker run --rm -v "$PWD:/src" ghcr.io/rohithv16/aem-code-analyser:1.0.10
+```
+
+No JDK on the agent — only a container runtime. The image is a bare JRE plus the same shaded jar, so
+the findings are identical to the jar route; the dashboard is written to `target/aem-analyser/` in the
+mounted project. It runs as UID/GID `1000`; on Linux agents whose user differs, add
+`--user "$(id -u):$(id -g)"` so the reports stay yours. Each release publishes `:<version>` and
+`:latest`, with OCI source/version labels, provenance and an SBOM (`--version` prints the built
+version).
+
 ### No flags needed
 
 | You run it in | Root that gets analysed |
@@ -67,10 +92,10 @@ an empty `<relativePath/>`, because that parent comes from a repository.
 
 ## What it checks
 
-**30 rules in seven families:** dead code (8), duplication (4), Cloud Manager parity (6),
-performance (4), AEM as a Cloud Service (5), security (2), component compatibility (1). Findings are
-reported as console output, an HTML dashboard, SARIF 2.1.0, SonarQube issues, or GitHub/GitLab/Azure
-annotations.
+**43 rules in eight families:** dead code (9), duplication (4), Cloud Manager parity (6),
+performance (4), AEM as a Cloud Service (10), security (2), component compatibility (2), workflow
+integrity (1). Findings are reported as console output, an HTML dashboard, SARIF 2.1.0, SonarQube
+issues, or GitHub/GitLab/Azure annotations.
 
 **→ [Issue reference — every rule, what it detects, how to fix it](https://rohithv16.github.io/aem-code-analyser/issues/)** ·
 `aem-analyser --explain AEM-DEAD-001` for the same detail in the terminal.
@@ -92,7 +117,8 @@ java -jar aem-analyser-cli.jar --baseline .aem-analyser-baseline.json
 java -jar aem-analyser-cli.jar --explain AEM-DEAD-001     # one rule's rationale
 ```
 
-A shell alias keeps it short: `alias aem-analyser="java -jar /path/to/aem-analyser-cli.jar"`.
+A shell alias keeps it short: `alias aem-analyser="java -jar /path/to/aem-analyser-cli.jar"` — or
+install it once ([route 2](#2--or-install-the-cli)) and every flag above reads `aem-analyser --no-html`.
 
 ## CLI options reference
 
@@ -138,13 +164,45 @@ and offers a persistent dark mode, print stylesheet and keyboard-accessible tabs
 | `--max-warnings <n>` | — | Quality gate: maximum warnings. |
 | `--sonar` / `--no-sonar` | on | Toggle embedded SonarJava analysis. |
 | `--sonar-rules <list>` | `default` | SonarJava ruleset filter. |
-| `--list-rules` | — | Print the effective rule catalogue and exit. |
+| `--list-rules` | — | Print the effective rule catalogue and exit. `--format json` emits the same catalogue with probe evidence. |
 | `--explain <RULE>` | — | Print one rule's effective metadata and exit. |
 | `--tag <tag>` | — | With `--list-rules`: only rules carrying the tag. |
+| `--diagnose <RULE:PATH:LINE>` | — | Write one redacted, offline repro bundle for a finding and exit. |
+| `--import-report <sarif>` | — | Read another analyser's SARIF for migration coverage. |
+| `--import-map <file>` | — | Map foreign rule ids to analyser ids (`java:S3649: AEM-QUAL-004`); requires `--import-report`. |
+| `--mcp` | off | Serve MCP on stdio for editor agents: `analyse`, `list_rules`, `explain_rule`, `explain_finding`. stdout is protocol-only; logs go to stderr. |
 | `--generate-rule-docs <dir>` | — | Generate the issue reference page into `<dir>/issues` and exit. |
 | `-v, --verbose` | off | Print analysis diagnostics on stderr. |
 | `-q, --quiet` | off | Silence progress and warning lines on stderr; the report on stdout is unaffected. |
 | `--no-color` | off | Disable ANSI colours. |
+
+### MCP server for editor agents
+
+`--mcp` serves the [Model Context Protocol](https://modelcontextprotocol.io) over stdio, so Claude
+Code, Cursor or Copilot ask the analyser instead of re-deriving AEM semantics. Point your client at
+the shaded jar; the project root and the effective configuration are the same ones a gate run uses:
+
+```json
+{
+  "mcpServers": {
+    "aem-analyser": {
+      "command": "java",
+      "args": ["-jar", "/path/to/aem-analyser-cli.jar", "--mcp", "--project-root", "/path/to/aem-project"]
+    }
+  }
+}
+```
+
+| Tool | Argument | Returns |
+|---|---|---|
+| `analyse` | `root` (optional) | Compact findings (`ruleId`, `severity`, `file`, `line`, `message`, `remediation`, `fingerprint`) plus per-severity counts. |
+| `list_rules` | `tag` (optional) | The rule catalogue: id, name, severity, type, tags, CWE, effort. |
+| `explain_rule` | `id` | Full metadata and remediation for one rule; unknown ids are JSON-RPC errors. |
+| `explain_finding` | `fingerprint` | The finding plus the rule that produced it, using the session's latest `analyse`. |
+
+stdout carries JSON-RPC frames only (one object per line); startup, progress and errors go to stderr,
+which `-q` silences. Malformed JSON, unknown methods, unknown tools and unknown rule ids come back as
+JSON-RPC error objects and the session keeps serving; closing stdin exits 0.
 
 ---
 
@@ -188,8 +246,8 @@ Both `aem-analyser:check` and `aem-analyser:report` share these parameters.
 ## Validation probes (deliberate per-rule test code)
 
 `validation/probes` is a self-contained source fixture set, laid out like an AEM reactor, with one
-positive case for every rule. It is analyser input rather than a compilable project, and it
-exercises the full CLI pipeline rather than isolated unit fixtures.
+positive case for every rule; `validation/probes-clean` is its fixed twin. It is analyser input rather
+than a compilable project, and it exercises the full CLI pipeline rather than isolated unit fixtures.
 
 ```bash
 # Run the probes directly
@@ -205,10 +263,12 @@ KEEP=1 scripts/inject-rule-probes.sh /path/to/aem-project
 
 The checker requires every rule in `validation/probes/expected-rules.txt` to appear in SARIF **on a
 probe file**, fails on any rule id missing from that list, and fails if the parser skipped a file
-(`*_PARSE_ERROR`). Injection runs relax only the last check, because a real repository may contain
+(`*_PARSE_ERROR`). It also reads `validation/probes/evidence.json` and asserts that the declared
+positive probe produces exactly one finding while its clean twin produces none, printing one
+`PAIR OK` per rule. Injection runs relax only the parser check, because a real repository may contain
 genuinely unparseable sources; those diagnostics are still printed. See
 [`validation/probes/README.md`](validation/probes/README.md) for the full probe matrix and how to add
-a case.
+a case. The same evidence is published in the jar and at `/evidence/rule-evidence.json`.
 
 ### Validation reactor (cross-module behaviour)
 

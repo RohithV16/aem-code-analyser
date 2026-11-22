@@ -156,6 +156,38 @@ class RuleDocsGeneratorTest {
     }
 
     @Test
+    void everyRuleEntryLinksItsTuningFlagsAndTwoSiblings() throws Exception {
+        RuleDocsGenerator.writeAll(output);
+        String index = Files.readString(output.resolve("issues/index.html"));
+
+        for (RuleDescriptor rule : RuleRegistry.all()) {
+            String anchor = RuleDocsGenerator.anchorFor(rule.id());
+            String page = Files.readString(output.resolve("issues").resolve(anchor).resolve("index.html"));
+
+            // Every entry, on the index and on its own page, routes to the four ways to tune it.
+            for (String target : List.of("configuration", "flags", "suppression", "baseline")) {
+                assertEquals(1, countOccurrences(page, "reference/#" + target),
+                        rule.id() + " page must link reference/#" + target + " exactly once");
+            }
+            assertEquals(RuleRegistry.all().size(), countOccurrences(index, "reference/#suppression"),
+                    "every index card needs the tuning row");
+
+            // A sibling is a real page: the href must resolve to a directory this generator wrote.
+            String siblings = page.substring(page.indexOf("class=\"rule-card__siblings\""));
+            siblings = siblings.substring(0, siblings.indexOf("</p>"));
+            List<String> hrefs = java.util.regex.Pattern.compile("href=\"(\\.\\./[a-z0-9-]+/)\"")
+                    .matcher(siblings).results().map(match -> match.group(1)).toList();
+            assertFalse(hrefs.isEmpty(), rule.id() + " has no sibling link");
+            for (String href : hrefs) {
+                String sibling = href.replace("../", "").replace("/", "");
+                assertFalse(sibling.equals(anchor), rule.id() + " links to itself as a sibling");
+                assertTrue(Files.isRegularFile(output.resolve("issues").resolve(sibling).resolve("index.html")),
+                        rule.id() + " links to a missing sibling page: " + href);
+            }
+        }
+    }
+
+    @Test
     void escapesMarkupFromRuleText() throws Exception {
         RuleDocsGenerator.writeAll(output);
         String html = Files.readString(output.resolve("issues/index.html"));

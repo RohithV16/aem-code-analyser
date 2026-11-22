@@ -1,0 +1,54 @@
+name: Rule finding looks wrong
+description: Report a false positive with a redacted, offline diagnose bundle.
+title: "[rule] <AEM-RULE-ID> reports a finding I believe is wrong"
+labels: ["bug", "rule-feedback"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        A linter is adopted on its quiet side, so a false positive matters. Generate the bundle
+        locally — it is redacted and nothing is transmitted:
+
+        ```bash
+        aem-analyser <project> --diagnose "AEM-DEAD-004:ui.apps/path/card.html:42"
+        ```
+
+        The command writes `aem-analyser-diagnose-<rule>.zip`. Unzip it and paste `issue.md` below,
+        or attach the four files (`issue.md`, `finding.json`, `excerpt.txt`, `environment.json`).
+  - type: textarea
+    id: bundle
+    attributes:
+      label: Diagnose bundle (issue.md)
+      description: Paste the contents of `issue.md` from the generated zip. It contains the rule, the finding, a ±5-line excerpt, the effective configuration and the parser diagnostics.
+      render: markdown
+      placeholder: |
+        ## AEM-... reports a finding I believe is wrong
+        **Rule:** ...
+        **Finding:** ...
+    validations:
+      required: true
+  - type: textarea
+    id: expectation
+    attributes:
+      label: What the code actually does
+      description: Explain why the rule should not fire here. A short code sketch is enough if the excerpt cannot show the cross-file reason.
+      placeholder: The component field is assigned per request in activate() and never shared...
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Analyser version
+      description: From `aem-analyser --version`; also present in `environment.json`.
+      placeholder: 1.1.0
+    validations:
+      required: true
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before filing
+      options:
+        - label: I generated the bundle with `--diagnose` and reviewed it for anything I do not want public.
+          required: true
+        - label: I searched existing issues for the same rule and location.
+          required: false

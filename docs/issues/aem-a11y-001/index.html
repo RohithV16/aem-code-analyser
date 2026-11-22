@@ -1,0 +1,56 @@
+---
+layout: default
+nav: issues
+title: "AEM-A11Y-001 ImageWithoutAlt — HTL img element has no alt attribute or data-sly-attribute.alt fallback (WCAG 1.1.1)."
+description: "AEM-A11Y-001 (WARNING): HTL img element has no alt attribute or data-sly-attribute.alt fallback (WCAG 1.1.1)."
+rule_id: "AEM-A11Y-001"
+rule_family: "A11Y"
+rule_family_title: "Accessibility"
+rule_severity: "WARNING"
+rule_tags: "accessibility, htl, wcag"
+---
+
+<div class="shell docs">
+  <div class="docs__main">
+    <p class="muted"><a href="../">← All 43 rules</a></p>
+    <div class="issues-head">
+      <h1><span class="rule-card__id">AEM-A11Y-001</span> ImageWithoutAlt</h1>
+      <p class="lede">HTL img element has no alt attribute or data-sly-attribute.alt fallback (WCAG 1.1.1).</p>
+      <p class="muted"><span class="pill pill--warning">WARNING</span> · 10 min fix · Bug · <a href="../#family-a11y">Accessibility</a></p>
+    </div>
+
+    <article class="rule-card rule-card--page" id="aem-a11y-001" data-family="A11Y">
+        <p class="rule-card__summary">HTL img element has no alt attribute or data-sly-attribute.alt fallback (WCAG 1.1.1).</p>
+        <h2>Why it matters</h2>
+        <p>WCAG 1.1.1 requires a text alternative for every image that conveys meaning. Sightly renders an &lt;img&gt; exactly as written, so a missing alt reaches the page even though every other output expression is escaped. Screen readers then announce the file name or skip the image entirely, and tools such as axe can only find it after the page is rendered and deployed.</p>
+        <h2>How to fix it</h2>
+        <p>Add alt with a short description, bind it with data-sly-attribute.alt when it comes from the component, or use an empty alt=&quot;&quot; for a purely decorative image. A dynamic expression counts as present: the value is resolved per request.</p>
+        <div class="examples">
+          <div class="code code--bad">
+            <div class="code__bar"><span class="code__label">html · before</span></div>
+            <pre><code>&lt;!-- components/hero/hero.html --&gt;
+&lt;img src=&quot;${model.image}&quot; class=&quot;hero__image&quot;&gt;</code></pre>
+          </div>
+          <div class="code code--good">
+            <div class="code__bar"><span class="code__label">html · after</span></div>
+            <pre><code>&lt;!-- components/hero/hero.html --&gt;
+&lt;img src=&quot;${model.image}&quot; class=&quot;hero__image&quot; alt=&quot;${model.imageAlt}&quot;&gt;
+
+&lt;!-- decorative divider: empty alt, not a missing one --&gt;
+&lt;img src=&quot;/etc.clientlibs/acme/divider.svg&quot; alt=&quot;&quot;&gt;</code></pre>
+          </div>
+        </div>
+        <p class="suppress">Suppress one line: <code>// aem-analyser-disable-next-line AEM-A11Y-001</code> · tags accessibility, htl, wcag · <code>--explain AEM-A11Y-001</code></p>
+        <div class="rule-card__tune">
+          <span class="rule-card__tune-label">Tune this rule</span>
+          <a href="../../reference/#configuration">Disable or re-scope it in <code>.aem-analyser.yml</code></a>
+          <a href="../../reference/#flags">Fail the build on it with <code>--fail-on</code></a>
+          <a href="../../reference/#suppression">Suppress one occurrence inline</a>
+          <a href="../../reference/#baseline">Accept it in a baseline</a>
+          <a href="../../reference/#exit-codes">What its severity means for the exit code</a>
+        </div>
+        <p class="rule-card__siblings">Same family: <a href="../aem-a11y-002/" title="LinkWithoutAccessibleName">AEM-A11Y-002</a> · <a href="../#family-a11y">all rules in this family</a></p>
+    </article>
+    <p class="muted">Every rule in the catalogue, with what it detects and how to fix it: <a href="../">all 43 rules</a>. Suppress a single line with <code>// aem-analyser-disable-next-line AEM-A11Y-001</code>.</p>
+  </div>
+</div>

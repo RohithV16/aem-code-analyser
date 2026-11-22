@@ -1,0 +1,996 @@
+[
+ {
+  "id": "/",
+  "kind": "page",
+  "text": "AEM Code Analyser reads the whole AEM reactor at once — Java, HTL, OSGi configuration, client libraries and content packages — and reports dead code, orphaned configuration, duplicate endpoints and the patterns that break on AEM as a Cloud Service. AEM static analysis · Java 21 · 38 rules Findings that only appear across modules. AEM Code Analyser reads the whole reactor at once — Java, HTL, OSGi configuration …",
+  "title": "Whole-project static analysis for AEM",
+  "url": "/"
+ },
+ {
+  "id": "/compatibility/",
+  "kind": "page",
+  "text": "What may change in a patch, minor or major release — rule ids, severities, baselines and report schemas. On this page Rule ids Status and since rule-ids.lock Baselines Release-by-release Elsewhere CLI reference Issues and fixes Compatibility contract A gate is only useful if a green build stays green. Rule ids, their meaning and the files that remember a decision — the configuration, inline directives and the …",
+  "title": "Compatibility contract",
+  "url": "/compatibility/"
+ },
+ {
+  "id": "/evidence/",
+  "kind": "page",
+  "text": "Two-sided evidence for every rule — the deliberate defect that must fire and the clean twin that must stay silent. On this page Download What a row means How CI enforces it Elsewhere Rule catalogue Compatibility contract Rule evidence A linter is adopted on its quiet side. Every rule therefore ships a positive probe — a deliberate defect that must produce exactly one finding — and a clean twin that differs only by …",
+  "title": "Rule evidence",
+  "url": "/evidence/"
+ },
+ {
+  "id": "/issues/",
+  "kind": "page",
+  "text": "Every AEM Code Analyser rule — what it detects, why it matters on AEM as a Cloud Service, and how to fix it with a code example. Issues and fixes Every rule in the catalogue: what it detects, why it matters in an AEM project, and the fix with a before and after example. Every finding in the HTML dashboard links straight to its entry here. Filter issues All 43 Dead code 10 Duplication 4 Quality 8 Performance 4 Cloud …",
+  "title": "Issues and fixes",
+  "url": "/issues/"
+ },
+ {
+  "id": "/maintainers/",
+  "kind": "page",
+  "text": "## 0. Current state **Live since 1.0.10.** `io.github.rohithv16:aem-code-analyser`, `aem-analyser-core` and `aem-analyser-maven-plugin` are on Maven Central with sources, javadoc and signatures; consumers need no repository entry and no credentials. ``` https://repo1.maven.org/maven2/io/github/rohithv16/ ``` Everything Central validates is produced by the `release-central` profile: | Requirement | Where it is …",
+  "title": "Maven Central publishing guide",
+  "url": "/maintainers/"
+ },
+ {
+  "id": "/releases/",
+  "kind": "page",
+  "text": "Every AEM Code Analyser release, newest first: the rules added, behaviour changes and fixes in each version, and which upgrades can fail a gate. # Release notes Every released version, newest first. The **Added** sections are the ones to read before an upgrade: a new ERROR-severity rule fails a build that passed on the previous version. Each version page is generated from …",
+  "title": "Release notes",
+  "url": "/releases/"
+ },
+ {
+  "id": "/releases/1.0.0/",
+  "kind": "page",
+  "text": "Release notes for AEM Code Analyser 1.0.0: rules added, behaviour changes and fixes, and which of them can fail a gate that passed on the previous version. # AEM Code Analyser 1.0.0 Released 2026-11-15 · All release notes · GitHub release > **Upgrading?** A rule added in a release can fail a gate that passed on the previous > version. Run this version once on a branch (`aem-analyser . --no-html`) before bumping CI …",
+  "title": "1.0.0 — AEM Code Analyser release notes",
+  "url": "/releases/1.0.0/"
+ },
+ {
+  "id": "/releases/1.0.10/",
+  "kind": "page",
+  "text": "Release notes for AEM Code Analyser 1.0.10: rules added, behaviour changes and fixes, and which of them can fail a gate that passed on the previous version. # AEM Code Analyser 1.0.10 Released 2026-11-16 · All release notes · GitHub release > **Upgrading?** A rule added in a release can fail a gate that passed on the previous > version. Run this version once on a branch (`aem-analyser . --no-html`) before bumping …",
+  "title": "1.0.10 — AEM Code Analyser release notes",
+  "url": "/releases/1.0.10/"
+ },
+ {
+  "id": "/releases/1.0.4/",
+  "kind": "page",
+  "text": "Release notes for AEM Code Analyser 1.0.4: rules added, behaviour changes and fixes, and which of them can fail a gate that passed on the previous version. # AEM Code Analyser 1.0.4 Released 2026-11-16 · All release notes · GitHub release > **Upgrading?** A rule added in a release can fail a gate that passed on the previous > version. Run this version once on a branch (`aem-analyser . --no-html`) before bumping CI …",
+  "title": "1.0.4 — AEM Code Analyser release notes",
+  "url": "/releases/1.0.4/"
+ },
+ {
+  "id": "/releases/1.0.5/",
+  "kind": "page",
+  "text": "Release notes for AEM Code Analyser 1.0.5: rules added, behaviour changes and fixes, and which of them can fail a gate that passed on the previous version. # AEM Code Analyser 1.0.5 Released 2026-11-16 · All release notes · GitHub release > **Upgrading?** A rule added in a release can fail a gate that passed on the previous > version. Run this version once on a branch (`aem-analyser . --no-html`) before bumping CI …",
+  "title": "1.0.5 — AEM Code Analyser release notes",
+  "url": "/releases/1.0.5/"
+ },
+ {
+  "id": "/releases/1.0.6/",
+  "kind": "page",
+  "text": "Release notes for AEM Code Analyser 1.0.6: rules added, behaviour changes and fixes, and which of them can fail a gate that passed on the previous version. # AEM Code Analyser 1.0.6 Released 2026-11-16 · All release notes · GitHub release > **Upgrading?** A rule added in a release can fail a gate that passed on the previous > version. Run this version once on a branch (`aem-analyser . --no-html`) before bumping CI …",
+  "title": "1.0.6 — AEM Code Analyser release notes",
+  "url": "/releases/1.0.6/"
+ },
+ {
+  "id": "/releases/1.0.7/",
+  "kind": "page",
+  "text": "Release notes for AEM Code Analyser 1.0.7: rules added, behaviour changes and fixes, and which of them can fail a gate that passed on the previous version. # AEM Code Analyser 1.0.7 Released 2026-11-16 · All release notes · GitHub release > **Upgrading?** A rule added in a release can fail a gate that passed on the previous > version. Run this version once on a branch (`aem-analyser . --no-html`) before bumping CI …",
+  "title": "1.0.7 — AEM Code Analyser release notes",
+  "url": "/releases/1.0.7/"
+ },
+ {
+  "id": "/releases/1.0.8/",
+  "kind": "page",
+  "text": "Release notes for AEM Code Analyser 1.0.8: rules added, behaviour changes and fixes, and which of them can fail a gate that passed on the previous version. # AEM Code Analyser 1.0.8 Released 2026-11-16 · All release notes · GitHub release > **Upgrading?** A rule added in a release can fail a gate that passed on the previous > version. Run this version once on a branch (`aem-analyser . --no-html`) before bumping CI …",
+  "title": "1.0.8 — AEM Code Analyser release notes",
+  "url": "/releases/1.0.8/"
+ },
+ {
+  "id": "/releases/1.0.9/",
+  "kind": "page",
+  "text": "Release notes for AEM Code Analyser 1.0.9: rules added, behaviour changes and fixes, and which of them can fail a gate that passed on the previous version. # AEM Code Analyser 1.0.9 Released 2026-11-16 · All release notes · GitHub release > **Upgrading?** A rule added in a release can fail a gate that passed on the previous > version. Run this version once on a branch (`aem-analyser . --no-html`) before bumping CI …",
+  "title": "1.0.9 — AEM Code Analyser release notes",
+  "url": "/releases/1.0.9/"
+ },
+ {
+  "id": "/#compatibility",
+  "kind": "section",
+  "text": "What it runs on, and what it will not tell you What it runs on, and what it will not tell you Everything below is checked by the project's own test suite or visible in the report. Targets AEM 6.5 and AEM as a Cloud Service projects. Maven reactors with core , ui.apps , ui.config , dispatcher Cloud Service rules are the ones that matter on AEMaaCS; the dead-code, duplication and security rules apply to both. Runtime …",
+  "title": "What it runs on, and what it will not tell you",
+  "url": "/#compatibility"
+ },
+ {
+  "id": "/#install",
+  "kind": "section",
+  "text": "Three ways in Three ways in To get a first report nothing needs configuring: no flags, no project-root argument, no config file. CLI jar Maven build From source bash · Java 21 required, nothing else HOST=https://github.com/RohithV16/aem-code-analyser curl -LO \"$HOST/releases/latest/download/aem-analyser-cli.jar\" java -jar aem-analyser-cli.jar ~/my-aem-project Self-contained jar. At the reactor root it scans the …",
+  "title": "Three ways in",
+  "url": "/#install"
+ },
+ {
+  "id": "/compare/",
+  "kind": "decision",
+  "text": "AEM static analysis that runs locally, without an AEM instance or a Sonar server — how it differs from the Cloud Manager gate, SonarQube with SonarJava, and Adobe's own Analyzer. Decision page Compared with the Cloud Manager gate, SonarQube and Adobe’s Analyzer “Why not just SonarQube plus the Cloud Manager gate?” is the fair question. Short answer: those two see one module at a time, and neither knows what an OSGi …",
+  "title": "Compared with SonarQube, Cloud Manager and AEM Analyzer",
+  "url": "/compare/"
+ },
+ {
+  "id": "/compatibility/#baseline",
+  "kind": "section",
+  "text": "Baselines and report schemas Baselines and report schemas The baseline file carries its own schemaVersion . A change to the fingerprint algorithm bumps it, and an older file is rejected with instructions to regenerate — it is never silently mis-matched. The current version is 2 ; version 2 hashes the rule id, subtype, normalised path and the finding's verbatim message, so one accepted entry cannot hide a later …",
+  "title": "Compatibility contract — Baselines and report schemas",
+  "url": "/compatibility/#baseline"
+ },
+ {
+  "id": "/compatibility/#lock",
+  "kind": "section",
+  "text": "rule-ids.lock rule-ids.lock rule-ids.lock at the repository root lists every id with its status, first release and replacement. It is generated from the RuleId enum and compared by a test, so deleting or re-status-ing an id without updating the lock fails the build with the id named. The lock is a review artefact, not a second source of truth: change the enum, then run scripts/check-rule-ids.sh and commit the …",
+  "title": "Compatibility contract — rule-ids.lock",
+  "url": "/compatibility/#lock"
+ },
+ {
+  "id": "/compatibility/#release",
+  "kind": "section",
+  "text": "What may change in each release What may change in each release Release May change Must not change patch Detection accuracy, message text, documentation, probe fixtures. Rule ids, default severities, baseline schemaVersion , existing report fields. minor New rules and fields, status active → deprecated , new report formats. Existing ids' meaning, existing baseline entries, previously green gates. major Id removal or …",
+  "title": "Compatibility contract — What may change in each release",
+  "url": "/compatibility/#release"
+ },
+ {
+  "id": "/compatibility/#rule-ids",
+  "kind": "section",
+  "text": "Rule ids never silently change meaning Rule ids never silently change meaning Every finding carries a stable id such as AEM-QUAL-004 . The id is part of the public contract: it appears in SARIF, in baseline entries and in the suppression comments a team commits. Renaming an id is a major change. Fixing a false negative, adding a subtype or changing a message is a patch change, because none of those alter which id a …",
+  "title": "Compatibility contract — Rule ids never silently change meaning",
+  "url": "/compatibility/#rule-ids"
+ },
+ {
+  "id": "/compatibility/#status",
+  "kind": "section",
+  "text": "Status, since and replacedBy Status, since and replacedBy --list-rules --format json , rule-evidence.json and the SARIF rule descriptor all carry the same three fields: Field Values Meaning status active , deprecated , retired Whether the rule produces findings and whether a new configuration should use it. since release, e.g. 1.0.0 First analyser release that declared the id. replacedBy rule id or null The rule …",
+  "title": "Compatibility contract — Status, since and replacedBy",
+  "url": "/compatibility/#status"
+ },
+ {
+  "id": "/demo/",
+  "kind": "demo",
+  "text": "AEM Code Analyser — Enterprise Quality Dashboard :root { --bg-primary: #f8fafc; --bg-card: #ffffff; --text-primary: #0f172a; --text-secondary: #475569; --border: #e2e8f0; --accent: #2563eb; --accent-light: #eff6ff; --danger: #dc2626; --danger-bg: #fef2f2; --danger-border: #fecaca; --warning: #d97706; --warning-bg: #fffbeb; --warning-border: #fde68a; --info: #0284c7; --info-bg: #f0f9ff; --info-border: #bae6fd …",
+  "title": "/demo/",
+  "url": "/demo/"
+ },
+ {
+  "id": "/evidence/#ci",
+  "kind": "section",
+  "text": "How CI enforces it How CI enforces it scripts/run-rule-probes.sh analyses both trees and runs scripts/check_rule_probes.py . It prints one PAIR OK line per rule and exits non-zero if a positive probe fires zero times or twice, or if a clean twin fires once. Reintroducing a defect into a clean twin therefore fails the run and names the rule.",
+  "title": "Rule evidence — How CI enforces it",
+  "url": "/evidence/#ci"
+ },
+ {
+  "id": "/evidence/#download",
+  "kind": "section",
+  "text": "Download Download rule-evidence.json is generated from validation/probes/evidence.json and the rule lifecycle metadata. The same bytes are packaged in the analyser jar and emitted by aem-analyser --list-rules --format json . bash # Rules without a clean twin: only the retired AEM-QUAL-006 should answer aem-analyser --list-rules --format json \\ | jq '[.[] | select(.negativeProbe == null)] | length'",
+  "title": "Rule evidence — Download",
+  "url": "/evidence/#download"
+ },
+ {
+  "id": "/evidence/#shape",
+  "kind": "section",
+  "text": "What a row means What a row means Field Meaning positiveProbe Reactor-relative file in validation/probes that contains the deliberate defect. positiveLine / positiveSubtype Exact line and, when several sub-findings share it, the subtype that must produce one finding. negativeProbe The same scenario in validation/probes-clean , fixed, which must produce zero findings for this rule. docAnchor Anchor on the generated …",
+  "title": "Rule evidence — What a row means",
+  "url": "/evidence/#shape"
+ },
+ {
+  "id": "/getting-started/",
+  "kind": "guide",
+  "text": "Install AEM Code Analyser from Maven Central or as a CLI jar, run your first scan, read the dashboard, gate a pull request and tune the rules. On this page Before you start 1 · Run your first scan 2 · Read the results 3 · Add it to the build 4 · Gate a pull request 5 · Run it in CI 6 · Tune it Troubleshooting Elsewhere Issues and fixes CLI reference Release notes Getting started Ten minutes from download to a …",
+  "title": "Getting started",
+  "url": "/getting-started/"
+ },
+ {
+  "id": "/getting-started/#before-you-start",
+  "kind": "section",
+  "text": "Before you start Before you start Requirement Why Check Java 21 The analyser runs on 21. The project it reads is parsed as source, so the project’s own target does not have to be 21. java -version Maven 3.9+ Only for the plugin route. The jar and the script need no Maven at all. mvn -v Git Only for --changed-only , --since and the from-source route. git --version Docker or Podman Only for the container route, which …",
+  "title": "Getting started — Before you start",
+  "url": "/getting-started/#before-you-start"
+ },
+ {
+  "id": "/getting-started/#build",
+  "kind": "section",
+  "text": "3 · Add it to the build 3 · Add it to the build This is how a team uses it: one entry in the root pom.xml , and every mvn verify produces the report. The plugin comes from Maven Central — no , no token. pom.xml · reactor root io.github.rohithv16 aem-analyser-maven-plugin 1.0.10 false verify report SARIF,HTML ${project.build.directory}/aem-analyser About false . The mojos are aggregators, so the analysis always runs …",
+  "title": "Getting started — 3 · Add it to the build",
+  "url": "/getting-started/#build"
+ },
+ {
+  "id": "/getting-started/#ci",
+  "kind": "section",
+  "text": "5 · Run it in CI 5 · Run it in CI The published composite action is the shortest path: it sets up the JDK, runs the check gate, turns every finding into a native annotation on the diff, appends a severity table to the job summary and uploads the SARIF when the job allows it. .github/workflows/quality.yml name: Quality on: pull_request: permissions: contents: read security-events: write # optional: lets the action …",
+  "title": "Getting started — 5 · Run it in CI",
+  "url": "/getting-started/#ci"
+ },
+ {
+  "id": "/getting-started/#gate",
+  "kind": "section",
+  "text": "4 · Gate a pull request 4 · Gate a pull request Switch the goal from report to check when the report should decide whether the build passes. pom.xml · fail on errors, not warnings verify check ERROR Exit codes Code Meaning 0 Analysis completed and nothing tripped the gate. --fail-on NONE forces this. 1 The gate failed: at least one ERROR finding (the default), anything at or above --fail-on , --fail-on-warning , or …",
+  "title": "Getting started — 4 · Gate a pull request",
+  "url": "/getting-started/#gate"
+ },
+ {
+  "id": "/getting-started/#read",
+  "kind": "section",
+  "text": "2 · Read the results 2 · Read the results A CLI run prints the console report and writes one file, target/aem-analyser/aem-analyser-report.html . Add --format SARIF,HTML to write the SARIF file as well: File Use it for aem-analyser-report.html The dashboard: filters, per-finding permalinks, run history, duplication and coverage panels. Opens offline, no server needed. aem-analyser.sarif Only with --format SARIF …",
+  "title": "Getting started — 2 · Read the results",
+  "url": "/getting-started/#read"
+ },
+ {
+  "id": "/getting-started/#run",
+  "kind": "section",
+  "text": "1 · Run your first scan 1 · Run your first scan Download the CLI jar bash HOST=https://github.com/RohithV16/aem-code-analyser cd ~/my-aem-project curl -LO \"$HOST/releases/latest/download/aem-analyser-cli.jar\" One self-contained jar. It can live anywhere — put it in the project, in ~/tools , wherever you keep it. Prefer an aem-analyser command? The installer checks the jar against the release's SHA256SUMS.txt first …",
+  "title": "Getting started — 1 · Run your first scan",
+  "url": "/getting-started/#run"
+ },
+ {
+  "id": "/getting-started/#troubleshooting",
+  "kind": "section",
+  "text": "Troubleshooting Troubleshooting Symptom Cause and fix UnsupportedClassVersionError The jar is built for Java 21 and an older JVM is on PATH . Point JAVA_HOME at a 21 JDK and rerun. “No pom.xml found” or an empty report You are outside the project. cd into the reactor or pass --project-root ~/my-aem-project . Only part of the reactor is analysed The run was limited to one module: either you ran the CLI inside a …",
+  "title": "Getting started — Troubleshooting",
+  "url": "/getting-started/#troubleshooting"
+ },
+ {
+  "id": "/getting-started/#tune",
+  "kind": "section",
+  "text": "6 · Tune it 6 · Tune it Three things cover most needs: mute a rule, accept today’s findings, silence one line. Project configuration .aem-analyser.yml · project root rules: AEM-DEAD-003B: enabled: false AEM-SEC-001: severity: ERROR allowlists: services: - com.example.LegacyService configPaths: - ui.config/**/config.local/** Accept what exists today, fail only on new findings bash java -jar aem-analyser-cli.jar …",
+  "title": "Getting started — 6 · Tune it",
+  "url": "/getting-started/#tune"
+ },
+ {
+  "id": "/issues/#family-a11y",
+  "kind": "section",
+  "text": "Accessibility Accessibility 2 issues WCAG defects visible in the HTL markup, before a page is rendered. exactly as written, so a missing alt reaches the page even though every other output expression is escaped. screen readers then announce the file name or skip the image entirely, and tools such as axe can only find it after the page is rendered and deployed. add alt with a short description, bind it with …",
+  "title": "Issues and fixes — Accessibility",
+  "url": "/issues/#family-a11y"
+ },
+ {
+  "id": "/issues/#family-cloud",
+  "kind": "section",
+  "text": "AEM as a Cloud Service AEM as a Cloud Service 10 issues Patterns that break on AEM as a Cloud Service, including plaintext secrets. AEM-CLOUD-001 # HardcodedCloudSecret ERROR 15 min fix CWE-798 Vulnerability Plaintext secret or password found in OSGi configuration file. Why it matters A plaintext secret in a content package is readable by anyone with repository access, ends up in every environment's backup, and …",
+  "title": "Issues and fixes — AEM as a Cloud Service",
+  "url": "/issues/#family-cloud"
+ },
+ {
+  "id": "/issues/#family-comp",
+  "kind": "section",
+  "text": "Component compatibility Component compatibility 2 issues Deprecated Classic UI component definitions. AEM-COMP-001 # DeprecatedClassicUiDialog WARNING 20 min fix Code smell Component defines deprecated Classic UI dialog.xml instead of Granite UI _cq_dialog. Why it matters Classic UI dialog.xml is not read by the Touch UI editor, so authors cannot edit the component in AEM as a Cloud Service. It also drags in Classic …",
+  "title": "Issues and fixes — Component compatibility",
+  "url": "/issues/#family-comp"
+ },
+ {
+  "id": "/issues/#family-dead",
+  "kind": "section",
+  "text": "Dead code Dead code 10 issues Code, configuration and content with no remaining consumer. AEM-DEAD-001 # OrphanedOsgiConfiguration ERROR 15 min fix Bug Orphaned OSGi Configuration without matching component or platform PID. Why it matters A configuration file whose PID matches no component, no @ObjectClassDefinition and no platform factory PID never takes effect. At best it is dead weight in the content package; at …",
+  "title": "Issues and fixes — Dead code",
+  "url": "/issues/#family-dead"
+ },
+ {
+  "id": "/issues/#family-dup",
+  "kind": "section",
+  "text": "Duplication Duplication 4 issues Two things claiming the same request, PID, resource type or code block. AEM-DUP-001 # DuplicateServletEndpoint ERROR 20 min fix Bug Multiple OSGi servlets claim identical paths or resourceTypes/selectors/methods without ranking distinction. Why it matters Two servlets that answer the same request make the response depend on registration order and service ranking. On a publish tier …",
+  "title": "Issues and fixes — Duplication",
+  "url": "/issues/#family-dup"
+ },
+ {
+  "id": "/issues/#family-perf",
+  "kind": "section",
+  "text": "Performance Performance 4 issues Resource lifecycles and repository query cost. AEM-PERF-001 # UnclosedResourceResolver ERROR 30 min fix Bug ResourceResolver obtained via factory is not closed in try-with-resources or finally. Why it matters A resolver obtained from the factory and never closed keeps its JCR session and its caches alive for the life of the JVM. AEM as a Cloud Service logs leaked resolvers and …",
+  "title": "Issues and fixes — Performance",
+  "url": "/issues/#family-perf"
+ },
+ {
+  "id": "/issues/#family-qual",
+  "kind": "section",
+  "text": "Quality and Cloud Manager parity Quality and Cloud Manager parity 8 issues The checks Cloud Manager runs, plus the thread-safety rules it expects you to hold. AEM-QUAL-001 # PathBoundServletRegistration WARNING 15 min fix Cloud Manager CQBP-75 Code smell Sling servlet registered using paths instead of resource types (CQBP-75). Why it matters Cloud Manager's CQBP-75 rejects path-bound servlets because they bypass …",
+  "title": "Issues and fixes — Quality and Cloud Manager parity",
+  "url": "/issues/#family-qual"
+ },
+ {
+  "id": "/issues/#family-sec",
+  "kind": "section",
+  "text": "Security Security 2 issues Output escaping and request-driven redirects. AEM-SEC-001 # UnsafeHtlContextBypass ERROR 20 min fix CWE-79 Vulnerability HTL expression uses @ context='unsafe' bypassing XSS protection. Why it matters context='unsafe' switches off HTL's contextual escaping, and the expression is written into the page verbatim. With any author-controlled or request-derived value that is a stored XSS hole …",
+  "title": "Issues and fixes — Security",
+  "url": "/issues/#family-sec"
+ },
+ {
+  "id": "/issues/#family-wf",
+  "kind": "section",
+  "text": "Workflow integrity Workflow integrity 1 issue Workflow launchers, models and steps that resolve to nothing. AEM-WF-001 # UnresolvedWorkflowReference WARNING 15 min fix Bug Workflow launcher points at a model, or a PROCESS step at a class, that the project does not ship. Why it matters A workflow launcher references its model by path and a PROCESS step references its class by name; both are plain strings in …",
+  "title": "Issues and fixes — Workflow integrity",
+  "url": "/issues/#family-wf"
+ },
+ {
+  "id": "/issues/aem-a11y-001/",
+  "kind": "rule-page",
+  "text": "AEM-A11Y-001 (WARNING): HTL img element has no alt attribute or data-sly-attribute.alt fallback (WCAG 1.1.1). ← All 43 rules AEM-A11Y-001 ImageWithoutAlt HTL img element has no alt attribute or data-sly-attribute.alt fallback (WCAG 1.1.1). WARNING · 10 min fix · Bug · Accessibility HTL img element has no alt attribute or data-sly-attribute.alt fallback (WCAG 1.1.1). Why it matters WCAG 1.1.1 requires a text …",
+  "title": "AEM-A11Y-001 ImageWithoutAlt — HTL img element has no alt attribute or data-sly-attribute.alt fallback (WCAG 1.1.1).",
+  "url": "/issues/aem-a11y-001/"
+ },
+ {
+  "id": "/issues/aem-a11y-002/",
+  "kind": "rule-page",
+  "text": "AEM-A11Y-002 (WARNING): HTL anchor has no href/data-sly-attribute.href, or no accessible name for icon-only content (WCAG 2.4.4). ← All 43 rules AEM-A11Y-002 LinkWithoutAccessibleName HTL anchor has no href/data-sly-attribute.href, or no accessible name for icon-only content (WCAG 2.4.4). WARNING · 10 min fix · Bug · Accessibility HTL anchor has no href/data-sly-attribute.href, or no accessible name for icon-only …",
+  "title": "AEM-A11Y-002 LinkWithoutAccessibleName — HTL anchor has no href/data-sly-attribute.href, or no accessible name for …",
+  "url": "/issues/aem-a11y-002/"
+ },
+ {
+  "id": "/issues/aem-cloud-001/",
+  "kind": "rule-page",
+  "text": "AEM-CLOUD-001 (ERROR): Plaintext secret or password found in OSGi configuration file. ← All 43 rules AEM-CLOUD-001 HardcodedCloudSecret Plaintext secret or password found in OSGi configuration file. ERROR · 15 min fix · Vulnerability · AEM as a Cloud Service Plaintext secret or password found in OSGi configuration file. Why it matters A plaintext secret in a content package is readable by anyone with repository …",
+  "title": "AEM-CLOUD-001 HardcodedCloudSecret — Plaintext secret or password found in OSGi configuration file.",
+  "url": "/issues/aem-cloud-001/"
+ },
+ {
+  "id": "/issues/aem-cloud-002/",
+  "kind": "rule-page",
+  "text": "AEM-CLOUD-002 (WARNING): Legacy JSP file found in repository; AEMaaCS requires HTL. ← All 43 rules AEM-CLOUD-002 DeprecatedJspUsage Legacy JSP file found in repository; AEMaaCS requires HTL. WARNING · 30 min fix · Code smell · AEM as a Cloud Service Legacy JSP file found in repository; AEMaaCS requires HTL. Why it matters AEM as a Cloud Service has no JSP support: a .jsp file is simply not rendered, so the page that …",
+  "title": "AEM-CLOUD-002 DeprecatedJspUsage — Legacy JSP file found in repository; AEMaaCS requires HTL.",
+  "url": "/issues/aem-cloud-002/"
+ },
+ {
+  "id": "/issues/aem-cloud-003/",
+  "kind": "rule-page",
+  "text": "AEM-CLOUD-003 (ERROR): Java call to getServiceResourceResolver() has no matching ServiceUserMapperImpl.amended mapping or system user definition. ← All 43 rules AEM-CLOUD-003 UnmappedSubserviceUser Java call to getServiceResourceResolver() has no matching ServiceUserMapperImpl.amended mapping or system user definition. ERROR · 25 min fix · Code smell · AEM as a Cloud Service Java call to getServiceResourceResolver() …",
+  "title": "AEM-CLOUD-003 UnmappedSubserviceUser — Java call to getServiceResourceResolver() has no matching …",
+  "url": "/issues/aem-cloud-003/"
+ },
+ {
+  "id": "/issues/aem-cloud-004/",
+  "kind": "rule-page",
+  "text": "AEM-CLOUD-004 (WARNING): Java source imports or uses an API deprecated in AEM as a Cloud Service (AMSCORE-553). ← All 43 rules AEM-CLOUD-004 DeprecatedAemApiUsage Java source imports or uses an API deprecated in AEM as a Cloud Service (AMSCORE-553). WARNING · 20 min fix · Code smell · AEM as a Cloud Service Java source imports or uses an API deprecated in AEM as a Cloud Service (AMSCORE-553). Why it matters An API …",
+  "title": "AEM-CLOUD-004 DeprecatedAemApiUsage — Java source imports or uses an API deprecated in AEM as a Cloud Service …",
+  "url": "/issues/aem-cloud-004/"
+ },
+ {
+  "id": "/issues/aem-cloud-005/",
+  "kind": "rule-page",
+  "text": "AEM-CLOUD-005 (WARNING): OSGi configuration lives in a runmode folder that is not a recognised AEM runmode. ← All 43 rules AEM-CLOUD-005 InvalidRunmodeFolder OSGi configuration lives in a runmode folder that is not a recognised AEM runmode. WARNING · 5 min fix · Code smell · AEM as a Cloud Service OSGi configuration lives in a runmode folder that is not a recognised AEM runmode. Why it matters Only the documented …",
+  "title": "AEM-CLOUD-005 InvalidRunmodeFolder — OSGi configuration lives in a runmode folder that is not a recognised AEM …",
+  "url": "/issues/aem-cloud-005/"
+ },
+ {
+  "id": "/issues/aem-cloud-006/",
+  "kind": "rule-page",
+  "text": "AEM-CLOUD-006 (WARNING): Dispatcher configuration has an unresolved include, a duplicate ServerName, a vhost without DocumentRoot or a legacy dispatcher.any. ← All 43 rules AEM-CLOUD-006 BrokenDispatcherConfig Dispatcher configuration has an unresolved include, a duplicate ServerName, a vhost without DocumentRoot or a legacy dispatcher.any. WARNING · 20 min fix · Code smell · AEM as a Cloud Service Dispatcher …",
+  "title": "AEM-CLOUD-006 BrokenDispatcherConfig — Dispatcher configuration has an unresolved include, a duplicate ServerName, a …",
+  "url": "/issues/aem-cloud-006/"
+ },
+ {
+  "id": "/issues/aem-cloud-007/",
+  "kind": "rule-page",
+  "text": "AEM-CLOUD-007 (WARNING): A content-package filter root is shared across modules, uses replace on a shared root, or points at a platform path. ← All 43 rules AEM-CLOUD-007 OverlappingContentPackageFilter A content-package filter root is shared across modules, uses replace on a shared root, or points at a platform path. WARNING · 20 min fix · Code smell · AEM as a Cloud Service A content-package filter root is shared …",
+  "title": "AEM-CLOUD-007 OverlappingContentPackageFilter — A content-package filter root is shared across modules, uses replace …",
+  "url": "/issues/aem-cloud-007/"
+ },
+ {
+  "id": "/issues/aem-cloud-008/",
+  "kind": "rule-page",
+  "text": "AEM-CLOUD-008 (ERROR): Java writes to /apps or /libs at runtime, an area AEM as a Cloud Service keeps immutable. ← All 43 rules AEM-CLOUD-008 ImmutablePathWrite Java writes to /apps or /libs at runtime, an area AEM as a Cloud Service keeps immutable. ERROR · 15 min fix · Bug · AEM as a Cloud Service Java writes to /apps or /libs at runtime, an area AEM as a Cloud Service keeps immutable. Why it matters In AEM as a …",
+  "title": "AEM-CLOUD-008 ImmutablePathWrite — Java writes to /apps or /libs at runtime, an area AEM as a Cloud Service keeps …",
+  "url": "/issues/aem-cloud-008/"
+ },
+ {
+  "id": "/issues/aem-cloud-009/",
+  "kind": "rule-page",
+  "text": "AEM-CLOUD-009 (WARNING): A reactor module ships content or a bundle the all container never installs, or a bundle is embedded outside /install. ← All 43 rules AEM-CLOUD-009 UnreachableDeployableModule A reactor module ships content or a bundle the all container never installs, or a bundle is embedded outside /install. WARNING · 20 min fix · Bug · AEM as a Cloud Service A reactor module ships content or a bundle the …",
+  "title": "AEM-CLOUD-009 UnreachableDeployableModule — A reactor module ships content or a bundle the all container never …",
+  "url": "/issues/aem-cloud-009/"
+ },
+ {
+  "id": "/issues/aem-cloud-010/",
+  "kind": "rule-page",
+  "text": "AEM-CLOUD-010 (WARNING): Replication agent content, replication OSGi configuration or a custom transport handler that AEM as a Cloud Service cannot honour. ← All 43 rules AEM-CLOUD-010 LegacyReplicationConfiguration Replication agent content, replication OSGi configuration or a custom transport handler that AEM as a Cloud Service cannot honour. WARNING · 15 min fix · Bug · AEM as a Cloud Service Replication agent …",
+  "title": "AEM-CLOUD-010 LegacyReplicationConfiguration — Replication agent content, replication OSGi configuration or a custom …",
+  "url": "/issues/aem-cloud-010/"
+ },
+ {
+  "id": "/issues/aem-comp-001/",
+  "kind": "rule-page",
+  "text": "AEM-COMP-001 (WARNING): Component defines deprecated Classic UI dialog.xml instead of Granite UI _cq_dialog. ← All 43 rules AEM-COMP-001 DeprecatedClassicUiDialog Component defines deprecated Classic UI dialog.xml instead of Granite UI _cq_dialog. WARNING · 20 min fix · Code smell · Component compatibility Component defines deprecated Classic UI dialog.xml instead of Granite UI _cq_dialog. Why it matters Classic UI …",
+  "title": "AEM-COMP-001 DeprecatedClassicUiDialog — Component defines deprecated Classic UI dialog.xml instead of Granite UI …",
+  "url": "/issues/aem-comp-001/"
+ },
+ {
+  "id": "/issues/aem-comp-002/",
+  "kind": "rule-page",
+  "text": "AEM-COMP-002 (ERROR): Literal sling:resourceType or data-sly-resource type names no component under the project's /apps prefix. ← All 43 rules AEM-COMP-002 MissingResourceTypeComponent Literal sling:resourceType or data-sly-resource type names no component under the project's /apps prefix. ERROR · 15 min fix · Bug · Component compatibility Literal sling:resourceType or data-sly-resource type names no component under …",
+  "title": "AEM-COMP-002 MissingResourceTypeComponent — Literal sling:resourceType or data-sly-resource type names no component …",
+  "url": "/issues/aem-comp-002/"
+ },
+ {
+  "id": "/issues/aem-dead-001/",
+  "kind": "rule-page",
+  "text": "AEM-DEAD-001 (ERROR): Orphaned OSGi Configuration without matching component or platform PID. ← All 43 rules AEM-DEAD-001 OrphanedOsgiConfiguration Orphaned OSGi Configuration without matching component or platform PID. ERROR · 15 min fix · Bug · Dead code Orphaned OSGi Configuration without matching component or platform PID. Why it matters A configuration file whose PID matches no component, no …",
+  "title": "AEM-DEAD-001 OrphanedOsgiConfiguration — Orphaned OSGi Configuration without matching component or platform PID.",
+  "url": "/issues/aem-dead-001/"
+ },
+ {
+  "id": "/issues/aem-dead-002a/",
+  "kind": "rule-page",
+  "text": "AEM-DEAD-002A (WARNING): Configuration property does not exist in target @ObjectClassDefinition. ← All 43 rules AEM-DEAD-002A GhostConfigurationProperty Configuration property does not exist in target @ObjectClassDefinition. WARNING · 10 min fix · Code smell · Dead code Configuration property does not exist in target @ObjectClassDefinition. Why it matters A property that the component's @ObjectClassDefinition does …",
+  "title": "AEM-DEAD-002A GhostConfigurationProperty — Configuration property does not exist in target @ObjectClassDefinition.",
+  "url": "/issues/aem-dead-002a/"
+ },
+ {
+  "id": "/issues/aem-dead-002b/",
+  "kind": "rule-page",
+  "text": "AEM-DEAD-002B (WARNING): OCD Attribute method is never consumed by designating Java component. ← All 43 rules AEM-DEAD-002B UnconsumedOcdProperty OCD Attribute method is never consumed by designating Java component. WARNING · 10 min fix · Code smell · Dead code OCD Attribute method is never consumed by designating Java component. Why it matters An OCD attribute that no code reads is a setting users can change with …",
+  "title": "AEM-DEAD-002B UnconsumedOcdProperty — OCD Attribute method is never consumed by designating Java component.",
+  "url": "/issues/aem-dead-002b/"
+ },
+ {
+  "id": "/issues/aem-dead-003a/",
+  "kind": "rule-page",
+  "text": "AEM-DEAD-003A (WARNING): OSGi Service has zero injections across bundles and is not a system entry point. ← All 43 rules AEM-DEAD-003A UnusedOsgiService OSGi Service has zero injections across bundles and is not a system entry point. WARNING · 30 min fix · Bug · Dead code OSGi Service has zero injections across bundles and is not a system entry point. Why it matters A registered OSGi service that nothing injects and …",
+  "title": "AEM-DEAD-003A UnusedOsgiService — OSGi Service has zero injections across bundles and is not a system entry point.",
+  "url": "/issues/aem-dead-003a/"
+ },
+ {
+  "id": "/issues/aem-dead-003b/",
+  "kind": "rule-page",
+  "text": "AEM-DEAD-003B (INFO): Sling Model has zero Java adaptations and no resourceType binding. ← All 43 rules AEM-DEAD-003B UnusedSlingModel Sling Model has zero Java adaptations and no resourceType binding. INFO · 5 min fix · Code smell · Dead code Sling Model has zero Java adaptations and no resourceType binding. Why it matters A Sling Model that no template adapts from and that no resourceType binds is never …",
+  "title": "AEM-DEAD-003B UnusedSlingModel — Sling Model has zero Java adaptations and no resourceType binding.",
+  "url": "/issues/aem-dead-003b/"
+ },
+ {
+  "id": "/issues/aem-dead-003c/",
+  "kind": "rule-page",
+  "text": "AEM-DEAD-003C (WARNING): Component provides no service interfaces and immediate = false. ← All 43 rules AEM-DEAD-003C InactiveDelayedComponent Component provides no service interfaces and immediate = false. WARNING · 10 min fix · Code smell · Dead code Component provides no service interfaces and immediate = false. Why it matters With immediate = false and no service interface, an OSGi component is delayed and …",
+  "title": "AEM-DEAD-003C InactiveDelayedComponent — Component provides no service interfaces and immediate = false.",
+  "url": "/issues/aem-dead-003c/"
+ },
+ {
+  "id": "/issues/aem-dead-004/",
+  "kind": "rule-page",
+  "text": "AEM-DEAD-004 (ERROR): HTL template references non-existent Java class or Sling Model. ← All 43 rules AEM-DEAD-004 BrokenHtlReference HTL template references non-existent Java class or Sling Model. ERROR · 15 min fix · Bug · Dead code HTL template references non-existent Java class or Sling Model. Why it matters An HTL expression that names a class which does not exist fails at render time, not at build time, so the …",
+  "title": "AEM-DEAD-004 BrokenHtlReference — HTL template references non-existent Java class or Sling Model.",
+  "url": "/issues/aem-dead-004/"
+ },
+ {
+  "id": "/issues/aem-dead-005/",
+  "kind": "rule-page",
+  "text": "AEM-DEAD-005 (INFO): A client library category is never referenced by an HTL/JSP template or another client library. ← All 43 rules AEM-DEAD-005 OrphanedClientlibCategory A client library category is never referenced by an HTL/JSP template or another client library. INFO · 10 min fix · Code smell · Dead code A client library category is never referenced by an HTL/JSP template or another client library. Why it …",
+  "title": "AEM-DEAD-005 OrphanedClientlibCategory — A client library category is never referenced by an HTL/JSP template or …",
+  "url": "/issues/aem-dead-005/"
+ },
+ {
+  "id": "/issues/aem-dead-006/",
+  "kind": "rule-page",
+  "text": "AEM-DEAD-006 (WARNING): Translation key used by a template or model has no entry in the baseline (en) dictionary. ← All 43 rules AEM-DEAD-006 MissingTranslationKey Translation key used by a template or model has no entry in the baseline (en) dictionary. WARNING · 20 min fix · Bug · Dead code Translation key used by a template or model has no entry in the baseline (en) dictionary. Why it matters AEM prints the raw …",
+  "title": "AEM-DEAD-006 MissingTranslationKey — Translation key used by a template or model has no entry in the baseline (en) …",
+  "url": "/issues/aem-dead-006/"
+ },
+ {
+  "id": "/issues/aem-dead-007/",
+  "kind": "rule-page",
+  "text": "AEM-DEAD-007 (WARNING): HTL data-sly-include target is missing or forms an include cycle. ← All 43 rules AEM-DEAD-007 BrokenHtlInclude HTL data-sly-include target is missing or forms an include cycle. WARNING · 15 min fix · Bug · Dead code HTL data-sly-include target is missing or forms an include cycle. Why it matters Sightly resolves data-sly-include while rendering, so a renamed or mis-pathed include is invisible …",
+  "title": "AEM-DEAD-007 BrokenHtlInclude — HTL data-sly-include target is missing or forms an include cycle.",
+  "url": "/issues/aem-dead-007/"
+ },
+ {
+  "id": "/issues/aem-dup-001/",
+  "kind": "rule-page",
+  "text": "AEM-DUP-001 (ERROR): Multiple OSGi servlets claim identical paths or resourceTypes/selectors/methods without ranking distinction. ← All 43 rules AEM-DUP-001 DuplicateServletEndpoint Multiple OSGi servlets claim identical paths or resourceTypes/selectors/methods without ranking distinction. ERROR · 20 min fix · Bug · Duplication Multiple OSGi servlets claim identical paths or resourceTypes/selectors/methods without …",
+  "title": "AEM-DUP-001 DuplicateServletEndpoint — Multiple OSGi servlets claim identical paths or …",
+  "url": "/issues/aem-dup-001/"
+ },
+ {
+  "id": "/issues/aem-dup-002/",
+  "kind": "rule-page",
+  "text": "AEM-DUP-002 (WARNING): Conflicting or duplicate OSGi configuration targeting the same PID in the same runmode context. ← All 43 rules AEM-DUP-002 DuplicateOsgiConfiguration Conflicting or duplicate OSGi configuration targeting the same PID in the same runmode context. WARNING · 15 min fix · Code smell · Duplication Conflicting or duplicate OSGi configuration targeting the same PID in the same runmode context. Why it …",
+  "title": "AEM-DUP-002 DuplicateOsgiConfiguration — Conflicting or duplicate OSGi configuration targeting the same PID in the …",
+  "url": "/issues/aem-dup-002/"
+ },
+ {
+  "id": "/issues/aem-dup-003/",
+  "kind": "rule-page",
+  "text": "AEM-DUP-003 (WARNING): Multiple Sling Models bind to the exact same resourceType and adapter interface without condition. ← All 43 rules AEM-DUP-003 DuplicateSlingModel Multiple Sling Models bind to the exact same resourceType and adapter interface without condition. WARNING · 15 min fix · Code smell · Duplication Multiple Sling Models bind to the exact same resourceType and adapter interface without condition. Why …",
+  "title": "AEM-DUP-003 DuplicateSlingModel — Multiple Sling Models bind to the exact same resourceType and adapter interface …",
+  "url": "/issues/aem-dup-003/"
+ },
+ {
+  "id": "/issues/aem-dup-010/",
+  "kind": "rule-page",
+  "text": "AEM-DUP-010 (WARNING): Duplicate Java code block or method clone detected across repository classes. ← All 43 rules AEM-DUP-010 DuplicateCodeBlock Duplicate Java code block or method clone detected across repository classes. WARNING · 30 min fix · Code smell · Duplication Duplicate Java code block or method clone detected across repository classes. Why it matters Cloned code drifts: a fix applied to one copy …",
+  "title": "AEM-DUP-010 DuplicateCodeBlock — Duplicate Java code block or method clone detected across repository classes.",
+  "url": "/issues/aem-dup-010/"
+ },
+ {
+  "id": "/issues/aem-perf-001/",
+  "kind": "rule-page",
+  "text": "AEM-PERF-001 (ERROR): ResourceResolver obtained via factory is not closed in try-with-resources or finally. ← All 43 rules AEM-PERF-001 UnclosedResourceResolver ResourceResolver obtained via factory is not closed in try-with-resources or finally. ERROR · 30 min fix · Bug · Performance ResourceResolver obtained via factory is not closed in try-with-resources or finally. Why it matters A resolver obtained from the …",
+  "title": "AEM-PERF-001 UnclosedResourceResolver — ResourceResolver obtained via factory is not closed in try-with-resources or …",
+  "url": "/issues/aem-perf-001/"
+ },
+ {
+  "id": "/issues/aem-perf-002/",
+  "kind": "rule-page",
+  "text": "AEM-PERF-002 (ERROR): JCR Session obtained via repository login or adaptation is not logged out or closed. ← All 43 rules AEM-PERF-002 UnclosedJcrSession JCR Session obtained via repository login or adaptation is not logged out or closed. ERROR · 30 min fix · Bug · Performance JCR Session obtained via repository login or adaptation is not logged out or closed. Why it matters A JCR Session opened through …",
+  "title": "AEM-PERF-002 UnclosedJcrSession — JCR Session obtained via repository login or adaptation is not logged out or closed.",
+  "url": "/issues/aem-perf-002/"
+ },
+ {
+  "id": "/issues/aem-perf-003/",
+  "kind": "rule-page",
+  "text": "AEM-PERF-003 (WARNING): JCR-SQL2 or XPath query lacks path or nodetype restriction, causing Oak traversal errors. ← All 43 rules AEM-PERF-003 OakQueryTraversalRisk JCR-SQL2 or XPath query lacks path or nodetype restriction, causing Oak traversal errors. WARNING · 25 min fix · Code smell · Performance JCR-SQL2 or XPath query lacks path or nodetype restriction, causing Oak traversal errors. Why it matters A JCR-SQL2 …",
+  "title": "AEM-PERF-003 OakQueryTraversalRisk — JCR-SQL2 or XPath query lacks path or nodetype restriction, causing Oak …",
+  "url": "/issues/aem-perf-003/"
+ },
+ {
+  "id": "/issues/aem-perf-004/",
+  "kind": "rule-page",
+  "text": "AEM-PERF-004 (WARNING): JCR/Oak query has no limit and may scan an unbounded result set. ← All 43 rules AEM-PERF-004 UnboundedQuery JCR/Oak query has no limit and may scan an unbounded result set. WARNING · 20 min fix · Code smell · Performance JCR/Oak query has no limit and may scan an unbounded result set. Why it matters An unbounded query result can be enormous on a content repository that grows daily. It is the …",
+  "title": "AEM-PERF-004 UnboundedQuery — JCR/Oak query has no limit and may scan an unbounded result set.",
+  "url": "/issues/aem-perf-004/"
+ },
+ {
+  "id": "/issues/aem-qual-001/",
+  "kind": "rule-page",
+  "text": "AEM-QUAL-001 (WARNING): Sling servlet registered using paths instead of resource types (CQBP-75). ← All 43 rules AEM-QUAL-001 PathBoundServletRegistration Sling servlet registered using paths instead of resource types (CQBP-75). WARNING · 15 min fix · Code smell · Quality and Cloud Manager parity Sling servlet registered using paths instead of resource types (CQBP-75). Why it matters Cloud Manager's CQBP-75 rejects …",
+  "title": "AEM-QUAL-001 PathBoundServletRegistration — Sling servlet registered using paths instead of resource types (CQBP-75).",
+  "url": "/issues/aem-qual-001/"
+ },
+ {
+  "id": "/issues/aem-qual-002/",
+  "kind": "rule-page",
+  "text": "AEM-QUAL-002 (ERROR): Custom code implements or extends @ProviderType product interface (CQBP-84). ← All 43 rules AEM-QUAL-002 ProviderTypeImplementation Custom code implements or extends @ProviderType product interface (CQBP-84). ERROR · 30 min fix · Bug · Quality and Cloud Manager parity Custom code implements or extends @ProviderType product interface (CQBP-84). Why it matters Implementing or extending a …",
+  "title": "AEM-QUAL-002 ProviderTypeImplementation — Custom code implements or extends @ProviderType product interface (CQBP-84).",
+  "url": "/issues/aem-qual-002/"
+ },
+ {
+  "id": "/issues/aem-qual-003/",
+  "kind": "rule-page",
+  "text": "AEM-QUAL-003 (WARNING): Sling whiteboard scheduler used instead of Sling Scheduled Jobs (AMSCORE-554). ← All 43 rules AEM-QUAL-003 SlingSchedulerUsage Sling whiteboard scheduler used instead of Sling Scheduled Jobs (AMSCORE-554). WARNING · 20 min fix · Security hotspot · Quality and Cloud Manager parity Sling whiteboard scheduler used instead of Sling Scheduled Jobs (AMSCORE-554). Why it matters AMSCORE-554 flags …",
+  "title": "AEM-QUAL-003 SlingSchedulerUsage — Sling whiteboard scheduler used instead of Sling Scheduled Jobs (AMSCORE-554).",
+  "url": "/issues/aem-qual-003/"
+ },
+ {
+  "id": "/issues/aem-qual-004/",
+  "kind": "rule-page",
+  "text": "AEM-QUAL-004 (ERROR): Non-thread-safe or session-bound object stored in OSGi component field (AEM-3). ← All 43 rules AEM-QUAL-004 UnsafeComponentState Non-thread-safe or session-bound object stored in OSGi component field (AEM-3). ERROR · 20 min fix · Bug · Quality and Cloud Manager parity Non-thread-safe or session-bound object stored in OSGi component field (AEM-3). Why it matters SlingHttpServletRequest …",
+  "title": "AEM-QUAL-004 UnsafeComponentState — Non-thread-safe or session-bound object stored in OSGi component field (AEM-3).",
+  "url": "/issues/aem-qual-004/"
+ },
+ {
+  "id": "/issues/aem-qual-005/",
+  "kind": "rule-page",
+  "text": "AEM-QUAL-005 (ERROR): Deprecated administrative login or resource resolver API used; rejected on AEM as a Cloud Service. ← All 43 rules AEM-QUAL-005 AdministrativeAccessUsage Deprecated administrative login or resource resolver API used; rejected on AEM as a Cloud Service. ERROR · 25 min fix · Vulnerability · Quality and Cloud Manager parity Deprecated administrative login or resource resolver API used; rejected on …",
+  "title": "AEM-QUAL-005 AdministrativeAccessUsage — Deprecated administrative login or resource resolver API used; rejected on …",
+  "url": "/issues/aem-qual-005/"
+ },
+ {
+  "id": "/issues/aem-qual-006/",
+  "kind": "rule-page",
+  "text": "AEM-QUAL-006 (WARNING): OSGi component stores a request-scoped ResourceResolver or JCR Session in an instance field. ← All 43 rules AEM-QUAL-006 ResolverStoredInComponentField OSGi component stores a request-scoped ResourceResolver or JCR Session in an instance field. WARNING · 15 min fix · Code smell · Quality and Cloud Manager parity OSGi component stores a request-scoped ResourceResolver or JCR Session in an …",
+  "title": "AEM-QUAL-006 ResolverStoredInComponentField — OSGi component stores a request-scoped ResourceResolver or JCR Session …",
+  "url": "/issues/aem-qual-006/"
+ },
+ {
+  "id": "/issues/aem-qual-007/",
+  "kind": "rule-page",
+  "text": "AEM-QUAL-007 (WARNING): Sling Model injects a request-only type or @RequestAttribute without declaring a request adaptable. ← All 43 rules AEM-QUAL-007 UnregistrableSlingModel Sling Model injects a request-only type or @RequestAttribute without declaring a request adaptable. WARNING · 25 min fix · Bug · Quality and Cloud Manager parity Sling Model injects a request-only type or @RequestAttribute without declaring a …",
+  "title": "AEM-QUAL-007 UnregistrableSlingModel — Sling Model injects a request-only type or @RequestAttribute without declaring …",
+  "url": "/issues/aem-qual-007/"
+ },
+ {
+  "id": "/issues/aem-qual-008/",
+  "kind": "rule-page",
+  "text": "AEM-QUAL-008 (ERROR): Mandatory @Reference target is declared by project sources but registered by no component. ← All 43 rules AEM-QUAL-008 UnprovidedMandatoryReference Mandatory @Reference target is declared by project sources but registered by no component. ERROR · 20 min fix · Bug · Quality and Cloud Manager parity Mandatory @Reference target is declared by project sources but registered by no component. Why it …",
+  "title": "AEM-QUAL-008 UnprovidedMandatoryReference — Mandatory @Reference target is declared by project sources but registered …",
+  "url": "/issues/aem-qual-008/"
+ },
+ {
+  "id": "/issues/aem-sec-001/",
+  "kind": "rule-page",
+  "text": "AEM-SEC-001 (ERROR): HTL expression uses @ context='unsafe' bypassing XSS protection. ← All 43 rules AEM-SEC-001 UnsafeHtlContextBypass HTL expression uses @ context='unsafe' bypassing XSS protection. ERROR · 20 min fix · Vulnerability · Security HTL expression uses @ context='unsafe' bypassing XSS protection. Why it matters context='unsafe' switches off HTL's contextual escaping, and the expression is written into …",
+  "title": "AEM-SEC-001 UnsafeHtlContextBypass — HTL expression uses @ context='unsafe' bypassing XSS protection.",
+  "url": "/issues/aem-sec-001/"
+ },
+ {
+  "id": "/issues/aem-sec-002/",
+  "kind": "rule-page",
+  "text": "AEM-SEC-002 (WARNING): User-controlled input flows into a redirect or outbound HTTP request. ← All 43 rules AEM-SEC-002 OpenRedirectOrSsrf User-controlled input flows into a redirect or outbound HTTP request. WARNING · 25 min fix · Code smell · Security User-controlled input flows into a redirect or outbound HTTP request. Why it matters A request parameter that reaches sendRedirect or an outbound HTTP call lets an …",
+  "title": "AEM-SEC-002 OpenRedirectOrSsrf — User-controlled input flows into a redirect or outbound HTTP request.",
+  "url": "/issues/aem-sec-002/"
+ },
+ {
+  "id": "/issues/aem-wf-001/",
+  "kind": "rule-page",
+  "text": "AEM-WF-001 (WARNING): Workflow launcher points at a model, or a PROCESS step at a class, that the project does not ship. ← All 43 rules AEM-WF-001 UnresolvedWorkflowReference Workflow launcher points at a model, or a PROCESS step at a class, that the project does not ship. WARNING · 15 min fix · Bug · Workflow integrity Workflow launcher points at a model, or a PROCESS step at a class, that the project does not …",
+  "title": "AEM-WF-001 UnresolvedWorkflowReference — Workflow launcher points at a model, or a PROCESS step at a class, that the …",
+  "url": "/issues/aem-wf-001/"
+ },
+ {
+  "id": "/reference/",
+  "kind": "guide",
+  "text": "Every flag, output format, exit code, configuration key and suppression syntax in AEM Code Analyser. On this page Flags Output formats MCP server Exit codes Configuration file Baseline Inline suppression Maven plugin GitHub Action What gets scanned Elsewhere Getting started Compatibility contract Issues and fixes Release notes CLI reference Everything the analyser accepts, in one place. Defaults are what you get …",
+  "title": "CLI reference",
+  "url": "/reference/"
+ },
+ {
+  "id": "/reference/#baseline",
+  "kind": "section",
+  "text": "Baseline Baseline A baseline freezes the findings that exist today, so a gate can fail on new ones only. Totals and exit codes count active findings; accepted ones are listed separately in the dashboard’s Run Health tab. bash java -jar aem-analyser-cli.jar --update-baseline java -jar aem-analyser-cli.jar --baseline .aem-analyser-baseline.json java -jar aem-analyser-cli.jar --baseline .aem-analyser-baseline.json …",
+  "title": "CLI reference — Baseline",
+  "url": "/reference/#baseline"
+ },
+ {
+  "id": "/reference/#configuration",
+  "kind": "section",
+  "text": "Configuration file Configuration file .aem-analyser.yml in the project root, or a path given with --config . Every key is optional. .aem-analyser.yml rules: AEM-DEAD-003B: enabled: false AEM-SEC-001: severity: ERROR allowlists: services: - com.example.LegacyService configPaths: - ui.config/**/config.local/** gate: failOn: WARNING failOnWarning: true maxWarnings: 20 minCoverage: 80.0 maxDuplication: 3.0 formats …",
+  "title": "CLI reference — Configuration file",
+  "url": "/reference/#configuration"
+ },
+ {
+  "id": "/reference/#exit-codes",
+  "kind": "section",
+  "text": "Exit codes Exit codes Code Meaning 0 Analysis completed and the gate passed. --fail-on NONE always exits 0 unless a coverage or duplication threshold trips. 1 The gate failed — any ERROR-severity finding by default, anything at or above --fail-on , --fail-on-warning , or a --min-coverage / --max-duplication / --max-warnings breach. 2 Usage error or the analysis could not run — an unknown flag or format, a malformed …",
+  "title": "CLI reference — Exit codes",
+  "url": "/reference/#exit-codes"
+ },
+ {
+  "id": "/reference/#flags",
+  "kind": "section",
+  "text": "Usage Usage bash java -jar aem-analyser-cli.jar [options] [project-root] Flags Flag Default Description [project-root] current dir Shorthand for --project-root . -p, --project-root current dir Project or reactor root. A module directory resolves up to the reactor that owns it. -f, --format CONSOLE Comma-separated: CONSOLE , TEXT , JSON , SARIF , SONAR , HTML , GITHUB , GITLAB , AZURE , JUNIT . --html [path] …",
+  "title": "CLI reference — Usage",
+  "url": "/reference/#flags"
+ },
+ {
+  "id": "/reference/#formats",
+  "kind": "section",
+  "text": "Output formats Output formats Formats combine: pass a comma-separated list to --format . Only CONSOLE and TEXT write to stdout; every other format is a file under --output (default target/aem-analyser ). Streams are split by contract: stdout is the report — the console report and nothing else — while progress, [INFO] / [WARN] lines, \"report written to …\" notices and --verbose diagnostics go to stderr . So …",
+  "title": "CLI reference — Output formats",
+  "url": "/reference/#formats"
+ },
+ {
+  "id": "/reference/#github-action",
+  "kind": "section",
+  "text": "GitHub Action GitHub Action uses: RohithV16/aem-code-analyser@v1 wraps that same check invocation: JDK set-up, annotations written from the GITHUB format, a severity table appended to $GITHUB_STEP_SUMMARY , and the SARIF uploaded only when the job grants security-events: write . Input Default Maps to fail-on ERROR aem-analyser.failOn ; NONE also sets failOnError=false and failOnWarning=false , because 1.0.10 gates …",
+  "title": "CLI reference — GitHub Action",
+  "url": "/reference/#github-action"
+ },
+ {
+  "id": "/reference/#maven-plugin",
+  "kind": "section",
+  "text": "Maven plugin Maven plugin Coordinates: io.github.rohithv16:aem-analyser-maven-plugin . Goals report and check . Parameter Default Description formats SARIF,SONAR Comma-separated formats for report ; check defaults to CONSOLE . outputFile ${project.build.directory} Output directory, or the file itself when exactly one format is configured. failOn unset Severity threshold for the check goal: NONE , ERROR , WARNING or …",
+  "title": "CLI reference — Maven plugin",
+  "url": "/reference/#maven-plugin"
+ },
+ {
+  "id": "/reference/#mcp",
+  "kind": "section",
+  "text": "MCP server MCP server aem-analyser --mcp serves the Model Context Protocol on stdio, so an agent already open in the editor (Claude Code, Cursor, Copilot) asks the analyser instead of re-deriving AEM semantics. The tools answer from the same registry, the same AnalysisReport and the same configuration layer the gate uses — --project-root , --config , --severity , --sonar/--no-sonar and --no-cache apply to the …",
+  "title": "CLI reference — MCP server",
+  "url": "/reference/#mcp"
+ },
+ {
+  "id": "/reference/#scope",
+  "kind": "section",
+  "text": "What gets scanned What gets scanned One pass over the reactor reads Java sources, HTL and JSP templates, OSGi configuration ( .cfg.json , .config , sling:OsgiConfig ), client library definitions, package metadata and content package filters. Files larger than --max-file-size are skipped and reported as diagnostics rather than silently dropped. Skipped or partially parsed files appear in the dashboard’s Run Health …",
+  "title": "CLI reference — What gets scanned",
+  "url": "/reference/#scope"
+ },
+ {
+  "id": "/reference/#suppression",
+  "kind": "section",
+  "text": "Inline suppression Inline suppression The next line is skipped for the named rule. Unknown rule ids are ignored, so a typo silences nothing. java // aem-analyser-disable-next-line AEM-DEAD-001 html · HTL and XML Two ids have no suppression hook because they are not produced by a rule evaluator: AEM-DUP-010 comes from the PMD CPD scan, and AEM-QUAL-006 is retired — AEM-QUAL-004 now owns that check.",
+  "title": "CLI reference — Inline suppression",
+  "url": "/reference/#suppression"
+ },
+ {
+  "id": "/verify/",
+  "kind": "decision",
+  "text": "Download the released jar, check its SHA-256 against the release's SHA256SUMS.txt, and reproduce the exact console report this site publishes — no AEM instance, no credentials, no network after the download. Two minutes · three commands Verify it yourself in two minutes You do not have to take the site’s word for what the analyser finds. Download the released jar, check the checksum the release publishes, and run it …",
+  "title": "Verify it yourself in two minutes",
+  "url": "/verify/"
+ },
+ {
+  "id": "AEM-A11Y-001",
+  "kind": "rule",
+  "text": "aem-a11y-001 imagewithoutalt htl img element has no alt attribute or data-sly-attribute.alt fallback (wcag 1.1.1). accessibility htl wcag warning add an alt attribute (empty alt for a decorative image), or bind one with data-sly-attribute.alt. wcag 1.1.1 requires a text alternative for every image that conveys meaning. sightly renders an <img> exactly as written, so a missing alt reaches the page even though every other output expression is escaped. screen readers then announce the file name or skip the image entirely, and tools such as axe can only find it after the page is rendered and …",
+  "title": "AEM-A11Y-001 ImageWithoutAlt",
+  "url": "/issues/#aem-a11y-001"
+ },
+ {
+  "id": "AEM-A11Y-002",
+  "kind": "rule",
+  "text": "aem-a11y-002 linkwithoutaccessiblename htl anchor has no href/data-sly-attribute.href, or no accessible name for icon-only content (wcag 2.4.4). accessibility htl wcag warning add an href (or data-sly-attribute.href), and give an icon-only link an aria-label or visually hidden text. an <a> without href is not focusable, so keyboard users cannot reach it even though pointer users can click the styled element. an icon-only link is the mirror defect: it has no text for a screen reader to announce, so the link reads as an empty control. both are wcag 2.4.4 failures that a rendered-dom audit finds …",
+  "title": "AEM-A11Y-002 LinkWithoutAccessibleName",
+  "url": "/issues/#aem-a11y-002"
+ },
+ {
+  "id": "AEM-CLOUD-001",
+  "kind": "rule",
+  "text": "aem-cloud-001 hardcodedcloudsecret plaintext secret or password found in osgi configuration file. aem-cloud error move the secret to a cloud manager secret or $[secret:...] placeholder. a plaintext secret in a content package is readable by anyone with repository access, ends up in every environment's backup, and cannot be rotated without a code change. aem as a cloud service refuses to start a service with a secret that was not supplied through a secret variable. replace the value with a secret placeholder and define the variable in cloud manager (or in the local .env for the sdk). never …",
+  "title": "AEM-CLOUD-001 HardcodedCloudSecret",
+  "url": "/issues/#aem-cloud-001"
+ },
+ {
+  "id": "AEM-CLOUD-002",
+  "kind": "rule",
+  "text": "aem-cloud-002 deprecatedjspusage legacy jsp file found in repository; aemaacs requires htl. aem-cloud warning migrate the jsp to htl. aem as a cloud service has no jsp support: a .jsp file is simply not rendered, so the page that uses it breaks after migration. jsps also bypass htl's contextual escaping. rewrite the jsp as an htl template with a sling model for the logic, then delete the jsp and any classic ui client libraries it depended on. cloud",
+  "title": "AEM-CLOUD-002 DeprecatedJspUsage",
+  "url": "/issues/#aem-cloud-002"
+ },
+ {
+  "id": "AEM-CLOUD-003",
+  "kind": "rule",
+  "text": "aem-cloud-003 unmappedsubserviceuser java call to getserviceresourceresolver() has no matching serviceusermapperimpl.amended mapping or system user definition. aem-cloud error add a serviceusermapper mapping and declare the service user via repoinit. getserviceresourceresolver only works when a serviceusermapper mapping exists for the bundle's subservice and the service user exists in the repository. without the mapping the call fails at runtime with a loginexception, and the feature only breaks on the environment where the config is missing. declare the service user through repoinit and add …",
+  "title": "AEM-CLOUD-003 UnmappedSubserviceUser",
+  "url": "/issues/#aem-cloud-003"
+ },
+ {
+  "id": "AEM-CLOUD-004",
+  "kind": "rule",
+  "text": "aem-cloud-004 deprecatedaemapiusage java source imports or uses an api deprecated in aem as a cloud service (amscore-553). aem-cloud api warning replace the deprecated api with the supported aem as a cloud service equivalent. amscore-553 an api deprecated for aem as a cloud service is removed or unmaintained in the product version the environment runs. the code compiles today and fails on the next upgrade. replace the call with its supported equivalent (for example the sling resourceresolverfactory instead of the deprecated cq resolver helpers, and com.adobe.granite apis instead of classic ui …",
+  "title": "AEM-CLOUD-004 DeprecatedAemApiUsage",
+  "url": "/issues/#aem-cloud-004"
+ },
+ {
+  "id": "AEM-CLOUD-005",
+  "kind": "rule",
+  "text": "aem-cloud-005 invalidrunmodefolder osgi configuration lives in a runmode folder that is not a recognised aem runmode. aem-cloud api warning move the configuration to a valid runmode folder (config, config.author, config.publish, config.dev, ...) or delete it. only the documented runmodes are applied by aem as a cloud service. a configuration in an unrecognised folder is never activated, so the setting silently does not apply. move the file to a recognised folder — config, config.author, config.publish, config.dev, config.stage, config.prod — or delete it when the runmode no longer exists. …",
+  "title": "AEM-CLOUD-005 InvalidRunmodeFolder",
+  "url": "/issues/#aem-cloud-005"
+ },
+ {
+  "id": "AEM-CLOUD-006",
+  "kind": "rule",
+  "text": "aem-cloud-006 brokendispatcherconfig dispatcher configuration has an unresolved include, a duplicate servername, a vhost without documentroot or a legacy dispatcher.any. aem-cloud dispatcher warning create the missing include file, give each virtual host a distinct servername and a documentroot, and split a monolithic dispatcher.any into conf.dispatcher.d and conf.d. the dispatcher is validated only when cloud manager deploys, so a broken include, a duplicated servername, a virtual host with no documentroot or a monolithic dispatcher.any turns into a failed pipeline rather than a failed …",
+  "title": "AEM-CLOUD-006 BrokenDispatcherConfig",
+  "url": "/issues/#aem-cloud-006"
+ },
+ {
+  "id": "AEM-CLOUD-007",
+  "kind": "rule",
+  "text": "aem-cloud-007 overlappingcontentpackagefilter a content-package filter root is shared across modules, uses replace on a shared root, or points at a platform path. aem-cloud content-package warning give each content module a disjoint filter root; use mode=\"merge\" on anything shared and filter the project's own subtree instead of a platform root. filter roots decide which repository paths a package installs. when two modules filter the same root, the package installed last wins, so content from the other package silently disappears in the deployed environment — and the build, the package …",
+  "title": "AEM-CLOUD-007 OverlappingContentPackageFilter",
+  "url": "/issues/#aem-cloud-007"
+ },
+ {
+  "id": "AEM-CLOUD-008",
+  "kind": "rule",
+  "text": "aem-cloud-008 immutablepathwrite java writes to /apps or /libs at runtime, an area aem as a cloud service keeps immutable. aem-cloud immutable-path error ship the node as content in a content package instead of writing it at runtime, or keep runtime state under a mutable path such as /var or /conf. in aem as a cloud service the repository structure is decided at build time by the packages a deployment installs; /apps and /libs are immutable and \"any attempt to change an immutable area at runtime fails\". code that wrote configuration, labels or counters into /apps for years on 6.5 keeps …",
+  "title": "AEM-CLOUD-008 ImmutablePathWrite",
+  "url": "/issues/#aem-cloud-008"
+ },
+ {
+  "id": "AEM-CLOUD-009",
+  "kind": "rule",
+  "text": "aem-cloud-009 unreachabledeployablemodule a reactor module ships content or a bundle the all container never installs, or a bundle is embedded outside /install. aem-cloud content-package build warning embed the module in the all container (with an .../install target for bundles), or remove it from the reactor; keep the container free of its own jcr_root. aem as a cloud service deploys one package per application: the container module (usually all) embeds and installs every other package, and must carry no content of its own. a module added to the reactor but never to <embeddeds> still builds …",
+  "title": "AEM-CLOUD-009 UnreachableDeployableModule",
+  "url": "/issues/#aem-cloud-009"
+ },
+ {
+  "id": "AEM-CLOUD-010",
+  "kind": "rule",
+  "text": "aem-cloud-010 legacyreplicationconfiguration replication agent content, replication osgi configuration or a custom transport handler that aem as a cloud service cannot honour. aem-cloud replication warning remove replication agent content and transport configuration from the package, and replace a custom transporthandler with the standard replication api or a workflow step. cloud publishing does not use replication agents. content is distributed through sling content distribution to an adobe-hosted pipeline service, so an agent shipped under /etc/replication, an osgi config for …",
+  "title": "AEM-CLOUD-010 LegacyReplicationConfiguration",
+  "url": "/issues/#aem-cloud-010"
+ },
+ {
+  "id": "AEM-COMP-001",
+  "kind": "rule",
+  "text": "aem-comp-001 deprecatedclassicuidialog component defines deprecated classic ui dialog.xml instead of granite ui _cq_dialog. quality classic-ui warning migrate dialog.xml to a granite ui _cq_dialog. classic ui dialog.xml is not read by the touch ui editor, so authors cannot edit the component in aem as a cloud service. it also drags in classic ui client libraries that are not available there. migrate the dialog to a granite ui _cq_dialog/.content.xml with sling:resourcetype=\"cq/gui/components/authoring/dialog\", then delete dialog.xml and check each field's xtype has a granite equivalent. comp",
+  "title": "AEM-COMP-001 DeprecatedClassicUiDialog",
+  "url": "/issues/#aem-comp-001"
+ },
+ {
+  "id": "AEM-COMP-002",
+  "kind": "rule",
+  "text": "aem-comp-002 missingresourcetypecomponent literal sling:resourcetype or data-sly-resource type names no component under the project's /apps prefix. quality component error point the reference at an existing component under the project's /apps prefix, or restore the component that was renamed or moved. content and templates bind to a resource type by string. when the component behind that string is renamed or moved, aem resolves nothing at request time: the page renders blank, and neither javac nor the content-package build notices. point the reference at a component that exists under the …",
+  "title": "AEM-COMP-002 MissingResourceTypeComponent",
+  "url": "/issues/#aem-comp-002"
+ },
+ {
+  "id": "AEM-DEAD-001",
+  "kind": "rule",
+  "text": "aem-dead-001 orphanedosgiconfiguration orphaned osgi configuration without matching component or platform pid. dead-code osgi error delete the orphaned config, or rename its file pid to match the component. a configuration file whose pid matches no component, no @objectclassdefinition and no platform factory pid never takes effect. at best it is dead weight in the content package; at worst it is a typo that silently stops the configuration you meant to ship, and the service starts with framework defaults on aem as a cloud service. either delete the file or rename it so its pid is the …",
+  "title": "AEM-DEAD-001 OrphanedOsgiConfiguration",
+  "url": "/issues/#aem-dead-001"
+ },
+ {
+  "id": "AEM-DEAD-002A",
+  "kind": "rule",
+  "text": "aem-dead-002a ghostconfigurationproperty configuration property does not exist in target @objectclassdefinition. dead-code osgi warning remove the property, fix its spelling, or declare a matching @attributedefinition. a property that the component's @objectclassdefinition does not declare is dropped during binding. the configuration looks correct in the repository, so the symptom is an unexplained default value at runtime rather than a validation error. remove the property, correct its spelling, or add an @attributedefinition that declares it. configuration and ocd must describe the same set …",
+  "title": "AEM-DEAD-002A GhostConfigurationProperty",
+  "url": "/issues/#aem-dead-002a"
+ },
+ {
+  "id": "AEM-DEAD-002B",
+  "kind": "rule",
+  "text": "aem-dead-002b unconsumedocdproperty ocd attribute method is never consumed by designating java component. dead-code osgi warning consume the attribute in code or delete it from the ocd. an ocd attribute that no code reads is a setting users can change with no effect. it usually survives a refactor that removed the code path but not the interface method. inject the configuration and read the attribute, or delete it from the @objectclassdefinition so the configuration console stops offering a dead switch. dead",
+  "title": "AEM-DEAD-002B UnconsumedOcdProperty",
+  "url": "/issues/#aem-dead-002b"
+ },
+ {
+  "id": "AEM-DEAD-003A",
+  "kind": "rule",
+  "text": "aem-dead-003a unusedosgiservice osgi service has zero injections across bundles and is not a system entry point. dead-code osgi warning inject the service, delete it, or export its interface package. a registered osgi service that nothing injects and that no framework calls is code the build still compiles, tests and deploys. on aem as a cloud service it also keeps its dependencies and configuration alive. inject the service where it was meant to be used, drop the service = ... registration so the class becomes a plain component, or export its package when it is a deliberate api for other …",
+  "title": "AEM-DEAD-003A UnusedOsgiService",
+  "url": "/issues/#aem-dead-003a"
+ },
+ {
+  "id": "AEM-DEAD-003B",
+  "kind": "rule",
+  "text": "aem-dead-003b unusedslingmodel sling model has zero java adaptations and no resourcetype binding. dead-code osgi info bind the model to a resourcetype, adapt it somewhere, or delete it. a sling model that no template adapts from and that no resourcetype binds is never instantiated. it is often a model that survived the deletion of its component. bind it with @model(resourcetype = ...) so the component uses it, adapt it explicitly from htl with data-sly-use, or delete it. dead",
+  "title": "AEM-DEAD-003B UnusedSlingModel",
+  "url": "/issues/#aem-dead-003b"
+ },
+ {
+  "id": "AEM-DEAD-003C",
+  "kind": "rule",
+  "text": "aem-dead-003c inactivedelayedcomponent component provides no service interfaces and immediate = false. dead-code osgi warning set immediate = true, provide a service, or delete the component. with immediate = false and no service interface, an osgi component is delayed and nothing can ever obtain it, so its @activate never runs. any startup work it performs — schedulers, caches, listeners — silently does not happen. set immediate = true for components that must start with the bundle, or register a service interface so the component is created on first injection. delete it if neither is …",
+  "title": "AEM-DEAD-003C InactiveDelayedComponent",
+  "url": "/issues/#aem-dead-003c"
+ },
+ {
+  "id": "AEM-DEAD-004",
+  "kind": "rule",
+  "text": "aem-dead-004 brokenhtlreference htl template references non-existent java class or sling model. dead-code htl error correct the class name in the htl data-sly-use expression. an htl expression that names a class which does not exist fails at render time, not at build time, so the page breaks in the author or publish instance rather than in ci. it is usually a package move or a rename that missed the template. point data-sly-use at the current fully qualified class name, and confirm the class lives in a bundle the template's package can see. dead",
+  "title": "AEM-DEAD-004 BrokenHtlReference",
+  "url": "/issues/#aem-dead-004"
+ },
+ {
+  "id": "AEM-DEAD-005",
+  "kind": "rule",
+  "text": "aem-dead-005 orphanedclientlibcategory a client library category is never referenced by an htl/jsp template or another client library. dead-code clientlib info reference the category from an htl/jsp template or another clientlib, or delete the clientlib. a client library no page, component or other clientlib includes is still built and deployed. dead clientlibs usually carry js and css that also hide unused configuration and third-party dependencies. reference the category from an htl template (data-sly-call with categories) or from another clientlib's categories dependency, or delete the …",
+  "title": "AEM-DEAD-005 OrphanedClientlibCategory",
+  "url": "/issues/#aem-dead-005"
+ },
+ {
+  "id": "AEM-DEAD-006",
+  "kind": "rule",
+  "text": "aem-dead-006 missingtranslationkey translation key used by a template or model has no entry in the baseline (en) dictionary. dead-code i18n htl warning add the key to the baseline en.json dictionary (and to every other locale), or correct the key at the use site. aem prints the raw key when ${'key' @ i18n} has no dictionary entry, so a missing translation ships to production as visible text. the build and the bundle both pass, and the only signal is a customer reading \"checkout.title\" on the page. keeping every locale in step by hand also guarantees that the en dictionary silently drifts …",
+  "title": "AEM-DEAD-006 MissingTranslationKey",
+  "url": "/issues/#aem-dead-006"
+ },
+ {
+  "id": "AEM-DEAD-007",
+  "kind": "rule",
+  "text": "aem-dead-007 brokenhtlinclude htl data-sly-include target is missing or forms an include cycle. dead-code htl warning correct the include path to an existing template, or break the include cycle. sightly resolves data-sly-include while rendering, so a renamed or mis-pathed include is invisible to the build. it surfaces only as an empty region on one page, long after the template was moved. an include cycle is worse: rendering recurses until the request is aborted. correct the include path to an existing template relative to the including file, or break the cycle by factoring the shared markup …",
+  "title": "AEM-DEAD-007 BrokenHtlInclude",
+  "url": "/issues/#aem-dead-007"
+ },
+ {
+  "id": "AEM-DUP-001",
+  "kind": "rule",
+  "text": "aem-dup-001 duplicateservletendpoint multiple osgi servlets claim identical paths or resourcetypes/selectors/methods without ranking distinction. duplication error merge the servlets or add distinct selectors/resource types. two servlets that answer the same request make the response depend on registration order and service ranking. on a publish tier the result can differ between instances, which is the hardest class of bug to reproduce. merge the servlets, or give each one a distinct contract: a different resource type, selectors, extension or http method. reach for an explicit …",
+  "title": "AEM-DUP-001 DuplicateServletEndpoint",
+  "url": "/issues/#aem-dup-001"
+ },
+ {
+  "id": "AEM-DUP-002",
+  "kind": "rule",
+  "text": "aem-dup-002 duplicateosgiconfiguration conflicting or duplicate osgi configuration targeting the same pid in the same runmode context. duplication warning keep one config per pid and runmode; remove the duplicate. two files configuring the same pid in the same runmode context are both installed and the winner depends on install order. values then differ between a fresh install and an incremental one — the classic \"works on my instance\" configuration bug. keep exactly one file per pid and runmode context and merge the properties into it. split by runmode (config, config.author, config.publish) …",
+  "title": "AEM-DUP-002 DuplicateOsgiConfiguration",
+  "url": "/issues/#aem-dup-002"
+ },
+ {
+  "id": "AEM-DUP-003",
+  "kind": "rule",
+  "text": "aem-dup-003 duplicateslingmodel multiple sling models bind to the exact same resourcetype and adapter interface without condition. duplication warning differentiate the resourcetype/adapters or merge the models. two sling models bound to the same resourcetype and adaptable means htl can resolve either one; the winner is undefined. exported json then differs depending on which model the model factory picked. keep one model per resource type, or separate them by selector, resource type or a condition, and let htl choose explicitly. dup",
+  "title": "AEM-DUP-003 DuplicateSlingModel",
+  "url": "/issues/#aem-dup-003"
+ },
+ {
+  "id": "AEM-DUP-010",
+  "kind": "rule",
+  "text": "aem-dup-010 duplicatecodeblock duplicate java code block or method clone detected across repository classes. duplication warning extract the duplicated block into a shared helper. cloned code drifts: a fix applied to one copy silently misses the others, and every copy has to be re-tested. duplication across bundles is usually a missing shared module. extract the duplicated block into a helper or an interface in the bundle that already owns the concept, and have both call sites use it. dup",
+  "title": "AEM-DUP-010 DuplicateCodeBlock",
+  "url": "/issues/#aem-dup-010"
+ },
+ {
+  "id": "AEM-PERF-001",
+  "kind": "rule",
+  "text": "aem-perf-001 unclosedresourceresolver resourceresolver obtained via factory is not closed in try-with-resources or finally. performance error wrap the resolver in try-with-resources. a resolver obtained from the factory and never closed keeps its jcr session and its caches alive for the life of the jvm. aem as a cloud service logs leaked resolvers and eventually refuses new ones, so the instance degrades instead of failing fast. always obtain the resolver in a try-with-resources block, or close it in a finally block, and never hand it to another thread. perf",
+  "title": "AEM-PERF-001 UnclosedResourceResolver",
+  "url": "/issues/#aem-perf-001"
+ },
+ {
+  "id": "AEM-PERF-002",
+  "kind": "rule",
+  "text": "aem-perf-002 unclosedjcrsession jcr session obtained via repository login or adaptation is not logged out or closed. performance error close the owning resolver or call session.logout() in a finally block. a jcr session opened through repository.login() or adapted from a resolver must be logged out. an open session pins the observation queue and any pending changes, and on aem as a cloud service leaked sessions show up as repository connection pressure. close the session in a finally block, or avoid the session entirely: the resource resolver api covers almost every read and write a component …",
+  "title": "AEM-PERF-002 UnclosedJcrSession",
+  "url": "/issues/#aem-perf-002"
+ },
+ {
+  "id": "AEM-PERF-003",
+  "kind": "rule",
+  "text": "aem-perf-003 oakquerytraversalrisk jcr-sql2 or xpath query lacks path or nodetype restriction, causing oak traversal errors. performance warning add a path or nodetype restriction to the query. a jcr-sql2 or xpath query with no path or node type restriction forces oak to walk every index it has. at scale that is the difference between a millisecond lookup and a traversal warning in the cloud service logs. add a path= or type= constraint (or isdescendantnode) so oak can use a property index, and confirm the index exists. perf",
+  "title": "AEM-PERF-003 OakQueryTraversalRisk",
+  "url": "/issues/#aem-perf-003"
+ },
+ {
+  "id": "AEM-PERF-004",
+  "kind": "rule",
+  "text": "aem-perf-004 unboundedquery jcr/oak query has no limit and may scan an unbounded result set. performance query warning add a result limit (p.limit / query limit) to bound the query. an unbounded query result can be enormous on a content repository that grows daily. it is the usual cause of a slow component that only shows up in production. bound the result set with p.limit (or limit in jcr-sql2) and paginate with p.offset. report the total separately with p.guesstotal rather than materialising every hit. perf",
+  "title": "AEM-PERF-004 UnboundedQuery",
+  "url": "/issues/#aem-perf-004"
+ },
+ {
+  "id": "AEM-QUAL-001",
+  "kind": "rule",
+  "text": "aem-qual-001 pathboundservletregistration sling servlet registered using paths instead of resource types (cqbp-75). quality aem-cloud warning register the servlet by resourcetype instead of paths (cqbp-75). cqbp-75 cloud manager's cqbp-75 rejects path-bound servlets because they bypass sling's resource-centric security model and cannot be dispatched or cached like a resource. they also break the dispatcher rules teams rely on for /content urls. register the servlet by resourcetype and address it through a resource, with selectors and extensions for the variants. for a redirect or a download …",
+  "title": "AEM-QUAL-001 PathBoundServletRegistration",
+  "url": "/issues/#aem-qual-001"
+ },
+ {
+  "id": "AEM-QUAL-002",
+  "kind": "rule",
+  "text": "aem-qual-002 providertypeimplementation custom code implements or extends @providertype product interface (cqbp-84). quality aem-cloud error implement only consumer-facing apis; do not implement @providertype (cqbp-84). cqbp-84 implementing or extending a @providertype interface ties your bundle to product internals that aem as a cloud service upgrades without notice; cqbp-84 fails the build for exactly this reason. provider types are contracts you consume, not implement. depend on the interface and delegate to it instead of implementing it. when you need to decorate behaviour, wrap the …",
+  "title": "AEM-QUAL-002 ProviderTypeImplementation",
+  "url": "/issues/#aem-qual-002"
+ },
+ {
+  "id": "AEM-QUAL-003",
+  "kind": "rule",
+  "text": "aem-qual-003 slingschedulerusage sling whiteboard scheduler used instead of sling scheduled jobs (amscore-554). quality aem-cloud warning use sling scheduled jobs instead of the whiteboard scheduler (amscore-554). amscore-554 amscore-554 flags the sling whiteboard scheduler. aem as a cloud service expects sling scheduled jobs, which are cluster-aware: a job runs once across the publish tier instead of once per instance, and it survives a restart. implement a jobconsumer for the topic and schedule the run through the sling job api instead of scheduler.addjob. qual",
+  "title": "AEM-QUAL-003 SlingSchedulerUsage",
+  "url": "/issues/#aem-qual-003"
+ },
+ {
+  "id": "AEM-QUAL-004",
+  "kind": "rule",
+  "text": "aem-qual-004 unsafecomponentstate non-thread-safe or session-bound object stored in osgi component field (aem-3). quality aem-cloud error do not store session-bound or non-thread-safe objects in component fields. aem-3 slinghttpservletrequest, resourceresolver and jcr session are bound to one thread and one request. stored in a component field, they leak across requests: closed resolvers are reused, sessions go stale after a restart, and the component is no longer thread-safe (cloud manager check aem-3). keep only immutable, thread-safe collaborators in fields. obtain request-scoped objects …",
+  "title": "AEM-QUAL-004 UnsafeComponentState",
+  "url": "/issues/#aem-qual-004"
+ },
+ {
+  "id": "AEM-QUAL-005",
+  "kind": "rule",
+  "text": "aem-qual-005 administrativeaccessusage deprecated administrative login or resource resolver api used; rejected on aem as a cloud service. quality aem-cloud error use a dedicated service user with a mapped subservice (amscore-553). administrative logins and loginadministrative bypass every permission check and are rejected by aem as a cloud service. they also hide the real acls a feature needs. create a dedicated service user with a serviceusermapper mapping and request a service resource resolver for that subservice, then grant the service user exactly the permissions the feature needs. qual",
+  "title": "AEM-QUAL-005 AdministrativeAccessUsage",
+  "url": "/issues/#aem-qual-005"
+ },
+ {
+  "id": "AEM-QUAL-006",
+  "kind": "rule",
+  "text": "aem-qual-006 resolverstoredincomponentfield osgi component stores a request-scoped resourceresolver or jcr session in an instance field. quality resource-lifecycle warning do not store request-scoped resolvers or sessions in component fields; obtain them per request and close them. storing a request-scoped resolver or session in an osgi component field keeps one request's state alive for every later request, which leaks resolvers and can serve stale content. obtain the resolver or session per request and close it in the same scope. the thread-safety owner for this check is aem-qual-004 …",
+  "title": "AEM-QUAL-006 ResolverStoredInComponentField",
+  "url": "/issues/#aem-qual-006"
+ },
+ {
+  "id": "AEM-QUAL-007",
+  "kind": "rule",
+  "text": "aem-qual-007 unregistrableslingmodel sling model injects a request-only type or @requestattribute without declaring a request adaptable. quality sling-models warning declare slinghttpservletrequest (or httpservletrequest) among the model's adaptables, or inject the value from the resource instead. sling models resolves an injection against the adaptable, not against the request the adaptable came from. a model declared adaptables = resource.class therefore cannot inject a request, a response or a @requestattribute: the class compiles, the bundle activates and the model registers, then …",
+  "title": "AEM-QUAL-007 UnregistrableSlingModel",
+  "url": "/issues/#aem-qual-007"
+ },
+ {
+  "id": "AEM-QUAL-008",
+  "kind": "rule",
+  "text": "aem-qual-008 unprovidedmandatoryreference mandatory @reference target is declared by project sources but registered by no component. quality osgi error register a @component service implementation for the target type, or mark the @reference optional if activation must not depend on it. a declarative services component with an unsatisfied mandatory reference never activates. the bundle stays active and the code compiles because the target type is on the classpath, so the failure is invisible until the servlet 404s or the scheduled job never fires. register an implementation with …",
+  "title": "AEM-QUAL-008 UnprovidedMandatoryReference",
+  "url": "/issues/#aem-qual-008"
+ },
+ {
+  "id": "AEM-SEC-001",
+  "kind": "rule",
+  "text": "aem-sec-001 unsafehtlcontextbypass htl expression uses @ context='unsafe' bypassing xss protection. security xss error remove context='unsafe' and use a properly escaped context. context='unsafe' switches off htl's contextual escaping, and the expression is written into the page verbatim. with any author-controlled or request-derived value that is a stored xss hole (cwe-79) on a publish tier. drop unsafe and let htl pick the context from the surrounding markup. when you really must emit markup, use context='html' and pass it through a sanitiser such as the granite xss api. sec",
+  "title": "AEM-SEC-001 UnsafeHtlContextBypass",
+  "url": "/issues/#aem-sec-001"
+ },
+ {
+  "id": "AEM-SEC-002",
+  "kind": "rule",
+  "text": "aem-sec-002 openredirectorssrf user-controlled input flows into a redirect or outbound http request. security ssrf warning validate redirects and outbound urls against an allowlist; never pass request parameters directly. a request parameter that reaches sendredirect or an outbound http call lets an attacker choose the destination: an open redirect for phishing, or server-side request forgery against internal services (cwe-601). validate the destination against an allowlist of hosts or a fixed set of relative paths before redirecting, and never build an outbound url from unvalidated input. sec",
+  "title": "AEM-SEC-002 OpenRedirectOrSsrf",
+  "url": "/issues/#aem-sec-002"
+ },
+ {
+  "id": "AEM-WF-001",
+  "kind": "rule",
+  "text": "aem-wf-001 unresolvedworkflowreference workflow launcher points at a model, or a process step at a class, that the project does not ship. workflow content warning point the launcher at a model the project ships (or an existing out-of-the-box model), and the process step at a class that exists in a bundle the project deploys. a workflow launcher references its model by path and a process step references its class by name; both are plain strings in .content.xml. rename the model or move the class and nothing complains at deploy time - the launcher simply never starts, and the workflow that …",
+  "title": "AEM-WF-001 UnresolvedWorkflowReference",
+  "url": "/issues/#aem-wf-001"
+ }
+]

@@ -7,15 +7,19 @@ import io.github.rohithv16.aem.analyser.core.model.report.RelatedLocation;
 import io.github.rohithv16.aem.analyser.core.model.report.Violation;
 import io.github.rohithv16.aem.analyser.core.rules.RuleCatalog;
 import io.github.rohithv16.aem.analyser.core.rules.metadata.RuleDescriptor;
+import io.github.rohithv16.aem.analyser.core.fix.AutoFixEngine;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 
 import java.io.IOException;
 import java.io.Writer;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * FEAT-REP-01: canonical OASIS SARIF 2.1.0 exporter.
@@ -45,6 +49,7 @@ public final class SarifReportExporter implements ReportExporter {
         }
 
         List<Map<String, Object>> results = new ArrayList<>();
+        FixPlanner fixPlanner = FixPlanner.forReport(report);
         for (Violation violation : report.violations()) {
             // Accepted findings reach violations() only in the legacy --baseline-report mode, where
             // an INFO copy is kept for renderers without suppression support; SARIF emits the
@@ -52,10 +57,10 @@ public final class SarifReportExporter implements ReportExporter {
             if (violation.isAccepted()) {
                 continue;
             }
-            results.add(result(violation, ruleIndexes, ruleDefinitions, false));
+            results.add(result(violation, ruleIndexes, ruleDefinitions, false, fixPlanner));
         }
         for (Violation violation : report.acceptedViolations()) {
-            results.add(result(violation, ruleIndexes, ruleDefinitions, true));
+            results.add(result(violation, ruleIndexes, ruleDefinitions, true, fixPlanner));
         }
 
         Map<String, Object> driver = new LinkedHashMap<>();
@@ -110,7 +115,8 @@ public final class SarifReportExporter implements ReportExporter {
     private Map<String, Object> result(Violation violation,
                                        Map<String, Integer> ruleIndexes,
                                        List<Map<String, Object>> ruleDefinitions,
-                                       boolean accepted) {
+                                       boolean accepted,
+                                       FixPlanner fixPlanner) {
         if (!ruleIndexes.containsKey(violation.ruleId())) {
             var descriptor = io.github.rohithv16.aem.analyser.core.rules.metadata.RuleRegistry
                     .get(violation.ruleId());
@@ -151,6 +157,13 @@ public final class SarifReportExporter implements ReportExporter {
             // the artefact instead of one console line.
             result.put("baselineState", "unchanged");
             result.put("suppressions", List.of(suppression(violation)));
+        } else {
+            // Only a finding the auto-fixer can repair carries a fix: an invented edit for the other
+            // rules would offer code scanning a change nobody has verified.
+            Map<String, Object> fix = fixPlanner.fixFor(violation);
+            if (fix != null) {
+                result.put("fixes", List.of(fix));
+            }
         }
         return result;
     }
@@ -164,6 +177,14 @@ public final class SarifReportExporter implements ReportExporter {
                     "justification", "baseline:" + io.github.rohithv16.aem.analyser.core.baseline
                             .Fingerprint.of(violation));
         }
+        if (violation.acceptance()
+                == io.github.rohithv16.aem.analyser.core.model.report.AcceptanceOrigin.EXTERNAL) {
+            String detail = violation.acceptanceDetail();
+            return ordered(
+                    "kind", "external",
+                    "status", "accepted",
+                    "justification", detail.isBlank() ? "imported report" : detail);
+        }
         return ordered(
                 "kind", "inSource",
                 "status", "accepted",
@@ -173,6 +194,13 @@ public final class SarifReportExporter implements ReportExporter {
     private Map<String, Object> ruleDefinition(RuleDescriptor rule) {
         Map<String, Object> definition = new LinkedHashMap<>();
         definition.put("id", rule.id());
+        // SARIF's way to say "this rule supersedes those ids". The replacement descriptor carries the
+        // retired id so a consumer that still stores AEM-QUAL-006 can map its old alerts onto
+        // AEM-QUAL-004 instead of leaving them orphaned.
+        List<String> deprecatedIds = deprecatedIds(rule.id());
+        if (!deprecatedIds.isEmpty()) {
+            definition.put("deprecatedIds", deprecatedIds);
+        }
         definition.put("name", rule.name());
         definition.put("shortDescription", ordered("text", rule.shortDescription()));
         definition.put("fullDescription", ordered("text", rule.fullDescription()));
@@ -181,6 +209,16 @@ public final class SarifReportExporter implements ReportExporter {
         Map<String, Object> properties = new LinkedHashMap<>();
         if (!rule.tags().isEmpty()) {
             properties.put("tags", rule.tags());
+        }
+        // Lifecycle metadata travels with the descriptor, so an API consumer can tell a retired id
+        // from a live one without parsing our HTML page.
+        try {
+            var ruleId = io.github.rohithv16.aem.analyser.core.model.report.RuleId.fromId(rule.id());
+            properties.put("status", ruleId.status().wireName());
+            properties.put("since", ruleId.since());
+            ruleId.replacedBy().ifPresent(replacement -> properties.put("replacedBy", replacement));
+        } catch (IllegalArgumentException unknown) {
+            // A descriptor for an id outside RuleId (none today) simply carries no lifecycle fields.
         }
         if (rule.cwe() != null) {
             properties.put("cwe", rule.cwe());
@@ -206,6 +244,18 @@ public final class SarifReportExporter implements ReportExporter {
         }
         definition.put("defaultConfiguration", configuration);
         return definition;
+    }
+
+    /** Ids this rule supersedes: every retired or deprecated id whose {@code replacedBy} names it. */
+    private static List<String> deprecatedIds(String ruleId) {
+        List<String> ids = new ArrayList<>();
+        for (io.github.rohithv16.aem.analyser.core.model.report.RuleId candidate
+                : io.github.rohithv16.aem.analyser.core.model.report.RuleId.values()) {
+            if (candidate.replacedBy().map(ruleId::equals).orElse(false)) {
+                ids.add(candidate.id());
+            }
+        }
+        return ids;
     }
 
     /** Plain-text rule help: the long description plus the remediation the CLI already prints. */
@@ -326,5 +376,165 @@ public final class SarifReportExporter implements ReportExporter {
             case WARNING -> "warning";
             case INFO -> "note";
         };
+    }
+
+    /**
+     * Distributes the auto-fixer's edits over the SARIF results.
+     *
+     * <p>The planner reads each fixable file once, asks {@link AutoFixEngine} for the same edits
+     * {@code --fix} would write, and hands each edit to exactly one result. Because no edit is
+     * emitted twice, applying every {@code fixes} block in the report reconstructs the file
+     * {@code --fix} produces — a consumer that applies all suggestions cannot double-apply one.</p>
+     *
+     * <p>No file is touched and no finding is invented: a rule with no deterministic transform gets
+     * no {@code fixes} entry at all.</p>
+     */
+    static final class FixPlanner {
+
+        private static final FixPlanner NONE = new FixPlanner(Map.of(), Map.of());
+
+        private final Map<String, SourceText> sources;
+        private final Map<String, List<AutoFixEngine.Edit>> editsByKey;
+        private final Map<String, Set<Integer>> claimed = new HashMap<>();
+
+        private FixPlanner(Map<String, SourceText> sources,
+                           Map<String, List<AutoFixEngine.Edit>> editsByKey) {
+            this.sources = sources;
+            this.editsByKey = editsByKey;
+        }
+
+        static FixPlanner forReport(AnalysisReport report) {
+            List<Violation> all = new ArrayList<>(report.violations());
+            all.addAll(report.acceptedViolations());
+            boolean fixable = all.stream().anyMatch(v -> AutoFixEngine.isMachineFixable(v.ruleId()));
+            if (!fixable) {
+                return NONE;
+            }
+            List<AutoFixEngine.FilePlan> plans = new AutoFixEngine().plan(report.projectRoot(), all);
+            if (plans.isEmpty()) {
+                return NONE;
+            }
+            Map<String, SourceText> sources = new HashMap<>();
+            Map<String, List<AutoFixEngine.Edit>> editsByKey = new LinkedHashMap<>();
+            for (AutoFixEngine.FilePlan plan : plans) {
+                sources.put(plan.filePath(), SourceText.of(plan.originalContent()));
+                for (AutoFixEngine.Edit edit : plan.edits()) {
+                    editsByKey.computeIfAbsent(key(edit.filePath(), edit.ruleId()),
+                            k -> new ArrayList<>()).add(edit);
+                }
+            }
+            return new FixPlanner(sources, editsByKey);
+        }
+
+        /** The {@code fixes[0]} object for one finding, or {@code null} when it has no repair. */
+        Map<String, Object> fixFor(Violation violation) {
+            String key = key(violation.filePath(), violation.ruleId());
+            List<AutoFixEngine.Edit> candidates = editsByKey.get(key);
+            if (candidates == null || candidates.isEmpty()) {
+                return null;
+            }
+            Set<Integer> taken = claimed.computeIfAbsent(key, k -> new HashSet<>());
+            int line = violation.region() == null ? -1 : violation.region().startLine();
+            List<Integer> chosen = new ArrayList<>();
+            for (int i = 0; i < candidates.size(); i++) {
+                if (!taken.contains(i) && candidates.get(i).line() == line) {
+                    chosen.add(i);
+                }
+            }
+            if (chosen.isEmpty()) {
+                // The finding and the edit can disagree on the line (a rule reports the enclosing
+                // statement). Hand over the first unclaimed edit rather than dropping the repair.
+                for (int i = 0; i < candidates.size(); i++) {
+                    if (!taken.contains(i)) {
+                        chosen.add(i);
+                        break;
+                    }
+                }
+            }
+            if (chosen.isEmpty()) {
+                return null;
+            }
+            // A companion edit (the StandardCharsets import) belongs to the first repair in the file:
+            // it is part of that change, not a suggestion of its own.
+            for (int i = 0; i < candidates.size(); i++) {
+                AutoFixEngine.Edit candidate = candidates.get(i);
+                if (!taken.contains(i) && isImportEdit(candidate) && !chosen.contains(i)) {
+                    chosen.add(i);
+                }
+            }
+            taken.addAll(chosen);
+
+            List<Map<String, Object>> replacements = new ArrayList<>();
+            for (int index : chosen) {
+                replacements.add(replacement(candidates.get(index)));
+            }
+            AutoFixEngine.Edit first = candidates.get(chosen.get(0));
+            String description = "Fix " + violation.ruleId() + ": " + first.description()
+                    + (chosen.size() > 1 ? " (and " + (chosen.size() - 1) + " more edit(s))" : "");
+            return ordered(
+                    "description", ordered("text", description),
+                    "artifactChanges", List.of(ordered(
+                            "artifactLocation", ordered("uri", toUri(first.filePath()),
+                                    "uriBaseId", "%SRCROOT%"),
+                            "replacements", replacements)));
+        }
+
+        private Map<String, Object> replacement(AutoFixEngine.Edit edit) {
+            Map<String, Object> replacement = new LinkedHashMap<>();
+            SourceText source = sources.get(edit.filePath());
+            if (source != null && !edit.insertion()) {
+                int[] start = source.position(edit.startOffset());
+                int[] end = source.position(edit.endOffset());
+                replacement.put("deletedRegion", ordered(
+                        "startLine", start[0], "startColumn", start[1],
+                        "endLine", end[0], "endColumn", end[1]));
+            }
+            if (!edit.insertedText().isEmpty()) {
+                replacement.put("insertedContent", ordered("text", edit.insertedText()));
+            }
+            return replacement;
+        }
+
+        private static String key(String filePath, String ruleId) {
+            return (filePath == null ? "" : filePath) + '\u0000' + AutoFixEngine.canonicalRuleId(ruleId);
+        }
+
+        /** The StandardCharsets import is added by the same transform, not by a finding of its own. */
+        private static boolean isImportEdit(AutoFixEngine.Edit edit) {
+            return edit.insertedText().contains("import java.nio.charset.StandardCharsets;");
+        }
+    }
+
+    /** A source file held once per export, with a line index for offset → SARIF coordinates. */
+    private record SourceText(String content, int[] lineStarts) {
+
+        static SourceText of(String content) {
+            String[] lines = content.split("\r?\n", -1);
+            int[] lineStarts = new int[lines.length];
+            int offset = 0;
+            for (int i = 0; i < lines.length; i++) {
+                lineStarts[i] = offset;
+                offset += lines[i].length();
+                if (i < lines.length - 1) {
+                    offset += content.startsWith("\r\n", offset) ? 2 : 1;
+                }
+            }
+            return new SourceText(content, lineStarts);
+        }
+
+        /** 1-based {@code [line, column]} of a character offset; the end offset is exclusive. */
+        int[] position(int offset) {
+            int low = 0;
+            int high = lineStarts.length - 1;
+            while (low < high) {
+                int mid = (low + high + 1) >>> 1;
+                if (lineStarts[mid] <= offset) {
+                    low = mid;
+                } else {
+                    high = mid - 1;
+                }
+            }
+            return new int[]{low + 1, offset - lineStarts[low] + 1};
+        }
     }
 }

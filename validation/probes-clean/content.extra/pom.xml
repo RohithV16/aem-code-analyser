@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0">
+  <modelVersion>4.0.0</modelVersion>
+  <parent><groupId>com.probe</groupId><artifactId>analyser-probes</artifactId><version>1.0.0</version></parent>
+  <artifactId>probe.content.extra</artifactId><packaging>content-package</packaging>
+  <build><plugins><plugin><groupId>org.apache.jackrabbit</groupId><artifactId>filevault-package-maven-plugin</artifactId>
+    <configuration><packageType>container</packageType></configuration></plugin></plugins></build>
+</project>
