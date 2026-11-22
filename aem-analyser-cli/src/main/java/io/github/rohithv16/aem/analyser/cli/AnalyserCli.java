@@ -112,6 +112,12 @@ public class AnalyserCli implements java.util.concurrent.Callable<Integer> {
                     + "on its own; errors are always reported.")
     private boolean quiet;
 
+    @Option(names = "--severity", split = ",", paramLabel = "RULE=SEVERITY",
+            description = "Per-rule severity for this run: RULE=ERROR|WARNING|INFO|OFF. Repeatable or "
+                    + "comma-separated (e.g. --severity AEM-QUAL-003=INFO,AEM-DUP-010=OFF). "
+                    + "Overrides the project configuration; unknown rule ids are rejected.")
+    private List<String> severityOverrides;
+
     @Option(names = {"--ignored-services"}, split = ",",
             description = "Service implementation class names to whitelist (never flagged unused).")
     private Set<String> ignoredServices;
@@ -337,13 +343,14 @@ public class AnalyserCli implements java.util.concurrent.Callable<Integer> {
         if (collectCoverage) {
             runCoverageCollection(root);
         }
-        io.github.rohithv16.aem.analyser.core.config.AnalyserConfig config;
+        EffectiveConfig effective;
         try {
-            config = loadConfig(root);
+            effective = loadConfig(root);
         } catch (IOException e) {
             error("Could not read configuration: " + e.getMessage());
             return 2;
         }
+        AnalyserConfig config = effective.config();
         AnalysisContext context = scopeToChangedFiles(buildContext(root, config), root);
         AnalysisReport report = analyzeAndFilter(context, root);
         report = applyAutoFix(root, context, report);
@@ -359,13 +366,91 @@ public class AnalyserCli implements java.util.concurrent.Callable<Integer> {
         return verdict.exitCode();
     }
 
-    private io.github.rohithv16.aem.analyser.core.config.AnalyserConfig loadConfig(Path root)
-            throws IOException {
-        io.github.rohithv16.aem.analyser.core.config.AnalyserConfig config = configFile != null
-                ? io.github.rohithv16.aem.analyser.core.config.AnalyserConfigLoader.load(configFile)
-                : io.github.rohithv16.aem.analyser.core.config.AnalyserConfigLoader.loadIfPresent(root);
-        warnRetiredRuleIds(config.rules().keySet(), "Configuration");
-        return config;
+    /**
+     * The effective configuration for one invocation: the file layer with the {@code --severity} layer
+     * merged on top, plus where each value came from so {@code --list-rules}/{@code --explain} can name
+     * the provenance instead of guessing.
+     *
+     * @param config      effective rules and allowlists (CLI wins over the file)
+     * @param source      file name of the config that applied, or {@code null} when none was found
+     * @param cliRuleIds  canonical ids named by {@code --severity}, i.e. the values the CLI owns
+     */
+    record EffectiveConfig(AnalyserConfig config, String source, Set<String> cliRuleIds) {
+
+        static EffectiveConfig of(AnalyserConfig config, String source, Set<String> cliRuleIds) {
+            return new EffectiveConfig(config, source, Set.copyOf(cliRuleIds));
+        }
+
+        /** Where the effective value for {@code ruleId} came from, or {@code null} for the default. */
+        String provenance(String ruleId) {
+            if (cliRuleIds.contains(ruleId)) {
+                return "--severity";
+            }
+            return source;
+        }
+    }
+
+    private EffectiveConfig loadConfig(Path root) throws IOException {
+        AnalyserConfig fileConfig;
+        String source;
+        if (configFile != null) {
+            fileConfig = AnalyserConfigLoader.load(configFile);
+            source = configFile.getFileName() != null
+                    ? configFile.getFileName().toString() : configFile.toString();
+        } else {
+            Path defaultFile = root.resolve(AnalyserConfigLoader.DEFAULT_FILE);
+            fileConfig = AnalyserConfigLoader.loadIfPresent(root);
+            source = Files.isRegularFile(defaultFile) ? AnalyserConfigLoader.DEFAULT_FILE : null;
+        }
+        Map<String, AnalyserConfig.RuleOverride> merged = new LinkedHashMap<>(fileConfig.rules());
+        Set<String> cliRuleIds = new TreeSet<>();
+        applySeverityOverrides(merged, cliRuleIds);
+        AnalyserConfig config = new AnalyserConfig(fileConfig.schemaVersion(), merged, fileConfig.allowlists());
+        warnRetiredRuleIds(config.rules().keySet(), source == null ? "Configuration" : "Configuration " + source);
+        return EffectiveConfig.of(config, source, cliRuleIds);
+    }
+
+    /**
+     * Merges {@code --severity RULE=SEVERITY} over the file rules. A CLI entry is explicit, so it wins
+     * for both axes: {@code OFF} disables the rule, a severity enables it at that severity even when
+     * the file disabled it. Unknown ids are rejected rather than silently accepted — a typo would
+     * otherwise look like a rule policy that never applied.
+     */
+    private void applySeverityOverrides(Map<String, AnalyserConfig.RuleOverride> merged,
+                                        Set<String> cliRuleIds) {
+        if (severityOverrides == null) {
+            return;
+        }
+        for (String spec : severityOverrides) {
+            if (spec == null || spec.isBlank()) {
+                continue;
+            }
+            int equals = spec.indexOf('=');
+            if (equals <= 0 || equals == spec.length() - 1) {
+                throw new IllegalArgumentException("Invalid --severity '" + spec.strip()
+                        + "'. Expected RULE=SEVERITY, e.g. --severity AEM-QUAL-003=INFO.");
+            }
+            String rawId = spec.substring(0, equals).strip();
+            String rawSeverity = spec.substring(equals + 1).strip().toUpperCase(Locale.ROOT);
+            String ruleId = io.github.rohithv16.aem.analyser.core.rules.metadata.RuleRegistry.find(rawId)
+                    .map(io.github.rohithv16.aem.analyser.core.rules.metadata.RuleDescriptor::id)
+                    .orElseThrow(() -> new IllegalArgumentException("Unknown rule '" + rawId
+                            + "' in --severity. Run --list-rules to see the rule ids."));
+            if ("OFF".equals(rawSeverity) || "NONE".equals(rawSeverity)) {
+                merged.put(ruleId, new AnalyserConfig.RuleOverride(false, null));
+            } else {
+                Severity severity;
+                try {
+                    severity = Severity.valueOf(rawSeverity);
+                } catch (IllegalArgumentException unknown) {
+                    throw new IllegalArgumentException("Unknown severity '" + spec.substring(equals + 1).strip()
+                            + "' for rule " + ruleId + " in --severity."
+                            + " Supported values: ERROR, WARNING, INFO, OFF.");
+                }
+                merged.put(ruleId, new AnalyserConfig.RuleOverride(true, severity));
+            }
+            cliRuleIds.add(ruleId);
+        }
     }
 
     /**
