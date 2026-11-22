@@ -96,6 +96,9 @@ public enum RuleId {
             Severity.WARNING),
     AEM_COMP_002("AEM-COMP-002", "MissingResourceTypeComponent",
             "Literal sling:resourceType or data-sly-resource type names no component under the project's /apps prefix.",
+            Severity.ERROR),
+    AEM_QUAL_008("AEM-QUAL-008", "UnprovidedMandatoryReference",
+            "Mandatory @Reference target is declared by project sources but registered by no component.",
             Severity.ERROR);
 
     private final String id;

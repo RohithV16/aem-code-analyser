@@ -572,6 +572,28 @@ public final class RuleFixCatalog {
                     <!-- no directory at ui.apps/.../apps/acme/components/elastic/metatagrenderer -->""",
                     "xml", """
                     <sly data-sly-resource="${ @ resourceType='acme/components/elasticsearch/metatagrenderer'}"/>""");
+            case AEM_QUAL_008 -> new Fix(
+                    """
+                    A Declarative Services component with an unsatisfied mandatory reference never \
+                    activates. The bundle stays Active and the code compiles because the target type is on \
+                    the classpath, so the failure is invisible until the servlet 404s or the scheduled job \
+                    never fires.""",
+                    """
+                    Register an implementation with {@code @Component(service = Target.class)}, or declare the \
+                    reference {@code cardinality = ReferenceCardinality.OPTIONAL} when activation must not \
+                    depend on it. Confirm in the Felix console that the component is satisfied.""",
+                    "java", """
+                    @Component(immediate = true, service = ElasticIndexOrchestrator.class)
+                    public class ElasticIndexOrchestrator {
+                        // ResourceResolverProvider is declared in this project...
+                        @Reference private ResourceResolverProvider resolverProvider;
+                    }
+                    // ...but no @Component implements or registers it""",
+                    "java", """
+                    @Component(service = ResourceResolverProvider.class)
+                    public class ResourceResolverProviderImpl implements ResourceResolverProvider {
+                        public ResourceResolver obtainResourceResolver() { ... }
+                    }""");
         };
     }
 }

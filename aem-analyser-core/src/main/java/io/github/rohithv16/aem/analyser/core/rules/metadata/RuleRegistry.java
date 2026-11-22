@@ -75,7 +75,7 @@ public final class RuleRegistry {
         RuleType type = switch (rule) {
             case AEM_DEAD_001, AEM_DEAD_004, AEM_DUP_001, AEM_QUAL_002, AEM_QUAL_004,
                  AEM_PERF_001, AEM_PERF_002, AEM_DEAD_003A,
-                 AEM_COMP_002 -> RuleType.BUG;
+                 AEM_COMP_002, AEM_QUAL_008 -> RuleType.BUG;
             case AEM_QUAL_005, AEM_CLOUD_001, AEM_SEC_001 -> RuleType.VULNERABILITY;
             case AEM_QUAL_003 -> RuleType.SECURITY_HOTSPOT;
             default -> RuleType.CODE_SMELL;
@@ -96,6 +96,7 @@ public final class RuleRegistry {
             case AEM_SEC_002 -> 25;
             case AEM_PERF_004 -> 20;
             case AEM_COMP_002 -> 15;
+            case AEM_QUAL_008 -> 20;
         };
         String cwe = switch (rule) {
             case AEM_SEC_001 -> "CWE-79";
@@ -124,6 +125,7 @@ public final class RuleRegistry {
             case AEM_PERF_004 -> List.of("performance", "query");
             case AEM_COMP_001 -> List.of("quality", "classic-ui");
             case AEM_COMP_002 -> List.of("quality", "component");
+            case AEM_QUAL_008 -> List.of("quality", "osgi");
         };
         return new RuleDescriptor(
                 rule.id(),
@@ -172,6 +174,7 @@ public final class RuleRegistry {
             case AEM_PERF_004 -> "Add a result limit (p.limit / query LIMIT) to bound the query.";
             case AEM_SEC_001 -> "Remove context='unsafe' and use a properly escaped context.";
             case AEM_COMP_002 -> "Point the reference at an existing component under the project's /apps prefix, or restore the component that was renamed or moved.";
+            case AEM_QUAL_008 -> "Register a @Component service implementation for the target type, or mark the @Reference optional if activation must not depend on it.";
         };
     }
 
