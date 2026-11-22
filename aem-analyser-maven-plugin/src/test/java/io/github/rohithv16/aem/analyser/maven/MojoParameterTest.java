@@ -31,9 +31,11 @@ class MojoParameterTest {
     }
 
     @Test
-    void bothGoalsExtendTheSharedBase() {
+    void everyGoalExtendsTheSharedBase() {
         assertTrue(AbstractAnalyserMojo.class.isAssignableFrom(CheckMojo.class));
         assertTrue(AbstractAnalyserMojo.class.isAssignableFrom(ReportMojo.class));
+        assertTrue(AbstractAnalyserMojo.class.isAssignableFrom(DiffMojo.class));
+        assertTrue(AbstractAnalyserMojo.class.isAssignableFrom(AemAnalyserSiteReport.class));
     }
 
     @Test
