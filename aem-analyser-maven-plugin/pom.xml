@@ -41,6 +41,17 @@
             <artifactId>maven-plugin-annotations</artifactId>
             <scope>provided</scope>
         </dependency>
+        <!--
+             Issue #45: the MavenReport contract for `mvn site`. Compile scope, like the other report
+             plugins (maven-pmd-plugin, maven-project-info-reports-plugin): site builds load the
+             report mojo in the plugin's own realm, so a `provided` reporting-api is not visible when
+             Maven asks "is this class a MavenReport?" and the page silently disappears.
+        -->
+        <dependency>
+            <groupId>org.apache.maven.reporting</groupId>
+            <artifactId>maven-reporting-api</artifactId>
+            <version>3.1.1</version>
+        </dependency>
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter</artifactId>
