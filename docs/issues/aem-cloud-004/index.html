@@ -1,0 +1,32 @@
+---
+layout: default
+nav: issues
+title: "AEM-CLOUD-004 DeprecatedAemApiUsage — Java source imports or uses an API deprecated in AEM as a Cloud Service …"
+description: "AEM-CLOUD-004 (WARNING): Java source imports or uses an API deprecated in AEM as a Cloud Service (AMSCORE-553)."
+rule_id: "AEM-CLOUD-004"
+rule_family: "CLOUD"
+rule_family_title: "AEM as a Cloud Service"
+rule_severity: "WARNING"
+rule_tags: "aem-cloud, api"
+---
+
+<div class="shell docs">
+  <div class="docs__main">
+    <p class="muted"><a href="../">← All 30 rules</a></p>
+    <div class="issues-head">
+      <h1><span class="rule-card__id">AEM-CLOUD-004</span> DeprecatedAemApiUsage</h1>
+      <p class="lede">Java source imports or uses an API deprecated in AEM as a Cloud Service (AMSCORE-553).</p>
+      <p class="muted"><span class="pill pill--warning">WARNING</span> · 20 min fix · Code smell · <a href="../#family-cloud">AEM as a Cloud Service</a></p>
+    </div>
+
+    <article class="rule-card rule-card--page" id="aem-cloud-004" data-family="CLOUD">
+        <p class="rule-card__summary">Java source imports or uses an API deprecated in AEM as a Cloud Service (AMSCORE-553).</p>
+        <h2>Why it matters</h2>
+        <p>An API deprecated for AEM as a Cloud Service is removed or unmaintained in the product version the environment runs. The code compiles today and fails on the next upgrade.</p>
+        <h2>How to fix it</h2>
+        <p>Replace the call with its supported equivalent (for example the Sling ResourceResolverFactory instead of the deprecated CQ resolver helpers, and com.adobe.granite APIs instead of Classic UI ones). Check the AEM as a Cloud Service API reference for the replacement.</p>
+        <p class="suppress">Suppress one line: <code>// aem-analyser-disable-next-line AEM-CLOUD-004</code> · tags aem-cloud, api · <code>--explain AEM-CLOUD-004</code></p>
+    </article>
+    <p class="muted">Every rule in the catalogue, with what it detects and how to fix it: <a href="../">all 30 rules</a>. Suppress a single line with <code>// aem-analyser-disable-next-line AEM-CLOUD-004</code>.</p>
+  </div>
+</div>

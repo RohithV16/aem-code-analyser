@@ -1,0 +1,46 @@
+---
+layout: default
+nav: issues
+title: "AEM-DEAD-002A GhostConfigurationProperty — Configuration property does not exist in target @ObjectClassDefinition."
+description: "AEM-DEAD-002A (WARNING): Configuration property does not exist in target @ObjectClassDefinition."
+rule_id: "AEM-DEAD-002A"
+rule_family: "DEAD"
+rule_family_title: "Dead code"
+rule_severity: "WARNING"
+rule_tags: "dead-code, osgi"
+---
+
+<div class="shell docs">
+  <div class="docs__main">
+    <p class="muted"><a href="../">← All 30 rules</a></p>
+    <div class="issues-head">
+      <h1><span class="rule-card__id">AEM-DEAD-002A</span> GhostConfigurationProperty</h1>
+      <p class="lede">Configuration property does not exist in target @ObjectClassDefinition.</p>
+      <p class="muted"><span class="pill pill--warning">WARNING</span> · 10 min fix · Code smell · <a href="../#family-dead">Dead code</a></p>
+    </div>
+
+    <article class="rule-card rule-card--page" id="aem-dead-002a" data-family="DEAD">
+        <p class="rule-card__summary">Configuration property does not exist in target @ObjectClassDefinition.</p>
+        <h2>Why it matters</h2>
+        <p>A property that the component&#39;s @ObjectClassDefinition does not declare is dropped during binding. The configuration looks correct in the repository, so the symptom is an unexplained default value at runtime rather than a validation error.</p>
+        <h2>How to fix it</h2>
+        <p>Remove the property, correct its spelling, or add an @AttributeDefinition that declares it. Configuration and OCD must describe the same set of properties.</p>
+        <div class="examples">
+          <div class="code code--bad">
+            <div class="code__bar"><span class="code__label">json · before</span></div>
+            <pre><code>{
+  &quot;serachPath&quot;: &quot;/content/dam&quot;
+}</code></pre>
+          </div>
+          <div class="code code--good">
+            <div class="code__bar"><span class="code__label">json · after</span></div>
+            <pre><code>{
+  &quot;searchPath&quot;: &quot;/content/dam&quot;
+}</code></pre>
+          </div>
+        </div>
+        <p class="suppress">Suppress one line: <code>// aem-analyser-disable-next-line AEM-DEAD-002A</code> · tags dead-code, osgi · <code>--explain AEM-DEAD-002A</code></p>
+    </article>
+    <p class="muted">Every rule in the catalogue, with what it detects and how to fix it: <a href="../">all 30 rules</a>. Suppress a single line with <code>// aem-analyser-disable-next-line AEM-DEAD-002A</code>.</p>
+  </div>
+</div>

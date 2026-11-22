@@ -1,0 +1,32 @@
+---
+layout: default
+nav: issues
+title: "AEM-DUP-010 DuplicateCodeBlock — Duplicate Java code block or method clone detected across repository classes."
+description: "AEM-DUP-010 (WARNING): Duplicate Java code block or method clone detected across repository classes."
+rule_id: "AEM-DUP-010"
+rule_family: "DUP"
+rule_family_title: "Duplication"
+rule_severity: "WARNING"
+rule_tags: "duplication"
+---
+
+<div class="shell docs">
+  <div class="docs__main">
+    <p class="muted"><a href="../">← All 30 rules</a></p>
+    <div class="issues-head">
+      <h1><span class="rule-card__id">AEM-DUP-010</span> DuplicateCodeBlock</h1>
+      <p class="lede">Duplicate Java code block or method clone detected across repository classes.</p>
+      <p class="muted"><span class="pill pill--warning">WARNING</span> · 30 min fix · Code smell · <a href="../#family-dup">Duplication</a></p>
+    </div>
+
+    <article class="rule-card rule-card--page" id="aem-dup-010" data-family="DUP">
+        <p class="rule-card__summary">Duplicate Java code block or method clone detected across repository classes.</p>
+        <h2>Why it matters</h2>
+        <p>Cloned code drifts: a fix applied to one copy silently misses the others, and every copy has to be re-tested. Duplication across bundles is usually a missing shared module.</p>
+        <h2>How to fix it</h2>
+        <p>Extract the duplicated block into a helper or an interface in the bundle that already owns the concept, and have both call sites use it.</p>
+        <p class="suppress">Suppress one line: <code>// aem-analyser-disable-next-line AEM-DUP-010</code> · tags duplication · <code>--explain AEM-DUP-010</code></p>
+    </article>
+    <p class="muted">Every rule in the catalogue, with what it detects and how to fix it: <a href="../">all 30 rules</a>. Suppress a single line with <code>// aem-analyser-disable-next-line AEM-DUP-010</code>.</p>
+  </div>
+</div>

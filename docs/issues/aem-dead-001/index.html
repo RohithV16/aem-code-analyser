@@ -1,0 +1,43 @@
+---
+layout: default
+nav: issues
+title: "AEM-DEAD-001 OrphanedOsgiConfiguration — Orphaned OSGi Configuration without matching component or platform PID."
+description: "AEM-DEAD-001 (ERROR): Orphaned OSGi Configuration without matching component or platform PID."
+rule_id: "AEM-DEAD-001"
+rule_family: "DEAD"
+rule_family_title: "Dead code"
+rule_severity: "ERROR"
+rule_tags: "dead-code, osgi"
+---
+
+<div class="shell docs">
+  <div class="docs__main">
+    <p class="muted"><a href="../">← All 30 rules</a></p>
+    <div class="issues-head">
+      <h1><span class="rule-card__id">AEM-DEAD-001</span> OrphanedOsgiConfiguration</h1>
+      <p class="lede">Orphaned OSGi Configuration without matching component or platform PID.</p>
+      <p class="muted"><span class="pill pill--error">ERROR</span> · 15 min fix · Bug · <a href="../#family-dead">Dead code</a></p>
+    </div>
+
+    <article class="rule-card rule-card--page" id="aem-dead-001" data-family="DEAD">
+        <p class="rule-card__summary">Orphaned OSGi Configuration without matching component or platform PID.</p>
+        <h2>Why it matters</h2>
+        <p>A configuration file whose PID matches no component, no @ObjectClassDefinition and no platform factory PID never takes effect. At best it is dead weight in the content package; at worst it is a typo that silently stops the configuration you meant to ship, and the service starts with framework defaults on AEM as a Cloud Service.</p>
+        <h2>How to fix it</h2>
+        <p>Either delete the file or rename it so its PID is the component&#39;s fully qualified class name (or a factory PID the component declares). Verify with the Configuration console that the service now reads your properties.</p>
+        <div class="examples">
+          <div class="code code--bad">
+            <div class="code__bar"><span class="code__label">text · before</span></div>
+            <pre><code>ui.config/.../config/com.acme.OldSearchService.cfg.json
+# class was renamed to SearchService; nothing reads this PID</code></pre>
+          </div>
+          <div class="code code--good">
+            <div class="code__bar"><span class="code__label">text · after</span></div>
+            <pre><code>ui.config/.../config/com.acme.core.services.SearchService.cfg.json</code></pre>
+          </div>
+        </div>
+        <p class="suppress">Suppress one line: <code>// aem-analyser-disable-next-line AEM-DEAD-001</code> · tags dead-code, osgi · <code>--explain AEM-DEAD-001</code></p>
+    </article>
+    <p class="muted">Every rule in the catalogue, with what it detects and how to fix it: <a href="../">all 30 rules</a>. Suppress a single line with <code>// aem-analyser-disable-next-line AEM-DEAD-001</code>.</p>
+  </div>
+</div>

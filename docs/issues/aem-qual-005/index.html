@@ -1,0 +1,47 @@
+---
+layout: default
+nav: issues
+title: "AEM-QUAL-005 AdministrativeAccessUsage — Deprecated administrative login or resource resolver API used; rejected on …"
+description: "AEM-QUAL-005 (ERROR): Deprecated administrative login or resource resolver API used; rejected on AEM as a Cloud Service."
+rule_id: "AEM-QUAL-005"
+rule_family: "QUAL"
+rule_family_title: "Quality and Cloud Manager parity"
+rule_severity: "ERROR"
+rule_tags: "quality, aem-cloud"
+---
+
+<div class="shell docs">
+  <div class="docs__main">
+    <p class="muted"><a href="../">← All 30 rules</a></p>
+    <div class="issues-head">
+      <h1><span class="rule-card__id">AEM-QUAL-005</span> AdministrativeAccessUsage</h1>
+      <p class="lede">Deprecated administrative login or resource resolver API used; rejected on AEM as a Cloud Service.</p>
+      <p class="muted"><span class="pill pill--error">ERROR</span> · 25 min fix · Vulnerability · <a href="../#family-qual">Quality and Cloud Manager parity</a></p>
+    </div>
+
+    <article class="rule-card rule-card--page" id="aem-qual-005" data-family="QUAL">
+        <p class="rule-card__summary">Deprecated administrative login or resource resolver API used; rejected on AEM as a Cloud Service.</p>
+        <h2>Why it matters</h2>
+        <p>Administrative logins and loginAdministrative bypass every permission check and are rejected by AEM as a Cloud Service. They also hide the real ACLs a feature needs.</p>
+        <h2>How to fix it</h2>
+        <p>Create a dedicated service user with a ServiceUserMapper mapping and request a service resource resolver for that subservice, then grant the service user exactly the permissions the feature needs.</p>
+        <div class="examples">
+          <div class="code code--bad">
+            <div class="code__bar"><span class="code__label">java · before</span></div>
+            <pre><code>ResourceResolver resolver = resolverFactory.getAdministrativeResourceResolver(null);</code></pre>
+          </div>
+          <div class="code code--good">
+            <div class="code__bar"><span class="code__label">java · after</span></div>
+            <pre><code>Map&lt;String, Object&gt; authInfo =
+        Collections.singletonMap(ResourceResolverFactory.SUBSERVICE, &quot;search&quot;);
+try (ResourceResolver resolver =
+             resolverFactory.getServiceResourceResolver(authInfo)) {
+    // runs as the mapped service user, with its own ACLs
+}</code></pre>
+          </div>
+        </div>
+        <p class="suppress">Suppress one line: <code>// aem-analyser-disable-next-line AEM-QUAL-005</code> · tags quality, aem-cloud · <code>--explain AEM-QUAL-005</code></p>
+    </article>
+    <p class="muted">Every rule in the catalogue, with what it detects and how to fix it: <a href="../">all 30 rules</a>. Suppress a single line with <code>// aem-analyser-disable-next-line AEM-QUAL-005</code>.</p>
+  </div>
+</div>

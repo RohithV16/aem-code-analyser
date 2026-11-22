@@ -1,0 +1,32 @@
+---
+layout: default
+nav: issues
+title: "AEM-QUAL-006 ResolverStoredInComponentField — OSGi component stores a request-scoped ResourceResolver or JCR Session …"
+description: "AEM-QUAL-006 (WARNING): OSGi component stores a request-scoped ResourceResolver or JCR Session in an instance field."
+rule_id: "AEM-QUAL-006"
+rule_family: "QUAL"
+rule_family_title: "Quality and Cloud Manager parity"
+rule_severity: "WARNING"
+rule_tags: "quality, resource-lifecycle"
+---
+
+<div class="shell docs">
+  <div class="docs__main">
+    <p class="muted"><a href="../">← All 30 rules</a></p>
+    <div class="issues-head">
+      <h1><span class="rule-card__id">AEM-QUAL-006</span> ResolverStoredInComponentField</h1>
+      <p class="lede">OSGi component stores a request-scoped ResourceResolver or JCR Session in an instance field.</p>
+      <p class="muted"><span class="pill pill--warning">WARNING</span> · 15 min fix · Code smell · <a href="../#family-qual">Quality and Cloud Manager parity</a></p>
+    </div>
+
+    <article class="rule-card rule-card--page" id="aem-qual-006" data-family="QUAL">
+        <p class="rule-card__summary">OSGi component stores a request-scoped ResourceResolver or JCR Session in an instance field.</p>
+        <h2>Why it matters</h2>
+        <p>Storing a request-scoped resolver or session in an OSGi component field keeps one request&#39;s state alive for every later request, which leaks resolvers and can serve stale content.</p>
+        <h2>How to fix it</h2>
+        <p>Obtain the resolver or session per request and close it in the same scope. The thread-safety owner for this check is AEM-QUAL-004 (ERROR); this id is retained so existing baselines and SARIF consumers keep working.</p>
+        <p class="suppress">Suppress one line: <code>// aem-analyser-disable-next-line AEM-QUAL-006</code> · tags quality, resource-lifecycle · <code>--explain AEM-QUAL-006</code></p>
+    </article>
+    <p class="muted">Every rule in the catalogue, with what it detects and how to fix it: <a href="../">all 30 rules</a>. Suppress a single line with <code>// aem-analyser-disable-next-line AEM-QUAL-006</code>.</p>
+  </div>
+</div>

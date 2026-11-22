@@ -1,0 +1,44 @@
+---
+layout: default
+nav: issues
+title: "AEM-PERF-003 OakQueryTraversalRisk — JCR-SQL2 or XPath query lacks path or nodetype restriction, causing Oak …"
+description: "AEM-PERF-003 (WARNING): JCR-SQL2 or XPath query lacks path or nodetype restriction, causing Oak traversal errors."
+rule_id: "AEM-PERF-003"
+rule_family: "PERF"
+rule_family_title: "Performance"
+rule_severity: "WARNING"
+rule_tags: "performance"
+---
+
+<div class="shell docs">
+  <div class="docs__main">
+    <p class="muted"><a href="../">← All 30 rules</a></p>
+    <div class="issues-head">
+      <h1><span class="rule-card__id">AEM-PERF-003</span> OakQueryTraversalRisk</h1>
+      <p class="lede">JCR-SQL2 or XPath query lacks path or nodetype restriction, causing Oak traversal errors.</p>
+      <p class="muted"><span class="pill pill--warning">WARNING</span> · 25 min fix · Code smell · <a href="../#family-perf">Performance</a></p>
+    </div>
+
+    <article class="rule-card rule-card--page" id="aem-perf-003" data-family="PERF">
+        <p class="rule-card__summary">JCR-SQL2 or XPath query lacks path or nodetype restriction, causing Oak traversal errors.</p>
+        <h2>Why it matters</h2>
+        <p>A JCR-SQL2 or XPath query with no path or node type restriction forces Oak to walk every index it has. At scale that is the difference between a millisecond lookup and a traversal warning in the Cloud Service logs.</p>
+        <h2>How to fix it</h2>
+        <p>Add a path= or type= constraint (or ISDESCENDANTNODE) so Oak can use a property index, and confirm the index exists.</p>
+        <div class="examples">
+          <div class="code code--bad">
+            <div class="code__bar"><span class="code__label">sql2 · before</span></div>
+            <pre><code>SELECT * FROM [nt:base] AS s
+WHERE [sling:resourceType] = &#39;acme/components/card&#39;</code></pre>
+          </div>
+          <div class="code code--good">
+            <div class="code__bar"><span class="code__label">sql2 · after</span></div>
+            <pre><code>SELECT * FROM [nt:base] AS s
+WHERE ISDESCENDANTNODE(s, &#39;/content/acme&#39;) AND [sling:resourceType] = &#39;acme/components/card&#39;</code></pre>
+          </div>
+        </div>
+        <p class="suppress">Suppress one line: <code>// aem-analyser-disable-next-line AEM-PERF-003</code> · tags performance · <code>--explain AEM-PERF-003</code></p>
+    </article>
+    <p class="muted">Every rule in the catalogue, with what it detects and how to fix it: <a href="../">all 30 rules</a>. Suppress a single line with <code>// aem-analyser-disable-next-line AEM-PERF-003</code>.</p>
+  </div>
+</div>

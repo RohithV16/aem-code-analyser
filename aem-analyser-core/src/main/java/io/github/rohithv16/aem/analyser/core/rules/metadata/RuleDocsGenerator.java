@@ -6,23 +6,29 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Generates the published "Issues and fixes" page: one anchored entry per rule, with what the rule
- * detects, why it matters on AEM, and a before/after code example.
+ * Generates the published rule reference: a filterable index at {@code issues/index.html} plus one
+ * indexable page per rule at {@code issues/<anchor>/index.html}, each with what the rule detects,
+ * why it matters on AEM, and a before/after code example.
  *
- * <p>The page is generated rather than hand-written so a change to a rule's severity, description or
+ * <p>The pages are generated rather than hand-written so a change to a rule's severity, description or
  * remediation cannot leave the site describing the old behaviour, and so the HTML dashboard can link
- * every finding to an anchor that is guaranteed to exist.</p>
+ * every finding to a target that is guaranteed to exist. A rule id is how developers arrive — from a
+ * CI log, a SARIF alert or a Cloud Manager waiver — so every id owns a URL that can rank for itself
+ * instead of thirty ids competing for one title.</p>
  */
 public final class RuleDocsGenerator {
 
-    /** Public site root, used for the anchors the dashboard and SARIF {@code helpUri} point at. */
+    /** Public site root, used for the URLs the dashboard and SARIF {@code helpUri} point at. */
     private static final String SITE_BASE = "https://rohithv16.github.io/aem-code-analyser";
 
     private static final List<String> FAMILIES =
@@ -46,6 +52,12 @@ public final class RuleDocsGenerator {
             "SEC", "Output escaping and request-driven redirects.",
             "COMP", "Deprecated Classic UI component definitions.");
 
+    /** Meta descriptions longer than this are truncated on a word boundary; search results cut them. */
+    private static final int DESCRIPTION_LIMIT = 158;
+
+    /** A page title keeps its rule id and name; the symptom is added while it still fits. */
+    private static final int TITLE_LIMIT = 118;
+
     /** Cloud Manager check ids quoted in a rule's short description, for example "(CQBP-75)". */
     private static final Pattern CLOUD_MANAGER_ID =
             Pattern.compile("\\(([A-Z]{2,}[A-Z0-9-]*[0-9]+|CQBP-ThreadSafety)\\)");
@@ -58,26 +70,72 @@ public final class RuleDocsGenerator {
         return parts.length >= 2 ? parts[1] : "OTHER";
     }
 
-    /** @return the anchor the dashboard links to for this rule */
+    /** @return the anchor the index and older findings links use for this rule */
     public static String anchorFor(String ruleId) {
         return ruleId.toLowerCase(Locale.ROOT);
     }
 
-    /** @return the public documentation URL for this rule */
+    /** @return the public documentation URL for this rule: its own indexable page */
     public static String urlFor(String ruleId) {
-        return SITE_BASE + "/issues/#" + anchorFor(ruleId);
+        return SITE_BASE + "/issues/" + anchorFor(ruleId) + "/";
     }
 
     /**
-     * Writes {@code <docs>/issues/index.html}: the whole rule reference as one page with a stable
-     * anchor per rule.
+     * Writes {@code <docs>/issues/index.html} — the filterable catalogue — and one indexable page per
+     * rule at {@code <docs>/issues/<anchor>/index.html}.
      *
      * @param docsRoot the site root that contains {@code index.html} and {@code assets/}
      */
     public static void writeAll(Path docsRoot) throws IOException {
         Path issues = docsRoot.resolve("issues");
         Files.createDirectories(issues);
-        Files.writeString(issues.resolve("index.html"), renderPage(RuleRegistry.all()), StandardCharsets.UTF_8);
+
+        List<RuleDescriptor> rules = RuleRegistry.all();
+        Files.writeString(issues.resolve("index.html"), renderPage(rules), StandardCharsets.UTF_8);
+
+        Set<String> anchors = new HashSet<>();
+        for (RuleDescriptor rule : rules) {
+            String anchor = anchorFor(rule.id());
+            anchors.add(anchor);
+            Path pageDir = issues.resolve(anchor);
+            Files.createDirectories(pageDir);
+            Files.writeString(pageDir.resolve("index.html"), renderRulePage(rule), StandardCharsets.UTF_8);
+        }
+        pruneStaleRulePages(issues, anchors);
+    }
+
+    /**
+     * Removes a rule's page when the rule leaves the catalogue, so a retired id cannot keep ranking
+     * with stale guidance. Only directories this generator wrote are touched.
+     */
+    private static void pruneStaleRulePages(Path issues, Set<String> anchors) throws IOException {
+        List<Path> entries;
+        try (var stream = Files.list(issues)) {
+            entries = stream.toList();
+        }
+        for (Path entry : entries) {
+            if (!Files.isDirectory(entry) || anchors.contains(entry.getFileName().toString())) {
+                continue;
+            }
+            Path page = entry.resolve("index.html");
+            if (!Files.isRegularFile(page)
+                    || !Files.readString(page, StandardCharsets.UTF_8).startsWith("---\nlayout: default\n")) {
+                continue;
+            }
+            try (var inner = Files.list(entry)) {
+                for (Path child : inner.toList()) {
+                    if (Files.isDirectory(child)) {
+                        try (var deeper = Files.list(child)) {
+                            for (Path file : deeper.toList()) {
+                                Files.deleteIfExists(file);
+                            }
+                        }
+                    }
+                    Files.deleteIfExists(child);
+                }
+            }
+            Files.deleteIfExists(entry);
+        }
     }
 
     static String renderPage(List<RuleDescriptor> rules) {
@@ -137,7 +195,7 @@ public final class RuleDocsGenerator {
             html.append("      <p class=\"muted\">")
                     .append(escape(FAMILY_BLURBS.get(family))).append("</p>\n");
             for (RuleDescriptor rule : inFamily) {
-                renderRule(html, rule, family);
+                renderRuleCard(html, rule, family);
             }
             html.append("    </section>\n");
         }
@@ -172,6 +230,91 @@ public final class RuleDocsGenerator {
         return html.toString();
     }
 
+    /**
+     * Renders one rule as its own indexable page: a unique title, its own description, and the same
+     * fix the index shows. Jekyll takes the canonical URL from the file path, so the page answers at
+     * {@code /issues/<anchor>/} without a redirect.
+     */
+    static String renderRulePage(RuleDescriptor rule) {
+        RuleFixCatalog.Fix fix = fixFor(rule);
+        String family = familyOf(rule.id());
+        String familyTitle = FAMILY_TITLES.getOrDefault(family, "AEM Code Analyser rules");
+        StringBuilder html = new StringBuilder(26_000);
+
+        html.append("---\n");
+        html.append("layout: default\n");
+        html.append("nav: issues\n");
+        html.append("title: ").append(yaml(pageTitle(rule))).append('\n');
+        html.append("description: ").append(yaml(pageDescription(rule))).append('\n');
+        html.append("rule_id: ").append(yaml(rule.id())).append('\n');
+        html.append("rule_family: ").append(yaml(family)).append('\n');
+        html.append("rule_family_title: ").append(yaml(familyTitle)).append('\n');
+        html.append("rule_severity: ").append(yaml(rule.defaultSeverity().name())).append('\n');
+        html.append("rule_tags: ").append(yaml(String.join(", ", rule.tags()))).append('\n');
+        html.append("---\n\n");
+
+        html.append("<div class=\"shell docs\">\n");
+        html.append("  <div class=\"docs__main\">\n");
+        html.append("    <p class=\"muted\"><a href=\"../\">← All ").append(RuleRegistry.all().size())
+                .append(" rules</a></p>\n");
+        html.append("    <div class=\"issues-head\">\n");
+        html.append("      <h1><span class=\"rule-card__id\">").append(escape(rule.id())).append("</span> ")
+                .append(escape(rule.name())).append("</h1>\n");
+        html.append("      <p class=\"lede\">").append(escape(normalise(rule.shortDescription())))
+                .append("</p>\n");
+        html.append("      <p class=\"muted\">").append(severityPill(rule)).append(" · ")
+                .append(rule.effortMinutes()).append(" min fix · ").append(escape(typeLabel(rule.type())))
+                .append(" · <a href=\"../#family-").append(family.toLowerCase(Locale.ROOT)).append("\">")
+                .append(escape(familyTitle)).append("</a></p>\n");
+        html.append("    </div>\n\n");
+
+        html.append("    <article class=\"rule-card rule-card--page\" id=\"").append(anchorFor(rule.id()))
+                .append("\" data-family=\"").append(family).append("\">\n");
+        renderRuleBody(html, rule, fix, "h2");
+        html.append("    </article>\n");
+
+        html.append("    <p class=\"muted\">Every rule in the catalogue, with what it detects and how to ")
+                .append("fix it: <a href=\"../\">all ").append(RuleRegistry.all().size())
+                .append(" rules</a>. Suppress a single line with <code>")
+                .append(escape(suppressionComment(rule.id()))).append("</code>.</p>\n");
+        html.append("  </div>\n");
+        html.append("</div>\n");
+        return html.toString();
+    }
+
+    /** The unique {@code <title>} for a rule page: its id, its name, then the symptom while it fits. */
+    static String pageTitle(RuleDescriptor rule) {
+        String head = rule.id() + " " + rule.name();
+        String symptom = normalise(rule.shortDescription());
+        if (symptom.isEmpty()) {
+            return head;
+        }
+        return shorten(head + " — " + symptom, TITLE_LIMIT);
+    }
+
+    /** The meta description for a rule page: the rule's own blurb, led by its id and severity. */
+    static String pageDescription(RuleDescriptor rule) {
+        String blurb = normalise(rule.shortDescription());
+        String prefix = rule.id() + " (" + rule.defaultSeverity() + "): ";
+        if (blurb.isEmpty()) {
+            blurb = normalise(rule.remediation());
+        }
+        return shorten(prefix + blurb, DESCRIPTION_LIMIT);
+    }
+
+    /** Cuts on a word boundary and marks the cut, so a truncated description never ends mid-word. */
+    static String shorten(String value, int limit) {
+        String text = value.strip();
+        if (text.length() <= limit) {
+            return text;
+        }
+        int cut = text.lastIndexOf(' ', limit - 1);
+        if (cut < limit / 2) {
+            cut = limit - 1;
+        }
+        return text.substring(0, cut).stripTrailing().replaceAll("[,;:]$", "") + " …";
+    }
+
     private static String shortFamily(String family) {
         return switch (family) {
             case "DEAD" -> "Dead code";
@@ -185,27 +328,23 @@ public final class RuleDocsGenerator {
         };
     }
 
-    private static void renderRule(StringBuilder html, RuleDescriptor rule, String family) {
-        RuleFixCatalog.Fix fix = RuleFixCatalog.forRule(RuleId.valueOf(rule.id().replace('-', '_')));
-        String severityClass = switch (rule.defaultSeverity()) {
-            case ERROR -> "pill--error";
-            case WARNING -> "pill--warning";
-            case INFO -> "pill--info";
-        };
+    private static void renderRuleCard(StringBuilder html, RuleDescriptor rule, String family) {
         String cloudManagerId = cloudManagerId(rule.shortDescription());
 
         html.append("\n      <article class=\"rule-card\" id=\"").append(anchorFor(rule.id())).append("\"")
                 .append(" data-family=\"").append(family).append("\"")
-                .append(" data-search=\"").append(escape(searchText(rule, fix, cloudManagerId))).append("\">\n");
+                .append(" data-search=\"").append(escape(searchText(rule, fixFor(rule), cloudManagerId)))
+                .append("\">\n");
 
         html.append("        <header class=\"rule-card__head\">\n");
-        html.append("          <h3 class=\"rule-card__title\"><span class=\"rule-card__id\">")
-                .append(escape(rule.id())).append("</span><a class=\"rule-card__anchor\" href=\"#")
+        html.append("          <h3 class=\"rule-card__title\"><a class=\"rule-card__permalink\" href=\"")
+                .append(anchorFor(rule.id())).append("/\" aria-label=\"Open the ")
+                .append(escape(rule.id())).append(" reference page\"><span class=\"rule-card__id\">")
+                .append(escape(rule.id())).append("</span></a><a class=\"rule-card__anchor\" href=\"#")
                 .append(anchorFor(rule.id())).append("\" aria-label=\"Link to ").append(escape(rule.id()))
                 .append("\">#</a><span class=\"rule-card__name\">").append(escape(rule.name()))
                 .append("</span></h3>\n");
-        html.append("          <span class=\"pill ").append(severityClass).append("\">")
-                .append(rule.defaultSeverity()).append("</span>\n");
+        html.append("          ").append(severityPill(rule)).append('\n');
         html.append("          <span class=\"rule-card__meta\">\n");
         html.append("            <span>").append(rule.effortMinutes()).append(" min fix</span>\n");
         if (cloudManagerId != null) {
@@ -221,15 +360,29 @@ public final class RuleDocsGenerator {
         html.append("          </span>\n");
         html.append("        </header>\n");
 
+        renderRuleBody(html, rule, fixFor(rule), "h4");
+
+        html.append("      </article>\n");
+    }
+
+    /**
+     * The explanation every surface shares: summary, why it matters, the fix and the before/after
+     * examples. The index card wraps it in a {@code <header>}; the rule page puts that in its own
+     * {@code <h1>} so the page has exactly one top-level heading.
+     */
+    private static void renderRuleBody(StringBuilder html, RuleDescriptor rule, RuleFixCatalog.Fix fix,
+                                       String headingTag) {
         html.append("        <p class=\"rule-card__summary\">").append(escape(normalise(rule.shortDescription())))
                 .append("</p>\n");
 
         if (fix.why() != null && !fix.why().isBlank()) {
-            html.append("        <h4>Why it matters</h4>\n        <p>")
+            html.append("        <").append(headingTag).append(">Why it matters</").append(headingTag)
+                    .append(">\n        <p>")
                     .append(escape(normalise(fix.why()))).append("</p>\n");
         }
 
-        html.append("        <h4>How to fix it</h4>\n        <p>")
+        html.append("        <").append(headingTag).append(">How to fix it</").append(headingTag)
+                .append(">\n        <p>")
                 .append(escape(fixText(rule, fix))).append("</p>\n");
 
         if (fix.hasBadExample() || fix.hasGoodExample()) {
@@ -259,8 +412,19 @@ public final class RuleDocsGenerator {
             html.append(" · tags ").append(escape(String.join(", ", rule.tags())));
         }
         html.append(" · <code>--explain ").append(escape(rule.id())).append("</code></p>\n");
+    }
 
-        html.append("      </article>\n");
+    private static String severityPill(RuleDescriptor rule) {
+        String severityClass = switch (rule.defaultSeverity()) {
+            case ERROR -> "pill--error";
+            case WARNING -> "pill--warning";
+            case INFO -> "pill--info";
+        };
+        return "<span class=\"pill " + severityClass + "\">" + rule.defaultSeverity() + "</span>";
+    }
+
+    private static RuleFixCatalog.Fix fixFor(RuleDescriptor rule) {
+        return RuleFixCatalog.forRule(RuleId.valueOf(rule.id().replace('-', '_')));
     }
 
     /** Issue types read as metadata chips, so they need a label rather than an enum constant. */
@@ -355,10 +519,34 @@ public final class RuleDocsGenerator {
         return out.toString();
     }
 
+    /**
+     * A YAML double-quoted scalar. Front matter is YAML, so a rule name containing a colon, a quote
+     * or a leading punctuation character must be quoted rather than pasted in.
+     */
+    static String yaml(String value) {
+        StringBuilder out = new StringBuilder(value.length() + 8);
+        out.append('"');
+        for (int i = 0; i < value.length(); i++) {
+            char c = value.charAt(i);
+            switch (c) {
+                case '"' -> out.append("\\\"");
+                case '\\' -> out.append("\\\\");
+                case '\n' -> out.append(' ');
+                case '\r' -> out.append("");
+                case '\t' -> out.append(' ');
+                default -> out.append(c);
+            }
+        }
+        return out.append('"').toString();
+    }
+
     public static void main(String[] args) throws IOException {
         Path docsRoot = args.length > 0 ? Path.of(args[0]) : Path.of("docs");
         writeAll(docsRoot);
-        System.out.println("Wrote the issues reference (" + RuleRegistry.all().size() + " rules) to "
-                + docsRoot.resolve("issues"));
+        List<RuleDescriptor> rules = RuleRegistry.all();
+        List<String> anchors = new ArrayList<>();
+        rules.forEach(rule -> anchors.add(anchorFor(rule.id())));
+        System.out.println("Wrote the issues reference (" + rules.size() + " rules, "
+                + (anchors.size() + 1) + " pages) to " + docsRoot.resolve("issues"));
     }
 }

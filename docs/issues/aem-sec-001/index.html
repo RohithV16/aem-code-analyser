@@ -1,0 +1,42 @@
+---
+layout: default
+nav: issues
+title: "AEM-SEC-001 UnsafeHtlContextBypass — HTL expression uses @ context='unsafe' bypassing XSS protection."
+description: "AEM-SEC-001 (ERROR): HTL expression uses @ context='unsafe' bypassing XSS protection."
+rule_id: "AEM-SEC-001"
+rule_family: "SEC"
+rule_family_title: "Security"
+rule_severity: "ERROR"
+rule_tags: "security, xss"
+---
+
+<div class="shell docs">
+  <div class="docs__main">
+    <p class="muted"><a href="../">← All 30 rules</a></p>
+    <div class="issues-head">
+      <h1><span class="rule-card__id">AEM-SEC-001</span> UnsafeHtlContextBypass</h1>
+      <p class="lede">HTL expression uses @ context=&#39;unsafe&#39; bypassing XSS protection.</p>
+      <p class="muted"><span class="pill pill--error">ERROR</span> · 20 min fix · Vulnerability · <a href="../#family-sec">Security</a></p>
+    </div>
+
+    <article class="rule-card rule-card--page" id="aem-sec-001" data-family="SEC">
+        <p class="rule-card__summary">HTL expression uses @ context=&#39;unsafe&#39; bypassing XSS protection.</p>
+        <h2>Why it matters</h2>
+        <p>context=&#39;unsafe&#39; switches off HTL&#39;s contextual escaping, and the expression is written into the page verbatim. With any author-controlled or request-derived value that is a stored XSS hole (CWE-79) on a publish tier.</p>
+        <h2>How to fix it</h2>
+        <p>Drop unsafe and let HTL pick the context from the surrounding markup. When you really must emit markup, use context=&#39;html&#39; and pass it through a sanitiser such as the Granite XSS API.</p>
+        <div class="examples">
+          <div class="code code--bad">
+            <div class="code__bar"><span class="code__label">html · before</span></div>
+            <pre><code>&lt;div class=&quot;footer&quot;&gt;${model.footerHtml @ context=&#39;unsafe&#39;}&lt;/div&gt;</code></pre>
+          </div>
+          <div class="code code--good">
+            <div class="code__bar"><span class="code__label">html · after</span></div>
+            <pre><code>&lt;div class=&quot;footer&quot;&gt;${model.footerHtml @ context=&#39;html&#39;}&lt;/div&gt;</code></pre>
+          </div>
+        </div>
+        <p class="suppress">Suppress one line: <code>&lt;!-- aem-analyser-disable-next-line AEM-SEC-001 --&gt;</code> · tags security, xss · <code>--explain AEM-SEC-001</code></p>
+    </article>
+    <p class="muted">Every rule in the catalogue, with what it detects and how to fix it: <a href="../">all 30 rules</a>. Suppress a single line with <code>&lt;!-- aem-analyser-disable-next-line AEM-SEC-001 --&gt;</code>.</p>
+  </div>
+</div>

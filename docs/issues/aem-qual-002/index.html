@@ -1,0 +1,60 @@
+---
+layout: default
+nav: issues
+title: "AEM-QUAL-002 ProviderTypeImplementation — Custom code implements or extends @ProviderType product interface (CQBP-84)."
+description: "AEM-QUAL-002 (ERROR): Custom code implements or extends @ProviderType product interface (CQBP-84)."
+rule_id: "AEM-QUAL-002"
+rule_family: "QUAL"
+rule_family_title: "Quality and Cloud Manager parity"
+rule_severity: "ERROR"
+rule_tags: "quality, aem-cloud"
+---
+
+<div class="shell docs">
+  <div class="docs__main">
+    <p class="muted"><a href="../">← All 30 rules</a></p>
+    <div class="issues-head">
+      <h1><span class="rule-card__id">AEM-QUAL-002</span> ProviderTypeImplementation</h1>
+      <p class="lede">Custom code implements or extends @ProviderType product interface (CQBP-84).</p>
+      <p class="muted"><span class="pill pill--error">ERROR</span> · 30 min fix · Bug · <a href="../#family-qual">Quality and Cloud Manager parity</a></p>
+    </div>
+
+    <article class="rule-card rule-card--page" id="aem-qual-002" data-family="QUAL">
+        <p class="rule-card__summary">Custom code implements or extends @ProviderType product interface (CQBP-84).</p>
+        <h2>Why it matters</h2>
+        <p>Implementing or extending a @ProviderType interface ties your bundle to product internals that AEM as a Cloud Service upgrades without notice; CQBP-84 fails the build for exactly this reason. Provider types are contracts you consume, not implement.</p>
+        <h2>How to fix it</h2>
+        <p>Depend on the interface and delegate to it instead of implementing it. When you need to decorate behaviour, wrap the product object or move the logic into your own service that takes the provider type as a dependency.</p>
+        <div class="examples">
+          <div class="code code--bad">
+            <div class="code__bar"><span class="code__label">java · before</span></div>
+            <pre><code>public class CachedPage implements com.day.cq.wcm.api.Page {
+    // re-implements a provider type: breaks on upgrade
+}</code></pre>
+          </div>
+          <div class="code code--good">
+            <div class="code__bar"><span class="code__label">java · after</span></div>
+            <pre><code>@Component(service = PageTitleService.class)
+public class PageTitleService {
+
+    @Reference
+    private ResourceResolverFactory resolverFactory;
+
+    public String titleFor(String path) throws LoginException {
+        Map&lt;String, Object&gt; auth =
+                Map.of(ResourceResolverFactory.SUBSERVICE, &quot;title-read&quot;);
+        try (ResourceResolver resolver =
+                     resolverFactory.getServiceResourceResolver(auth)) {
+            PageManager pageManager = resolver.adaptTo(PageManager.class);
+            Page page = pageManager == null ? null : pageManager.getPage(path);
+            return page == null ? &quot;&quot; : page.getTitle();
+        }
+    }
+}</code></pre>
+          </div>
+        </div>
+        <p class="suppress">Suppress one line: <code>// aem-analyser-disable-next-line AEM-QUAL-002</code> · tags quality, aem-cloud · <code>--explain AEM-QUAL-002</code></p>
+    </article>
+    <p class="muted">Every rule in the catalogue, with what it detects and how to fix it: <a href="../">all 30 rules</a>. Suppress a single line with <code>// aem-analyser-disable-next-line AEM-QUAL-002</code>.</p>
+  </div>
+</div>
