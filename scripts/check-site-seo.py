@@ -168,12 +168,58 @@ def check_fonts() -> None:
     assert layout.count('rel="preload"') >= 2, "both faces must be preloaded"
 
 
+def check_search_index(pages: list[dict[str, str]]) -> None:
+    """The ⌘K palette is only as complete as its corpus, and the corpus is a generated file."""
+    index_path = DOCS / "assets/search-index.json"
+    assert index_path.is_file(), "docs/assets/search-index.json is missing (run scripts/build-search-index.py)"
+    try:
+        entries = json.loads(index_path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as failure:
+        raise AssertionError(f"search-index.json is not valid JSON: {failure}") from failure
+    assert isinstance(entries, list) and entries, "search-index.json must be a non-empty array"
+
+    ids = [entry.get("id") for entry in entries]
+    assert len(ids) == len(set(ids)), "search-index.json has duplicate ids"
+    for entry in entries:
+        for key in ("id", "title", "url", "kind", "text"):
+            assert entry.get(key), f"search index entry is missing {key}: {entry}"
+        assert entry["url"].startswith("/"), f"search index URL must be site-relative: {entry['url']}"
+
+    urls = {entry["url"] for entry in entries}
+    # Every published page is searchable, including the per-rule pages.
+    missing = sorted({page["url"] for page in pages} - urls)
+    assert not missing, f"search-index.json omits published pages: {', '.join(missing[:5])}"
+
+    # Every rule card is a hit that lands on its anchor on /issues/, not just on the index.
+    rule_pages = [page for page in pages if re.fullmatch(r"/issues/[a-z0-9-]+/", page["url"])]
+    for page in rule_pages:
+        anchor = page["url"].strip("/").split("/")[-1]
+        assert f"/issues/#{anchor}" in urls, f"search-index.json has no hit for /issues/#{anchor}"
+        hit = next(entry for entry in entries if entry["url"] == f"/issues/#{anchor}")
+        assert hit["id"] == anchor.upper(), f"rule hit id must be the rule id: {hit}"
+
+    # Every page section a reader can link to must be a hit too, so "suppression" lands on the anchor.
+    for page in pages:
+        body = Path(str(page["path"])).read_text(encoding="utf-8", errors="ignore")
+        for anchor in re.findall(r'<section[^>]*\bid="([a-z0-9-]+)"', body):
+            assert f"{page['url']}#{anchor}" in urls, f"search-index.json has no hit for {page['url']}#{anchor}"
+
+    header = (DOCS / "_includes/site-header.html").read_text(encoding="utf-8")
+    assert 'id="searchDialog"' in header, "the header must render the search palette"
+    assert 'id="searchOpen"' in header, "the header must render the search trigger"
+    assert "aria-keyshortcuts=\"Meta+K Control+K\"" in header, "the trigger must advertise the shortcut"
+    script = (DOCS / "assets/js/site.js").read_text(encoding="utf-8")
+    assert "assets/search-index.json" in script, "site.js must load the generated corpus"
+    assert "'/issues/'" in script and "encodeURIComponent" in script, "the palette needs the issues filter fallback"
+
+
 def main() -> int:
     config = site_config()
     pages = published_pages()
     rule_pages = check_structure(pages)
     check_structured_data()
     check_fonts()
+    check_search_index(pages)
 
     base = config["url"] + config["baseurl"]
     indexable = [p for p in pages if p.get("sitemap") != "false"]

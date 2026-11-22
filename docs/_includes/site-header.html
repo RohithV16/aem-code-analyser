@@ -15,6 +15,14 @@
     </nav>
 
     <div class="header-tools">
+      <button class="search-btn" id="searchOpen" type="button" aria-haspopup="dialog"
+              aria-keyshortcuts="Meta+K Control+K" title="Search rules and pages (⌘K)">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+          <circle cx="7" cy="7" r="4.2"/><path d="m10.2 10.2 3 3" stroke-linecap="round"/>
+        </svg>
+        <span class="search-btn__label">Search</span>
+        <kbd class="search-btn__kbd" aria-hidden="true">⌘K</kbd>
+      </button>
       <button class="icon-btn" id="themeToggle" type="button" aria-label="Switch to dark theme" title="Switch theme">
         <svg class="icon-sun" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true">
           <circle cx="8" cy="8" r="3.1"/>
@@ -32,3 +40,25 @@
     </div>
   </div>
 </header>
+
+<dialog class="search-dialog" id="searchDialog" aria-label="Search the site"
+        data-baseurl="{{ site.baseurl }}" data-index="{{ site.baseurl }}/assets/search-index.json">
+  <form class="search-dialog__form" role="search" method="get" action="{{ site.baseurl }}/issues/">
+    <svg class="search-dialog__icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+      <circle cx="7" cy="7" r="4.2"/><path d="m10.2 10.2 3 3" stroke-linecap="round"/>
+    </svg>
+    <label class="visually-hidden" for="searchInput">Search every page and rule</label>
+    <input type="search" id="searchInput" name="q" placeholder="Rule id, symptom or page — try “orphaned osgi”"
+           autocomplete="off" spellcheck="false" role="combobox" aria-expanded="true"
+           aria-controls="searchResults" aria-autocomplete="list">
+    <kbd class="search-dialog__esc" aria-hidden="true">esc</kbd>
+  </form>
+  <ul class="search-results" id="searchResults" role="listbox" aria-label="Search results"></ul>
+  <p class="search-empty" id="searchEmpty" hidden>
+    No match on this site. <a href="{{ site.baseurl }}/issues/">Browse all rules</a>, or search the
+    rule catalogue for the same words.
+  </p>
+  <p class="search-hint" aria-hidden="true">
+    <kbd>↑</kbd><kbd>↓</kbd> move · <kbd>↵</kbd> open · <kbd>esc</kbd> close · <kbd>/</kbd> opens from anywhere
+  </p>
+</dialog>
