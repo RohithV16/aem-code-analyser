@@ -285,13 +285,18 @@ public class AnalyserCli implements java.util.concurrent.Callable<Integer> {
      * own code instead of colliding with either.
      */
     public static void main(String[] args) {
+        System.exit(createCommandLine().execute(args));
+    }
+
+    /** The command with the contract-level exception mapping installed; package-private for tests. */
+    static CommandLine createCommandLine() {
         CommandLine commandLine = new CommandLine(new AnalyserCli());
         commandLine.setExecutionExceptionHandler((exception, cmd, parseResult) -> {
             cmd.getErr().println("[ERROR] Internal error: " + exception);
             exception.printStackTrace(cmd.getErr());
             return 3;
         });
-        System.exit(commandLine.execute(args));
+        return commandLine;
     }
 
     int execute() {
