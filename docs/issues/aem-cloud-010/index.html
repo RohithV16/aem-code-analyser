@@ -1,0 +1,51 @@
+---
+layout: default
+nav: issues
+title: "AEM-CLOUD-010 LegacyReplicationConfiguration — Replication agent content, replication OSGi configuration or a custom …"
+description: "AEM-CLOUD-010 (WARNING): Replication agent content, replication OSGi configuration or a custom transport handler that AEM as a Cloud Service cannot honour."
+rule_id: "AEM-CLOUD-010"
+rule_family: "CLOUD"
+rule_family_title: "AEM as a Cloud Service"
+rule_severity: "WARNING"
+rule_tags: "aem-cloud, replication"
+---
+
+<div class="shell docs">
+  <div class="docs__main">
+    <p class="muted"><a href="../">← All 38 rules</a></p>
+    <div class="issues-head">
+      <h1><span class="rule-card__id">AEM-CLOUD-010</span> LegacyReplicationConfiguration</h1>
+      <p class="lede">Replication agent content, replication OSGi configuration or a custom transport handler that AEM as a Cloud Service cannot honour.</p>
+      <p class="muted"><span class="pill pill--warning">WARNING</span> · 15 min fix · Bug · <a href="../#family-cloud">AEM as a Cloud Service</a></p>
+    </div>
+
+    <article class="rule-card rule-card--page" id="aem-cloud-010" data-family="CLOUD">
+        <p class="rule-card__summary">Replication agent content, replication OSGi configuration or a custom transport handler that AEM as a Cloud Service cannot honour.</p>
+        <h2>Why it matters</h2>
+        <p>Cloud publishing does not use replication agents. Content is distributed through Sling Content Distribution to an Adobe-hosted pipeline service, so an agent shipped under /etc/replication, an OSGi config for com.day.cq.replication.impl.* or a Sling distribution agent, and a custom TransportHandler configure nothing at all. Unlike every other Cloud difference this one produces no error: the agent reports idle, the activation request &quot;succeeds&quot;, and the published page never appears.</p>
+        <h2>How to fix it</h2>
+        <p>Delete the agent content and the transport configuration from the package, and replace a custom TransportHandler / ContentBuilder / ReplicationPreprocessor with the standard replication API or a workflow step that Cloud runs.</p>
+        <div class="examples">
+          <div class="code code--bad">
+            <div class="code__bar"><span class="code__label">xml · before</span></div>
+            <pre><code>&lt;!-- ui.apps/src/main/content/jcr_root/etc/replication/agents.author/publish/.content.xml --&gt;
+&lt;jcr:root xmlns:cq=&quot;http://www.day.com/jcr/cq/1.0&quot;
+          jcr:primaryType=&quot;cq:Page&quot;&gt;
+    &lt;jcr:content
+        transportUri=&quot;http://localhost:4503/bin/receive?service=com.day.cq.replication.impl.transport.HttpTransportHandle&quot;
+        serializeAsXML=&quot;{Boolean}true&quot;/&gt;
+&lt;/jcr:root&gt;</code></pre>
+          </div>
+          <div class="code code--good">
+            <div class="code__bar"><span class="code__label">java · after</span></div>
+            <pre><code>@Component(service = TransportHandler.class)
+public class LegacyTransport implements TransportHandler {
+    // never invoked on AEM as a Cloud Service
+}</code></pre>
+          </div>
+        </div>
+        <p class="suppress">Suppress one line: <code>// aem-analyser-disable-next-line AEM-CLOUD-010</code> · tags aem-cloud, replication · <code>--explain AEM-CLOUD-010</code></p>
+    </article>
+    <p class="muted">Every rule in the catalogue, with what it detects and how to fix it: <a href="../">all 38 rules</a>. Suppress a single line with <code>// aem-analyser-disable-next-line AEM-CLOUD-010</code>.</p>
+  </div>
+</div>

@@ -411,6 +411,31 @@ public final class RuleFixCatalog {
                             <target>/apps/acme-packages/application/install</target>
                         </embedded>
                     </embeddeds>""");
+            case AEM_CLOUD_010 -> new Fix(
+                    """
+                    Cloud publishing does not use replication agents. Content is distributed through Sling \
+                    Content Distribution to an Adobe-hosted pipeline service, so an agent shipped under \
+                    /etc/replication, an OSGi config for com.day.cq.replication.impl.* or a Sling \
+                    distribution agent, and a custom TransportHandler configure nothing at all. Unlike \
+                    every other Cloud difference this one produces no error: the agent reports idle, the \
+                    activation request "succeeds", and the published page never appears.""",
+                    """
+                    Delete the agent content and the transport configuration from the package, and replace \
+                    a custom TransportHandler / ContentBuilder / ReplicationPreprocessor with the standard \
+                    replication API or a workflow step that Cloud runs.""",
+                    "xml", """
+                    <!-- ui.apps/src/main/content/jcr_root/etc/replication/agents.author/publish/.content.xml -->
+                    <jcr:root xmlns:cq="http://www.day.com/jcr/cq/1.0"
+                              jcr:primaryType="cq:Page">
+                        <jcr:content
+                            transportUri="http://localhost:4503/bin/receive?service=com.day.cq.replication.impl.transport.HttpTransportHandle"
+                            serializeAsXML="{Boolean}true"/>
+                    </jcr:root>""",
+                    "java", """
+                    @Component(service = TransportHandler.class)
+                    public class LegacyTransport implements TransportHandler {
+                        // never invoked on AEM as a Cloud Service
+                    }""");
             case AEM_QUAL_006 -> new Fix(
                     """
                     Storing a request-scoped resolver or session in an OSGi component field keeps one \

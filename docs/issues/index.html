@@ -13,15 +13,15 @@ description: Every AEM Code Analyser rule — what it detects, why it matters on
       <div class="issue-tools">
         <label class="visually-hidden" for="issueSearch">Filter issues</label>
         <input type="search" id="issueSearch" placeholder="Filter by id, name, tag or symptom…" autocomplete="off">
-        <button class="chip" type="button" data-family="all" aria-pressed="true">All 37</button>
+        <button class="chip" type="button" data-family="all" aria-pressed="true">All 38</button>
         <button class="chip" type="button" data-family="DEAD" aria-pressed="false">Dead code 9</button>
         <button class="chip" type="button" data-family="DUP" aria-pressed="false">Duplication 4</button>
         <button class="chip" type="button" data-family="QUAL" aria-pressed="false">Quality 7</button>
         <button class="chip" type="button" data-family="PERF" aria-pressed="false">Performance 4</button>
-        <button class="chip" type="button" data-family="CLOUD" aria-pressed="false">Cloud Service 9</button>
+        <button class="chip" type="button" data-family="CLOUD" aria-pressed="false">Cloud Service 10</button>
         <button class="chip" type="button" data-family="SEC" aria-pressed="false">Security 2</button>
         <button class="chip" type="button" data-family="COMP" aria-pressed="false">Components 2</button>
-        <span class="issue-count" id="issueCount" aria-live="polite">37 of 37 issues</span>
+        <span class="issue-count" id="issueCount" aria-live="polite">38 of 38 issues</span>
       </div>
     </div>
 
@@ -831,7 +831,7 @@ params.put(&quot;p.guessTotal&quot;, &quot;1000&quot;);</code></pre>
     <section class="family" id="family-cloud">
       <div class="family__head">
         <h2>AEM as a Cloud Service</h2>
-        <span>9 issues</span>
+        <span>10 issues</span>
       </div>
       <p class="muted">Patterns that break on AEM as a Cloud Service, including plaintext secrets.</p>
 
@@ -1143,6 +1143,42 @@ state.put(&quot;lastRun&quot;, System.currentTimeMillis());</code></pre>
         </div>
         <p class="suppress">Suppress one line: <code>// aem-analyser-disable-next-line AEM-CLOUD-009</code> · tags aem-cloud, content-package, build · <code>--explain AEM-CLOUD-009</code></p>
       </article>
+
+      <article class="rule-card" id="aem-cloud-010" data-family="CLOUD" data-search="aem-cloud-010 legacyreplicationconfiguration replication agent content, replication osgi configuration or a custom transport handler that aem as a cloud service cannot honour. aem-cloud replication warning remove replication agent content and transport configuration from the package, and replace a custom transporthandler with the standard replication api or a workflow step. cloud publishing does not use replication agents. content is distributed through sling content distribution to an adobe-hosted pipeline service, so an agent shipped under /etc/replication, an osgi config for com.day.cq.replication.impl.* or a sling distribution agent, and a custom transporthandler configure nothing at all. unlike every other cloud difference this one produces no error: the agent reports idle, the activation request &quot;succeeds&quot;, and the published page never appears. delete the agent content and the transport configuration from the package, and replace a custom transporthandler / contentbuilder / replicationpreprocessor with the standard replication api or a workflow step that cloud runs.">
+        <header class="rule-card__head">
+          <h3 class="rule-card__title"><a class="rule-card__permalink" href="aem-cloud-010/" aria-label="Open the AEM-CLOUD-010 reference page"><span class="rule-card__id">AEM-CLOUD-010</span></a><a class="rule-card__anchor" href="#aem-cloud-010" aria-label="Link to AEM-CLOUD-010">#</a><span class="rule-card__name">LegacyReplicationConfiguration</span></h3>
+          <span class="pill pill--warning">WARNING</span>
+          <span class="rule-card__meta">
+            <span>15 min fix</span>
+            <span>Bug</span>
+          </span>
+        </header>
+        <p class="rule-card__summary">Replication agent content, replication OSGi configuration or a custom transport handler that AEM as a Cloud Service cannot honour.</p>
+        <h4>Why it matters</h4>
+        <p>Cloud publishing does not use replication agents. Content is distributed through Sling Content Distribution to an Adobe-hosted pipeline service, so an agent shipped under /etc/replication, an OSGi config for com.day.cq.replication.impl.* or a Sling distribution agent, and a custom TransportHandler configure nothing at all. Unlike every other Cloud difference this one produces no error: the agent reports idle, the activation request &quot;succeeds&quot;, and the published page never appears.</p>
+        <h4>How to fix it</h4>
+        <p>Delete the agent content and the transport configuration from the package, and replace a custom TransportHandler / ContentBuilder / ReplicationPreprocessor with the standard replication API or a workflow step that Cloud runs.</p>
+        <div class="examples">
+          <div class="code code--bad">
+            <div class="code__bar"><span class="code__label">xml · before</span></div>
+            <pre><code>&lt;!-- ui.apps/src/main/content/jcr_root/etc/replication/agents.author/publish/.content.xml --&gt;
+&lt;jcr:root xmlns:cq=&quot;http://www.day.com/jcr/cq/1.0&quot;
+          jcr:primaryType=&quot;cq:Page&quot;&gt;
+    &lt;jcr:content
+        transportUri=&quot;http://localhost:4503/bin/receive?service=com.day.cq.replication.impl.transport.HttpTransportHandle&quot;
+        serializeAsXML=&quot;{Boolean}true&quot;/&gt;
+&lt;/jcr:root&gt;</code></pre>
+          </div>
+          <div class="code code--good">
+            <div class="code__bar"><span class="code__label">java · after</span></div>
+            <pre><code>@Component(service = TransportHandler.class)
+public class LegacyTransport implements TransportHandler {
+    // never invoked on AEM as a Cloud Service
+}</code></pre>
+          </div>
+        </div>
+        <p class="suppress">Suppress one line: <code>// aem-analyser-disable-next-line AEM-CLOUD-010</code> · tags aem-cloud, replication · <code>--explain AEM-CLOUD-010</code></p>
+      </article>
     </section>
 
     <section class="family" id="family-sec">
@@ -1306,7 +1342,7 @@ if (target != null &amp;&amp; target.startsWith(&quot;/content/&quot;) &amp;&amp
       <li><a href="#family-dup">Duplication <span class="muted">4</span></a></li>
       <li><a href="#family-qual">Quality and Cloud Manager parity <span class="muted">7</span></a></li>
       <li><a href="#family-perf">Performance <span class="muted">4</span></a></li>
-      <li><a href="#family-cloud">AEM as a Cloud Service <span class="muted">9</span></a></li>
+      <li><a href="#family-cloud">AEM as a Cloud Service <span class="muted">10</span></a></li>
       <li><a href="#family-sec">Security <span class="muted">2</span></a></li>
       <li><a href="#family-comp">Component compatibility <span class="muted">2</span></a></li>
     </ul>
@@ -1345,6 +1381,7 @@ if (target != null &amp;&amp; target.startsWith(&quot;/content/&quot;) &amp;&amp
       <li><a href="#aem-cloud-007">AEM-CLOUD-007</a></li>
       <li><a href="#aem-cloud-008">AEM-CLOUD-008</a></li>
       <li><a href="#aem-cloud-009">AEM-CLOUD-009</a></li>
+      <li><a href="#aem-cloud-010">AEM-CLOUD-010</a></li>
       <li><a href="#aem-sec-001">AEM-SEC-001</a></li>
       <li><a href="#aem-sec-002">AEM-SEC-002</a></li>
       <li><a href="#aem-comp-001">AEM-COMP-001</a></li>
