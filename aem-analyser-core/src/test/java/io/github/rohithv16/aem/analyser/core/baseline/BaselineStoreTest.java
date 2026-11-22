@@ -27,6 +27,23 @@ class BaselineStoreTest {
     }
 
     @Test
+    void anOlderSchemaIsRejectedWithAnActionableMigrationHint() throws Exception {
+        Path baselineFile = root.resolve(".aem-analyser-baseline.json");
+        java.nio.file.Files.writeString(baselineFile,
+                "{\"schemaVersion\":1,\"toolVersion\":\"1.0.10\",\"entries\":[]}");
+
+        java.io.IOException failure = org.junit.jupiter.api.Assertions.assertThrows(
+                java.io.IOException.class, () -> BaselineStore.load(baselineFile));
+
+        String message = failure.getMessage();
+        assertTrue(message.contains("Unsupported baseline schema version 1"), message);
+        assertTrue(message.contains("--update-baseline"),
+                "the message must name the command that fixes it: " + message);
+        assertTrue(message.contains("may reappear"),
+                "the message must warn that previously accepted findings can come back: " + message);
+    }
+
+    @Test
     void roundTripsAndFiltersAcceptedFindings() throws Exception {
         AnalysisReport report = new AnalysisReport(root, Map.of(), List.of(
                 violation("AEM-DEAD-001", "ui.config/a.cfg.json", 3, "Orphaned config 'a'"),
