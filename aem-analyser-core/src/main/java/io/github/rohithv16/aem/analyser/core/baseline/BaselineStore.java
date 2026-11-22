@@ -26,8 +26,15 @@ public final class BaselineStore {
     public static Baseline load(Path file) throws IOException {
         Baseline baseline = MAPPER.readValue(Files.newBufferedReader(file), Baseline.class);
         if (baseline.schemaVersion() != Baseline.CURRENT_SCHEMA_VERSION) {
+            String hint = baseline.schemaVersion() < Baseline.CURRENT_SCHEMA_VERSION
+                    ? "That baseline predates the fingerprint fix, so its entries cannot be matched to "
+                    + "current findings. Regenerate it with --update-baseline and review the diff: findings "
+                    + "that were accepted may reappear, because the old scheme could hide a new finding "
+                    + "behind an unrelated waiver."
+                    : "That baseline was written by a newer analyser. Upgrade the analyser, or regenerate "
+                    + "the baseline with --update-baseline.";
             throw new IOException("Unsupported baseline schema version " + baseline.schemaVersion()
-                    + " in " + file + " (expected " + Baseline.CURRENT_SCHEMA_VERSION + ")");
+                    + " in " + file + " (expected " + Baseline.CURRENT_SCHEMA_VERSION + "). " + hint);
         }
         return baseline;
     }
