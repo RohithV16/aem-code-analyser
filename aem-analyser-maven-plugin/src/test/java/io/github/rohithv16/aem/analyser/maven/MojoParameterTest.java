@@ -20,7 +20,7 @@ class MojoParameterTest {
             "enableSonar", "sonarRules", "formats", "outputFile", "skip", "verbose",
             "generateHtml", "baseline", "updateBaseline", "baselineReport",
             "changedOnly", "since", "fix", "fixDryRun", "failOn", "minCoverage",
-            "maxDuplication", "maxWarnings", "historyDirectory", "historyLimit");
+            "maxDuplication", "maxWarnings", "historyDirectory", "historyLimit", "perModule");
 
     @Test
     void sharedParametersExistOnTheBaseMojo() {
