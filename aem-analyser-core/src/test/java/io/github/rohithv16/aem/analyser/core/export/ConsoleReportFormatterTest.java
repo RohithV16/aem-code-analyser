@@ -4,6 +4,7 @@ import io.github.rohithv16.aem.analyser.core.model.graph.TextRegion;
 import io.github.rohithv16.aem.analyser.core.model.report.AnalysisReport;
 import io.github.rohithv16.aem.analyser.core.model.report.CodeMetrics;
 import io.github.rohithv16.aem.analyser.core.model.report.CoverageReport;
+import io.github.rohithv16.aem.analyser.core.model.report.GateVerdict;
 import io.github.rohithv16.aem.analyser.core.model.report.Severity;
 import io.github.rohithv16.aem.analyser.core.model.report.Violation;
 import org.junit.jupiter.api.Test;
@@ -13,6 +14,7 @@ import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
 
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ConsoleReportFormatterTest {
@@ -124,5 +126,41 @@ class ConsoleReportFormatterTest {
 
         assertTrue(writer.toString().contains("Diagnostics: 2 file(s) skipped or degraded"),
                 writer.toString());
+    }
+
+    /**
+     * The verdict line is the one line CI pastes into a PR: it must describe the effective gate.
+     * A report-only run with findings is {@code GATE NOT ENFORCED}, never {@code GATE FAILED}.
+     */
+    @Test
+    void reportOnlyVerdictIsRenderedAsNotEnforced() throws Exception {
+        Violation error = new Violation("AEM-DEAD-001", Severity.ERROR, null, "Orphaned config",
+                "ui.config/config.cfg.json", new TextRegion(1, 1, 1, 10), null, null, List.of());
+        AnalysisReport report = new AnalysisReport(
+                Path.of("/dummy/root"), Map.of(), List.of(error), 10)
+                .withGateVerdict(GateVerdict.notEnforced(
+                        "1 error-severity finding, report-only run (--fail-on NONE)."));
+
+        StringWriter writer = new StringWriter();
+        new ConsoleReportFormatter(false).export(report, writer);
+        String out = writer.toString();
+
+        assertTrue(out.contains("GATE NOT ENFORCED: 1 error-severity finding, report-only run"),
+                out);
+        assertFalse(out.contains("GATE FAILED"), out);
+    }
+
+    @Test
+    void thresholdFailureIsNamedInTheRenderedVerdict() throws Exception {
+        AnalysisReport report = new AnalysisReport(
+                Path.of("/dummy/root"), Map.of(), List.of(), 10)
+                .withGateVerdict(GateVerdict.failed(
+                        "duplication 6.2% exceeds --max-duplication 3.0%."));
+
+        StringWriter writer = new StringWriter();
+        new ConsoleReportFormatter(false).export(report, writer);
+
+        assertTrue(writer.toString().contains(
+                "GATE FAILED: duplication 6.2% exceeds --max-duplication 3.0%."), writer.toString());
     }
 }

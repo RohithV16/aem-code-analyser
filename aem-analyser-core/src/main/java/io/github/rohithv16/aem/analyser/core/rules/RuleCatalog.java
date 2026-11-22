@@ -65,6 +65,41 @@ public final class RuleCatalog {
     public static final Set<String> RETIRED = Collections.unmodifiableSet(
             new java.util.LinkedHashSet<>(List.of(RuleId.AEM_QUAL_006.id())));
 
+    /**
+     * Replacement for each retired id, so every surface can name the rule that took over instead of
+     * leaving a user to guess. A retired id resolves silently otherwise: a config or baseline that
+     * disables it looks like a covered rule while nothing runs.
+     */
+    private static final Map<String, String> RETIRED_REPLACEMENTS = Map.of(
+            // Identical check, originally split across two ids; AEM-QUAL-004 is the live one.
+            RuleId.AEM_QUAL_006.id(), RuleId.AEM_QUAL_004.id());
+
+    /** True when {@code ruleId} names a retired rule (case-insensitive). */
+    public static boolean isRetired(String ruleId) {
+        return ruleId != null && RETIRED.contains(normalize(ruleId));
+    }
+
+    /** @return the id that replaced a retired rule, empty for live or unknown ids */
+    public static java.util.Optional<String> replacementFor(String ruleId) {
+        return ruleId == null
+                ? java.util.Optional.empty()
+                : java.util.Optional.ofNullable(RETIRED_REPLACEMENTS.get(normalize(ruleId)));
+    }
+
+    /** The retirement note every surface prints, e.g. {@code RETIRED — replaced by AEM-QUAL-004}. */
+    public static String retirementNote(String ruleId) {
+        if (!isRetired(ruleId)) {
+            return "";
+        }
+        return replacementFor(ruleId)
+                .map(replacement -> "RETIRED — replaced by " + replacement)
+                .orElse("RETIRED — no replacement");
+    }
+
+    private static String normalize(String ruleId) {
+        return ruleId.strip().toUpperCase(java.util.Locale.ROOT);
+    }
+
     private static final Map<String, RuleEvaluator> BY_ID = validate(List.of(
             new AemDead001Rule(),
             new AemDead002ARule(),
