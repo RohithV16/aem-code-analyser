@@ -7,6 +7,13 @@ All notable changes to this project are documented here. The format follows
 
 ### ⚠ Migration — baselines written before 1.1.0
 
+- **A Gradle plugin: `io.github.rohithv16.aem-analyser`.** `aemAnalyserCheck` is a `@CacheableTask`
+  wired into `check`. It drives the core API in-process and declares the project tree as an input
+  and SARIF/text as outputs, so an unchanged tree is `UP-TO-DATE` and a clean build replays
+  `FROM-CACHE`. The same `failOn`/`enableSonar`/`maxWarnings` knobs as the Maven plugin, because a
+  project that moves between the two must not discover a different gate. `scripts/run-gradle-plugin-check.sh`
+  proves all four states plus the failing exit code.
+
 - **`.aem-analyser-baseline.json` files must be regenerated.** Baseline fingerprints now hash the
   rule id, subtype, normalised path and the finding's verbatim message instead of a
   digit-stripped location. The old scheme collided, so a *new* finding could be silently suppressed

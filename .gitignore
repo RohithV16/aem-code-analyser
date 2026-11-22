@@ -51,3 +51,8 @@ gitlab-code-quality.json
 azure-pipelines.log
 .aem-analyser-baseline.json
 .aem-analyser-history.json
+
+# Gradle
+.gradle/
+build/
+.gradle-dist/
