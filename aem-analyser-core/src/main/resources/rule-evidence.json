@@ -3,6 +3,28 @@
   "description": "Lifecycle and two-sided probe evidence for every rule id.",
   "rules": [
     {
+      "id": "AEM-A11Y-001",
+      "docAnchor": "aem-a11y-001",
+      "status": "active",
+      "since": "1.0.0",
+      "replacedBy": null,
+      "positiveProbe": "ui.apps/src/main/content/jcr_root/apps/probe/components/zzprobe/a11y-broken.html",
+      "positiveLine": 1,
+      "positiveSubtype": "IMAGE_WITHOUT_ALT",
+      "negativeProbe": "ui.apps/src/main/content/jcr_root/apps/probe/components/zzprobe/a11y-broken.html"
+    },
+    {
+      "id": "AEM-A11Y-002",
+      "docAnchor": "aem-a11y-002",
+      "status": "active",
+      "since": "1.0.0",
+      "replacedBy": null,
+      "positiveProbe": "ui.apps/src/main/content/jcr_root/apps/probe/components/zzprobe/a11y-broken.html",
+      "positiveLine": 2,
+      "positiveSubtype": "ANCHOR_WITHOUT_HREF",
+      "negativeProbe": "ui.apps/src/main/content/jcr_root/apps/probe/components/zzprobe/a11y-broken.html"
+    },
+    {
       "id": "AEM-CLOUD-001",
       "docAnchor": "aem-cloud-001",
       "status": "active",
@@ -78,6 +100,39 @@
       "positiveLine": 4,
       "positiveSubtype": "OVERLAPPING_FILTER_ROOT",
       "negativeProbe": "ui.content/src/main/content/META-INF/vault/filter.xml"
+    },
+    {
+      "id": "AEM-CLOUD-008",
+      "docAnchor": "aem-cloud-008",
+      "status": "active",
+      "since": "1.0.0",
+      "replacedBy": null,
+      "positiveProbe": "core/src/main/java/com/probe/ProbeImmutablePathWrite.java",
+      "positiveLine": 16,
+      "positiveSubtype": "IMMUTABLE_PATH_WRITE",
+      "negativeProbe": "core/src/main/java/com/probe/ProbeImmutablePathWrite.java"
+    },
+    {
+      "id": "AEM-CLOUD-009",
+      "docAnchor": "aem-cloud-009",
+      "status": "active",
+      "since": "1.0.0",
+      "replacedBy": null,
+      "positiveProbe": "zzprobe.content/pom.xml",
+      "positiveLine": 6,
+      "positiveSubtype": "UNREACHABLE_MODULE",
+      "negativeProbe": "zzprobe.content/pom.xml"
+    },
+    {
+      "id": "AEM-CLOUD-010",
+      "docAnchor": "aem-cloud-010",
+      "status": "active",
+      "since": "1.0.0",
+      "replacedBy": null,
+      "positiveProbe": "core/src/main/java/com/probe/ProbeTransportHandler.java",
+      "positiveLine": 9,
+      "positiveSubtype": "CUSTOM_TRANSPORT_HANDLER",
+      "negativeProbe": "core/src/main/java/com/probe/ProbeTransportHandler.java"
     },
     {
       "id": "AEM-COMP-001",
@@ -188,6 +243,17 @@
       "positiveLine": 1,
       "positiveSubtype": "ORPHANED_CLIENTLIB_CATEGORY",
       "negativeProbe": "ui.apps/src/main/content/jcr_root/apps/probe/clientlibs/probe/.content.xml"
+    },
+    {
+      "id": "AEM-DEAD-006",
+      "docAnchor": "aem-dead-006",
+      "status": "active",
+      "since": "1.0.0",
+      "replacedBy": null,
+      "positiveProbe": "ui.apps/src/main/content/jcr_root/apps/probe/components/zzprobe/i18n-broken.html",
+      "positiveLine": 2,
+      "positiveSubtype": "MISSING_TRANSLATION_KEY",
+      "negativeProbe": "ui.apps/src/main/content/jcr_root/apps/probe/components/zzprobe/i18n-broken.html"
     },
     {
       "id": "AEM-DEAD-007",
@@ -355,6 +421,17 @@
       "negativeProbe": null
     },
     {
+      "id": "AEM-QUAL-007",
+      "docAnchor": "aem-qual-007",
+      "status": "active",
+      "since": "1.0.0",
+      "replacedBy": null,
+      "positiveProbe": "core/src/main/java/com/probe/ProbeModels.java",
+      "positiveLine": 20,
+      "positiveSubtype": "REQUEST_INJECTION_WITHOUT_REQUEST_ADAPTABLE",
+      "negativeProbe": "core/src/main/java/com/probe/ProbeModels.java"
+    },
+    {
       "id": "AEM-QUAL-008",
       "docAnchor": "aem-qual-008",
       "status": "active",
@@ -386,6 +463,17 @@
       "positiveLine": 86,
       "positiveSubtype": "OPEN_REDIRECT",
       "negativeProbe": "core/src/main/java/com/probe/ProbeComponents.java"
+    },
+    {
+      "id": "AEM-WF-001",
+      "docAnchor": "aem-wf-001",
+      "status": "active",
+      "since": "1.0.0",
+      "replacedBy": null,
+      "positiveProbe": "ui.content/src/main/content/jcr_root/conf/global/settings/workflow/launcher/zzprobe/.content.xml",
+      "positiveLine": 5,
+      "positiveSubtype": "MISSING_WORKFLOW_MODEL",
+      "negativeProbe": "ui.content/src/main/content/jcr_root/conf/global/settings/workflow/launcher/zzprobe/.content.xml"
     }
   ]
 }

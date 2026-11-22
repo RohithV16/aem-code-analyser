@@ -26,7 +26,7 @@ OUT = DOCS / "assets" / "search-index.json"
 
 SECTION = re.compile(r'<section[^>]*\bid="([a-z0-9-]+)"[^>]*>(.*?)</section>', re.S)
 HEADING = re.compile(r"<h2[^>]*>(.*?)</h2>", re.S)
-CARD = re.compile(r'<article class="rule-card" id="([a-z0-9-]+)"[^>]*data-family="([A-Z]+)"[^>]*data-search="([^"]*)"(.*?)</article>', re.S)
+CARD = re.compile(r'<article class="rule-card" id="([a-z0-9-]+)"[^>]*data-family="([A-Z0-9]+)"[^>]*data-search="([^"]*)"(.*?)</article>', re.S)
 CARD_TITLE = re.compile(r'<span class="rule-card__id">([^<]+)</span>.*?<span class="rule-card__name">([^<]+)</span>', re.S)
 TAG = re.compile(r"<[^>]+>")
 

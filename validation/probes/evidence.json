@@ -3,6 +3,30 @@
   "description": "Two-sided probe evidence: one positive probe and one clean twin per active rule.",
   "rules": [
     {
+      "id": "AEM-A11Y-001",
+      "docAnchor": "aem-a11y-001",
+      "positiveProbe": {
+        "path": "ui.apps/src/main/content/jcr_root/apps/probe/components/zzprobe/a11y-broken.html",
+        "line": 1,
+        "subtype": "IMAGE_WITHOUT_ALT"
+      },
+      "negativeProbe": {
+        "path": "ui.apps/src/main/content/jcr_root/apps/probe/components/zzprobe/a11y-broken.html"
+      }
+    },
+    {
+      "id": "AEM-A11Y-002",
+      "docAnchor": "aem-a11y-002",
+      "positiveProbe": {
+        "path": "ui.apps/src/main/content/jcr_root/apps/probe/components/zzprobe/a11y-broken.html",
+        "line": 2,
+        "subtype": "ANCHOR_WITHOUT_HREF"
+      },
+      "negativeProbe": {
+        "path": "ui.apps/src/main/content/jcr_root/apps/probe/components/zzprobe/a11y-broken.html"
+      }
+    },
+    {
       "id": "AEM-CLOUD-001",
       "docAnchor": "aem-cloud-001",
       "positiveProbe": {
@@ -84,6 +108,42 @@
       },
       "negativeProbe": {
         "path": "ui.content/src/main/content/META-INF/vault/filter.xml"
+      }
+    },
+    {
+      "id": "AEM-CLOUD-008",
+      "docAnchor": "aem-cloud-008",
+      "positiveProbe": {
+        "path": "core/src/main/java/com/probe/ProbeImmutablePathWrite.java",
+        "line": 16,
+        "subtype": "IMMUTABLE_PATH_WRITE"
+      },
+      "negativeProbe": {
+        "path": "core/src/main/java/com/probe/ProbeImmutablePathWrite.java"
+      }
+    },
+    {
+      "id": "AEM-CLOUD-009",
+      "docAnchor": "aem-cloud-009",
+      "positiveProbe": {
+        "path": "zzprobe.content/pom.xml",
+        "line": 6,
+        "subtype": "UNREACHABLE_MODULE"
+      },
+      "negativeProbe": {
+        "path": "zzprobe.content/pom.xml"
+      }
+    },
+    {
+      "id": "AEM-CLOUD-010",
+      "docAnchor": "aem-cloud-010",
+      "positiveProbe": {
+        "path": "core/src/main/java/com/probe/ProbeTransportHandler.java",
+        "line": 9,
+        "subtype": "CUSTOM_TRANSPORT_HANDLER"
+      },
+      "negativeProbe": {
+        "path": "core/src/main/java/com/probe/ProbeTransportHandler.java"
       }
     },
     {
@@ -204,6 +264,18 @@
       },
       "negativeProbe": {
         "path": "ui.apps/src/main/content/jcr_root/apps/probe/clientlibs/probe/.content.xml"
+      }
+    },
+    {
+      "id": "AEM-DEAD-006",
+      "docAnchor": "aem-dead-006",
+      "positiveProbe": {
+        "path": "ui.apps/src/main/content/jcr_root/apps/probe/components/zzprobe/i18n-broken.html",
+        "line": 2,
+        "subtype": "MISSING_TRANSLATION_KEY"
+      },
+      "negativeProbe": {
+        "path": "ui.apps/src/main/content/jcr_root/apps/probe/components/zzprobe/i18n-broken.html"
       }
     },
     {
@@ -375,6 +447,18 @@
       }
     },
     {
+      "id": "AEM-QUAL-007",
+      "docAnchor": "aem-qual-007",
+      "positiveProbe": {
+        "path": "core/src/main/java/com/probe/ProbeModels.java",
+        "line": 20,
+        "subtype": "REQUEST_INJECTION_WITHOUT_REQUEST_ADAPTABLE"
+      },
+      "negativeProbe": {
+        "path": "core/src/main/java/com/probe/ProbeModels.java"
+      }
+    },
+    {
       "id": "AEM-QUAL-008",
       "docAnchor": "aem-qual-008",
       "positiveProbe": {
@@ -408,6 +492,18 @@
       },
       "negativeProbe": {
         "path": "core/src/main/java/com/probe/ProbeComponents.java"
+      }
+    },
+    {
+      "id": "AEM-WF-001",
+      "docAnchor": "aem-wf-001",
+      "positiveProbe": {
+        "path": "ui.content/src/main/content/jcr_root/conf/global/settings/workflow/launcher/zzprobe/.content.xml",
+        "line": 5,
+        "subtype": "MISSING_WORKFLOW_MODEL"
+      },
+      "negativeProbe": {
+        "path": "ui.content/src/main/content/jcr_root/conf/global/settings/workflow/launcher/zzprobe/.content.xml"
       }
     }
   ]

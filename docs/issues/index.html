@@ -13,16 +13,17 @@ description: Every AEM Code Analyser rule — what it detects, why it matters on
       <div class="issue-tools">
         <label class="visually-hidden" for="issueSearch">Filter issues</label>
         <input type="search" id="issueSearch" placeholder="Filter by id, name, tag or symptom…" autocomplete="off">
-        <button class="chip" type="button" data-family="all" aria-pressed="true">All 39</button>
+        <button class="chip" type="button" data-family="all" aria-pressed="true">All 43</button>
         <button class="chip" type="button" data-family="DEAD" aria-pressed="false">Dead code 10</button>
         <button class="chip" type="button" data-family="DUP" aria-pressed="false">Duplication 4</button>
         <button class="chip" type="button" data-family="QUAL" aria-pressed="false">Quality 8</button>
         <button class="chip" type="button" data-family="PERF" aria-pressed="false">Performance 4</button>
-        <button class="chip" type="button" data-family="CLOUD" aria-pressed="false">Cloud Service 7</button>
+        <button class="chip" type="button" data-family="CLOUD" aria-pressed="false">Cloud Service 10</button>
         <button class="chip" type="button" data-family="SEC" aria-pressed="false">Security 2</button>
         <button class="chip" type="button" data-family="COMP" aria-pressed="false">Components 2</button>
         <button class="chip" type="button" data-family="A11Y" aria-pressed="false">A11Y 2</button>
-        <span class="issue-count" id="issueCount" aria-live="polite">39 of 39 issues</span>
+        <button class="chip" type="button" data-family="WF" aria-pressed="false">WF 1</button>
+        <span class="issue-count" id="issueCount" aria-live="polite">43 of 43 issues</span>
       </div>
     </div>
 
@@ -428,6 +429,15 @@ public class CacheWarmer {
           </div>
         </div>
         <p class="suppress">Suppress one line: <code>// aem-analyser-disable-next-line AEM-DEAD-006</code> · tags dead-code, i18n, htl · <code>--explain AEM-DEAD-006</code></p>
+        <div class="rule-card__tune">
+          <span class="rule-card__tune-label">Tune this rule</span>
+          <a href="../reference/#configuration">Disable or re-scope it in <code>.aem-analyser.yml</code></a>
+          <a href="../reference/#flags">Fail the build on it with <code>--fail-on</code></a>
+          <a href="../reference/#suppression">Suppress one occurrence inline</a>
+          <a href="../reference/#baseline">Accept it in a baseline</a>
+          <a href="../reference/#exit-codes">What its severity means for the exit code</a>
+        </div>
+        <p class="rule-card__siblings">Same family: <a href="aem-dead-001/" title="OrphanedOsgiConfiguration">AEM-DEAD-001</a> <a href="aem-dead-002a/" title="GhostConfigurationProperty">AEM-DEAD-002A</a> · <a href="#family-dead">all rules in this family</a></p>
       </article>
     </section>
 
@@ -943,6 +953,15 @@ public class HeroModel {
           </div>
         </div>
         <p class="suppress">Suppress one line: <code>// aem-analyser-disable-next-line AEM-QUAL-007</code> · tags quality, sling-models · <code>--explain AEM-QUAL-007</code></p>
+        <div class="rule-card__tune">
+          <span class="rule-card__tune-label">Tune this rule</span>
+          <a href="../reference/#configuration">Disable or re-scope it in <code>.aem-analyser.yml</code></a>
+          <a href="../reference/#flags">Fail the build on it with <code>--fail-on</code></a>
+          <a href="../reference/#suppression">Suppress one occurrence inline</a>
+          <a href="../reference/#baseline">Accept it in a baseline</a>
+          <a href="../reference/#exit-codes">What its severity means for the exit code</a>
+        </div>
+        <p class="rule-card__siblings">Same family: <a href="aem-qual-001/" title="PathBoundServletRegistration">AEM-QUAL-001</a> <a href="aem-qual-002/" title="ProviderTypeImplementation">AEM-QUAL-002</a> · <a href="#family-qual">all rules in this family</a></p>
       </article>
     </section>
 
@@ -1123,7 +1142,7 @@ params.put(&quot;p.guessTotal&quot;, &quot;1000&quot;);</code></pre>
     <section class="family" id="family-cloud">
       <div class="family__head">
         <h2>AEM as a Cloud Service</h2>
-        <span>7 issues</span>
+        <span>10 issues</span>
       </div>
       <p class="muted">Patterns that break on AEM as a Cloud Service, including plaintext secrets.</p>
 
@@ -1409,6 +1428,158 @@ Include conf.d/includes/cache.conf
         </div>
         <p class="rule-card__siblings">Same family: <a href="aem-cloud-001/" title="HardcodedCloudSecret">AEM-CLOUD-001</a> <a href="aem-cloud-002/" title="DeprecatedJspUsage">AEM-CLOUD-002</a> · <a href="#family-cloud">all rules in this family</a></p>
       </article>
+
+      <article class="rule-card" id="aem-cloud-008" data-family="CLOUD" data-search="aem-cloud-008 immutablepathwrite java writes to /apps or /libs at runtime, an area aem as a cloud service keeps immutable. aem-cloud immutable-path error ship the node as content in a content package instead of writing it at runtime, or keep runtime state under a mutable path such as /var or /conf. in aem as a cloud service the repository structure is decided at build time by the packages a deployment installs; /apps and /libs are immutable and &quot;any attempt to change an immutable area at runtime fails&quot;. code that wrote configuration, labels or counters into /apps for years on 6.5 keeps compiling and deploying, then throws accessdeniedexception (or silently drops the write) at the first request. move the node into the content package so it is installed with the release, or keep runtime state under a mutable path (/var, /conf, /content) that the service user is allowed to modify.">
+        <header class="rule-card__head">
+          <h3 class="rule-card__title"><a class="rule-card__permalink" href="aem-cloud-008/" aria-label="Open the AEM-CLOUD-008 reference page"><span class="rule-card__id">AEM-CLOUD-008</span></a><a class="rule-card__anchor" href="#aem-cloud-008" aria-label="Link to AEM-CLOUD-008">#</a><span class="rule-card__name">ImmutablePathWrite</span></h3>
+          <span class="pill pill--error">ERROR</span>
+          <span class="rule-card__meta">
+            <span>15 min fix</span>
+            <span>Bug</span>
+          </span>
+        </header>
+        <p class="rule-card__summary">Java writes to /apps or /libs at runtime, an area AEM as a Cloud Service keeps immutable.</p>
+        <h4>Why it matters</h4>
+        <p>In AEM as a Cloud Service the repository structure is decided at build time by the packages a deployment installs; /apps and /libs are immutable and &quot;any attempt to change an immutable area at runtime fails&quot;. Code that wrote configuration, labels or counters into /apps for years on 6.5 keeps compiling and deploying, then throws AccessDeniedException (or silently drops the write) at the first request.</p>
+        <h4>How to fix it</h4>
+        <p>Move the node into the content package so it is installed with the release, or keep runtime state under a mutable path (/var, /conf, /content) that the service user is allowed to modify.</p>
+        <div class="examples">
+          <div class="code code--bad">
+            <div class="code__bar"><span class="code__label">java · before</span></div>
+            <pre><code>ValueMap config =
+    resolver.getResource(&quot;/apps/acme/config&quot;).adaptTo(ModifiableValueMap.class);
+config.put(&quot;lastRun&quot;, System.currentTimeMillis());</code></pre>
+          </div>
+          <div class="code code--good">
+            <div class="code__bar"><span class="code__label">java · after</span></div>
+            <pre><code>// ui.content/src/main/content/jcr_root/apps/acme/config/.content.xml
+&lt;jcr:root xmlns:sling=&quot;http://sling.apache.org/jcr/sling/1.0&quot;
+          jcr:primaryType=&quot;sling:Folder&quot;/&gt;
+
+// Java: runtime state belongs under a mutable path
+ValueMap state =
+    resolver.getResource(&quot;/var/acme/config&quot;).adaptTo(ModifiableValueMap.class);
+state.put(&quot;lastRun&quot;, System.currentTimeMillis());</code></pre>
+          </div>
+        </div>
+        <p class="suppress">Suppress one line: <code>// aem-analyser-disable-next-line AEM-CLOUD-008</code> · tags aem-cloud, immutable-path · <code>--explain AEM-CLOUD-008</code></p>
+        <div class="rule-card__tune">
+          <span class="rule-card__tune-label">Tune this rule</span>
+          <a href="../reference/#configuration">Disable or re-scope it in <code>.aem-analyser.yml</code></a>
+          <a href="../reference/#flags">Fail the build on it with <code>--fail-on</code></a>
+          <a href="../reference/#suppression">Suppress one occurrence inline</a>
+          <a href="../reference/#baseline">Accept it in a baseline</a>
+          <a href="../reference/#exit-codes">What its severity means for the exit code</a>
+        </div>
+        <p class="rule-card__siblings">Same family: <a href="aem-cloud-001/" title="HardcodedCloudSecret">AEM-CLOUD-001</a> <a href="aem-cloud-002/" title="DeprecatedJspUsage">AEM-CLOUD-002</a> · <a href="#family-cloud">all rules in this family</a></p>
+      </article>
+
+      <article class="rule-card" id="aem-cloud-009" data-family="CLOUD" data-search="aem-cloud-009 unreachabledeployablemodule a reactor module ships content or a bundle the all container never installs, or a bundle is embedded outside /install. aem-cloud content-package build warning embed the module in the all container (with an .../install target for bundles), or remove it from the reactor; keep the container free of its own jcr_root. aem as a cloud service deploys one package per application: the container module (usually all) embeds and installs every other package, and must carry no content of its own. a module added to the reactor but never to &lt;embeddeds&gt; still builds and still passes the pipeline - the deployment simply does not contain it, and an author discovers the missing dialog weeks later. a bundle embedded outside an .../install path is worse: it travels inside the container and is never installed or started, so every component it declares stays absent with no error. add the module to the container&#39;s &lt;embeddeds&gt; under an install path, follow structure packages through &lt;repositorystructurepackages&gt;, and move any content out of the container. remove modules from the reactor when they are no longer deployed.">
+        <header class="rule-card__head">
+          <h3 class="rule-card__title"><a class="rule-card__permalink" href="aem-cloud-009/" aria-label="Open the AEM-CLOUD-009 reference page"><span class="rule-card__id">AEM-CLOUD-009</span></a><a class="rule-card__anchor" href="#aem-cloud-009" aria-label="Link to AEM-CLOUD-009">#</a><span class="rule-card__name">UnreachableDeployableModule</span></h3>
+          <span class="pill pill--warning">WARNING</span>
+          <span class="rule-card__meta">
+            <span>20 min fix</span>
+            <span>Bug</span>
+          </span>
+        </header>
+        <p class="rule-card__summary">A reactor module ships content or a bundle the all container never installs, or a bundle is embedded outside /install.</p>
+        <h4>Why it matters</h4>
+        <p>AEM as a Cloud Service deploys one package per application: the container module (usually all) embeds and installs every other package, and must carry no content of its own. A module added to the reactor but never to &lt;embeddeds&gt; still builds and still passes the pipeline - the deployment simply does not contain it, and an author discovers the missing dialog weeks later. A bundle embedded outside an .../install path is worse: it travels inside the container and is never installed or started, so every component it declares stays absent with no error.</p>
+        <h4>How to fix it</h4>
+        <p>Add the module to the container&#39;s &lt;embeddeds&gt; under an install path, follow structure packages through &lt;repositoryStructurePackages&gt;, and move any content out of the container. Remove modules from the reactor when they are no longer deployed.</p>
+        <div class="examples">
+          <div class="code code--bad">
+            <div class="code__bar"><span class="code__label">xml · before</span></div>
+            <pre><code>&lt;!-- all/pom.xml --&gt;
+&lt;embeddeds&gt;
+    &lt;embedded&gt;
+        &lt;groupId&gt;com.acme&lt;/groupId&gt;
+        &lt;artifactId&gt;acme.ui.content2&lt;/artifactId&gt;
+        &lt;type&gt;zip&lt;/type&gt;
+        &lt;target&gt;/apps/acme-packages/content/install&lt;/target&gt;
+    &lt;/embedded&gt;
+    &lt;embedded&gt;
+        &lt;groupId&gt;com.acme&lt;/groupId&gt;
+        &lt;artifactId&gt;acme.core&lt;/artifactId&gt;
+        &lt;target&gt;/apps/acme-packages/application&lt;/target&gt; &lt;!-- no /install --&gt;
+    &lt;/embedded&gt;
+&lt;/embeddeds&gt;</code></pre>
+          </div>
+          <div class="code code--good">
+            <div class="code__bar"><span class="code__label">xml · after</span></div>
+            <pre><code>&lt;!-- all/pom.xml --&gt;
+&lt;embeddeds&gt;
+    &lt;embedded&gt;
+        &lt;groupId&gt;com.acme&lt;/groupId&gt;
+        &lt;artifactId&gt;acme.ui.content2&lt;/artifactId&gt;
+        &lt;type&gt;zip&lt;/type&gt;
+        &lt;target&gt;/apps/acme-packages/content/install&lt;/target&gt;
+    &lt;/embedded&gt;
+    &lt;embedded&gt;
+        &lt;groupId&gt;com.acme&lt;/groupId&gt;
+        &lt;artifactId&gt;acme.core&lt;/artifactId&gt;
+        &lt;target&gt;/apps/acme-packages/application/install&lt;/target&gt;
+    &lt;/embedded&gt;
+&lt;/embeddeds&gt;</code></pre>
+          </div>
+        </div>
+        <p class="suppress">Suppress one line: <code>// aem-analyser-disable-next-line AEM-CLOUD-009</code> · tags aem-cloud, content-package, build · <code>--explain AEM-CLOUD-009</code></p>
+        <div class="rule-card__tune">
+          <span class="rule-card__tune-label">Tune this rule</span>
+          <a href="../reference/#configuration">Disable or re-scope it in <code>.aem-analyser.yml</code></a>
+          <a href="../reference/#flags">Fail the build on it with <code>--fail-on</code></a>
+          <a href="../reference/#suppression">Suppress one occurrence inline</a>
+          <a href="../reference/#baseline">Accept it in a baseline</a>
+          <a href="../reference/#exit-codes">What its severity means for the exit code</a>
+        </div>
+        <p class="rule-card__siblings">Same family: <a href="aem-cloud-001/" title="HardcodedCloudSecret">AEM-CLOUD-001</a> <a href="aem-cloud-002/" title="DeprecatedJspUsage">AEM-CLOUD-002</a> · <a href="#family-cloud">all rules in this family</a></p>
+      </article>
+
+      <article class="rule-card" id="aem-cloud-010" data-family="CLOUD" data-search="aem-cloud-010 legacyreplicationconfiguration replication agent content, replication osgi configuration or a custom transport handler that aem as a cloud service cannot honour. aem-cloud replication warning remove replication agent content and transport configuration from the package, and replace a custom transporthandler with the standard replication api or a workflow step. cloud publishing does not use replication agents. content is distributed through sling content distribution to an adobe-hosted pipeline service, so an agent shipped under /etc/replication, an osgi config for com.day.cq.replication.impl.* or a sling distribution agent, and a custom transporthandler configure nothing at all. unlike every other cloud difference this one produces no error: the agent reports idle, the activation request &quot;succeeds&quot;, and the published page never appears. delete the agent content and the transport configuration from the package, and replace a custom transporthandler / contentbuilder / replicationpreprocessor with the standard replication api or a workflow step that cloud runs.">
+        <header class="rule-card__head">
+          <h3 class="rule-card__title"><a class="rule-card__permalink" href="aem-cloud-010/" aria-label="Open the AEM-CLOUD-010 reference page"><span class="rule-card__id">AEM-CLOUD-010</span></a><a class="rule-card__anchor" href="#aem-cloud-010" aria-label="Link to AEM-CLOUD-010">#</a><span class="rule-card__name">LegacyReplicationConfiguration</span></h3>
+          <span class="pill pill--warning">WARNING</span>
+          <span class="rule-card__meta">
+            <span>15 min fix</span>
+            <span>Bug</span>
+          </span>
+        </header>
+        <p class="rule-card__summary">Replication agent content, replication OSGi configuration or a custom transport handler that AEM as a Cloud Service cannot honour.</p>
+        <h4>Why it matters</h4>
+        <p>Cloud publishing does not use replication agents. Content is distributed through Sling Content Distribution to an Adobe-hosted pipeline service, so an agent shipped under /etc/replication, an OSGi config for com.day.cq.replication.impl.* or a Sling distribution agent, and a custom TransportHandler configure nothing at all. Unlike every other Cloud difference this one produces no error: the agent reports idle, the activation request &quot;succeeds&quot;, and the published page never appears.</p>
+        <h4>How to fix it</h4>
+        <p>Delete the agent content and the transport configuration from the package, and replace a custom TransportHandler / ContentBuilder / ReplicationPreprocessor with the standard replication API or a workflow step that Cloud runs.</p>
+        <div class="examples">
+          <div class="code code--bad">
+            <div class="code__bar"><span class="code__label">xml · before</span></div>
+            <pre><code>&lt;!-- ui.apps/src/main/content/jcr_root/etc/replication/agents.author/publish/.content.xml --&gt;
+&lt;jcr:root xmlns:cq=&quot;http://www.day.com/jcr/cq/1.0&quot;
+          jcr:primaryType=&quot;cq:Page&quot;&gt;
+    &lt;jcr:content
+        transportUri=&quot;http://localhost:4503/bin/receive?service=com.day.cq.replication.impl.transport.HttpTransportHandle&quot;
+        serializeAsXML=&quot;{Boolean}true&quot;/&gt;
+&lt;/jcr:root&gt;</code></pre>
+          </div>
+          <div class="code code--good">
+            <div class="code__bar"><span class="code__label">java · after</span></div>
+            <pre><code>@Component(service = TransportHandler.class)
+public class LegacyTransport implements TransportHandler {
+    // never invoked on AEM as a Cloud Service
+}</code></pre>
+          </div>
+        </div>
+        <p class="suppress">Suppress one line: <code>// aem-analyser-disable-next-line AEM-CLOUD-010</code> · tags aem-cloud, replication · <code>--explain AEM-CLOUD-010</code></p>
+        <div class="rule-card__tune">
+          <span class="rule-card__tune-label">Tune this rule</span>
+          <a href="../reference/#configuration">Disable or re-scope it in <code>.aem-analyser.yml</code></a>
+          <a href="../reference/#flags">Fail the build on it with <code>--fail-on</code></a>
+          <a href="../reference/#suppression">Suppress one occurrence inline</a>
+          <a href="../reference/#baseline">Accept it in a baseline</a>
+          <a href="../reference/#exit-codes">What its severity means for the exit code</a>
+        </div>
+        <p class="rule-card__siblings">Same family: <a href="aem-cloud-001/" title="HardcodedCloudSecret">AEM-CLOUD-001</a> <a href="aem-cloud-002/" title="DeprecatedJspUsage">AEM-CLOUD-002</a> · <a href="#family-cloud">all rules in this family</a></p>
+      </article>
     </section>
 
     <section class="family" id="family-sec">
@@ -1638,6 +1809,15 @@ if (target != null &amp;&amp; target.startsWith(&quot;/content/&quot;) &amp;&amp
           </div>
         </div>
         <p class="suppress">Suppress one line: <code>// aem-analyser-disable-next-line AEM-A11Y-001</code> · tags accessibility, htl, wcag · <code>--explain AEM-A11Y-001</code></p>
+        <div class="rule-card__tune">
+          <span class="rule-card__tune-label">Tune this rule</span>
+          <a href="../reference/#configuration">Disable or re-scope it in <code>.aem-analyser.yml</code></a>
+          <a href="../reference/#flags">Fail the build on it with <code>--fail-on</code></a>
+          <a href="../reference/#suppression">Suppress one occurrence inline</a>
+          <a href="../reference/#baseline">Accept it in a baseline</a>
+          <a href="../reference/#exit-codes">What its severity means for the exit code</a>
+        </div>
+        <p class="rule-card__siblings">Same family: <a href="aem-a11y-002/" title="LinkWithoutAccessibleName">AEM-A11Y-002</a> · <a href="#family-a11y">all rules in this family</a></p>
       </article>
 
       <article class="rule-card" id="aem-a11y-002" data-family="A11Y" data-search="aem-a11y-002 linkwithoutaccessiblename htl anchor has no href/data-sly-attribute.href, or no accessible name for icon-only content (wcag 2.4.4). accessibility htl wcag warning add an href (or data-sly-attribute.href), and give an icon-only link an aria-label or visually hidden text. an &lt;a&gt; without href is not focusable, so keyboard users cannot reach it even though pointer users can click the styled element. an icon-only link is the mirror defect: it has no text for a screen reader to announce, so the link reads as an empty control. both are wcag 2.4.4 failures that a rendered-dom audit finds only after deploy, while the template edit is cheap. keep href on every element styled as a link (bind it with data-sly-attribute.href when it is dynamic), and give an icon-only link an aria-label or visually hidden text that names its destination.">
@@ -1669,6 +1849,79 @@ if (target != null &amp;&amp; target.startsWith(&quot;/content/&quot;) &amp;&amp
           </div>
         </div>
         <p class="suppress">Suppress one line: <code>// aem-analyser-disable-next-line AEM-A11Y-002</code> · tags accessibility, htl, wcag · <code>--explain AEM-A11Y-002</code></p>
+        <div class="rule-card__tune">
+          <span class="rule-card__tune-label">Tune this rule</span>
+          <a href="../reference/#configuration">Disable or re-scope it in <code>.aem-analyser.yml</code></a>
+          <a href="../reference/#flags">Fail the build on it with <code>--fail-on</code></a>
+          <a href="../reference/#suppression">Suppress one occurrence inline</a>
+          <a href="../reference/#baseline">Accept it in a baseline</a>
+          <a href="../reference/#exit-codes">What its severity means for the exit code</a>
+        </div>
+        <p class="rule-card__siblings">Same family: <a href="aem-a11y-001/" title="ImageWithoutAlt">AEM-A11Y-001</a> · <a href="#family-a11y">all rules in this family</a></p>
+      </article>
+    </section>
+
+    <section class="family" id="family-wf">
+      <div class="family__head">
+        <h2>Workflow integrity</h2>
+        <span>1 issue</span>
+      </div>
+      <p class="muted">Workflow launchers, models and steps that resolve to nothing.</p>
+
+      <article class="rule-card" id="aem-wf-001" data-family="WF" data-search="aem-wf-001 unresolvedworkflowreference workflow launcher points at a model, or a process step at a class, that the project does not ship. workflow content warning point the launcher at a model the project ships (or an existing out-of-the-box model), and the process step at a class that exists in a bundle the project deploys. a workflow launcher references its model by path and a process step references its class by name; both are plain strings in .content.xml. rename the model or move the class and nothing complains at deploy time - the launcher simply never starts, and the workflow that &quot;stopped running weeks ago&quot; is the first symptom. cloud manager and the aem analyzer do not inspect workflow content at all. point cq:workflowmodel at a model the project ships (or at an existing out-of-the-box model), and update the process step to the class that now implements it. grep the model path and the class name across the package before renaming either.">
+        <header class="rule-card__head">
+          <h3 class="rule-card__title"><a class="rule-card__permalink" href="aem-wf-001/" aria-label="Open the AEM-WF-001 reference page"><span class="rule-card__id">AEM-WF-001</span></a><a class="rule-card__anchor" href="#aem-wf-001" aria-label="Link to AEM-WF-001">#</a><span class="rule-card__name">UnresolvedWorkflowReference</span></h3>
+          <span class="pill pill--warning">WARNING</span>
+          <span class="rule-card__meta">
+            <span>15 min fix</span>
+            <span>Bug</span>
+          </span>
+        </header>
+        <p class="rule-card__summary">Workflow launcher points at a model, or a PROCESS step at a class, that the project does not ship.</p>
+        <h4>Why it matters</h4>
+        <p>A workflow launcher references its model by path and a PROCESS step references its class by name; both are plain strings in .content.xml. Rename the model or move the class and nothing complains at deploy time - the launcher simply never starts, and the workflow that &quot;stopped running weeks ago&quot; is the first symptom. Cloud Manager and the AEM Analyzer do not inspect workflow content at all.</p>
+        <h4>How to fix it</h4>
+        <p>Point cq:workflowModel at a model the project ships (or at an existing out-of-the-box model), and update the PROCESS step to the class that now implements it. Grep the model path and the class name across the package before renaming either.</p>
+        <div class="examples">
+          <div class="code code--bad">
+            <div class="code__bar"><span class="code__label">xml · before</span></div>
+            <pre><code>&lt;!-- conf/global/settings/workflow/launcher/acme-publish/.content.xml --&gt;
+&lt;jcr:root xmlns:cq=&quot;http://www.day.com/jcr/cq/1.0&quot;
+          jcr:primaryType=&quot;cq:WorkflowLauncher&quot;
+          cq:workflowModel=&quot;/var/workflow/models/acme-missing&quot;
+          glob=&quot;/content/acme/.*/jcr:content&quot;/&gt;
+
+&lt;!-- conf/global/settings/workflow/models/acme-publish/.content.xml --&gt;
+&lt;jcr:root jcr:primaryType=&quot;cq:WorkflowModel&quot;&gt;
+    &lt;node0 jcr:primaryType=&quot;cq:WorkflowNode&quot; type=&quot;PROCESS&quot;
+           process=&quot;com.acme.steps.Gone&quot;/&gt;
+&lt;/jcr:root&gt;</code></pre>
+          </div>
+          <div class="code code--good">
+            <div class="code__bar"><span class="code__label">xml · after</span></div>
+            <pre><code>&lt;!-- launcher points at the model that exists --&gt;
+&lt;jcr:root xmlns:cq=&quot;http://www.day.com/jcr/cq/1.0&quot;
+          jcr:primaryType=&quot;cq:WorkflowLauncher&quot;
+          cq:workflowModel=&quot;/var/workflow/models/acme-publish&quot;
+          glob=&quot;/content/acme/.*/jcr:content&quot;/&gt;
+
+&lt;!-- step names a class the bundle declares --&gt;
+&lt;jcr:root jcr:primaryType=&quot;cq:WorkflowModel&quot;&gt;
+    &lt;node0 jcr:primaryType=&quot;cq:WorkflowNode&quot; type=&quot;PROCESS&quot;
+           process=&quot;com.acme.steps.PublishStep&quot;/&gt;
+&lt;/jcr:root&gt;</code></pre>
+          </div>
+        </div>
+        <p class="suppress">Suppress one line: <code>// aem-analyser-disable-next-line AEM-WF-001</code> · tags workflow, content · <code>--explain AEM-WF-001</code></p>
+        <div class="rule-card__tune">
+          <span class="rule-card__tune-label">Tune this rule</span>
+          <a href="../reference/#configuration">Disable or re-scope it in <code>.aem-analyser.yml</code></a>
+          <a href="../reference/#flags">Fail the build on it with <code>--fail-on</code></a>
+          <a href="../reference/#suppression">Suppress one occurrence inline</a>
+          <a href="../reference/#baseline">Accept it in a baseline</a>
+          <a href="../reference/#exit-codes">What its severity means for the exit code</a>
+        </div>
+        <p class="rule-card__siblings">Same family: <a href="aem-a11y-001/" title="ImageWithoutAlt">AEM-A11Y-001</a> <a href="aem-a11y-002/" title="LinkWithoutAccessibleName">AEM-A11Y-002</a> · <a href="#family-wf">all rules in this family</a></p>
       </article>
     </section>
   </div>
@@ -1679,10 +1932,11 @@ if (target != null &amp;&amp; target.startsWith(&quot;/content/&quot;) &amp;&amp
       <li><a href="#family-dup">Duplication <span class="muted">4</span></a></li>
       <li><a href="#family-qual">Quality and Cloud Manager parity <span class="muted">8</span></a></li>
       <li><a href="#family-perf">Performance <span class="muted">4</span></a></li>
-      <li><a href="#family-cloud">AEM as a Cloud Service <span class="muted">7</span></a></li>
+      <li><a href="#family-cloud">AEM as a Cloud Service <span class="muted">10</span></a></li>
       <li><a href="#family-sec">Security <span class="muted">2</span></a></li>
       <li><a href="#family-comp">Component compatibility <span class="muted">2</span></a></li>
       <li><a href="#family-a11y">Accessibility <span class="muted">2</span></a></li>
+      <li><a href="#family-wf">Workflow integrity <span class="muted">1</span></a></li>
     </ul>
     <p class="aside__title">All rules</p>
     <ul>
@@ -1719,12 +1973,16 @@ if (target != null &amp;&amp; target.startsWith(&quot;/content/&quot;) &amp;&amp
       <li><a href="#aem-cloud-005">AEM-CLOUD-005</a></li>
       <li><a href="#aem-cloud-006">AEM-CLOUD-006</a></li>
       <li><a href="#aem-cloud-007">AEM-CLOUD-007</a></li>
+      <li><a href="#aem-cloud-008">AEM-CLOUD-008</a></li>
+      <li><a href="#aem-cloud-009">AEM-CLOUD-009</a></li>
+      <li><a href="#aem-cloud-010">AEM-CLOUD-010</a></li>
       <li><a href="#aem-sec-001">AEM-SEC-001</a></li>
       <li><a href="#aem-sec-002">AEM-SEC-002</a></li>
       <li><a href="#aem-comp-001">AEM-COMP-001</a></li>
       <li><a href="#aem-comp-002">AEM-COMP-002</a></li>
       <li><a href="#aem-a11y-001">AEM-A11Y-001</a></li>
       <li><a href="#aem-a11y-002">AEM-A11Y-002</a></li>
+      <li><a href="#aem-wf-001">AEM-WF-001</a></li>
     </ul>
   </aside>
 </div>

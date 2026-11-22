@@ -1,5 +1,6 @@
 package io.github.rohithv16.aem.analyser.core.rules.metadata;
 
+import io.github.rohithv16.aem.analyser.core.model.report.RuleId;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -16,7 +17,8 @@ class RuleEvidenceTest {
     @Test
     void everyActiveRuleHasBothSidesAndTheRetiredIdHasNone() {
         List<RuleEvidence.Row> rows = RuleEvidence.all();
-        assertEquals(35, rows.size(), "one row per registry id, including the retired id");
+        assertEquals(RuleId.values().length, rows.size(),
+                "one row per registry id, including the retired id");
 
         List<RuleEvidence.Row> missingTwin = rows.stream()
                 .filter(row -> "active".equals(row.status()))

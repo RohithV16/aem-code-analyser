@@ -92,7 +92,7 @@ an empty `<relativePath/>`, because that parent comes from a repository.
 
 ## What it checks
 
-**38 rules in eight families:** dead code (9), duplication (4), Cloud Manager parity (6),
+**43 rules in eight families:** dead code (9), duplication (4), Cloud Manager parity (6),
 performance (4), AEM as a Cloud Service (10), security (2), component compatibility (2), workflow
 integrity (1). Findings are reported as console output, an HTML dashboard, SARIF 2.1.0, SonarQube
 issues, or GitHub/GitLab/Azure annotations.

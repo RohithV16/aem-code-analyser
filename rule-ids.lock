@@ -1,5 +1,7 @@
 # Generated from RuleId. Do not hand-edit: change the enum and run scripts/check-rule-ids.sh.
 # id|status|since|replacedBy
+AEM-A11Y-001|active|1.0.0|
+AEM-A11Y-002|active|1.0.0|
 AEM-CLOUD-001|active|1.0.0|
 AEM-CLOUD-002|active|1.0.0|
 AEM-CLOUD-003|active|1.0.0|
@@ -7,6 +9,9 @@ AEM-CLOUD-004|active|1.0.0|
 AEM-CLOUD-005|active|1.0.0|
 AEM-CLOUD-006|active|1.1.0|
 AEM-CLOUD-007|active|1.1.0|
+AEM-CLOUD-008|active|1.0.0|
+AEM-CLOUD-009|active|1.0.0|
+AEM-CLOUD-010|active|1.0.0|
 AEM-COMP-001|active|1.0.0|
 AEM-COMP-002|active|1.1.0|
 AEM-DEAD-001|active|1.0.0|
@@ -17,6 +22,7 @@ AEM-DEAD-003B|active|1.0.0|
 AEM-DEAD-003C|active|1.0.0|
 AEM-DEAD-004|active|1.0.0|
 AEM-DEAD-005|active|1.0.0|
+AEM-DEAD-006|active|1.0.0|
 AEM-DEAD-007|active|1.1.0|
 AEM-DUP-001|active|1.0.0|
 AEM-DUP-002|active|1.0.0|
@@ -32,6 +38,8 @@ AEM-QUAL-003|active|1.0.0|
 AEM-QUAL-004|active|1.0.0|
 AEM-QUAL-005|active|1.0.0|
 AEM-QUAL-006|retired|1.0.0|AEM-QUAL-004
+AEM-QUAL-007|active|1.0.0|
 AEM-QUAL-008|active|1.1.0|
 AEM-SEC-001|active|1.0.0|
 AEM-SEC-002|active|1.0.0|
+AEM-WF-001|active|1.0.0|

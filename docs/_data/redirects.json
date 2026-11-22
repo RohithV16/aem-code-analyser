@@ -1,5 +1,21 @@
 [
  {
+  "from": "/aem-code-analyser/rules/aem-a11y-001/",
+  "to": "/aem-code-analyser/issues/#aem-a11y-001"
+ },
+ {
+  "from": "/aem-code-analyser/rules/AEM-A11Y-001.html",
+  "to": "/aem-code-analyser/issues/#aem-a11y-001"
+ },
+ {
+  "from": "/aem-code-analyser/rules/aem-a11y-002/",
+  "to": "/aem-code-analyser/issues/#aem-a11y-002"
+ },
+ {
+  "from": "/aem-code-analyser/rules/AEM-A11Y-002.html",
+  "to": "/aem-code-analyser/issues/#aem-a11y-002"
+ },
+ {
   "from": "/aem-code-analyser/rules/aem-cloud-001/",
   "to": "/aem-code-analyser/issues/#aem-cloud-001"
  },
@@ -54,6 +70,30 @@
  {
   "from": "/aem-code-analyser/rules/AEM-CLOUD-007.html",
   "to": "/aem-code-analyser/issues/#aem-cloud-007"
+ },
+ {
+  "from": "/aem-code-analyser/rules/aem-cloud-008/",
+  "to": "/aem-code-analyser/issues/#aem-cloud-008"
+ },
+ {
+  "from": "/aem-code-analyser/rules/AEM-CLOUD-008.html",
+  "to": "/aem-code-analyser/issues/#aem-cloud-008"
+ },
+ {
+  "from": "/aem-code-analyser/rules/aem-cloud-009/",
+  "to": "/aem-code-analyser/issues/#aem-cloud-009"
+ },
+ {
+  "from": "/aem-code-analyser/rules/AEM-CLOUD-009.html",
+  "to": "/aem-code-analyser/issues/#aem-cloud-009"
+ },
+ {
+  "from": "/aem-code-analyser/rules/aem-cloud-010/",
+  "to": "/aem-code-analyser/issues/#aem-cloud-010"
+ },
+ {
+  "from": "/aem-code-analyser/rules/AEM-CLOUD-010.html",
+  "to": "/aem-code-analyser/issues/#aem-cloud-010"
  },
  {
   "from": "/aem-code-analyser/rules/aem-comp-001/",
@@ -134,6 +174,14 @@
  {
   "from": "/aem-code-analyser/rules/AEM-DEAD-005.html",
   "to": "/aem-code-analyser/issues/#aem-dead-005"
+ },
+ {
+  "from": "/aem-code-analyser/rules/aem-dead-006/",
+  "to": "/aem-code-analyser/issues/#aem-dead-006"
+ },
+ {
+  "from": "/aem-code-analyser/rules/AEM-DEAD-006.html",
+  "to": "/aem-code-analyser/issues/#aem-dead-006"
  },
  {
   "from": "/aem-code-analyser/rules/aem-dead-007/",
@@ -256,6 +304,14 @@
   "to": "/aem-code-analyser/issues/#aem-qual-006"
  },
  {
+  "from": "/aem-code-analyser/rules/aem-qual-007/",
+  "to": "/aem-code-analyser/issues/#aem-qual-007"
+ },
+ {
+  "from": "/aem-code-analyser/rules/AEM-QUAL-007.html",
+  "to": "/aem-code-analyser/issues/#aem-qual-007"
+ },
+ {
   "from": "/aem-code-analyser/rules/aem-qual-008/",
   "to": "/aem-code-analyser/issues/#aem-qual-008"
  },
@@ -278,5 +334,13 @@
  {
   "from": "/aem-code-analyser/rules/AEM-SEC-002.html",
   "to": "/aem-code-analyser/issues/#aem-sec-002"
+ },
+ {
+  "from": "/aem-code-analyser/rules/aem-wf-001/",
+  "to": "/aem-code-analyser/issues/#aem-wf-001"
+ },
+ {
+  "from": "/aem-code-analyser/rules/AEM-WF-001.html",
+  "to": "/aem-code-analyser/issues/#aem-wf-001"
  }
 ]

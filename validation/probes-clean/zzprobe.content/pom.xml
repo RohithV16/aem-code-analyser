@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0">
+  <modelVersion>4.0.0</modelVersion>
+  <parent><groupId>com.probe</groupId><artifactId>analyser-probes</artifactId><version>1.0.0</version></parent>
+  <!-- Clean twin of AEM-CLOUD-009: a deployable module the all container embeds. -->
+  <artifactId>probe.zzprobe.content</artifactId><packaging>content-package</packaging>
+  <build><plugins><plugin><groupId>org.apache.jackrabbit</groupId><artifactId>filevault-package-maven-plugin</artifactId>
+    <configuration><packageType>content</packageType></configuration></plugin></plugins></build>
+</project>
