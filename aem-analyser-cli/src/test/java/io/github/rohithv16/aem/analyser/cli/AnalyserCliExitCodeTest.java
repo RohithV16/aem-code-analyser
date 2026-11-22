@@ -43,6 +43,18 @@ class AnalyserCliExitCodeTest {
     }
 
     @Test
+    void internalCrashIsNotAVerdictOnTheCode() throws Exception {
+        CommandLine cmd = AnalyserCli.createCommandLine();
+        cmd.setErr(new java.io.PrintWriter(new StringWriter()));
+
+        int code = cmd.getExecutionExceptionHandler()
+                .handleExecutionException(new IllegalStateException("boom"), cmd, null);
+
+        assertEquals(3, code,
+                "an internal crash must be distinguishable from a failed gate (1) and a usage error (2)");
+    }
+
+    @Test
     void helpAndVersionStillExitZero() {
         CommandLine help = new CommandLine(new AnalyserCli());
         help.setOut(new PrintWriter(new StringWriter()));
