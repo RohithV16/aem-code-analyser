@@ -35,6 +35,10 @@ All notable changes to this project are documented here. The format follows
   `file:line:col: E AEM-RULE message` line per finding — the shape vim's `:cfile`/`:make`, Emacs
   `compilation-mode`, VS Code's `$gcc` problem matcher and `grep` already parse.
 
+- **`-f JUNIT`** writes `aem-analyser-junit.xml` so Jenkins, GitLab and Azure DevOps render findings
+  on the test tab: one `<testcase>` per finding, `<failure>` for ERROR/WARNING, `<skipped/>` for
+  INFO.
+
 - **First Maven Central release (1.0.10).** `io.github.rohithv16:aem-code-analyser`,
   `aem-analyser-core` and `aem-analyser-maven-plugin` are published with sources, javadoc and GPG
   signatures, so the plugin needs no repository entry and no token. Verified by resolving both the

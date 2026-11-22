@@ -48,7 +48,7 @@ description: Every flag, output format, exit code, configuration key and suppres
           <tbody>
             <tr><td class="mono nowrap">[project-root]</td><td class="mono">current dir</td><td>Shorthand for <code>--project-root</code>.</td></tr>
             <tr><td class="mono nowrap">-p, --project-root &lt;dir&gt;</td><td class="mono">current dir</td><td>Project or reactor root. A module directory resolves up to the reactor that owns it.</td></tr>
-            <tr><td class="mono nowrap">-f, --format &lt;list&gt;</td><td class="mono">CONSOLE</td><td>Comma-separated: <code>CONSOLE</code>, <code>TEXT</code>, <code>JSON</code>, <code>SARIF</code>, <code>SONAR</code>, <code>HTML</code>, <code>GITHUB</code>, <code>GITLAB</code>, <code>AZURE</code>.</td></tr>
+            <tr><td class="mono nowrap">-f, --format &lt;list&gt;</td><td class="mono">CONSOLE</td><td>Comma-separated: <code>CONSOLE</code>, <code>TEXT</code>, <code>JSON</code>, <code>SARIF</code>, <code>SONAR</code>, <code>HTML</code>, <code>GITHUB</code>, <code>GITLAB</code>, <code>AZURE</code>, <code>JUNIT</code>.</td></tr>
             <tr><td class="mono nowrap">--html [path], --html-report</td><td class="mono">on</td><td>Write the HTML dashboard. <code>--no-html</code> turns it off for one run.</td></tr>
             <tr><td class="mono nowrap">-o, --output &lt;dir&gt;</td><td class="mono">target/aem-analyser</td><td>Directory for the file-based reports (SARIF, SONAR, JSON, TEXT, HTML and CI annotation files).</td></tr>
             <tr><td class="mono nowrap">--fail-on &lt;severity&gt;</td><td class="mono">—</td><td><code>ERROR</code>, <code>WARNING</code>, <code>INFO</code> or <code>NONE</code>. Without it, any ERROR finding already fails the run.</td></tr>
@@ -107,6 +107,10 @@ description: Every flag, output format, exit code, configuration key and suppres
               Neutral machine-readable document: <code>schemaVersion</code>, tool version, per-severity
               counts, every finding with its <code>fingerprint</code> and rule metadata. Dashboards,
               bespoke gates, MCP/LLM tools.
+            </td></tr>
+            <tr><td class="mono">JUNIT</td><td class="mono">aem-analyser-junit.xml</td><td>
+              <code>&lt;testsuite&gt;/&lt;testcase&gt;/&lt;failure&gt;</code>; INFO findings are
+              <code>&lt;skipped/&gt;</code>. Jenkins, GitLab and Azure DevOps test-report tabs.
             </td></tr>
             <tr><td class="mono">HTML</td><td class="mono">aem-analyser-report.html</td><td>People: a standalone dashboard</td></tr>
             <tr><td class="mono">SARIF</td><td class="mono">aem-analyser.sarif</td><td>GitHub code scanning, Azure DevOps</td></tr>
