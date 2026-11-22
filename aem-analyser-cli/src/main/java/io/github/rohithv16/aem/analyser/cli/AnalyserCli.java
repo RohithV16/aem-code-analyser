@@ -67,7 +67,9 @@ public class AnalyserCli implements java.util.concurrent.Callable<Integer> {
     private boolean noHtml;
 
     @Option(names = {"-o", "--output"},
-            description = "Output directory for SARIF/SONAR/HTML files. Default: ./target/aem-analyser")
+            description = "Output directory for SARIF/SONAR/HTML files, or a file path whose extension "
+                    + "selects the format written there (e.g. -o out/aem.sarif writes the SARIF report "
+                    + "to that file). Default: ./target/aem-analyser")
     private Path outputDirectory;
 
     @Option(names = {"-t", "--threads"},
@@ -746,11 +748,53 @@ public class AnalyserCli implements java.util.concurrent.Callable<Integer> {
         stdout.println("HTML report written to " + target);
     }
 
+    /**
+     * Resolves where one report file is written.
+     *
+     * <p>{@code -o} accepts either a directory or a file path. A path whose extension names a report
+     * format is written as that file; anything else is a directory, so {@code -o out} keeps working.
+     * When {@code -o} names a file for a <em>different</em> format (e.g. {@code -f SARIF,HTML}), the
+     * other reports go to the parent directory instead of fighting over one path.
+     */
     private Path outputTarget(String fileName) throws IOException {
-        Path target = outputDirectory != null ? outputDirectory
-                : Path.of("target/aem-analyser");
-        Path resolved = Files.createDirectories(target.toAbsolutePath().normalize());
-        return resolved.resolve(fileName);
+        Path base = (outputDirectory != null ? outputDirectory : Path.of("target/aem-analyser"))
+                .toAbsolutePath().normalize();
+        if (!looksLikeReportFile(base)) {
+            return Files.createDirectories(base).resolve(fileName);
+        }
+        Path parent = base.getParent();
+        if (parent != null) {
+            Files.createDirectories(parent);
+        }
+        if (extensionOf(base).equals(extensionOf(Path.of(fileName)))) {
+            return base;
+        }
+        return (parent != null ? parent : base).resolve(fileName);
+    }
+
+    /** Extensions a {@code -o} path may carry to be read as a file rather than a directory. */
+    private static final Set<String> REPORT_FILE_EXTENSIONS =
+            Set.of("sarif", "json", "html", "htm", "txt", "log");
+
+    /** True when an output path names a file: an existing file, or a known report extension. */
+    static boolean looksLikeReportFile(Path path) {
+        if (Files.isDirectory(path)) {
+            return false;
+        }
+        if (Files.isRegularFile(path)) {
+            return true;
+        }
+        return REPORT_FILE_EXTENSIONS.contains(extensionOf(path));
+    }
+
+    private static String extensionOf(Path path) {
+        Path name = path.getFileName();
+        if (name == null) {
+            return "";
+        }
+        String value = name.toString();
+        int dot = value.lastIndexOf('.');
+        return dot < 0 ? "" : value.substring(dot + 1).toLowerCase(Locale.ROOT);
     }
 
     private void runCoverageCollection(Path root) {
