@@ -95,6 +95,26 @@ class AnalyserCliRetiredRulesTest {
     }
 
     @Test
+    void listRulesJsonCarriesProbeEvidenceForEveryActiveRule() throws Exception {
+        CliTestSupport.Run run = CliTestSupport.runArgs("--list-rules", "--format", "json");
+
+        var json = new com.fasterxml.jackson.databind.ObjectMapper().readTree(run.output());
+        int withoutTwin = 0;
+        for (var row : json) {
+            if (row.path("negativeProbe").isNull()) {
+                withoutTwin++;
+                assertEquals("AEM-QUAL-006", row.path("id").asText(),
+                        "only the retired id may lack a clean twin");
+            } else {
+                assertFalse(row.path("positiveProbe").asText().isBlank());
+                assertTrue(row.path("positiveLine").asInt() > 0);
+            }
+        }
+        assertEquals(1, withoutTwin,
+                "--list-rules --format json must expose one two-sided row per active rule");
+    }
+
+    @Test
     void baselineReferencingRetiredRuleWarns(@TempDir Path project) throws Exception {
         CliTestSupport.writeMinimalProject(project);
         Files.writeString(project.resolve(".aem-analyser-baseline.json"),

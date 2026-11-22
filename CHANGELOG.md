@@ -26,6 +26,30 @@ All notable changes to this project are documented here. The format follows
 
 ### Added
 
+- **`--diagnose RULE:PATH:LINE`** writes one `aem-analyser-diagnose-<rule>.zip` — prefilled issue
+  body, finding JSON, ±5-line excerpt and environment — with the project's group id/package prefix
+  and allowlist values redacted. Nothing is transmitted, and the archive is byte-identical across
+  runs (and under a dead proxy). `.github/ISSUE_TEMPLATE/rule-finding.yml` makes the pasted bundle
+  the required field.
+
+- **`--import-report other.sarif --import-map aem-ids.yml`** reads another analyser's SARIF and
+  accepts our findings where an explicitly mapped foreign rule overlaps the same line. Accepted
+  findings leave the gate and carry SARIF
+  `suppressions:[{kind:"external",status:"accepted",justification:"sonar java:S3649 @ ..."}]`.
+  Unmapped foreign results are a coverage count and suppress nothing.
+
+- **Every rule now has a clean twin.** `validation/probes-clean` mirrors the positive probes with
+  each defect fixed; `validation/probes/evidence.json` names the exact positive file/line/subtype
+  and its twin, and `scripts/run-rule-probes.sh` prints `PAIR OK` per rule. The evidence is
+  published as `rule-evidence.json` in the jar and at `/evidence/`, and exposed by
+  `--list-rules --format json`.
+
+- **Rule-id compatibility contract.** `RuleId` carries `status`/`since`/`replacedBy`; a retired id
+  in configuration, inline suppression or baseline still resolves (enablement and acceptance apply
+  to the replacement) and warns once. `--list-rules --format json` and SARIF (`deprecatedIds`)
+  expose the lifecycle, and a committed `rule-ids.lock` makes removal a reviewed two-release event.
+  See `/compatibility/`.
+
 - **`-f JSON`** writes `aem-analyser-report.json`, the neutral machine-readable report: a
   `schemaVersion`, the tool version, per-severity counts, each finding with its stable
   `fingerprint` and full rule metadata. Consumers that are not GitHub/GitLab/Azure/Sonar no longer

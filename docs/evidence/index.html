@@ -1,0 +1,73 @@
+---
+layout: default
+nav: reference
+title: Rule evidence
+description: Two-sided evidence for every rule — the deliberate defect that must fire and the clean twin that must stay silent.
+---
+
+<div class="shell docs">
+  <aside class="docs__aside">
+    <h2>On this page</h2>
+    <ul>
+      <li><a href="#download">Download</a></li>
+      <li><a href="#shape">What a row means</a></li>
+      <li><a href="#ci">How CI enforces it</a></li>
+    </ul>
+    <h2>Elsewhere</h2>
+    <ul>
+      <li><a href="{{ site.baseurl }}/rules/">Rule catalogue</a></li>
+      <li><a href="{{ site.baseurl }}/compatibility/">Compatibility contract</a></li>
+    </ul>
+  </aside>
+
+  <div class="docs__main">
+    <h1>Rule evidence</h1>
+    <p class="lede">
+      A linter is adopted on its quiet side. Every rule therefore ships a positive probe — a
+      deliberate defect that must produce exactly one finding — and a clean twin that differs only
+      by the fix and must produce none.
+    </p>
+
+    <section id="download">
+      <h2 class="mt-0">Download</h2>
+      <p>
+        <a href="{{ site.baseurl }}/evidence/rule-evidence.json"><code>rule-evidence.json</code></a>
+        is generated from <code>validation/probes/evidence.json</code> and the rule lifecycle
+        metadata. The same bytes are packaged in the analyser jar and emitted by
+        <code>aem-analyser --list-rules --format json</code>.
+      </p>
+      <div class="code">
+        <div class="code__bar"><span class="code__label">bash</span></div>
+<pre><code># Rules without a clean twin: only the retired AEM-QUAL-006 should answer
+aem-analyser --list-rules --format json \
+  | jq '[.[] | select(.negativeProbe == null)] | length'</code></pre>
+      </div>
+    </section>
+
+    <section id="shape">
+      <h2>What a row means</h2>
+      <div class="table-wrap">
+        <table class="table--compact">
+          <thead><tr><th scope="col">Field</th><th scope="col">Meaning</th></tr></thead>
+          <tbody>
+            <tr><td class="mono">positiveProbe</td><td>Reactor-relative file in <code>validation/probes</code> that contains the deliberate defect.</td></tr>
+            <tr><td class="mono">positiveLine / positiveSubtype</td><td>Exact line and, when several sub-findings share it, the subtype that must produce <strong>one</strong> finding.</td></tr>
+            <tr><td class="mono">negativeProbe</td><td>The same scenario in <code>validation/probes-clean</code>, fixed, which must produce <strong>zero</strong> findings for this rule.</td></tr>
+            <tr><td class="mono">docAnchor</td><td>Anchor on the generated issue reference, e.g. <code>aem-dead-004</code>.</td></tr>
+            <tr><td class="mono">status / since / replacedBy</td><td>The lifecycle fields from the <a href="{{ site.baseurl }}/compatibility/">compatibility contract</a>.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="ci">
+      <h2>How CI enforces it</h2>
+      <p>
+        <code>scripts/run-rule-probes.sh</code> analyses both trees and runs
+        <code>scripts/check_rule_probes.py</code>. It prints one <code>PAIR OK</code> line per rule
+        and exits non-zero if a positive probe fires zero times or twice, or if a clean twin fires
+        once. Reintroducing a defect into a clean twin therefore fails the run and names the rule.
+      </p>
+    </section>
+  </div>
+</div>

@@ -1002,6 +1002,12 @@ public class AnalyserCli implements java.util.concurrent.Callable<Integer> {
             row.put("tags", rule.tags());
             row.put("helpUri", rule.helpUri());
             row.put("docAnchor", rule.id().toLowerCase(Locale.ROOT));
+            var evidence = io.github.rohithv16.aem.analyser.core.rules.metadata.RuleEvidence
+                    .find(rule.id()).orElse(null);
+            row.put("positiveProbe", evidence == null ? null : evidence.positiveProbe());
+            row.put("positiveLine", evidence == null ? null : evidence.positiveLine());
+            row.put("positiveSubtype", evidence == null ? null : evidence.positiveSubtype());
+            row.put("negativeProbe", evidence == null ? null : evidence.negativeProbe());
             row.put("status", RuleCatalog.statusOf(rule.id()).wireName());
             try {
                 var ruleId = io.github.rohithv16.aem.analyser.core.model.report.RuleId.fromId(rule.id());

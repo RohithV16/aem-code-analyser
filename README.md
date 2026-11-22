@@ -138,9 +138,12 @@ and offers a persistent dark mode, print stylesheet and keyboard-accessible tabs
 | `--max-warnings <n>` | — | Quality gate: maximum warnings. |
 | `--sonar` / `--no-sonar` | on | Toggle embedded SonarJava analysis. |
 | `--sonar-rules <list>` | `default` | SonarJava ruleset filter. |
-| `--list-rules` | — | Print the effective rule catalogue and exit. |
+| `--list-rules` | — | Print the effective rule catalogue and exit. `--format json` emits the same catalogue with probe evidence. |
 | `--explain <RULE>` | — | Print one rule's effective metadata and exit. |
 | `--tag <tag>` | — | With `--list-rules`: only rules carrying the tag. |
+| `--diagnose <RULE:PATH:LINE>` | — | Write one redacted, offline repro bundle for a finding and exit. |
+| `--import-report <sarif>` | — | Read another analyser's SARIF for migration coverage. |
+| `--import-map <file>` | — | Map foreign rule ids to analyser ids (`java:S3649: AEM-QUAL-004`); requires `--import-report`. |
 | `--generate-rule-docs <dir>` | — | Generate the issue reference page into `<dir>/issues` and exit. |
 | `-v, --verbose` | off | Print analysis diagnostics on stderr. |
 | `-q, --quiet` | off | Silence progress and warning lines on stderr; the report on stdout is unaffected. |
@@ -188,8 +191,8 @@ Both `aem-analyser:check` and `aem-analyser:report` share these parameters.
 ## Validation probes (deliberate per-rule test code)
 
 `validation/probes` is a self-contained source fixture set, laid out like an AEM reactor, with one
-positive case for every rule. It is analyser input rather than a compilable project, and it
-exercises the full CLI pipeline rather than isolated unit fixtures.
+positive case for every rule; `validation/probes-clean` is its fixed twin. It is analyser input rather
+than a compilable project, and it exercises the full CLI pipeline rather than isolated unit fixtures.
 
 ```bash
 # Run the probes directly
@@ -205,10 +208,12 @@ KEEP=1 scripts/inject-rule-probes.sh /path/to/aem-project
 
 The checker requires every rule in `validation/probes/expected-rules.txt` to appear in SARIF **on a
 probe file**, fails on any rule id missing from that list, and fails if the parser skipped a file
-(`*_PARSE_ERROR`). Injection runs relax only the last check, because a real repository may contain
+(`*_PARSE_ERROR`). It also reads `validation/probes/evidence.json` and asserts that the declared
+positive probe produces exactly one finding while its clean twin produces none, printing one
+`PAIR OK` per rule. Injection runs relax only the parser check, because a real repository may contain
 genuinely unparseable sources; those diagnostics are still printed. See
 [`validation/probes/README.md`](validation/probes/README.md) for the full probe matrix and how to add
-a case.
+a case. The same evidence is published in the jar and at `/evidence/rule-evidence.json`.
 
 ### Validation reactor (cross-module behaviour)
 

@@ -1,0 +1,7 @@
+#
+# Clean twin: the include exists, the ServerName is unique and DocumentRoot is present.
+#
+<VirtualHost *:80>
+    ServerName "probe-clean"
+    DocumentRoot "${DOCROOT}"
+</VirtualHost>

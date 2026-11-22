@@ -100,7 +100,7 @@ jobs:
       - name: Rule documentation is current
         run: scripts/check-rule-docs.sh
 
-      - name: Every rule fires on its probe
+      - name: Every rule fires on its probe and stays silent on its clean twin
         run: scripts/run-rule-probes.sh
 
       - name: Validation reactor produces exactly the expected findings

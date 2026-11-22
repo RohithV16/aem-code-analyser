@@ -1,0 +1,8 @@
+# Probe: legacy monolithic dispatcher.any outside conf.dispatcher.d (AEM-CLOUD-006).
+/farms {
+    /probe {
+        /clientheaders {
+            /headers "*"
+        }
+    }
+}

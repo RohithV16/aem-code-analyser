@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0">
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>com.probe</groupId><artifactId>analyser-probes</artifactId><version>1.0.0</version>
+  <packaging>pom</packaging>
+  <modules><module>core</module><module>ui.apps</module><module>ui.config</module><module>ui.content</module><module>content.extra</module><module>dispatcher</module></modules>
+</project>

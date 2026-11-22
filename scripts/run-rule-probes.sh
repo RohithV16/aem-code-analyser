@@ -7,9 +7,11 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 JAR="${JAR:-$ROOT/aem-analyser-cli/target/aem-analyser-cli.jar}"
 PROBES="$ROOT/validation/probes"
+CLEAN="$ROOT/validation/probes-clean"
 TMP_BASE="${TMPDIR:-/tmp}"
 TMP_BASE="${TMP_BASE%/}"
 OUT="$(mktemp -d "$TMP_BASE/aem-rule-probes.XXXXXX")"
+CLEAN_OUT="$(mktemp -d "$TMP_BASE/aem-rule-probes-clean.XXXXXX")"
 
 if [[ ! -f "$JAR" ]]; then
   echo "Missing analyser jar: $JAR" >&2
@@ -32,8 +34,26 @@ if [[ "$status" -gt 1 ]]; then
   exit "$status"
 fi
 
+echo "Running clean twins from $CLEAN"
+status=0
+java -jar "$JAR" \
+  --project-root "$CLEAN" \
+  --format SARIF \
+  --output "$CLEAN_OUT" \
+  --no-color --no-sonar --no-html > "$CLEAN_OUT/console.log" 2>&1 || status=$?
+if [[ "$status" -gt 1 ]]; then
+  echo "Clean-twin analyser failed with exit code $status:" >&2
+  cat "$CLEAN_OUT/console.log" >&2
+  exit "$status"
+fi
+
 python3 "$ROOT/scripts/check_rule_probes.py" \
   "$OUT/aem-analyser.sarif" \
-  "$PROBES/expected-rules.txt"
+  "$PROBES/expected-rules.txt" \
+  --clean "$CLEAN_OUT/aem-analyser.sarif" \
+  --evidence "$PROBES/evidence.json" \
+  --probes-root "$PROBES" \
+  --clean-root "$CLEAN"
 
 echo "Probe output: $OUT"
+echo "Clean-twin output: $CLEAN_OUT"
