@@ -1948,6 +1948,43 @@ th .mono {
   margin: 2rem 0;
 }
 
+/* --------------------------------------------------------- compare table */
+.compare {
+  font-size: 0.86rem;
+}
+
+.compare th[scope="row"] {
+  text-align: left;
+  font-weight: 600;
+  white-space: normal;
+  width: 17%;
+}
+
+.compare td {
+  vertical-align: top;
+}
+
+.compare td.yes {
+  box-shadow: inset 3px 0 0 color-mix(in srgb, var(--ok) 55%, transparent);
+}
+
+.compare td.partial {
+  box-shadow: inset 3px 0 0 color-mix(in srgb, var(--warn) 55%, transparent);
+}
+
+.compare td.no {
+  box-shadow: inset 3px 0 0 color-mix(in srgb, var(--line-strong) 70%, transparent);
+  color: var(--muted);
+}
+
+.does-not {
+  padding-left: 1.1rem;
+}
+
+.does-not li {
+  margin-bottom: 0.7rem;
+}
+
 /* -------------------------------------------------------------- utilities */
 
 .not-found {

@@ -35,6 +35,13 @@
   "url": "/#install"
  },
  {
+  "id": "/compare/",
+  "kind": "decision",
+  "text": "AEM static analysis that runs locally, without an AEM instance or a Sonar server — how it differs from the Cloud Manager gate, SonarQube with SonarJava, and Adobe's own Analyzer. Decision page Compared with the Cloud Manager gate, SonarQube and Adobe’s Analyzer “Why not just SonarQube plus the Cloud Manager gate?” is the fair question. Short answer: those two see one module at a time, and neither knows what an OSGi …",
+  "title": "Compared with SonarQube, Cloud Manager and AEM Analyzer",
+  "url": "/compare/"
+ },
+ {
   "id": "/demo/",
   "kind": "demo",
   "text": "AEM Code Analyser — Enterprise Quality Dashboard :root { --bg-primary: #f8fafc; --bg-card: #ffffff; --text-primary: #0f172a; --text-secondary: #475569; --border: #e2e8f0; --accent: #2563eb; --accent-light: #eff6ff; --danger: #dc2626; --danger-bg: #fef2f2; --danger-border: #fecaca; --warning: #d97706; --warning-bg: #fffbeb; --warning-border: #fde68a; --info: #0284c7; --info-bg: #f0f9ff; --info-border: #bae6fd …",

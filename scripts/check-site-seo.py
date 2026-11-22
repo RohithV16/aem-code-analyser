@@ -286,6 +286,22 @@ def check_cross_references(pages: list[dict[str, str]], rule_pages: list[dict[st
                 f"{page['url']} links a missing sibling page: {href}")
 
 
+def check_compare(pages: list[dict[str, str]]) -> None:
+    """The evaluation page has to answer the comparison query with a table, not a paragraph."""
+    page = next((page for page in pages if page["url"] == "/compare/"), None)
+    assert page, "docs/compare/index.html is missing"
+    assert page.get("nav") == "compare", "the comparison page must own the nav slot"
+    assert page.get("sitemap") != "false", "/compare/ must be indexable"
+    html = Path(str(page["path"])).read_text(encoding="utf-8")
+    rows = html.count("<tr")
+    assert rows >= 8, f"/compare/ needs at least 7 table rows (header + 6 comparisons), found {rows}"
+    assert "does not" in html.lower(), "/compare/ must state what the tool does not do"
+    header = (DOCS / "_includes/site-header.html").read_text(encoding="utf-8")
+    assert "/compare/" in header, "the main nav must link /compare/"
+    home = (DOCS / "index.html").read_text(encoding="utf-8")
+    assert "/compare/" in home, "the home page must link /compare/"
+
+
 def main() -> int:
     config = site_config()
     pages = published_pages()
@@ -295,6 +311,7 @@ def main() -> int:
     check_search_index(pages)
     redirects = check_404_and_redirects(pages)
     check_cross_references(pages, rule_pages)
+    check_compare(pages)
 
     base = config["url"] + config["baseurl"]
     indexable = [p for p in pages if p.get("sitemap") != "false"]
