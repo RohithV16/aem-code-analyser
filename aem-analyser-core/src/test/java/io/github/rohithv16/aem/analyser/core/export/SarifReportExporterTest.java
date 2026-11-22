@@ -86,6 +86,56 @@ class SarifReportExporterTest {
                 "a rule produced by another engine must stay enabled");
     }
 
+    /**
+     * Regression for #6: two exports of the same immutable report must be byte-identical. The
+     * originalUriBaseIds child used nested {@code Map.of}, whose iteration order is randomised per
+     * JVM, so identical runs differed only in whether "uri" or "description" came first.
+     */
+    @Test
+    void identicalReportsExportToIdenticalBytes() throws Exception {
+        Violation violation = new Violation(
+                RuleId.AEM_QUAL_003.id(), Severity.WARNING, "SLING_SCHEDULER",
+                "Whiteboard scheduler usage", "core/src/main/java/A.java",
+                new TextRegion(7, 5, 7, 9), null, null, List.of());
+        AnalysisReport report = new AnalysisReport(Path.of("/mock/project"), Map.of("modules", 1),
+                List.of(violation), 10);
+
+        String first = export(report);
+        String second = export(report);
+
+        assertEquals(first, second, "SARIF bytes must be stable across exports");
+    }
+
+    /**
+     * Pins the canonical object order directly: byte-equality of two exports in one JVM cannot
+     * catch {@code Map.of} (its salt is fixed for the JVM), so assert the documented key order of
+     * the two multi-entry objects that used to be unordered.
+     */
+    @Test
+    void serialisesNestedObjectsInCanonicalKeyOrder() throws Exception {
+        Violation violation = new Violation(
+                RuleId.AEM_DEAD_001.id(), Severity.ERROR, "ORPHANED_CONFIGURATION",
+                "Orphaned configuration", "ui.config/a.cfg.json",
+                new TextRegion(1, 1, 1, 10), null, null, List.of());
+        AnalysisReport report = new AnalysisReport(Path.of("/mock/project"), Map.of("modules", 1),
+                List.of(violation), 10);
+
+        String sarif = export(report);
+
+        int baseBlock = sarif.indexOf("\"originalUriBaseIds\"");
+        assertTrue(baseBlock >= 0);
+        int uri = sarif.indexOf("\"uri\"", baseBlock);
+        int description = sarif.indexOf("\"description\"", baseBlock);
+        assertTrue(uri >= 0 && description >= 0);
+        assertTrue(uri < description, "\"uri\" must precede \"description\" in originalUriBaseIds");
+    }
+
+    private static String export(AnalysisReport report) throws Exception {
+        StringWriter writer = new StringWriter();
+        new SarifReportExporter().export(report, writer);
+        return writer.toString();
+    }
+
     @Test
     void emitsToolExecutionNotificationsForDiagnostics() throws Exception {
         AnalysisDiagnostic diagnostic = AnalysisDiagnostic.of(

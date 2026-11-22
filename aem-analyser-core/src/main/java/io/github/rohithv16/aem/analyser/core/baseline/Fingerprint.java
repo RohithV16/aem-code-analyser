@@ -7,11 +7,17 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 
 /**
- * Stable finding identity used by baselines.
+ * Stable finding identity used by baselines, SARIF {@code partialFingerprints} and the GitLab
+ * Code Climate exporter.
  *
- * <p>Fingerprints deliberately exclude line/column so moving code does not invalidate a baseline.
- * Volatile parts of the message (numbers, quoted names) are normalised so a changed count or PID does
- * not create churn either.
+ * <p>The fingerprint deliberately excludes line and column so moving code does not invalidate a
+ * baseline, but it must keep everything that identifies <em>which</em> finding it is. The message
+ * is therefore hashed verbatim: earlier versions normalised every digit and quoted string to
+ * {@code #}, which collapsed all occurrences of a rule in one file to a single fingerprint (for
+ * example every broken HTL reference became {@code '#'}). A baseline then grandfathered a brand
+ * new broken reference because it looked identical to an accepted one. Repeated findings with the
+ * same message are handled as a multiset by {@link BaselineFilter}, so verbatim messages do not
+ * let one entry suppress unlimited duplicates.
  */
 public final class Fingerprint {
 
@@ -19,23 +25,26 @@ public final class Fingerprint {
     }
 
     public static String of(Violation violation) {
-        String normalizedMessage = normalize(violation.message());
         String raw = violation.ruleId() + "|"
                 + (violation.subtype() == null ? "" : violation.subtype()) + "|"
-                + violation.filePath() + "|"
-                + normalizedMessage;
+                + normalizePath(violation.filePath()) + "|"
+                + (violation.message() == null ? "" : violation.message());
         return sha256(raw).substring(0, 16);
     }
 
-    static String normalize(String message) {
-        if (message == null) {
+    /**
+     * Normalises only path syntax, never finding identity: backslashes become '/' and a leading
+     * {@code ./} is dropped, so the same file reached through different roots hashes the same.
+     */
+    static String normalizePath(String path) {
+        if (path == null) {
             return "";
         }
-        return message
-                .replaceAll("\\d+", "#")
-                .replaceAll("'[^']*'", "'#'")
-                .replaceAll("\"[^\"]*\"", "\"#\"")
-                .trim();
+        String normalized = path.replace('\\', '/');
+        while (normalized.startsWith("./")) {
+            normalized = normalized.substring(2);
+        }
+        return normalized;
     }
 
     private static String sha256(String value) {

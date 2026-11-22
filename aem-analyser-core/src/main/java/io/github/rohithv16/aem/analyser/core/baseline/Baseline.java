@@ -11,7 +11,12 @@ import java.util.List;
  */
 public record Baseline(int schemaVersion, String toolVersion, List<BaselineEntry> entries) {
 
-    public static final int CURRENT_SCHEMA_VERSION = 1;
+    /**
+     * Bumped in v2 when the fingerprint algorithm changed (verbatim message instead of a normalised
+     * one, see {@link Fingerprint}). Old baselines are rejected loudly by {@link BaselineStore#load}
+     * rather than silently failing to match and re-reporting every accepted finding.
+     */
+    public static final int CURRENT_SCHEMA_VERSION = 2;
 
     public Baseline {
         entries = List.copyOf(entries == null ? List.of() : entries);

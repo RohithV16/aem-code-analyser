@@ -45,7 +45,7 @@ class SonarSchemaConformanceTest {
         assertEquals(RuleId.AEM_SEC_001.id(), issue.get("ruleId").asText());
         assertTrue(Set.of("BLOCKER", "CRITICAL", "MAJOR", "MINOR", "INFO")
                 .contains(issue.get("severity").asText()));
-        assertTrue(Set.of("BUG", "VULNERABILITY", "CODE_SMELL", "SECURITY_HOTSPOT")
+        assertTrue(Set.of("BUG", "VULNERABILITY", "CODE_SMELL")
                 .contains(issue.get("type").asText()));
 
         JsonNode primary = issue.get("primaryLocation");
@@ -57,5 +57,37 @@ class SonarSchemaConformanceTest {
         if (range.get("startLine").asInt() == range.get("endLine").asInt()) {
             assertTrue(range.get("endColumn").asInt() > range.get("startColumn").asInt());
         }
+    }
+
+    /**
+     * Regression for #69: {@code SECURITY_HOTSPOT} is a model type, not a transport type. Sonar's
+     * generic issue format accepts exactly three values, so every rule in the registry - including
+     * AEM-QUAL-003 - must serialise to one of them.
+     */
+    @Test
+    void everyRegistryRuleSerialisesToAnAllowedSonarType() throws Exception {
+        List<Violation> violations = new java.util.ArrayList<>();
+        for (var rule : io.github.rohithv16.aem.analyser.core.rules.metadata.RuleRegistry.all()) {
+            violations.add(new Violation(rule.id(), Severity.INFO, null, "message",
+                    "ui.apps/a.html", new TextRegion(1, 1, 1, 2), null, null, List.of()));
+        }
+        AnalysisReport report = new AnalysisReport(Path.of("/mock"), Map.of(), violations, 1);
+
+        StringWriter writer = new StringWriter();
+        new SonarReportExporter().export(report, writer);
+        JsonNode issues = new ObjectMapper().readTree(writer.toString()).get("issues");
+
+        Set<String> allowed = Set.of("BUG", "VULNERABILITY", "CODE_SMELL");
+        String securityHotspotRuleType = null;
+        for (JsonNode issue : issues) {
+            String type = issue.get("type").asText();
+            assertTrue(allowed.contains(type),
+                    "rule " + issue.get("ruleId").asText() + " emitted invalid Sonar type " + type);
+            if ("AEM-QUAL-003".equals(issue.get("ruleId").asText())) {
+                securityHotspotRuleType = type;
+            }
+        }
+        assertEquals("VULNERABILITY", securityHotspotRuleType,
+                "a security-hotspot rule must be transported as a vulnerability");
     }
 }
