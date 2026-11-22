@@ -39,6 +39,25 @@ All notable changes to this project are documented here. The format follows
   on the test tab: one `<testcase>` per finding, `<failure>` for ERROR/WARNING, `<skipped/>` for
   INFO.
 
+- **The gate can live in `.aem-analyser.yml`.** A new optional `gate:` block carries `failOn`,
+  `failOnWarning`, `maxWarnings`, `minCoverage`, `maxDuplication`, `formats` and `output`, so
+  `aem-analyser .` with no flags fails exactly the way the pipeline does. Precedence is per key — a
+  command-line flag, then the file, then the default — and the block never changes a rule's
+  severity, so it cannot reshape the findings it grades. Unknown values (e.g. `failOn: SOMETIMES`)
+  exit 2 naming the offending key.
+
+- **`--generate-completion bash|zsh|fish`** prints a completion script on stdout and exits. bash
+  comes from picocli, zsh and fish are generated from the same command model, so every declared
+  option is completable, `--fail-on` completes `NONE ERROR WARNING INFO` and `--format` completes
+  the ten format names. An unknown shell exits 2 with a message instead of a stack trace.
+
+- **SARIF `fixes`.** Findings the auto-fixer can repair (`java:S1128`, `java:S1125`, `java:S4719`)
+  now carry `fixes[].artifactChanges[].replacements[]` — the file, `deletedRegion` and
+  `insertedContent` of the exact edit `--fix` writes — so GitHub code scanning and Azure DevOps can
+  render the diff and offer to apply it. Each edit is emitted once across the whole report, so
+  applying every suggestion reproduces `--fix`'s output byte for byte; rules with no deterministic
+  transform still carry no `fixes` entry.
+
 - **First Maven Central release (1.0.10).** `io.github.rohithv16:aem-code-analyser`,
   `aem-analyser-core` and `aem-analyser-maven-plugin` are published with sources, javadoc and GPG
   signatures, so the plugin needs no repository entry and no token. Verified by resolving both the
