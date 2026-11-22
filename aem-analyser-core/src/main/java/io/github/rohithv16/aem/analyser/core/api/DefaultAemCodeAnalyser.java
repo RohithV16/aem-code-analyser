@@ -52,13 +52,18 @@ public final class DefaultAemCodeAnalyser implements AemCodeAnalyser {
         long start = System.nanoTime();
         io.github.rohithv16.aem.analyser.core.util.DiagnosticSink diagnostics =
                 new io.github.rohithv16.aem.analyser.core.util.DiagnosticSink();
-        try (ProjectDiscoveryEngine discovery = new ProjectDiscoveryEngine(diagnostics)) {
+        // One pruned walk per run. Every scanner and every file-scanning rule consumes this set,
+        // instead of each of them walking the whole root (and paying for node_modules) again.
+        io.github.rohithv16.aem.analyser.core.discovery.FileInventory inventory =
+                io.github.rohithv16.aem.analyser.core.discovery.FileInventory.scan(
+                        context.projectRoot(), diagnostics);
+        try (ProjectDiscoveryEngine discovery = new ProjectDiscoveryEngine(inventory, diagnostics)) {
             ProjectDiscoveryEngine.DiscoveryResult discoveryResult =
                     discovery.discover(context.projectRoot(), context.activeProfiles());
 
             // ── Phase A: parallel extraction (worker threads; ASTs freed immediately) ──
             List<JavaSourceParseResult> javaResults =
-                    parseJavaSourcesParallel(context, discoveryResult.modules(), diagnostics);
+                    parseJavaSourcesParallel(context, inventory, discoveryResult.modules(), diagnostics);
             List<OsgiConfigDefinition> configs =
                     parseOsgiConfigs(context, discoveryResult.modules(), diagnostics);
 
@@ -74,7 +79,7 @@ public final class DefaultAemCodeAnalyser implements AemCodeAnalyser {
                 if (!mayContainContent(module.classification())) {
                     continue;
                 }
-                var htlResult = htlScanner.scan(module.moduleDirectory(), diagnostics,
+                var htlResult = htlScanner.scan(inventory, module.moduleDirectory(), diagnostics,
                         context.maxFileSizeBytes());
                 htlResult.usages().stream()
                         .filter(usage -> isChanged(context, usage.filePath()))
@@ -88,7 +93,7 @@ public final class DefaultAemCodeAnalyser implements AemCodeAnalyser {
                 htlResult.resources().stream()
                         .filter(ref -> isChanged(context, ref.filePath()))
                         .forEach(htlResources::add);
-                compScanner.scanDirectory(module.moduleDirectory(), diagnostics,
+                compScanner.scanDirectory(inventory, module.moduleDirectory(), diagnostics,
                                 context.maxFileSizeBytes()).stream()
                         .filter(component -> isChanged(context, component.contentXml()))
                         .forEach(cqComponents::add);
@@ -109,7 +114,7 @@ public final class DefaultAemCodeAnalyser implements AemCodeAnalyser {
             RuleContext ruleContext = new RuleContext(buildResult.graph(), buildResult,
                     Set.copyOf(exportedPatterns), dependencyIndex, context.ignoredServices(), context.projectRoot(),
                     htlUsages, cqComponents, htlUnsafeContexts, discoveryResult.modules(),
-                    htlIncludes, htlResources);
+                    htlIncludes, htlResources, inventory);
             List<Violation> violations = new ArrayList<>();
             for (RuleEvaluator rule : rules) {
                 violations.addAll(rule.evaluate(ruleContext));
@@ -163,6 +168,7 @@ public final class DefaultAemCodeAnalyser implements AemCodeAnalyser {
     }
 
     private List<JavaSourceParseResult> parseJavaSourcesParallel(AnalysisContext context,
+                                                                 io.github.rohithv16.aem.analyser.core.discovery.FileInventory inventory,
                                                                  List<io.github.rohithv16.aem.analyser.core.model.discovery.ModuleDescriptor> modules,
                                                                  io.github.rohithv16.aem.analyser.core.util.DiagnosticSink diagnostics)
             throws IOException {
@@ -177,23 +183,19 @@ public final class DefaultAemCodeAnalyser implements AemCodeAnalyser {
                 if (!Files.isDirectory(sourceRoot)) {
                     continue;
                 }
-                try (Stream<Path> stream = Files.walk(sourceRoot)) {
-                    stream.filter(f -> f.toString().endsWith(".java")).forEach(file -> {
-                        try {
-                            if (Files.size(file) > context.maxFileSizeBytes()) {
-                                diagnostics.add(io.github.rohithv16.aem.analyser.core.model.report.DiagnosticKind.FILE_TOO_LARGE,
-                                        file, "exceeds " + (context.maxFileSizeBytes() / (1024 * 1024)) + " MiB");
-                            } else if (isChanged(context, file)) {
-                                javaFiles.add(file);
-                            }
-                        } catch (IOException e) {
-                            diagnostics.add(io.github.rohithv16.aem.analyser.core.model.report.DiagnosticKind.UNREADABLE_TREE,
-                                    file, io.github.rohithv16.aem.analyser.core.util.DiagnosticSink.reasonOf(e));
+                for (Path file : inventory.filesUnder(sourceRoot,
+                        io.github.rohithv16.aem.analyser.core.discovery.FileInventory.withExtension(".java"))) {
+                    try {
+                        if (Files.size(file) > context.maxFileSizeBytes()) {
+                            diagnostics.add(io.github.rohithv16.aem.analyser.core.model.report.DiagnosticKind.FILE_TOO_LARGE,
+                                    file, "exceeds " + (context.maxFileSizeBytes() / (1024 * 1024)) + " MiB");
+                        } else if (isChanged(context, file)) {
+                            javaFiles.add(file);
                         }
-                    });
-                } catch (IOException e) {
-                    diagnostics.add(io.github.rohithv16.aem.analyser.core.model.report.DiagnosticKind.UNREADABLE_TREE,
-                            sourceRoot, io.github.rohithv16.aem.analyser.core.util.DiagnosticSink.reasonOf(e));
+                    } catch (IOException e) {
+                        diagnostics.add(io.github.rohithv16.aem.analyser.core.model.report.DiagnosticKind.UNREADABLE_TREE,
+                                file, io.github.rohithv16.aem.analyser.core.util.DiagnosticSink.reasonOf(e));
+                    }
                 }
             }
         }

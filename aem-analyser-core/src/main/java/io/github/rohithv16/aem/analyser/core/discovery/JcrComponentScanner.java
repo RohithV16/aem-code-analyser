@@ -9,7 +9,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.util.stream.Stream;
 
 /**
  * Discovers cq:Component definitions and flags legacy Classic UI dialogs.
@@ -40,20 +39,22 @@ public final class JcrComponentScanner {
     public List<CqComponentDefinition> scanDirectory(Path directory,
                                                      io.github.rohithv16.aem.analyser.core.util.DiagnosticSink diagnostics,
                                                      long maxFileSizeBytes) {
+        return scanDirectory(FileInventory.scan(directory), directory, diagnostics, maxFileSizeBytes);
+    }
+
+    /** Scans every {@code .content.xml} below {@code directory} from the run's shared inventory. */
+    public List<CqComponentDefinition> scanDirectory(FileInventory inventory, Path directory,
+                                                     io.github.rohithv16.aem.analyser.core.util.DiagnosticSink diagnostics,
+                                                     long maxFileSizeBytes) {
         List<CqComponentDefinition> components = new ArrayList<>();
-        if (directory == null || !Files.isDirectory(directory)) {
+        if (inventory == null || directory == null || !Files.isDirectory(directory)) {
             return components;
         }
 
-        try (Stream<Path> stream = Files.walk(directory)) {
-            stream.filter(Files::isRegularFile)
-                    .filter(p -> p.getFileName().toString().equals(".content.xml"))
-                    .filter(this::isNotIgnored)
-                    .forEach(xmlFile -> scanContentXml(xmlFile, components, diagnostics, maxFileSizeBytes));
-        } catch (IOException e) {
-            if (diagnostics != null) {
-                diagnostics.add(io.github.rohithv16.aem.analyser.core.model.report.DiagnosticKind.UNREADABLE_TREE,
-                        directory, io.github.rohithv16.aem.analyser.core.util.DiagnosticSink.reasonOf(e));
+        for (Path xmlFile : inventory.filesUnder(directory,
+                file -> file.getFileName().toString().equals(".content.xml"))) {
+            if (isNotIgnored(xmlFile)) {
+                scanContentXml(xmlFile, components, diagnostics, maxFileSizeBytes);
             }
         }
 

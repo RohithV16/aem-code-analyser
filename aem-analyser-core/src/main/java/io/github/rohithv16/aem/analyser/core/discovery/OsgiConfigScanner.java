@@ -1,7 +1,6 @@
 package io.github.rohithv16.aem.analyser.core.discovery;
 
 import java.io.IOException;
-import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -11,7 +10,6 @@ import java.util.Locale;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.util.stream.Stream;
 
 import io.github.rohithv16.aem.analyser.core.parser.config.ConfigFilePidResolver;
 
@@ -56,16 +54,24 @@ public final class OsgiConfigScanner {
         if (!Files.isDirectory(jcrRoot)) {
             return List.of();
         }
+        return scanModule(FileInventory.scan(jcrRoot), moduleDirectory, diagnostics);
+    }
+
+    /**
+     * Scans one module's {@code jcr_root/apps} tree from the run's shared inventory.
+     *
+     * <p>Discovery needs the config set before module classification, so the inventory is built at
+     * the start of the run and handed in here instead of each module walking its own subtree.</p>
+     */
+    public List<DiscoveredConfig> scanModule(FileInventory inventory, Path moduleDirectory,
+                                             io.github.rohithv16.aem.analyser.core.util.DiagnosticSink diagnostics) {
+        Path jcrRoot = moduleDirectory.resolve("src/main/content/jcr_root/apps");
+        if (!Files.isDirectory(jcrRoot)) {
+            return List.of();
+        }
         List<DiscoveredConfig> results = new ArrayList<>();
-        try (Stream<Path> stream = Files.walk(jcrRoot)) {
-            stream.filter(Files::isRegularFile)
-                  .filter(this::isCandidateExtension)
-                  .forEach(file -> accept(file, moduleDirectory).ifPresent(results::add));
-        } catch (IOException | UncheckedIOException e) {
-            if (diagnostics != null) {
-                diagnostics.add(io.github.rohithv16.aem.analyser.core.model.report.DiagnosticKind.UNREADABLE_TREE,
-                        jcrRoot, io.github.rohithv16.aem.analyser.core.util.DiagnosticSink.reasonOf(e));
-            }
+        for (Path file : inventory.filesUnder(jcrRoot, this::isCandidateExtension)) {
+            accept(file, moduleDirectory).ifPresent(results::add);
         }
         return results;
     }
