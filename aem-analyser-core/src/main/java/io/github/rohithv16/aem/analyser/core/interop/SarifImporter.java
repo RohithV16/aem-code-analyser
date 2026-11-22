@@ -85,20 +85,34 @@ public final class SarifImporter {
         // URLDecoder turns '+' into a space, which is wrong for a path; protect it first.
         value = URLDecoder.decode(value.replace("+", "%2B"), StandardCharsets.UTF_8);
         value = value.replace('\\', '/');
+        // A Windows file URI is written file:///C:/x, so stripping the scheme leaves a leading
+        // slash in front of the drive letter. Path.of("/C:/x") is not C:\x on Windows, so the
+        // absolute path never matched the project root and stayed unrelativised.
+        if (value.length() >= 3 && value.charAt(0) == '/' && Character.isLetter(value.charAt(1))
+                && value.charAt(2) == ':') {
+            value = value.substring(1);
+        }
         while (value.startsWith("./")) {
             value = value.substring(2);
         }
-        if (value.startsWith("/") && projectRoot != null) {
+        boolean absolute = value.startsWith("/") || isWindowsDrivePath(value);
+        if (absolute && projectRoot != null) {
             try {
-                Path absolute = Path.of(value).normalize();
+                Path candidate = Path.of(value).normalize();
                 Path root = projectRoot.toAbsolutePath().normalize();
-                if (absolute.startsWith(root)) {
-                    value = root.relativize(absolute).toString().replace('\\', '/');
+                if (candidate.startsWith(root)) {
+                    value = root.relativize(candidate).toString().replace('\\', '/');
                 }
             } catch (RuntimeException invalidPath) {
                 // A URI that is not a filesystem path stays as written and simply will not match.
             }
         }
         return value;
+    }
+
+    /** {@code C:/project/x}: an absolute path on Windows, which does not start with a slash. */
+    private static boolean isWindowsDrivePath(String value) {
+        return value.length() >= 3 && Character.isLetter(value.charAt(0)) && value.charAt(1) == ':'
+                && (value.charAt(2) == '/' || value.charAt(2) == '\\');
     }
 }
