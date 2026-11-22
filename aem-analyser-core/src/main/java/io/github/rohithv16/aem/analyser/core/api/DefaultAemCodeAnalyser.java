@@ -66,6 +66,8 @@ public final class DefaultAemCodeAnalyser implements AemCodeAnalyser {
             var htlScanner = new HtlScanner();
             List<HtlUsage> htlUsages = new ArrayList<>();
             List<HtlUnsafeContextFinding> htlUnsafeContexts = new ArrayList<>();
+            List<io.github.rohithv16.aem.analyser.core.model.htl.HtlIncludeRef> htlIncludes = new ArrayList<>();
+            List<io.github.rohithv16.aem.analyser.core.model.htl.HtlResourceRef> htlResources = new ArrayList<>();
             var compScanner = new JcrComponentScanner();
             List<CqComponentDefinition> cqComponents = new ArrayList<>();
             for (ModuleDescriptor module : discoveryResult.modules()) {
@@ -80,6 +82,12 @@ public final class DefaultAemCodeAnalyser implements AemCodeAnalyser {
                 htlResult.unsafeContexts().stream()
                         .filter(finding -> isChanged(context, finding.filePath()))
                         .forEach(htlUnsafeContexts::add);
+                htlResult.includes().stream()
+                        .filter(ref -> isChanged(context, ref.filePath()))
+                        .forEach(htlIncludes::add);
+                htlResult.resources().stream()
+                        .filter(ref -> isChanged(context, ref.filePath()))
+                        .forEach(htlResources::add);
                 compScanner.scanDirectory(module.moduleDirectory(), diagnostics,
                                 context.maxFileSizeBytes()).stream()
                         .filter(component -> isChanged(context, component.contentXml()))
@@ -100,7 +108,8 @@ public final class DefaultAemCodeAnalyser implements AemCodeAnalyser {
             // ── Rule evaluation ───────────────────────────────────────────────────
             RuleContext ruleContext = new RuleContext(buildResult.graph(), buildResult,
                     Set.copyOf(exportedPatterns), dependencyIndex, context.ignoredServices(), context.projectRoot(),
-                    htlUsages, cqComponents, htlUnsafeContexts, discoveryResult.modules());
+                    htlUsages, cqComponents, htlUnsafeContexts, discoveryResult.modules(),
+                    htlIncludes, htlResources);
             List<Violation> violations = new ArrayList<>();
             for (RuleEvaluator rule : rules) {
                 violations.addAll(rule.evaluate(ruleContext));

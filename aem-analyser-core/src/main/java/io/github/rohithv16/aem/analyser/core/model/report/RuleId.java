@@ -93,6 +93,15 @@ public enum RuleId {
             Severity.WARNING),
     AEM_PERF_004("AEM-PERF-004", "UnboundedQuery",
             "JCR/Oak query has no limit and may scan an unbounded result set.",
+            Severity.WARNING),
+    AEM_COMP_002("AEM-COMP-002", "MissingResourceTypeComponent",
+            "Literal sling:resourceType or data-sly-resource type names no component under the project's /apps prefix.",
+            Severity.ERROR),
+    AEM_QUAL_008("AEM-QUAL-008", "UnprovidedMandatoryReference",
+            "Mandatory @Reference target is declared by project sources but registered by no component.",
+            Severity.ERROR),
+    AEM_DEAD_007("AEM-DEAD-007", "BrokenHtlInclude",
+            "HTL data-sly-include target is missing or forms an include cycle.",
             Severity.WARNING);
 
     private final String id;

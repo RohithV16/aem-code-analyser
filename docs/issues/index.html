@@ -13,22 +13,22 @@ description: Every AEM Code Analyser rule — what it detects, why it matters on
       <div class="issue-tools">
         <label class="visually-hidden" for="issueSearch">Filter issues</label>
         <input type="search" id="issueSearch" placeholder="Filter by id, name, tag or symptom…" autocomplete="off">
-        <button class="chip" type="button" data-family="all" aria-pressed="true">All 30</button>
-        <button class="chip" type="button" data-family="DEAD" aria-pressed="false">Dead code 8</button>
+        <button class="chip" type="button" data-family="all" aria-pressed="true">All 33</button>
+        <button class="chip" type="button" data-family="DEAD" aria-pressed="false">Dead code 9</button>
         <button class="chip" type="button" data-family="DUP" aria-pressed="false">Duplication 4</button>
-        <button class="chip" type="button" data-family="QUAL" aria-pressed="false">Quality 6</button>
+        <button class="chip" type="button" data-family="QUAL" aria-pressed="false">Quality 7</button>
         <button class="chip" type="button" data-family="PERF" aria-pressed="false">Performance 4</button>
         <button class="chip" type="button" data-family="CLOUD" aria-pressed="false">Cloud Service 5</button>
         <button class="chip" type="button" data-family="SEC" aria-pressed="false">Security 2</button>
-        <button class="chip" type="button" data-family="COMP" aria-pressed="false">Components 1</button>
-        <span class="issue-count" id="issueCount" aria-live="polite">30 of 30 issues</span>
+        <button class="chip" type="button" data-family="COMP" aria-pressed="false">Components 2</button>
+        <span class="issue-count" id="issueCount" aria-live="polite">33 of 33 issues</span>
       </div>
     </div>
 
     <section class="family" id="family-dead">
       <div class="family__head">
         <h2>Dead code</h2>
-        <span>8 issues</span>
+        <span>9 issues</span>
       </div>
       <p class="muted">Code, configuration and content with no remaining consumer.</p>
 
@@ -277,6 +277,36 @@ public class CacheWarmer {
         </div>
         <p class="suppress">Suppress one line: <code>&lt;!-- aem-analyser-disable-next-line AEM-DEAD-005 --&gt;</code> · tags dead-code, clientlib · <code>--explain AEM-DEAD-005</code></p>
       </article>
+
+      <article class="rule-card" id="aem-dead-007" data-family="DEAD" data-search="aem-dead-007 brokenhtlinclude htl data-sly-include target is missing or forms an include cycle. dead-code htl warning correct the include path to an existing template, or break the include cycle. sightly resolves data-sly-include while rendering, so a renamed or mis-pathed include is invisible to the build. it surfaces only as an empty region on one page, long after the template was moved. an include cycle is worse: rendering recurses until the request is aborted. correct the include path to an existing template relative to the including file, or break the cycle by factoring the shared markup into a leaf template that both sides include.">
+        <header class="rule-card__head">
+          <h3 class="rule-card__title"><span class="rule-card__id">AEM-DEAD-007</span><a class="rule-card__anchor" href="#aem-dead-007" aria-label="Link to AEM-DEAD-007">#</a><span class="rule-card__name">BrokenHtlInclude</span></h3>
+          <span class="pill pill--warning">WARNING</span>
+          <span class="rule-card__meta">
+            <span>15 min fix</span>
+            <span>Bug</span>
+          </span>
+        </header>
+        <p class="rule-card__summary">HTL data-sly-include target is missing or forms an include cycle.</p>
+        <h4>Why it matters</h4>
+        <p>Sightly resolves data-sly-include while rendering, so a renamed or mis-pathed include is invisible to the build. It surfaces only as an empty region on one page, long after the template was moved. An include cycle is worse: rendering recurses until the request is aborted.</p>
+        <h4>How to fix it</h4>
+        <p>Correct the include path to an existing template relative to the including file, or break the cycle by factoring the shared markup into a leaf template that both sides include.</p>
+        <div class="examples">
+          <div class="code code--bad">
+            <div class="code__bar"><span class="code__label">html · before</span></div>
+            <pre><code>&lt;!-- components/card/card.html --&gt;
+&lt;sly data-sly-include=&quot;card-details.html&quot;/&gt;
+
+&lt;!-- components/card/details.html (renamed to card-details.html) --&gt;</code></pre>
+          </div>
+          <div class="code code--good">
+            <div class="code__bar"><span class="code__label">html · after</span></div>
+            <pre><code>&lt;sly data-sly-include=&quot;card-details.html&quot;/&gt;</code></pre>
+          </div>
+        </div>
+        <p class="suppress">Suppress one line: <code>// aem-analyser-disable-next-line AEM-DEAD-007</code> · tags dead-code, htl · <code>--explain AEM-DEAD-007</code></p>
+      </article>
     </section>
 
     <section class="family" id="family-dup">
@@ -408,7 +438,7 @@ public class CardViewModel { }</code></pre>
     <section class="family" id="family-qual">
       <div class="family__head">
         <h2>Quality and Cloud Manager parity</h2>
-        <span>6 issues</span>
+        <span>7 issues</span>
       </div>
       <p class="muted">The checks Cloud Manager runs, plus the thread-safety rules it expects you to hold.</p>
 
@@ -622,6 +652,41 @@ try (ResourceResolver resolver =
         <h4>How to fix it</h4>
         <p>Obtain the resolver or session per request and close it in the same scope. The thread-safety owner for this check is AEM-QUAL-004 (ERROR); this id is retained so existing baselines and SARIF consumers keep working.</p>
         <p class="suppress">Suppress one line: <code>// aem-analyser-disable-next-line AEM-QUAL-006</code> · tags quality, resource-lifecycle · <code>--explain AEM-QUAL-006</code></p>
+      </article>
+
+      <article class="rule-card" id="aem-qual-008" data-family="QUAL" data-search="aem-qual-008 unprovidedmandatoryreference mandatory @reference target is declared by project sources but registered by no component. quality osgi error register a @component service implementation for the target type, or mark the @reference optional if activation must not depend on it. a declarative services component with an unsatisfied mandatory reference never activates. the bundle stays active and the code compiles because the target type is on the classpath, so the failure is invisible until the servlet 404s or the scheduled job never fires. register an implementation with @component(service = target.class), or declare the reference cardinality = referencecardinality.optional when activation must not depend on it. confirm in the felix console that the component is satisfied.">
+        <header class="rule-card__head">
+          <h3 class="rule-card__title"><span class="rule-card__id">AEM-QUAL-008</span><a class="rule-card__anchor" href="#aem-qual-008" aria-label="Link to AEM-QUAL-008">#</a><span class="rule-card__name">UnprovidedMandatoryReference</span></h3>
+          <span class="pill pill--error">ERROR</span>
+          <span class="rule-card__meta">
+            <span>20 min fix</span>
+            <span>Bug</span>
+          </span>
+        </header>
+        <p class="rule-card__summary">Mandatory @Reference target is declared by project sources but registered by no component.</p>
+        <h4>Why it matters</h4>
+        <p>A Declarative Services component with an unsatisfied mandatory reference never activates. The bundle stays Active and the code compiles because the target type is on the classpath, so the failure is invisible until the servlet 404s or the scheduled job never fires.</p>
+        <h4>How to fix it</h4>
+        <p>Register an implementation with @Component(service = Target.class), or declare the reference cardinality = ReferenceCardinality.OPTIONAL when activation must not depend on it. Confirm in the Felix console that the component is satisfied.</p>
+        <div class="examples">
+          <div class="code code--bad">
+            <div class="code__bar"><span class="code__label">java · before</span></div>
+            <pre><code>@Component(immediate = true, service = ElasticIndexOrchestrator.class)
+public class ElasticIndexOrchestrator {
+    // ResourceResolverProvider is declared in this project...
+    @Reference private ResourceResolverProvider resolverProvider;
+}
+// ...but no @Component implements or registers it</code></pre>
+          </div>
+          <div class="code code--good">
+            <div class="code__bar"><span class="code__label">java · after</span></div>
+            <pre><code>@Component(service = ResourceResolverProvider.class)
+public class ResourceResolverProviderImpl implements ResourceResolverProvider {
+    public ResourceResolver obtainResourceResolver() { ... }
+}</code></pre>
+          </div>
+        </div>
+        <p class="suppress">Suppress one line: <code>// aem-analyser-disable-next-line AEM-QUAL-008</code> · tags quality, osgi · <code>--explain AEM-QUAL-008</code></p>
       </article>
     </section>
 
@@ -985,7 +1050,7 @@ if (target != null &amp;&amp; target.startsWith(&quot;/content/&quot;) &amp;&amp
     <section class="family" id="family-comp">
       <div class="family__head">
         <h2>Component compatibility</h2>
-        <span>1 issue</span>
+        <span>2 issues</span>
       </div>
       <p class="muted">Deprecated Classic UI component definitions.</p>
 
@@ -1035,18 +1100,47 @@ if (target != null &amp;&amp; target.startsWith(&quot;/content/&quot;) &amp;&amp
         </div>
         <p class="suppress">Suppress one line: <code>&lt;!-- aem-analyser-disable-next-line AEM-COMP-001 --&gt;</code> · tags quality, classic-ui · <code>--explain AEM-COMP-001</code></p>
       </article>
+
+      <article class="rule-card" id="aem-comp-002" data-family="COMP" data-search="aem-comp-002 missingresourcetypecomponent literal sling:resourcetype or data-sly-resource type names no component under the project&#39;s /apps prefix. quality component error point the reference at an existing component under the project&#39;s /apps prefix, or restore the component that was renamed or moved. content and templates bind to a resource type by string. when the component behind that string is renamed or moved, aem resolves nothing at request time: the page renders blank, and neither javac nor the content-package build notices. point the reference at a component that exists under the project&#39;s /apps/&lt;project&gt;/ prefix, or restore the component directory. search the content package for the old type after a rename so no author content is left behind.">
+        <header class="rule-card__head">
+          <h3 class="rule-card__title"><span class="rule-card__id">AEM-COMP-002</span><a class="rule-card__anchor" href="#aem-comp-002" aria-label="Link to AEM-COMP-002">#</a><span class="rule-card__name">MissingResourceTypeComponent</span></h3>
+          <span class="pill pill--error">ERROR</span>
+          <span class="rule-card__meta">
+            <span>15 min fix</span>
+            <span>Bug</span>
+          </span>
+        </header>
+        <p class="rule-card__summary">Literal sling:resourceType or data-sly-resource type names no component under the project&#39;s /apps prefix.</p>
+        <h4>Why it matters</h4>
+        <p>Content and templates bind to a resource type by string. When the component behind that string is renamed or moved, AEM resolves nothing at request time: the page renders blank, and neither javac nor the content-package build notices.</p>
+        <h4>How to fix it</h4>
+        <p>Point the reference at a component that exists under the project&#39;s /apps/&lt;project&gt;/ prefix, or restore the component directory. Search the content package for the old type after a rename so no author content is left behind.</p>
+        <div class="examples">
+          <div class="code code--bad">
+            <div class="code__bar"><span class="code__label">xml · before</span></div>
+            <pre><code>&lt;sly data-sly-resource=&quot;${ @ resourceType=&#39;acme/components/elastic/metatagrenderer&#39;}&quot;/&gt;
+
+&lt;!-- no directory at ui.apps/.../apps/acme/components/elastic/metatagrenderer --&gt;</code></pre>
+          </div>
+          <div class="code code--good">
+            <div class="code__bar"><span class="code__label">xml · after</span></div>
+            <pre><code>&lt;sly data-sly-resource=&quot;${ @ resourceType=&#39;acme/components/elasticsearch/metatagrenderer&#39;}&quot;/&gt;</code></pre>
+          </div>
+        </div>
+        <p class="suppress">Suppress one line: <code>// aem-analyser-disable-next-line AEM-COMP-002</code> · tags quality, component · <code>--explain AEM-COMP-002</code></p>
+      </article>
     </section>
   </div>
   <aside class="docs__aside">
     <p class="aside__title">Families</p>
     <ul>
-      <li><a href="#family-dead">Dead code <span class="muted">8</span></a></li>
+      <li><a href="#family-dead">Dead code <span class="muted">9</span></a></li>
       <li><a href="#family-dup">Duplication <span class="muted">4</span></a></li>
-      <li><a href="#family-qual">Quality and Cloud Manager parity <span class="muted">6</span></a></li>
+      <li><a href="#family-qual">Quality and Cloud Manager parity <span class="muted">7</span></a></li>
       <li><a href="#family-perf">Performance <span class="muted">4</span></a></li>
       <li><a href="#family-cloud">AEM as a Cloud Service <span class="muted">5</span></a></li>
       <li><a href="#family-sec">Security <span class="muted">2</span></a></li>
-      <li><a href="#family-comp">Component compatibility <span class="muted">1</span></a></li>
+      <li><a href="#family-comp">Component compatibility <span class="muted">2</span></a></li>
     </ul>
     <p class="aside__title">All rules</p>
     <ul>
@@ -1058,6 +1152,7 @@ if (target != null &amp;&amp; target.startsWith(&quot;/content/&quot;) &amp;&amp
       <li><a href="#aem-dead-003c">AEM-DEAD-003C</a></li>
       <li><a href="#aem-dead-004">AEM-DEAD-004</a></li>
       <li><a href="#aem-dead-005">AEM-DEAD-005</a></li>
+      <li><a href="#aem-dead-007">AEM-DEAD-007</a></li>
       <li><a href="#aem-dup-001">AEM-DUP-001</a></li>
       <li><a href="#aem-dup-002">AEM-DUP-002</a></li>
       <li><a href="#aem-dup-003">AEM-DUP-003</a></li>
@@ -1068,6 +1163,7 @@ if (target != null &amp;&amp; target.startsWith(&quot;/content/&quot;) &amp;&amp
       <li><a href="#aem-qual-004">AEM-QUAL-004</a></li>
       <li><a href="#aem-qual-005">AEM-QUAL-005</a></li>
       <li><a href="#aem-qual-006">AEM-QUAL-006</a></li>
+      <li><a href="#aem-qual-008">AEM-QUAL-008</a></li>
       <li><a href="#aem-perf-001">AEM-PERF-001</a></li>
       <li><a href="#aem-perf-002">AEM-PERF-002</a></li>
       <li><a href="#aem-perf-003">AEM-PERF-003</a></li>
@@ -1080,6 +1176,7 @@ if (target != null &amp;&amp; target.startsWith(&quot;/content/&quot;) &amp;&amp
       <li><a href="#aem-sec-001">AEM-SEC-001</a></li>
       <li><a href="#aem-sec-002">AEM-SEC-002</a></li>
       <li><a href="#aem-comp-001">AEM-COMP-001</a></li>
+      <li><a href="#aem-comp-002">AEM-COMP-002</a></li>
     </ul>
   </aside>
 </div>
