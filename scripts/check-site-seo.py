@@ -135,11 +135,45 @@ def check_structured_data() -> None:
     assert types == {"SoftwareApplication", "TechArticle", "BreadcrumbList"}, f"unexpected entity set: {types}"
 
 
+def check_fonts() -> None:
+    """No page may load a stylesheet or face from another origin: the site has to paint offline."""
+    offenders = []
+    for path in sorted(DOCS.rglob("*")):
+        if not path.is_file() or path.suffix not in (".html", ".md", ".css", ".js"):
+            continue
+        if any(part.startswith("_") for part in path.relative_to(DOCS).parts[:-1]):
+            continue
+        text = path.read_text(encoding="utf-8", errors="ignore")
+        for origin in ("fonts.googleapis.com", "fonts.gstatic.com"):
+            if origin in text:
+                offenders.append(f"{path.relative_to(DOCS)} -> {origin}")
+    assert not offenders, "third-party font origins remain: " + ", ".join(offenders)
+
+    css = (DOCS / "assets/css/site.css").read_text(encoding="utf-8")
+    layout = (DOCS / "_layouts/default.html").read_text(encoding="utf-8")
+    for family, weight, file in (
+        ("Geist", "100 900", "geist-latin.woff2"),
+        ("JetBrains Mono", "400 500", "jetbrains-mono-latin.woff2"),
+    ):
+        face = re.search(r'@font-face\s*\{[^}]*font-family:\s*"' + re.escape(family) + r'"[^}]*\}', css, re.S)
+        assert face, f"site.css has no @font-face for {family}"
+        assert "font-display: swap" in face.group(0), f"{family} must use font-display: swap"
+        assert f"font-weight: {weight}" in face.group(0), f"{family} must declare the variable weight range {weight}"
+        assert f'url("../fonts/{file}")' in face.group(0), f"{family} must load /assets/fonts/{file}"
+        assert "unicode-range:" in face.group(0), f"{family} must declare its latin unicode-range"
+        assert f"/assets/fonts/{file}" in layout, f"the layout must preload {file}"
+        font_file = DOCS / "assets/fonts" / file
+        assert font_file.is_file(), f"docs/assets/fonts/{file} is missing"
+        assert font_file.read_bytes()[:4] == b"wOF2", f"docs/assets/fonts/{file} is not a woff2 file"
+    assert layout.count('rel="preload"') >= 2, "both faces must be preloaded"
+
+
 def main() -> int:
     config = site_config()
     pages = published_pages()
     rule_pages = check_structure(pages)
     check_structured_data()
+    check_fonts()
 
     base = config["url"] + config["baseurl"]
     indexable = [p for p in pages if p.get("sitemap") != "false"]
