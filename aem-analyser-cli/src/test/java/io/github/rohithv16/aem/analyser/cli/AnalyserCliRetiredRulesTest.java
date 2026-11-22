@@ -77,7 +77,8 @@ class AnalyserCliRetiredRulesTest {
     void baselineReferencingRetiredRuleWarns(@TempDir Path project) throws Exception {
         CliTestSupport.writeMinimalProject(project);
         Files.writeString(project.resolve(".aem-analyser-baseline.json"),
-                "{\"schemaVersion\":1,\"toolVersion\":\"test\",\"entries\":["
+                "{\"schemaVersion\":" + io.github.rohithv16.aem.analyser.core.baseline.Baseline.CURRENT_SCHEMA_VERSION
+                        + ",\"toolVersion\":\"test\",\"entries\":["
                         + "{\"fingerprint\":\"abc\",\"ruleId\":\"AEM-QUAL-006\","
                         + "\"filePath\":\"core/Service.java\",\"subtype\":null}]}");
 
