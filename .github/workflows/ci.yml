@@ -100,6 +100,9 @@ jobs:
       - name: Rule documentation is current
         run: scripts/check-rule-docs.sh
 
+      - name: Release notes are current
+        run: scripts/build-releases-page.sh docs --check
+
       - name: Every rule fires on its probe
         run: scripts/run-rule-probes.sh
 
@@ -147,6 +150,9 @@ jobs:
         run: |
           gem install jekyll -v 4.4.1 --no-document
           gem install jekyll-sitemap -v 1.4.0 --no-document
+
+      - name: Generate release notes from the changelog
+        run: scripts/build-releases-page.sh docs
 
       - name: Build the site
         run: jekyll build --source docs --destination _site --quiet

@@ -39,16 +39,6 @@ All notable changes to this project are documented here. The format follows
   on the test tab: one `<testcase>` per finding, `<failure>` for ERROR/WARNING, `<skipped/>` for
   INFO.
 
-- **First Maven Central release (1.0.10).** `io.github.rohithv16:aem-code-analyser`,
-  `aem-analyser-core` and `aem-analyser-maven-plugin` are published with sources, javadoc and GPG
-  signatures, so the plugin needs no repository entry and no token. Verified by resolving both the
-  plugin goal and the library from an empty local repository. The shaded CLI stays a release asset.
-
-- `-Prelease-central` actually works now: signed jars, sources and javadoc for the core library and
-  the Maven plugin, published through the Sonatype Portal. Javadoc never built under the old profile
-  (doclint rejects record components without `@param`), and the shaded CLI jar is excluded from the
-  Central bundle because it bundles its own dependencies.
-
 ### Changed
 
 - Maven Central publishing is a separate manual workflow (`publish-central.yml`, tag + optional dry
@@ -101,6 +91,34 @@ All notable changes to this project are documented here. The format follows
   now refuses a jar whose version is not the published one (so a SNAPSHOT can never be stamped
   into the demo), strips the local checkout path, and gained `--check`, which CI runs on every push;
   the release job regenerates the demo from the jar it just built and commits it.
+
+## [1.0.10] — 2026-11-16
+
+### Added
+
+- **First Maven Central release (1.0.10).** `io.github.rohithv16:aem-code-analyser`,
+  `aem-analyser-core` and `aem-analyser-maven-plugin` are published with sources, javadoc and GPG
+  signatures, so the plugin needs no repository entry and no token. Verified by resolving both the
+  plugin goal and the library from an empty local repository. The shaded CLI stays a release asset.
+
+- `-Prelease-central` actually works now: signed jars, sources and javadoc for the core library and
+  the Maven plugin, published through the Sonatype Portal. Javadoc never built under the old profile
+  (doclint rejects record components without `@param`), and the shaded CLI jar is excluded from the
+  Central bundle because it bundles its own dependencies.
+
+## [1.0.9] — 2026-11-16
+
+### Changed
+
+- The user-facing docs were rewritten around what the tool does now — run it from a clone, then the
+  installed jar, then the Maven plugin — and the per-rule detail moved to the generated rule
+  catalogue, which the site now presents through its own index page.
+
+### Build
+
+- Maven Central publishing was prepared behind the `release-central` profile: sources, javadoc and
+  GPG signatures per artefact, the shaded CLI excluded from the Central bundle, and the Central
+  account, namespace and token steps documented. The first Central release followed in 1.0.10.
 
 ## [1.0.8] — 2026-11-16
 
