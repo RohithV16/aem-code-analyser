@@ -38,7 +38,9 @@ GRADLE="$(resolve_gradle)"
 export JAVA_HOME="${JAVA_HOME:-$(/usr/libexec/java_home -v 21 2>/dev/null || echo '')}"
 
 # The plugin compiles against the core API from the local Maven repository, as a consumer would.
-( cd "$ROOT" && mvn -B -ntp -q -DskipTests install -pl aem-analyser-core )
+# -am installs the aggregator POM too: core's POM declares it as its parent, and Gradle cannot parse
+# a POM whose parent is missing, which only shows up on a machine without a warm ~/.m2.
+( cd "$ROOT" && mvn -B -ntp -q -DskipTests install -pl aem-analyser-core -am )
 
 ( cd "$PLUGIN" && "$GRADLE" -q build ) || fail "the plugin does not build"
 

@@ -29,3 +29,5 @@ public class BetaServlet extends SlingSafeMethodsServlet {
 // y9944
 
 // proof: a content change must invalidate the task
+
+// proof: a content change must invalidate the task
