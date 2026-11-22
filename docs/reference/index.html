@@ -16,6 +16,7 @@ description: Every flag, output format, exit code, configuration key and suppres
       <li><a href="#baseline">Baseline</a></li>
       <li><a href="#suppression">Inline suppression</a></li>
       <li><a href="#maven-plugin">Maven plugin</a></li>
+      <li><a href="#github-action">GitHub Action</a></li>
       <li><a href="#scope">What gets scanned</a></li>
     </ul>
     <h2>Elsewhere</h2>
@@ -265,10 +266,43 @@ java -jar aem-analyser-cli.jar --baseline .aem-analyser-baseline.json --baseline
       <p>The same values work from the command line:</p>
       <div class="code code--shell">
         <div class="code__bar"><span class="code__label">bash</span></div>
-<pre><code>mvn -B -ntp io.github.rohithv16:aem-analyser-maven-plugin:1.0.10:report \
-  -Daem-analyser.formats=SARIF,HTML \
+<pre><code>mvn -B -ntp io.github.rohithv16:aem-analyser-maven-plugin:1.0.10:check \
+  -Daem-analyser.failOn=ERROR \
+  -Daem-analyser.formats=GITHUB,SARIF,HTML \
   -Daem-analyser.outputFile=target/aem-analyser</code></pre>
       </div>
+      <p class="muted">
+        <code>check</code> is the goal that fails the build; <code>report</code> writes the same
+        files and always exits 0, which is fine for a dashboard and wrong for a gate.
+      </p>
+    </section>
+
+    <section id="github-action">
+      <h2>GitHub Action</h2>
+      <p>
+        <code>uses: RohithV16/aem-code-analyser@v1</code> wraps that same <code>check</code>
+        invocation: JDK set-up, annotations written from the <code>GITHUB</code> format, a severity
+        table appended to <code>$GITHUB_STEP_SUMMARY</code>, and the SARIF uploaded only when the
+        job grants <code>security-events: write</code>.
+      </p>
+      <div class="table-wrap">
+        <table class="table--compact">
+          <thead><tr><th scope="col">Input</th><th scope="col">Default</th><th scope="col">Maps to</th></tr></thead>
+          <tbody>
+            <tr><td class="mono">fail-on</td><td class="mono">ERROR</td><td><code>aem-analyser.failOn</code>; <code>NONE</code> also sets <code>failOnError=false</code> and <code>failOnWarning=false</code>, because 1.0.10 gates on those before <code>failOn</code>.</td></tr>
+            <tr><td class="mono">baseline</td><td class="mono">—</td><td><code>aem-analyser.baseline</code>, relative to the project root.</td></tr>
+            <tr><td class="mono">formats</td><td class="mono">GITHUB,SARIF,HTML</td><td><code>aem-analyser.formats</code>. A single value is expanded with <code>HTML</code> so the output stays a directory.</td></tr>
+            <tr><td class="mono">java-version</td><td class="mono">21</td><td><code>actions/setup-java</code>, temurin.</td></tr>
+            <tr><td class="mono">version</td><td class="mono">1.0.10</td><td>The <code>aem-analyser-maven-plugin</code> version; an action tag pins both.</td></tr>
+            <tr><td class="mono">working-directory</td><td class="mono">.</td><td>Where <code>mvn</code> runs, relative to the workspace.</td></tr>
+            <tr><td class="mono">upload-sarif</td><td class="mono">auto</td><td><code>auto</code> probes code-scanning access; <code>true</code> and <code>false</code> force it.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="muted">
+        Outputs: <code>annotations</code>, <code>sarif</code>, <code>html</code> (paths) and
+        <code>errors</code>, <code>warnings</code>, <code>notices</code> (counts after the baseline).
+      </p>
     </section>
 
     <section id="scope">

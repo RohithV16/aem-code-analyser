@@ -1,0 +1,230 @@
+name: AEM Code Analyser
+description: >-
+  Gate a pull request on AEM Code Analyser findings: native annotations, a severity table in the
+  job summary and, when the job grants it, a SARIF upload to code scanning.
+author: RohithV16
+branding:
+  icon: check-circle
+  color: purple
+
+# One input owns the plugin coordinate so a release bumps it in one place. The tag and this default
+# move together: `@v1` runs whatever this file says, and a version tag pins both the action source
+# and the plugin version it invokes.
+inputs:
+  fail-on:
+    description: >-
+      Severity that fails the job: NONE, ERROR, WARNING or INFO. NONE is report-only and still
+      writes every report (numeric quality gates can still fail).
+    required: false
+    default: ERROR
+  baseline:
+    description: >-
+      Baseline JSON of accepted findings, relative to the working directory. Empty uses
+      .aem-analyser-baseline.json when the project has one.
+    required: false
+    default: ''
+  formats:
+    description: >-
+      Comma-separated report formats. GITHUB produces the annotations, SARIF feeds code scanning,
+      HTML the dashboard.
+    required: false
+    default: GITHUB,SARIF,HTML
+  java-version:
+    description: JDK used to run Maven and the analyser.
+    required: false
+    default: '21'
+  version:
+    description: aem-analyser-maven-plugin version; bumped in lockstep with the action's tag.
+    required: false
+    default: '1.0.10'
+  working-directory:
+    description: Project root to analyse, relative to the workspace.
+    required: false
+    default: '.'
+  upload-sarif:
+    description: >-
+      auto probes for code scanning access, true always uploads (the job must grant
+      security-events write), false never uploads.
+    required: false
+    default: auto
+
+outputs:
+  annotations:
+    description: Path to the GitHub annotation commands file (empty when none was written).
+    value: ${{ steps.paths.outputs.annotations }}
+  sarif:
+    description: Path to the SARIF report (empty when SARIF was not requested).
+    value: ${{ steps.paths.outputs.sarif }}
+  html:
+    description: Path to the HTML dashboard.
+    value: ${{ steps.paths.outputs.html }}
+  errors:
+    description: Number of ERROR findings after the baseline.
+    value: ${{ steps.summary.outputs.errors }}
+  warnings:
+    description: Number of WARNING findings after the baseline.
+    value: ${{ steps.summary.outputs.warnings }}
+  notices:
+    description: Number of INFO findings after the baseline.
+    value: ${{ steps.summary.outputs.notices }}
+
+runs:
+  using: composite
+  steps:
+    - name: Set up JDK ${{ inputs.java-version }}
+      uses: actions/setup-java@v5
+      with:
+        distribution: temurin
+        java-version: ${{ inputs.java-version }}
+
+    - name: Run the AEM Code Analyser gate
+      id: analyse
+      shell: bash
+      working-directory: ${{ github.workspace }}/${{ inputs.working-directory }}
+      env:
+        AEM_ANALYSER_VERSION: ${{ inputs.version }}
+        AEM_FAIL_ON: ${{ inputs.fail-on }}
+        AEM_BASELINE: ${{ inputs.baseline }}
+        AEM_FORMATS: ${{ inputs.formats }}
+        AEM_OUTPUT_DIR: ${{ github.workspace }}/${{ inputs.working-directory }}/target/aem-analyser
+      run: |
+        set -euo pipefail
+        formats="${AEM_FORMATS:-GITHUB,SARIF,HTML}"
+        # The plugin treats outputFile as a single FILE when exactly one format is configured.
+        # Keep it a directory so every later step can address the reports by name.
+        if [[ "$formats" != *,* ]]; then
+          formats="$formats,HTML"
+        fi
+        mkdir -p "$AEM_OUTPUT_DIR"
+        args=(
+          -B -ntp -q
+          "io.github.rohithv16:aem-analyser-maven-plugin:${AEM_ANALYSER_VERSION}:check"
+          "-Daem-analyser.failOn=${AEM_FAIL_ON}"
+          "-Daem-analyser.formats=${formats}"
+          "-Daem-analyser.outputFile=${AEM_OUTPUT_DIR}"
+        )
+        # 1.0.10 evaluates failOnError/failOnWarning before failOn, so failOn=NONE alone still
+        # fails on errors there. Switch the implicit gates off explicitly; newer versions ignore
+        # them under NONE anyway.
+        if [ "$(printf '%s' "$AEM_FAIL_ON" | tr '[:lower:]' '[:upper:]')" = "NONE" ]; then
+          args+=(-Daem-analyser.failOnError=false -Daem-analyser.failOnWarning=false)
+        fi
+        if [ -n "${AEM_BASELINE:-}" ]; then
+          args+=("-Daem-analyser.baseline=${AEM_BASELINE}")
+        fi
+        mvn "${args[@]}"
+
+    # Always runs: a failed gate still has reports on disk, and those are the point of the run.
+    - name: Locate reports
+      id: paths
+      if: ${{ !cancelled() }}
+      shell: bash
+      env:
+        AEM_OUTPUT_DIR: ${{ github.workspace }}/${{ inputs.working-directory }}/target/aem-analyser
+      run: |
+        set -euo pipefail
+        existing() { if [ -f "$1" ]; then printf '%s' "$1"; fi; }
+        {
+          echo "annotations=$(existing "$AEM_OUTPUT_DIR/github-annotations.txt")"
+          echo "sarif=$(existing "$AEM_OUTPUT_DIR/aem-analyser.sarif")"
+          echo "html=$(existing "$AEM_OUTPUT_DIR/aem-analyser-report.html")"
+        } >> "$GITHUB_OUTPUT"
+
+    - name: Annotate the pull request
+      if: ${{ !cancelled() && steps.paths.outputs.annotations != '' }}
+      shell: bash
+      env:
+        AEM_ANNOTATIONS: ${{ steps.paths.outputs.annotations }}
+        AEM_SUBDIR: ${{ inputs.working-directory }}
+      run: |
+        set -euo pipefail
+        # Annotation paths are relative to the analysed root; GitHub resolves them against the
+        # workspace, so prefix a non-root project directory.
+        if [ "$AEM_SUBDIR" = "." ] || [ -z "$AEM_SUBDIR" ]; then
+          cat "$AEM_ANNOTATIONS"
+        else
+          sed -E "s#^::(error|warning|notice) file=#::\1 file=${AEM_SUBDIR}/#" "$AEM_ANNOTATIONS"
+        fi
+
+    - name: Summarise severities
+      id: summary
+      if: ${{ !cancelled() }}
+      shell: bash
+      env:
+        AEM_ANNOTATIONS: ${{ steps.paths.outputs.annotations }}
+        AEM_FAIL_ON: ${{ inputs.fail-on }}
+        AEM_OUTCOME: ${{ steps.analyse.outcome }}
+      run: |
+        set -euo pipefail
+        count() {
+          if [ -s "${AEM_ANNOTATIONS:-}" ]; then
+            grep -c "^::$1" "$AEM_ANNOTATIONS" || true
+          else
+            echo 0
+          fi
+        }
+        errors=$(count error)
+        warnings=$(count warning)
+        notices=$(count notice)
+        {
+          echo "errors=$errors"
+          echo "warnings=$warnings"
+          echo "notices=$notices"
+        } >> "$GITHUB_OUTPUT"
+
+        echo "AEM Code Analyser: ${errors} error(s), ${warnings} warning(s), ${notices} notice(s); gate fail-on=${AEM_FAIL_ON} ${AEM_OUTCOME}."
+
+        if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
+          {
+            echo "### AEM Code Analyser"
+            echo
+            if [ -s "${AEM_ANNOTATIONS:-}" ]; then
+              echo "| Severity | Findings |"
+              echo "| --- | ---: |"
+              echo "| Error | ${errors} |"
+              echo "| Warning | ${warnings} |"
+              echo "| Notice | ${notices} |"
+            else
+              echo "No annotation report was produced — the run did not reach the reporting stage."
+            fi
+            echo
+            echo "Gate \`fail-on: ${AEM_FAIL_ON}\` finished **${AEM_OUTCOME}**."
+          } >> "$GITHUB_STEP_SUMMARY"
+        fi
+
+    - name: Check code scanning availability
+      id: sarif-access
+      if: ${{ !cancelled() && inputs.upload-sarif != 'false' && steps.paths.outputs.sarif != '' }}
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+        AEM_UPLOAD: ${{ inputs.upload-sarif }}
+      run: |
+        set -euo pipefail
+        if [ "$AEM_UPLOAD" = "true" ]; then
+          echo "enabled=true" >> "$GITHUB_OUTPUT"
+          exit 0
+        fi
+        # No workflow-visible permission list exists; a read of the code-scanning API is the one
+        # honest probe. 200 means the token carries security-events access, anything else means
+        # the upload would fail the job for a reason unrelated to the code.
+        header="Authorization: token ${GH_TOKEN}"
+        status=$(curl -sS -o /dev/null -w '%{http_code}' \
+          -H "$header" \
+          -H "Accept: application/vnd.github+json" \
+          "${GITHUB_API_URL}/repos/${GITHUB_REPOSITORY}/code-scanning/analyses?per_page=1" || true)
+        if [ "$status" = "200" ]; then
+          echo "enabled=true" >> "$GITHUB_OUTPUT"
+        else
+          echo "enabled=false" >> "$GITHUB_OUTPUT"
+          echo "::notice title=AEM Code Analyser::SARIF not uploaded: code scanning is unavailable or this job does not grant 'security-events: write' (HTTP ${status}). The gate result above is unchanged."
+        fi
+
+    - name: Upload SARIF to code scanning
+      if: ${{ steps.sarif-access.outputs.enabled == 'true' }}
+      uses: github/codeql-action/upload-sarif@v3
+      # In auto mode a read-only token must not turn a passing gate into a red build.
+      continue-on-error: ${{ inputs.upload-sarif == 'auto' }}
+      with:
+        sarif_file: ${{ steps.paths.outputs.sarif }}
+        category: aem-code-analyser

@@ -1,0 +1,79 @@
+name: Composite action smoke test
+
+# Exercises action.yml against a fixture project that trips AEM-DUP-001 (an ERROR). No secrets:
+# fail-on: ERROR must fail the job, fail-on: NONE must pass, and both must leave annotations on
+# disk. The SARIF upload is disabled here so the fixture's findings never reach the Security tab.
+
+on:
+  push:
+    paths:
+      - action.yml
+      - .github/workflows/action-smoke.yml
+      - .github/action-smoke/**
+  pull_request:
+    paths:
+      - action.yml
+      - .github/workflows/action-smoke.yml
+      - .github/action-smoke/**
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  fails-on-error:
+    name: fail-on ERROR fails the job
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Run the action against the fixture
+        id: analyser
+        uses: ./
+        continue-on-error: true
+        with:
+          fail-on: ERROR
+          working-directory: .github/action-smoke/fixture
+          upload-sarif: false
+
+      - name: Assert the gate failed
+        env:
+          OUTCOME: ${{ steps.analyser.outcome }}
+          ANNOTATIONS: .github/action-smoke/fixture/target/aem-analyser/github-annotations.txt
+        run: |
+          set -euo pipefail
+          echo "outcome=${OUTCOME}"
+          test "${OUTCOME}" = "failure" || { echo "::error::Expected a non-zero gate for fail-on: ERROR"; exit 1; }
+          test -s "${ANNOTATIONS}" || { echo "::error::No annotation file was produced"; exit 1; }
+          errors=$(grep -c '^::error' "${ANNOTATIONS}")
+          test "${errors}" = "1" || { echo "::error::Expected exactly one ERROR finding, got '${errors}'"; exit 1; }
+          grep -q 'title=AEM-DUP-001' "${ANNOTATIONS}" \
+            || { echo "::error::The AEM-DUP-001 annotation is missing"; exit 1; }
+
+  passes-on-none:
+    name: fail-on NONE passes the job
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Run the action against the fixture
+        id: analyser
+        uses: ./
+        with:
+          fail-on: NONE
+          working-directory: .github/action-smoke/fixture
+          upload-sarif: false
+
+      - name: Assert the gate passed but still reported
+        env:
+          OUTCOME: ${{ steps.analyser.outcome }}
+          ANNOTATIONS: ${{ steps.analyser.outputs.annotations }}
+          ERRORS: ${{ steps.analyser.outputs.errors }}
+          SARIF: ${{ steps.analyser.outputs.sarif }}
+        run: |
+          set -euo pipefail
+          echo "outcome=${OUTCOME} errors=${ERRORS} annotations=${ANNOTATIONS}"
+          test "${OUTCOME}" = "success" || { echo "::error::fail-on NONE must not fail the job"; exit 1; }
+          test "${ERRORS}" = "1" || { echo "::error::Report-only mode must still report the finding"; exit 1; }
+          test -s "${ANNOTATIONS}" || { echo "::error::No annotation file was produced"; exit 1; }
+          test -s "${SARIF}" || { echo "::error::No SARIF report was produced"; exit 1; }

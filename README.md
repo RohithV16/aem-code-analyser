@@ -276,6 +276,66 @@ To automatically enforce dead-code quality checks in any AEM project during `mvn
 </build>
 ```
 
+### GitHub Actions
+
+The published composite action runs the gate, writes the findings as native annotations and appends
+a severity table to the job summary. Adoption is the checkout plus one `uses:` line:
+
+```yaml
+- uses: actions/checkout@v5
+- uses: RohithV16/aem-code-analyser@v1
+```
+
+That fails the job on any ERROR finding. A fuller pipeline — warnings tolerated, a baseline of
+accepted findings, and SARIF in the Security tab — is still only a few lines:
+
+```yaml
+name: Quality
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+  security-events: write   # only needed for the SARIF upload
+
+jobs:
+  analyse:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: RohithV16/aem-code-analyser@v1
+        with:
+          fail-on: WARNING
+          baseline: .aem-analyser-baseline.json   # optional; relative to the project root
+```
+
+| Input | Default | Description |
+|---|---|---|
+| `fail-on` | `ERROR` | `ERROR`, `WARNING`, `INFO` or `NONE`. `NONE` is report-only and still writes every report. |
+| `baseline` | — | Baseline JSON of accepted findings, relative to the project root. |
+| `formats` | `GITHUB,SARIF,HTML` | Report formats; `GITHUB` produces the annotations and `SARIF` the code-scanning file. |
+| `java-version` | `21` | JDK that runs Maven and the analyser. |
+| `version` | `1.0.10` | `aem-analyser-maven-plugin` version the action invokes. |
+| `working-directory` | `.` | Project root to analyse, relative to the workspace. |
+| `upload-sarif` | `auto` | `auto` probes for code-scanning access, `true` always uploads, `false` never does. |
+
+Outputs: `annotations`, `sarif` and `html` (report paths), plus `errors`, `warnings` and `notices`
+counts for downstream steps.
+
+**Version pinning.** The action and the plugin move together: `version` defaults to the plugin
+release the action was cut with (`1.0.10` — the first release the action ships against), so a
+version tag pins both the action source and the `io.github.rohithv16:aem-analyser-maven-plugin`
+coordinate it runs, e.g. `@v1.1.0` would run plugin `1.1.0`. `@v1` is the moving major line whose
+`action.yml` carries the matching default. A release bumps that default and cuts the tags; nothing
+in the workflow changes. The `v1` tag is published by the first release that contains `action.yml`,
+so pin a version tag if you need an immutable ref before then. The SARIF upload needs
+`security-events: write` — when the job does not grant it, the action logs a notice and the gate
+result stands.
+
+`fail-on: NONE` also passes `-Daem-analyser.failOnError=false` (and `failOnWarning=false`): 1.0.10
+evaluates those gates before `failOn`, so `NONE` on its own would still fail the build.
+
 ### SonarQube CI/CD Integration
 To import the findings into SonarQube without private plugins, configure the plugin to emit SonarQube JSON during your CI build:
 

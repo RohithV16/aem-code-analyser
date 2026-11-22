@@ -294,8 +294,43 @@ java -jar aem-analyser-cli.jar --fail-on NONE    # report only, always exits 0</
       <h2>5 · Run it in CI</h2>
 
       <p>
-        Call the goal directly in the pipeline: it reads sources and configuration without compiling
-        the project or needing an AEM instance, so the job stays short.
+        The published composite action is the shortest path: it sets up the JDK, runs the
+        <code>check</code> gate, turns every finding into a native annotation on the diff, appends a
+        severity table to the job summary and uploads the SARIF when the job allows it.
+      </p>
+
+      <div class="code">
+        <div class="code__bar"><span class="code__label">.github/workflows/quality.yml</span></div>
+<pre><code>name: Quality
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+  security-events: write   # optional: lets the action upload the SARIF
+
+jobs:
+  analyse:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: RohithV16/aem-code-analyser@v1
+        with:
+          fail-on: ERROR
+          baseline: .aem-analyser-baseline.json   # optional</code></pre>
+      </div>
+
+      <p class="muted">
+        Every input has a default — the two lines above (checkout and <code>uses</code>) are a
+        complete gate. A version tag pins the action and the plugin it invokes together; the
+        <code>v1</code> tag is cut by the first release that ships <code>action.yml</code>.
+      </p>
+
+      <p>
+        Without a workflow file the same gate is one Maven goal — but it has to be
+        <code>check</code>. <code>report</code> writes the same files and always exits 0, so a
+        pipeline built on it can never turn red:
       </p>
 
       <div class="code">
@@ -318,25 +353,28 @@ jobs:
           distribution: temurin
           java-version: '21'
 
-      - name: Analyse
+      - name: Analyse and gate
         run: |
-          mvn -B -ntp io.github.rohithv16:aem-analyser-maven-plugin:1.0.10:report \
-            -Daem-analyser.formats=SARIF,HTML \
+          mvn -B -ntp io.github.rohithv16:aem-analyser-maven-plugin:1.0.10:check \
+            -Daem-analyser.failOn=ERROR \
+            -Daem-analyser.formats=GITHUB,SARIF,HTML \
             -Daem-analyser.outputFile=target/aem-analyser
+
+      - name: Annotate the diff
+        if: always()
+        run: cat target/aem-analyser/github-annotations.txt
 
       - name: Upload SARIF
         uses: github/codeql-action/upload-sarif@v3
         if: always()
         with:
-          sarif_file: target/aem-analyser/aem-analyser.sarif
-
-      - name: Upload dashboard
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: aem-analyser-report
-          path: target/aem-analyser/aem-analyser-report.html</code></pre>
+          sarif_file: target/aem-analyser/aem-analyser.sarif</code></pre>
       </div>
+
+      <p class="muted">
+        The annotations step runs with <code>if: always()</code> because the gate fails the job
+        before it — that is the point of the gate.
+      </p>
 
       <p class="muted">
         For SonarQube, write the SONAR format instead and point <code>sonar.externalIssuesReportPaths</code>
