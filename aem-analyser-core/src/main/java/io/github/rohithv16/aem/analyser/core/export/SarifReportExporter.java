@@ -58,13 +58,13 @@ public final class SarifReportExporter implements ReportExporter {
             result.put("level", sarifLevel(violation.severity()));
             StringBuilder messageText = new StringBuilder(violation.message());
             violation.remediationOpt().ifPresent(r -> messageText.append(" Remediation: ").append(r));
-            result.put("message", Map.of("text", messageText.toString()));
+            result.put("message", ordered("text", messageText.toString()));
             Map<String, Object> properties = new LinkedHashMap<>();
             properties.put("subtype", violation.subtype());
             violation.targetPidOpt().ifPresent(pid -> properties.put("targetPid", pid));
             result.put("properties", properties);
             // Stable identity so GitHub code scanning tracks the same alert across unrelated edits.
-            result.put("partialFingerprints", Map.of("aemAnalyserFingerprint/v1",
+            result.put("partialFingerprints", ordered("aemAnalyserFingerprint/v1",
                     io.github.rohithv16.aem.analyser.core.baseline.Fingerprint.of(violation)));
             result.put("locations", List.of(location(violation.filePath(), violation.region())));
             if (!violation.relatedLocations().isEmpty()) {
@@ -74,7 +74,7 @@ public final class SarifReportExporter implements ReportExporter {
                     Map<String, Object> entry = new LinkedHashMap<>();
                     entry.put("id", id++);
                     entry.put("physicalLocation", physicalLocation(relatedLocation.filePath(), relatedLocation.region()));
-                    entry.put("message", Map.of("text",
+                    entry.put("message", ordered("text",
                             relatedLocation.message()));
                     related.add(entry);
                 }
@@ -90,10 +90,13 @@ public final class SarifReportExporter implements ReportExporter {
         driver.put("rules", ruleDefinitions);
 
         Map<String, Object> run = new LinkedHashMap<>();
-        run.put("tool", Map.of("driver", driver));
-        run.put("originalUriBaseIds", Map.of("%SRCROOT%", Map.of(
+        run.put("tool", ordered("driver", driver));
+        // Every object here is insertion-ordered: Map.of randomises its iteration order per JVM,
+        // which made identical runs serialise uri/description in a different order and broke
+        // caching, signing, diffing and baseline checks of the report bytes.
+        run.put("originalUriBaseIds", ordered("%SRCROOT%", ordered(
                 "uri", "file:///",
-                "description", Map.of("text", "Repository source root directory."))));
+                "description", ordered("text", "Repository source root directory."))));
         if (!report.diagnostics().isEmpty()) {
             List<Map<String, Object>> notifications = new ArrayList<>();
             for (AnalysisDiagnostic diagnostic : report.diagnostics()) {
@@ -105,11 +108,11 @@ public final class SarifReportExporter implements ReportExporter {
                 String location = diagnostic.line() > 0
                         ? diagnostic.path() + ":" + diagnostic.line()
                         : diagnostic.path();
-                notification.put("message", Map.of("text",
+                notification.put("message", ordered("text",
                         diagnostic.kind() + " at " + location + ": " + diagnostic.reason()));
                 notifications.add(notification);
             }
-            run.put("invocations", List.of(Map.of(
+            run.put("invocations", List.of(ordered(
                     "executionSuccessful", true,
                     "toolExecutionNotifications", notifications)));
         }
@@ -127,8 +130,8 @@ public final class SarifReportExporter implements ReportExporter {
         Map<String, Object> definition = new LinkedHashMap<>();
         definition.put("id", rule.id());
         definition.put("name", rule.name());
-        definition.put("shortDescription", Map.of("text", rule.shortDescription()));
-        definition.put("fullDescription", Map.of("text", rule.fullDescription()));
+        definition.put("shortDescription", ordered("text", rule.shortDescription()));
+        definition.put("fullDescription", ordered("text", rule.fullDescription()));
         definition.put("helpUri", rule.helpUri());
         Map<String, Object> properties = new LinkedHashMap<>();
         if (!rule.tags().isEmpty()) {
@@ -186,7 +189,24 @@ public final class SarifReportExporter implements ReportExporter {
     }
 
     private Map<String, Object> location(String filePath, TextRegion region) {
-        return Map.of("physicalLocation", physicalLocation(filePath, region));
+        return ordered("physicalLocation", physicalLocation(filePath, region));
+    }
+
+    /**
+     * Builds a {@link LinkedHashMap} from alternating key/value arguments. Used instead of
+     * {@code Map.of} so every object in the document iterates (and therefore serialises) in
+     * insertion order: {@code Map.of} randomises order per JVM, which made two runs over an
+     * unchanged tree produce different bytes.
+     */
+    private static Map<String, Object> ordered(Object... keyValues) {
+        if (keyValues.length % 2 != 0) {
+            throw new IllegalArgumentException("ordered() needs key/value pairs");
+        }
+        Map<String, Object> map = new LinkedHashMap<>(keyValues.length);
+        for (int i = 0; i < keyValues.length; i += 2) {
+            map.put((String) keyValues[i], keyValues[i + 1]);
+        }
+        return map;
     }
 
     /**
