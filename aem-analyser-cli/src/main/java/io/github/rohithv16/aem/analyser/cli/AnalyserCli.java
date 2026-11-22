@@ -13,6 +13,7 @@ import io.github.rohithv16.aem.analyser.core.export.SonarReportExporter;
 import io.github.rohithv16.aem.analyser.core.fix.AutoFixEngine;
 import io.github.rohithv16.aem.analyser.core.git.GitDiffResolver;
 import io.github.rohithv16.aem.analyser.core.model.report.AnalysisReport;
+import io.github.rohithv16.aem.analyser.core.model.report.GateVerdict;
 import io.github.rohithv16.aem.analyser.core.model.report.Severity;
 import io.github.rohithv16.aem.analyser.core.model.report.Violation;
 import io.github.rohithv16.aem.analyser.core.rules.RuleCatalog;
@@ -310,9 +311,13 @@ public class AnalyserCli implements java.util.concurrent.Callable<Integer> {
         report = config.apply(report);
         report = applyBaseline(root, report);
         List<io.github.rohithv16.aem.analyser.core.history.RunSummary> history = applyHistory(report);
-        export(report, reportFormats, history);
+        // The gate is evaluated once, before anything renders: the console block, the dashboard and
+        // the exit code all have to describe the same run.
+        printQualityGate(report);
+        GateVerdict verdict = evaluateGate(report);
+        export(report.withGateVerdict(verdict), reportFormats, history);
         printDiagnostics(report);
-        return exitCode(report);
+        return verdict.exitCode();
     }
 
     private io.github.rohithv16.aem.analyser.core.config.AnalyserConfig loadConfig(Path root)
@@ -1077,49 +1082,110 @@ public class AnalyserCli implements java.util.concurrent.Callable<Integer> {
         return modules;
     }
 
+    /** The exit code the effective gate implies for this report. */
     int exitCode(AnalysisReport report) {
-        long errors = report.countBySeverity(Severity.ERROR);
-        long warnings = report.countBySeverity(Severity.WARNING);
-        boolean qualityGateFailed = !printQualityGate(report, warnings);
-
-        if (qualityGateFailed) {
-            return 1;
-        }
-        if (failOn != null && "NONE".equalsIgnoreCase(failOn.trim())) {
-            // Explicit report-only mode: thresholds above still gate, the implicit ERROR gate does not.
-            stdout.println("[INFO] --fail-on NONE: report-only run; exiting 0 despite "
-                    + errors + " error-severity finding(s).");
-            return 0;
-        }
-        if (errors > 0) {
-            return 1;
-        }
-        if (failOnExceeded(report, warnings)) {
-            return 1;
-        }
-        if (failOnWarning && warnings > 0) {
-            return 1;
-        }
-        return 0;
+        return evaluateGate(report).exitCode();
     }
 
     /**
-     * Prints the quality-gate block when at least one threshold is configured.
+     * Computes the single verdict for this run from the <em>effective</em> gate: the implicit error
+     * gate (unless report-only), {@code --fail-on}, {@code --fail-on-warning} and the coverage /
+     * duplication / warning thresholds.
      *
-     * @return {@code true} when every configured threshold passed
+     * <p>Every renderer prints this verdict and the process exit code is derived from it, so the
+     * console block, the dashboard and the build result cannot disagree.
      */
-    private boolean printQualityGate(AnalysisReport report, long warnings) {
+    GateVerdict evaluateGate(AnalysisReport report) {
+        long errors = report.countBySeverity(Severity.ERROR);
+        long warnings = report.countBySeverity(Severity.WARNING);
+        long infos = report.countBySeverity(Severity.INFO);
+        boolean reportOnly = failOn != null && "NONE".equalsIgnoreCase(failOn.trim());
+
+        List<String> failures = new ArrayList<>();
+        addThresholdFailures(report, warnings, failures);
+        if (!reportOnly) {
+            if (errors > 0) {
+                failures.add(errors + " error-severity finding" + (errors == 1 ? "" : "s") + " detected.");
+            } else if (failOnExceeded(report, warnings)) {
+                failures.add("findings at or above --fail-on "
+                        + failOn.trim().toUpperCase(Locale.ROOT) + " detected.");
+            } else if (failOnWarning && warnings > 0) {
+                failures.add(warnings + " warning(s) detected and --fail-on-warning is set.");
+            }
+        }
+        if (!failures.isEmpty()) {
+            return GateVerdict.failed(String.join(" ", failures));
+        }
+        if (report.violations().isEmpty()) {
+            return GateVerdict.passed();
+        }
+        if (reportOnly) {
+            return GateVerdict.notEnforced(reportOnlyReason(errors, warnings, infos));
+        }
+        return GateVerdict.passedWithWarnings(
+                warnings + " warning(s), " + infos + " info message(s).");
+    }
+
+    /** Threshold breaches, all of which gate even in {@code --fail-on NONE} report-only mode. */
+    private void addThresholdFailures(AnalysisReport report, long warnings, List<String> failures) {
+        if (maxWarnings != null && warnings > maxWarnings) {
+            failures.add(warnings + " warning(s) exceed --max-warnings " + maxWarnings + ".");
+        }
+        if (maxDuplication != null) {
+            double duplication = report.codeMetrics() != null
+                    ? report.codeMetrics().duplicationPercent()
+                    : 0.0;
+            if (duplication > maxDuplication) {
+                failures.add(String.format(Locale.ROOT,
+                        "duplication %.1f%% exceeds --max-duplication %.1f%%.",
+                        duplication, maxDuplication));
+            }
+        }
+        if (minCoverage != null) {
+            var coverage = report.coverageReport();
+            if (coverage == null || !coverage.present()) {
+                // A threshold of 0 means "measure but do not gate".
+                if (minCoverage > 0) {
+                    failures.add(String.format(Locale.ROOT,
+                            "no line coverage data found, --min-coverage %.1f%% is not met.",
+                            minCoverage));
+                }
+            } else if (coverage.lineCoveragePercent() < minCoverage) {
+                failures.add(String.format(Locale.ROOT,
+                        "line coverage %.1f%% is below --min-coverage %.1f%%.",
+                        coverage.lineCoveragePercent(), minCoverage));
+            }
+        }
+    }
+
+    private static String reportOnlyReason(long errors, long warnings, long infos) {
+        List<String> parts = new ArrayList<>();
+        if (errors > 0) {
+            parts.add(errors + " error-severity finding" + (errors == 1 ? "" : "s"));
+        }
+        if (warnings > 0) {
+            parts.add(warnings + " warning" + (warnings == 1 ? "" : "s"));
+        }
+        if (errors == 0 && warnings == 0) {
+            parts.add(infos + " info message" + (infos == 1 ? "" : "s"));
+        }
+        parts.add("report-only run (--fail-on NONE).");
+        return String.join(", ", parts);
+    }
+
+    /** Prints the configured quality-gate thresholds and whether each one passed. */
+    private void printQualityGate(AnalysisReport report) {
         if (minCoverage == null && maxDuplication == null && maxWarnings == null) {
-            return true;
+            return;
         }
         stdout.println(SEPARATOR);
         stdout.println(" QUALITY GATE VERIFICATION");
         stdout.println(SEPARATOR);
-        boolean passed = checkMaxWarnings(warnings);
-        passed &= checkDuplication(report);
-        passed &= checkLineCoverage(report);
+        long warnings = report.countBySeverity(Severity.WARNING);
+        checkMaxWarnings(warnings);
+        checkDuplication(report);
+        checkLineCoverage(report);
         stdout.println(SEPARATOR);
-        return passed;
     }
 
     private boolean checkMaxWarnings(long warnings) {

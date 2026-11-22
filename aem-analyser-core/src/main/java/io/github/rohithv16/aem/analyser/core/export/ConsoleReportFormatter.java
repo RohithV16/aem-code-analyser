@@ -1,6 +1,7 @@
 package io.github.rohithv16.aem.analyser.core.export;
 
 import io.github.rohithv16.aem.analyser.core.model.report.AnalysisReport;
+import io.github.rohithv16.aem.analyser.core.model.report.GateVerdict;
 import io.github.rohithv16.aem.analyser.core.model.report.RuleId;
 import io.github.rohithv16.aem.analyser.core.model.report.Severity;
 import io.github.rohithv16.aem.analyser.core.model.report.Violation;
@@ -149,21 +150,12 @@ public final class ConsoleReportFormatter implements ReportExporter {
                 .append(" s\n");
         sb.append(line).append('\n');
 
-        if (report.violations().isEmpty()) {
-            sb.append(colorEnabled ? ANSI_GREEN : "");
-            sb.append("GATE PASSED: no cross-boundary dead code detected.");
-            sb.append(colorEnabled ? ANSI_RESET : "");
-            sb.append('\n').append(line).append('\n');
-        } else if (errors > 0) {
-            sb.append(colorEnabled ? ANSI_RED + ANSI_BOLD : "");
-            sb.append("GATE FAILED: ").append(errors).append(" error-severity finding")
-                    .append(errors == 1 ? "" : "s").append(" detected.");
-            sb.append(colorEnabled ? ANSI_RESET : "");
-            sb.append('\n').append(line).append('\n');
-        } else {
-            sb.append("GATE PASSED WITH WARNINGS: ").append(warnings).append(" warning(s), ")
-                    .append(infos).append(" info message(s).").append('\n').append(line).append('\n');
-        }
+        // The verdict comes from the effective gate (fail-on level, warning flags, quality
+        // thresholds), not from the error count: --fail-on NONE must never read as GATE FAILED.
+        GateVerdict verdict = report.gateVerdict();
+        String verdictColor = verdictColor(verdict.status());
+        sb.append(verdictColor).append(verdict.render()).append(colorEnabled ? ANSI_RESET : "");
+        sb.append('\n').append(line).append('\n');
 
         try {
             writer.write(sb.toString());
@@ -223,6 +215,18 @@ public final class ConsoleReportFormatter implements ReportExporter {
             case ERROR -> ANSI_RED;
             case WARNING -> ANSI_YELLOW;
             case INFO -> ANSI_CYAN;
+        };
+    }
+
+    /** A failed gate is red and bold; an unenforced or warning-only run is yellow; a pass is green. */
+    private String verdictColor(GateVerdict.Status status) {
+        if (!colorEnabled) {
+            return "";
+        }
+        return switch (status) {
+            case FAILED -> ANSI_RED + ANSI_BOLD;
+            case NOT_ENFORCED, PASSED_WITH_WARNINGS -> ANSI_YELLOW + ANSI_BOLD;
+            case PASSED -> ANSI_GREEN;
         };
     }
 
