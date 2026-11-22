@@ -17,7 +17,14 @@ public enum AcceptanceOrigin {
     BASELINE,
 
     /** Accepted by an {@code aem-analyser-disable-*} directive in the source file itself. */
-    INLINE;
+    INLINE,
+
+    /**
+     * Accepted because an imported foreign report (another analyser's SARIF) reported the same
+     * location under a rule an explicit id map equates with this one. The provenance lives in
+     * {@link Violation#acceptanceDetail()}, so a migration does not hide the original finding.
+     */
+    EXTERNAL;
 
     public boolean isAccepted() {
         return this != NONE;

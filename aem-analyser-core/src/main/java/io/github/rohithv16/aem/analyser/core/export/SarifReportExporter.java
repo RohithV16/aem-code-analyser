@@ -164,6 +164,14 @@ public final class SarifReportExporter implements ReportExporter {
                     "justification", "baseline:" + io.github.rohithv16.aem.analyser.core.baseline
                             .Fingerprint.of(violation));
         }
+        if (violation.acceptance()
+                == io.github.rohithv16.aem.analyser.core.model.report.AcceptanceOrigin.EXTERNAL) {
+            String detail = violation.acceptanceDetail();
+            return ordered(
+                    "kind", "external",
+                    "status", "accepted",
+                    "justification", detail.isBlank() ? "imported report" : detail);
+        }
         return ordered(
                 "kind", "inSource",
                 "status", "accepted",

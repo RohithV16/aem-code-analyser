@@ -216,6 +216,16 @@ public class AnalyserCli implements java.util.concurrent.Callable<Integer> {
             description = "Keep baseline-suppressed findings in reports at INFO severity.")
     private boolean baselineReport;
 
+    @Option(names = {"--import-report"}, paramLabel = "FILE",
+            description = "SARIF report from another analyser to read for migration coverage (nothing is "
+                    + "suppressed unless --import-map equates its rules with an analyser rule).")
+    private Path importReport;
+
+    @Option(names = {"--import-map"}, paramLabel = "FILE",
+            description = "YAML/JSON map of foreign-rule: AEM-RULE, e.g. 'java:S3649: AEM-QUAL-004'. "
+                    + "Requires --import-report.")
+    private Path importMap;
+
     @Option(names = {"--history"}, paramLabel = "DIR",
             description = "Append a run summary to DIR/runs.jsonl and render the trend in the HTML report.")
     private Path historyDirectory;
@@ -409,6 +419,10 @@ public class AnalyserCli implements java.util.concurrent.Callable<Integer> {
     }
 
     int execute() {
+        if (importMap != null && importReport == null) {
+            error("--import-map requires --import-report: a map alone has no foreign results to match.");
+            return EXIT_USAGE;
+        }
         OptionalInt metaCommandResult = executeMetaCommand();
         if (metaCommandResult.isPresent()) {
             return metaCommandResult.getAsInt();
@@ -551,6 +565,7 @@ public class AnalyserCli implements java.util.concurrent.Callable<Integer> {
         report = applyAutoFix(root, context, report);
         report = config.apply(report);
         report = applyBaseline(root, report);
+        report = applyImportedReport(root, report);
         List<io.github.rohithv16.aem.analyser.core.history.RunSummary> history;
         try {
             history = applyHistory(report);
@@ -805,6 +820,40 @@ public class AnalyserCli implements java.util.concurrent.Callable<Integer> {
                 .filter(report, loaded, baselineReport);
         progress("[INFO] Baseline suppressed " + suppressed + " accepted finding(s).");
         return filtered;
+    }
+
+    /**
+     * Imports another analyser's SARIF and accepts our findings that the explicit id map equates with
+     * an overlapping foreign result. Nothing is suppressed by location alone, and without an
+     * {@code --import-map} the import is a coverage count only.
+     */
+    private AnalysisReport applyImportedReport(Path root, AnalysisReport report) {
+        if (importReport == null) {
+            return report;
+        }
+        if (!Files.isRegularFile(importReport)) {
+            throw new IllegalArgumentException("Imported report not found: " + importReport
+                    + ". Point --import-report at the other analyser's SARIF file.");
+        }
+        try {
+            var foreign = io.github.rohithv16.aem.analyser.core.interop.SarifImporter.read(importReport, root);
+            var map = importMap == null
+                    ? io.github.rohithv16.aem.analyser.core.interop.ImportMap.empty()
+                    : io.github.rohithv16.aem.analyser.core.interop.ImportMap.load(importMap);
+            var result = io.github.rohithv16.aem.analyser.core.interop.ExternalSuppressions
+                    .apply(report, foreign, map);
+            int unmapped = result.foreignCount() - result.mappedCount();
+            progress("[INFO] Imported " + result.foreignCount() + " foreign result(s) from "
+                    + importReport.getFileName() + ": " + result.mappedCount() + " mapped, "
+                    + unmapped + " unmapped; " + result.suppressedCount()
+                    + " finding(s) accepted as external.");
+            return result.report();
+        } catch (IllegalArgumentException invalid) {
+            throw invalid;
+        } catch (IOException unreadable) {
+            throw new IllegalArgumentException("Could not read the imported report or map: "
+                    + FailureMessage.oneLine(unreadable) + ". Both must be readable files.");
+        }
     }
 
     private void printDiagnostics(AnalysisReport report) {
