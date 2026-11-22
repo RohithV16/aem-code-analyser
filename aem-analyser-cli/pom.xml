@@ -7,7 +7,7 @@
     <parent>
         <groupId>io.github.rohithv16</groupId>
         <artifactId>aem-code-analyser</artifactId>
-        <version>1.0.11-SNAPSHOT</version>
+        <version>1.1.0-SNAPSHOT</version>
     </parent>
 
     <artifactId>aem-analyser-cli</artifactId>
