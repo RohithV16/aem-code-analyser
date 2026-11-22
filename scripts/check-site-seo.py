@@ -86,7 +86,12 @@ def check_structure(pages: list[dict[str, str]]) -> list[dict[str, str]]:
     rule_pages = [p for p in pages if re.fullmatch(r"/issues/[a-z0-9-]+/", p["url"])]
     index = [p for p in pages if p["url"] == "/issues/"]
     assert index, "the filterable index page /issues/ is missing"
-    assert len(rule_pages) == 30, f"expected 30 rule pages, found {len(rule_pages)}"
+    # Derived, not hard-coded: the rule set grows, and a literal count turns every new rule into a
+    # site failure. The invariant that matters is one page per rule card on the index.
+    cards = len(re.findall(r'class="rule-card"', Path(str(index[0]["path"])).read_text(encoding="utf-8")))
+    assert cards > 0, "the /issues/ index has no rule cards"
+    assert len(rule_pages) == cards, (
+        f"expected one page per rule card ({cards}), found {len(rule_pages)}")
 
     titles: dict[str, str] = {}
     for page in rule_pages:
