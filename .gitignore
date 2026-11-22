@@ -36,6 +36,9 @@ Thumbs.db
 .settings/
 bin/
 
+# Site build output (jekyll build --destination _site)
+_site/
+
 # Agent internals
 .agents/
 

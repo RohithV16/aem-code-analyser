@@ -1,0 +1,10 @@
+# The image only needs the shaded CLI jar that the release job stages in
+# target/release-assets/. Everything else would just inflate the build context.
+.git
+.github
+.idea
+docs
+validation
+**/target/*
+!target/release-assets/
+!target/release-assets/aem-analyser-cli.jar

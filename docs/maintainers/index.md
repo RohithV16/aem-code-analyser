@@ -31,6 +31,7 @@ Everything Central validates is produced by the `release-central` profile:
 | Upload through the Portal | `central-publishing-maven-plugin` 0.12.0, `autoPublish=false`, `waitUntil=validated` |
 | Nothing uploaded by a release | Central runs from its own manual workflow, `.github/workflows/publish-central.yml` |
 | The site shows the released version | `docs/_data/version.yml`, rewritten by the release job in `ci.yml`; the header, footer and install snippets read `site.data.version.current` |
+| Release notes match the changelog | `docs/releases/` is generated from `CHANGELOG.md` by `scripts/build-releases-page.sh`; the `validation` job runs it with `--check` and the `site` job regenerates it before `jekyll build` |
 | The demo report names the released version | `scripts/build-demo-report.sh` refuses a jar whose version differs from `version.yml`, and the release job regenerates `docs/demo/index.html` from the jar it just built; CI runs `scripts/build-demo-report.sh --check` on every push |
 | The site is published only after CI passes | the `site` and `deploy` jobs in `ci.yml` build `docs/` with Jekyll and deploy the artifact; Pages is set to *GitHub Actions*, not to the branch builder |
 

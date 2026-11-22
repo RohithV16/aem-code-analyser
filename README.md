@@ -9,7 +9,7 @@ that single-language tools cannot see.
 
 ## Quick start
 
-Pick whichever is easiest — all three need no configuration and no flags.
+Pick whichever is easiest — all four need no configuration and no flags.
 
 ### 1 · Run it now, nothing to install
 
@@ -22,16 +22,28 @@ scripts/run-from-source.sh ~/my-aem-project
 The script builds once (Maven, Java 21) and then analyses the path you gave it. Later runs reuse the
 build and start instantly. Leave the path out to analyse the directory you are standing in.
 
-### 2 · Or download the jar
+### 2 · Or install the CLI
+
+```bash
+curl -fsSLO https://raw.githubusercontent.com/RohithV16/aem-code-analyser/main/install.sh
+sh install.sh                 # newest release; --version 1.0.10 pins one
+cd ~/my-aem-project && aem-analyser .
+```
+
+The installer checks the jar against the release's own `SHA256SUMS.txt` before installing anything,
+puts it under `~/.local/share/aem-analyser/<version>/` and writes `~/.local/bin/aem-analyser`
+(`--prefix` to install elsewhere). The launcher honours `JAVA_HOME` and needs Java 21.
+
+Prefer no installer? The jar is a single file:
 
 ```bash
 curl -LO https://github.com/RohithV16/aem-code-analyser/releases/latest/download/aem-analyser-cli.jar
 cd ~/my-aem-project && java -jar aem-analyser-cli.jar
 ```
 
-Self-contained; all it needs is Java 21. Run it inside the project and it finds everything by itself.
-Every run prints a console report and writes an HTML dashboard to `target/aem-analyser/` by default
-(`--no-html` skips the dashboard).
+Either way it is self-contained and needs nothing but Java 21. Run it inside the project and it finds
+everything by itself. Every run prints a console report and writes an HTML dashboard to
+`target/aem-analyser/` by default (`--no-html` skips the dashboard).
 
 ### 3 · Or wire it into the build
 
@@ -52,6 +64,19 @@ Every run prints a console report and writes an HTML dashboard to `target/aem-an
 
 `mvn verify` now fails on new findings. It resolves straight from **Maven Central** — no
 `<pluginRepositories>`, no token, nothing to configure.
+
+### 4 · Or run the container
+
+```bash
+docker run --rm -v "$PWD:/src" ghcr.io/rohithv16/aem-code-analyser:1.0.10
+```
+
+No JDK on the agent — only a container runtime. The image is a bare JRE plus the same shaded jar, so
+the findings are identical to the jar route; the dashboard is written to `target/aem-analyser/` in the
+mounted project. It runs as UID/GID `1000`; on Linux agents whose user differs, add
+`--user "$(id -u):$(id -g)"` so the reports stay yours. Each release publishes `:<version>` and
+`:latest`, with OCI source/version labels, provenance and an SBOM (`--version` prints the built
+version).
 
 ### No flags needed
 
@@ -92,7 +117,8 @@ java -jar aem-analyser-cli.jar --baseline .aem-analyser-baseline.json
 java -jar aem-analyser-cli.jar --explain AEM-DEAD-001     # one rule's rationale
 ```
 
-A shell alias keeps it short: `alias aem-analyser="java -jar /path/to/aem-analyser-cli.jar"`.
+A shell alias keeps it short: `alias aem-analyser="java -jar /path/to/aem-analyser-cli.jar"` — or
+install it once ([route 2](#2--or-install-the-cli)) and every flag above reads `aem-analyser --no-html`.
 
 ## CLI options reference
 
