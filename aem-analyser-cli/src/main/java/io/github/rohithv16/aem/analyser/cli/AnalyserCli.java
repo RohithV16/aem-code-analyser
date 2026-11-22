@@ -246,6 +246,11 @@ public class AnalyserCli implements java.util.concurrent.Callable<Integer> {
             description = "Print the effective metadata for one rule (e.g. AEM-DEAD-002A), then exit.")
     private String explainRule;
 
+    @Option(names = {"--diagnose"}, paramLabel = "RULE:PATH:LINE",
+            description = "Write a redacted, offline repro bundle for one finding, e.g. "
+                    + "\"AEM-DEAD-004:ui.apps/card.html:42\", then exit. Nothing is transmitted.")
+    private String diagnoseTarget;
+
     @Option(names = {"--generate-rule-docs"}, paramLabel = "DIR",
             description = "Generate the HTML issue reference into DIR/issues, then exit.")
     private Path generateRuleDocs;
@@ -566,6 +571,9 @@ public class AnalyserCli implements java.util.concurrent.Callable<Integer> {
         report = config.apply(report);
         report = applyBaseline(root, report);
         report = applyImportedReport(root, report);
+        if (diagnoseTarget != null && !diagnoseTarget.isBlank()) {
+            return writeDiagnoseBundle(root, effective, report);
+        }
         List<io.github.rohithv16.aem.analyser.core.history.RunSummary> history;
         try {
             history = applyHistory(report);
@@ -820,6 +828,62 @@ public class AnalyserCli implements java.util.concurrent.Callable<Integer> {
                 .filter(report, loaded, baselineReport);
         progress("[INFO] Baseline suppressed " + suppressed + " accepted finding(s).");
         return filtered;
+    }
+
+    /**
+     * Writes one redacted repro bundle for a finding selected by {@code RULE:PATH:LINE}. A selector
+     * that matches nothing is a usage error (exit 2), not an empty bundle: a bundle for a finding that
+     * never existed would waste the maintainer's time and look like the tool confirmed the report.
+     */
+    private int writeDiagnoseBundle(Path root, EffectiveConfig effective, AnalysisReport report) {
+        DiagnoseTarget selector = DiagnoseTarget.parse(diagnoseTarget).relativeTo(root);
+        var descriptor = io.github.rohithv16.aem.analyser.core.rules.metadata.RuleRegistry
+                .find(selector.ruleId());
+        if (descriptor.isEmpty()) {
+            error("Unknown rule '" + selector.ruleId() + "' in --diagnose. Run --list-rules to see the ids.");
+            return EXIT_USAGE;
+        }
+        var rule = descriptor.get();
+        List<Violation> candidates = new ArrayList<>(report.violations());
+        candidates.addAll(report.acceptedViolations());
+        Violation finding = null;
+        for (Violation candidate : candidates) {
+            if (!rule.id().equalsIgnoreCase(candidate.ruleId())) {
+                continue;
+            }
+            if (!selector.path().equals(DiagnoseTarget.normalizePath(candidate.filePath()))) {
+                continue;
+            }
+            int start = candidate.region() == null ? 0 : candidate.region().startLine();
+            int end = candidate.region() == null ? start : Math.max(start, candidate.region().endLine());
+            if (selector.line() >= start && selector.line() <= end) {
+                finding = candidate;
+                break;
+            }
+        }
+        if (finding == null) {
+            error(diagnoseTarget + " is not a finding in this run. Run the analyser without --diagnose "
+                    + "to see the findings it actually reports.");
+            return EXIT_USAGE;
+        }
+        Path output = outputDirectory != null ? outputDirectory : root.resolve("target/aem-analyser");
+        Path target;
+        if (output.getFileName() != null && output.getFileName().toString().endsWith(".zip")) {
+            target = output;
+        } else {
+            target = output.resolve(io.github.rohithv16.aem.analyser.core.diagnose.DiagnoseBundle
+                    .fileName(rule.id()));
+        }
+        try {
+            io.github.rohithv16.aem.analyser.core.diagnose.DiagnoseBundle.write(root, finding, rule,
+                    effective.config(), report.diagnostics(), target);
+        } catch (IOException e) {
+            throw new IllegalArgumentException("Could not write the diagnose bundle to " + target + ": "
+                    + FailureMessage.oneLine(e) + ". --output must be a writable directory.");
+        }
+        progress("[INFO] Diagnose bundle written to " + target
+                + " (redacted, offline; nothing was transmitted).");
+        return EXIT_OK;
     }
 
     /**
