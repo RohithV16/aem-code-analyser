@@ -39,6 +39,13 @@ All notable changes to this project are documented here. The format follows
   on the test tab: one `<testcase>` per finding, `<failure>` for ERROR/WARNING, `<skipped/>` for
   INFO.
 
+- **The gate can live in `.aem-analyser.yml`.** A new optional `gate:` block carries `failOn`,
+  `failOnWarning`, `maxWarnings`, `minCoverage`, `maxDuplication`, `formats` and `output`, so
+  `aem-analyser .` with no flags fails exactly the way the pipeline does. Precedence is per key — a
+  command-line flag, then the file, then the default — and the block never changes a rule's
+  severity, so it cannot reshape the findings it grades. Unknown values (e.g. `failOn: SOMETIMES`)
+  exit 2 naming the offending key.
+
 - **First Maven Central release (1.0.10).** `io.github.rohithv16:aem-code-analyser`,
   `aem-analyser-core` and `aem-analyser-maven-plugin` are published with sources, javadoc and GPG
   signatures, so the plugin needs no repository entry and no token. Verified by resolving both the

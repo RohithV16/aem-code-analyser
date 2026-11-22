@@ -25,8 +25,10 @@ import io.github.rohithv16.aem.analyser.core.model.report.Violation;
 import io.github.rohithv16.aem.analyser.core.rules.RuleCatalog;
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
+import picocli.CommandLine.Model.CommandSpec;
 import picocli.CommandLine.Option;
 import picocli.CommandLine.Parameters;
+import picocli.CommandLine.Spec;
 
 import java.io.IOException;
 import java.io.PrintWriter;
@@ -55,6 +57,10 @@ import java.util.TreeSet;
         description = "AEM Code Analyser — cross-boundary dead code, duplication and "
                 + "AEM as a Cloud Service analysis for Adobe Experience Manager projects.")
 public class AnalyserCli implements java.util.concurrent.Callable<Integer> {
+
+    /** The parsed invocation, used to tell "flag given" from "flag has a default value". */
+    @Spec
+    private CommandSpec spec;
 
     @Option(names = {"-p", "--project-root"},
             description = "Project (reactor) root. Default: the current directory, or the "
@@ -527,15 +533,6 @@ public class AnalyserCli implements java.util.concurrent.Callable<Integer> {
 
     private int runAnalysis() throws IOException, ExportException, AnalysisException {
         Path root = validatedProjectRoot();
-        List<ReportFormat> reportFormats = parseFormats();
-        // Validated before the scan: an unknown --group-by is a usage error, not a post-analysis one.
-        ConsoleGroupBy consoleGroupBy = consoleGroupBy();
-        java.time.Clock reportClock = reportClock();
-        validateFailOn();
-        validateNumericOptions();
-        if (collectCoverage) {
-            runCoverageCollection(root);
-        }
         EffectiveConfig effective;
         try {
             effective = loadConfig(root);
@@ -546,6 +543,18 @@ public class AnalyserCli implements java.util.concurrent.Callable<Integer> {
             return EXIT_USAGE;
         }
         AnalyserConfig config = effective.config();
+        // The committed gate is a default layer: it must be resolved before the flags are validated
+        // or the formats chosen, so a run with no flags behaves exactly like the pipeline's.
+        applyConfigGate(config.gate(), effective.source());
+        List<ReportFormat> reportFormats = parseFormats();
+        // Validated before the scan: an unknown --group-by is a usage error, not a post-analysis one.
+        ConsoleGroupBy consoleGroupBy = consoleGroupBy();
+        java.time.Clock reportClock = reportClock();
+        validateFailOn();
+        validateNumericOptions();
+        if (collectCoverage) {
+            runCoverageCollection(root);
+        }
         AnalysisContext context = scopeToChangedFiles(buildContext(root, config), root);
         AnalysisReport report = analyzeAndFilter(context, root);
         report = applyAutoFix(root, context, report);
@@ -609,7 +618,8 @@ public class AnalyserCli implements java.util.concurrent.Callable<Integer> {
         Map<String, AnalyserConfig.RuleOverride> merged = new LinkedHashMap<>(fileConfig.rules());
         Set<String> cliRuleIds = new TreeSet<>();
         applySeverityOverrides(merged, cliRuleIds);
-        AnalyserConfig config = new AnalyserConfig(fileConfig.schemaVersion(), merged, fileConfig.allowlists());
+        AnalyserConfig config = new AnalyserConfig(fileConfig.schemaVersion(), merged,
+                fileConfig.allowlists(), fileConfig.gate());
         warnRetiredRuleIds(config.rules().keySet(), source == null ? "Configuration" : "Configuration " + source);
         return EffectiveConfig.of(config, source, cliRuleIds);
     }
@@ -1015,6 +1025,94 @@ public class AnalyserCli implements java.util.concurrent.Callable<Integer> {
                 && !candidate.equals("NONE")) {
             throw new IllegalArgumentException("Unknown --fail-on severity '" + failOn
                     + "'. Supported values: NONE, ERROR, WARNING, INFO.");
+        }
+    }
+
+    /**
+     * True when the user actually typed one of {@code names}. A flag with a default value cannot be
+     * told from an explicit one by reading the field, so precedence ("flag beats file") is decided
+     * from the parse result instead.
+     */
+    private boolean cliOptionSet(String... names) {
+        CommandLine.ParseResult parseResult =
+                spec == null || spec.commandLine() == null ? null : spec.commandLine().getParseResult();
+        if (parseResult == null) {
+            return false;
+        }
+        for (String name : names) {
+            if (parseResult.hasMatchedOption(name)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Applies the committed {@code gate:} block to this run, field by field: a value the command line
+     * set wins, an absent flag takes the file's value, and an absent field keeps the analyser default.
+     *
+     * <p>A gate only decides pass/fail and where reports go. It never edits rule severities, so a
+     * committed gate cannot reshape the findings it grades.</p>
+     */
+    private void applyConfigGate(AnalyserConfig.Gate gate, String source) {
+        if (gate == null || gate.isEmpty()) {
+            return;
+        }
+        String origin = source == null ? "the project configuration" : source;
+        List<String> applied = new ArrayList<>();
+
+        if (!cliOptionSet("--fail-on") && gate.failOn() != null && !gate.failOn().isBlank()) {
+            String candidate = gate.failOn().strip().toUpperCase(Locale.ROOT);
+            if (!candidate.equals("NONE") && !candidate.equals("ERROR")
+                    && !candidate.equals("WARNING") && !candidate.equals("INFO")) {
+                throw new IllegalArgumentException("Configuration " + origin
+                        + ": gate.failOn must be NONE, ERROR, WARNING or INFO, got '"
+                        + gate.failOn() + "'.");
+            }
+            failOn = candidate;
+            applied.add("failOn=" + candidate);
+        }
+        if (!cliOptionSet("-w", "--fail-on-warning") && gate.failOnWarning() != null) {
+            failOnWarning = gate.failOnWarning();
+            applied.add("failOnWarning=" + failOnWarning);
+        }
+        if (!cliOptionSet("--max-warnings") && gate.maxWarnings() != null) {
+            if (gate.maxWarnings() < 0) {
+                throw new IllegalArgumentException("Configuration " + origin
+                        + ": gate.maxWarnings must be 0 or greater, got " + gate.maxWarnings() + ".");
+            }
+            maxWarnings = gate.maxWarnings();
+            applied.add("maxWarnings=" + maxWarnings);
+        }
+        if (!cliOptionSet("--min-coverage") && gate.minCoverage() != null) {
+            if (gate.minCoverage() < 0 || gate.minCoverage() > 100) {
+                throw new IllegalArgumentException("Configuration " + origin
+                        + ": gate.minCoverage must be between 0 and 100, got "
+                        + gate.minCoverage() + ".");
+            }
+            minCoverage = gate.minCoverage();
+            applied.add("minCoverage=" + minCoverage);
+        }
+        if (!cliOptionSet("--max-duplication") && gate.maxDuplication() != null) {
+            if (gate.maxDuplication() < 0 || gate.maxDuplication() > 100) {
+                throw new IllegalArgumentException("Configuration " + origin
+                        + ": gate.maxDuplication must be between 0 and 100, got "
+                        + gate.maxDuplication() + ".");
+            }
+            maxDuplication = gate.maxDuplication();
+            applied.add("maxDuplication=" + maxDuplication);
+        }
+        if (!cliOptionSet("-f", "--format") && gate.formats() != null && !gate.formats().isEmpty()) {
+            formats = gate.formats();
+            applied.add("formats=" + String.join(",", gate.formats()));
+        }
+        if (!cliOptionSet("-o", "--output") && gate.output() != null && !gate.output().isBlank()) {
+            outputDirectory = Path.of(gate.output().strip());
+            applied.add("output=" + gate.output().strip());
+        }
+        if (!applied.isEmpty()) {
+            progress("[INFO] Quality gate from " + origin + ": " + String.join(", ", applied)
+                    + " (a command-line flag overrides each value).");
         }
     }
 

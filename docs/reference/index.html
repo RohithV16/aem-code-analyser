@@ -188,7 +188,15 @@ allowlists:
   services:
     - com.example.LegacyService
   configPaths:
-    - ui.config/**/config.local/**</code></pre>
+    - ui.config/**/config.local/**
+gate:
+  failOn: WARNING
+  failOnWarning: true
+  maxWarnings: 20
+  minCoverage: 80.0
+  maxDuplication: 3.0
+  formats: [CONSOLE, SARIF]
+  output: target/aem-analyser</code></pre>
       </div>
       <ul>
         <li><code>rules.&lt;ID&gt;.enabled</code> — turn a rule off without touching source.</li>
@@ -197,6 +205,34 @@ allowlists:
         <li><code>allowlists.configPaths</code> — configuration globs the dead-configuration rules ignore.</li>
         <li><code>schemaVersion</code> — configuration format version (currently <code>1</code>).</li>
       </ul>
+      <h3>The <code>gate</code> block</h3>
+      <p>
+        The gate lives in the committed file so <code>aem-analyser .</code> with no flags fails the
+        way the pipeline does — the equivalent of <code>sonar-project.properties</code> for this
+        tool. Every key is optional and independent, and a command-line flag for the same value
+        wins for a one-off run:
+      </p>
+      <div class="table-wrap">
+        <table class="table--compact">
+          <thead><tr><th scope="col">Key</th><th scope="col">Flag it stands in for</th></tr></thead>
+          <tbody>
+            <tr><td class="mono">gate.failOn</td><td><code>--fail-on</code> — <code>NONE</code>, <code>ERROR</code>, <code>WARNING</code> or <code>INFO</code>; any other value exits 2</td></tr>
+            <tr><td class="mono">gate.failOnWarning</td><td><code>-w/--fail-on-warning</code></td></tr>
+            <tr><td class="mono">gate.maxWarnings</td><td><code>--max-warnings</code></td></tr>
+            <tr><td class="mono">gate.minCoverage</td><td><code>--min-coverage</code></td></tr>
+            <tr><td class="mono">gate.maxDuplication</td><td><code>--max-duplication</code></td></tr>
+            <tr><td class="mono">gate.formats</td><td><code>-f/--format</code>, when no <code>-f</code> is given</td></tr>
+            <tr><td class="mono">gate.output</td><td><code>-o/--output</code>, when no <code>-o</code> is given</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="muted">
+        Precedence is per key: a flag on the command line, then the file's <code>gate</code> value,
+        then the analyser default. The block only chooses pass/fail and where reports go; it never
+        changes a rule's severity, so it cannot reshape the findings it grades. The run prints
+        <code>[INFO] Quality gate from .aem-analyser.yml: failOn=WARNING …</code> on stderr when the
+        block applied.
+      </p>
     </section>
 
     <section id="baseline">

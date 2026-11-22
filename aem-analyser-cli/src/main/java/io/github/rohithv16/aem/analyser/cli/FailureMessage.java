@@ -82,7 +82,7 @@ final class FailureMessage {
         }
         if (field != null && !field.isBlank()) {
             return "Could not read configuration " + name + ": unexpected setting '" + field
-                    + "'. Allowed top-level keys are schemaVersion, rules and allowlists.";
+                    + "'. Allowed top-level keys are schemaVersion, rules, allowlists and gate.";
         }
         return "Could not read configuration " + name + ": " + describeParseProblem(failure)
                 + ". Fix " + name + " and rerun.";
