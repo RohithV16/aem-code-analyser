@@ -30,6 +30,14 @@ All notable changes to this project are documented here. The format follows
   generated rule catalogue (`docs/rules/`), which the site links to instead of repeating 30 rows on
   the landing page.
 
+### Fixed
+
+- **AEM-QUAL-004 no longer fails the gate on project types named `Node`, `Session`, `PageManager`,
+  `ResourceResolver`, `QueryBuilder`, `AssetManager` or `TagManager`.** Field types are already
+  fully-qualified by the parser, so the rule now matches the exact product FQNs, excludes every type
+  the project declares itself, and only falls back to a bare simple name when the type could not be
+  resolved. Product-library types are still caught via their package prefix.
+
 ## [1.0.8] — 2026-11-16
 
 ### Changed
