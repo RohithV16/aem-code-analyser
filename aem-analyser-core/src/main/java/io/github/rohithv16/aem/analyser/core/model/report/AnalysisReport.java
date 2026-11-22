@@ -22,6 +22,8 @@ import java.util.TreeMap;
  *                        count only actionable findings. Exporters that can express a suppressed
  *                        result (SARIF) emit them so the report shows "N exist, N accepted"
  *                        instead of pretending the code is clean.
+ * @param phaseMillis     wall-clock millis per phase, in run order (empty when unmeasured)
+ * @param cacheSummary    parse-cache hit/miss line, or {@code null} when caching was off
  */
 public record AnalysisReport(Path projectRoot,
                              Map<String, Integer> scanStatistics,
@@ -31,7 +33,9 @@ public record AnalysisReport(Path projectRoot,
                              CodeMetrics codeMetrics,
                              List<AnalysisDiagnostic> diagnostics,
                              GateVerdict gateVerdict,
-                             List<Violation> acceptedViolations) {
+                             List<Violation> acceptedViolations,
+                             Map<String, Long> phaseMillis,
+                             String cacheSummary) {
 
     public AnalysisReport(Path projectRoot,
                           Map<String, Integer> scanStatistics,
@@ -70,11 +74,14 @@ public record AnalysisReport(Path projectRoot,
                           List<AnalysisDiagnostic> diagnostics,
                           GateVerdict gateVerdict) {
         this(projectRoot, scanStatistics, violations, durationMillis, coverageReport, codeMetrics,
-                diagnostics, gateVerdict, List.of());
+                diagnostics, gateVerdict, List.of(), Map.of(), null);
     }
 
     public AnalysisReport {
         projectRoot = projectRoot.toAbsolutePath().normalize();
+        phaseMillis = Collections.unmodifiableMap(new java.util.LinkedHashMap<>(
+                phaseMillis == null ? Map.of() : phaseMillis));
+        cacheSummary = cacheSummary == null || cacheSummary.isBlank() ? null : cacheSummary;
         scanStatistics = Collections.unmodifiableMap(new TreeMap<>(
                 scanStatistics == null ? Map.of() : scanStatistics));
         violations = List.copyOf(violations == null ? List.of() : violations);
@@ -105,23 +112,41 @@ public record AnalysisReport(Path projectRoot,
 
     public AnalysisReport withViolations(List<Violation> newViolations) {
         return new AnalysisReport(projectRoot, scanStatistics, newViolations, durationMillis,
-                coverageReport, codeMetrics, diagnostics, gateVerdict, acceptedViolations);
+                coverageReport, codeMetrics, diagnostics, gateVerdict, acceptedViolations,
+                phaseMillis, cacheSummary);
     }
 
     /** Returns a copy carrying a different accepted-findings list; the gate-visible list is unchanged. */
     public AnalysisReport withAcceptedViolations(List<Violation> newAcceptedViolations) {
         return new AnalysisReport(projectRoot, scanStatistics, violations, durationMillis,
-                coverageReport, codeMetrics, diagnostics, gateVerdict, newAcceptedViolations);
+                coverageReport, codeMetrics, diagnostics, gateVerdict, newAcceptedViolations,
+                phaseMillis, cacheSummary);
     }
 
     public AnalysisReport withDiagnostics(List<AnalysisDiagnostic> newDiagnostics) {
         return new AnalysisReport(projectRoot, scanStatistics, violations, durationMillis,
-                coverageReport, codeMetrics, newDiagnostics, gateVerdict, acceptedViolations);
+                coverageReport, codeMetrics, newDiagnostics, gateVerdict, acceptedViolations,
+                phaseMillis, cacheSummary);
     }
 
     /** Returns a copy carrying the verdict of the effective gate for this run. */
     public AnalysisReport withGateVerdict(GateVerdict verdict) {
         return new AnalysisReport(projectRoot, scanStatistics, violations, durationMillis,
-                coverageReport, codeMetrics, diagnostics, verdict, acceptedViolations);
+                coverageReport, codeMetrics, diagnostics, verdict, acceptedViolations,
+                phaseMillis, cacheSummary);
+    }
+
+    /** Returns a copy carrying per-phase wall-clock millis, in run order. */
+    public AnalysisReport withPhaseMillis(Map<String, Long> newPhaseMillis) {
+        return new AnalysisReport(projectRoot, scanStatistics, violations, durationMillis,
+                coverageReport, codeMetrics, diagnostics, gateVerdict, acceptedViolations,
+                newPhaseMillis, cacheSummary);
+    }
+
+    /** Returns a copy carrying the parse-cache hit/miss line, or {@code null} when caching is off. */
+    public AnalysisReport withCacheSummary(String newCacheSummary) {
+        return new AnalysisReport(projectRoot, scanStatistics, violations, durationMillis,
+                coverageReport, codeMetrics, diagnostics, gateVerdict, acceptedViolations,
+                phaseMillis, newCacheSummary);
     }
 }
